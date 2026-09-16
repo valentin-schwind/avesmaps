@@ -41,6 +41,7 @@ $rumpf = substr($quelle, $start);
 // ⚠️ Was der Rumpf sonst noch ruft, kommt aus den echten Bibliotheken -- nachgebaute Attrappen
 // koennten den Fehler verdecken, den der Test sucht.
 require_once $wurzel . '/api/_internal/audit-detail.php';
+require_once $wurzel . '/api/_internal/map/audit-path-group.php';
 if (!function_exists('avesmapsCanUndoAuditAction')) {
     eval('function avesmapsCanUndoAuditAction(string $action): bool { return false; }');
 }

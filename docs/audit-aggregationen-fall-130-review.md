@@ -1,0 +1,149 @@
+# Fall #130: Audit-Aggregationen – Review und Bauplan
+
+Stand: 16.09.2026. Quellstand: `52d80a76d24dd316833fc027fb2a3f1dd4ec2d68`.
+Anlass: Discord-Fall #130 von Valentin, „Audit-Aggregationen“.
+
+## Umsetzung des ersten Ausbaus
+
+Der Wege-Pilot verwendet bewusst **einen atomaren Sammelbeleg** statt einer neuen Tabelle: Dieser Schreibweg ist schon ein einzelner begrenzter Request mit einer Transaktion. Versionierte Mitglieder in Vorher/Nachher enthalten alle tatsächlich geänderten Abschnitte, aber keine unveränderten Geometriekopien. Dadurch zählen bestehender Personenfilter und Aufräumer einen Vorgang, und kein Aufräumen kann einzelne Mitglieder entfernen. Die unten beschriebene Operationstabelle bleibt ein Entwurf für mehrstufige und domänenübergreifende Aufträge; sie ist nicht Bestandteil dieses Piloten.
+
+Umgesetzt: Wegegruppe speichern, gemeinsam rückgängig machen, einmal gemeinsam wiederherstellen; gleiche Detailspalten-Konfliktprüfung wie beim Einzelweg, Bearbeitungssperren, feste Sperrreihenfolge und gemeinsame Revision. Die Antwort nennt entfernte Eigenschaften ausdrücklich. Der Client übernimmt erst alle Abschnitte und aktualisiert anschließend Darstellungen und Planer; kein alter JSON-Schlüssel bleibt lokal stehen.
+
+Speichergrenzen des Piloten: höchstens 250 Mitglieder und 512 KiB für das gesamte Vorher/Nachher-Paar. Zusätzlich maximal 8 MiB Gruppenbelege je Person und 32 MiB global; Einzelbelege der anderen Aktionen behalten ihre bisherigen Grenzen. Die Bytequoten entfernen die ältesten **ganzen** Gruppen. Deshalb können weniger als 200 Vorgänge erhalten bleiben; die Grenze ist ein Maximum, keine Aufbewahrungsgarantie. Die Quoten werden einmal pro Gruppenbeleg geprüft und übertragen nur IDs und Bytezahlen. Der Listenabruf entfernt `members` bereits in SQL aus beiden JSON-Feldern.
+
+Lokal geprüft: vollständige Schreib-/Undo-/Redo-Abläufe mit 1, 27 und 250 Mitgliedern, Konflikt/Sperre am letzten Mitglied, beschädigte Belege, Größenüberschreitung, Rollback beim letzten Update, verschiedene Akteure, Personen-/Globalquota sowie entfernte Eigenschaften und genau eine Planeraktualisierung. Zusätzlich echter MySQL 8.0: 250er-Speicherung rund 175 ms, Undo rund 287 ms, Listenantwort rund 499 Bytes an der kleinen Fixture; eine fremde InnoDB-Zeilensperre führt zum vollständigen Rollback. Das sind lokale Messungen, keine STRATO-Leistungszusagen.
+
+Browserprüfung an einer eigenen lokalen MySQL-Fixture mit Original-Verlaufsdarstellung und Original-Rücknahmefunktionen: Gruppe speichern, Verlauf aufklappen, 27 Abschnitte gemeinsam zurücknehmen und wiederherstellen. Die Fixture ersetzt die Produktionsanmeldung und Teile der Kartenumgebung; sie ist kein vollständiger Live-Abnahmelauf. Im Workflow-Testfeld unter Linux/LF blieb bei 402 PHP- und 515 JS-Dateien nur der bereits bekannte externe DNS-Test rot; Windows/Bash-Pfadfehler entfielen unter Linux.
+
+Abnahmepunkte aus dem Entwurf: Gruppenvollständigkeit, Grenzen, Konflikte, feste Sperren, Transaktion, Redo, Akteurszuordnung und schlanker Listenabruf sind für den Piloten umgesetzt und geprüft. Große Importe, Landschaftshärtung, gemeinsame Operationstabelle, neue Detail-Nachladeendpunkte und domänenübergreifende Rücknahmen sind ausdrücklich spätere Ausbaustufen. Strg-Z bleibt unverändert. Die Oberfläche verwendet das bestehende Raster; die Wiederherstellung heißt ausdrücklich „Wegegruppe wiederhergestellt“.
+
+Auslieferungsprüfung: Der Pilot wurde isoliert auf `801493bd2` übernommen. Dort wurden alle 446 PHP- und 635 JavaScript-Testdateien unter Linux mit LF ausgeführt; einzig der bekannte externe DNS-Test blieb rot. Ein inzwischen ergänzter Clienttest musste seinen Funktionsausschnitt unabhängig von der erweiterten Parameterliste finden; seine fachlichen Assertions bleiben unverändert. Auch auf diesem Stand bestanden die echten MySQL-Abläufe mit 1/27/250 Mitgliedern und dem gesperrten letzten Abschnitt. Hell-/Dunkelansicht, Wiederherstellung und Kartensprung aus dem Sammelbeleg wurden in der lokalen Browser-Fixture geprüft.
+
+## Ergebnis
+
+Sammel-Undos sind machbar. Der erste geeignete Anwendungsfall ist die Bearbeitung einer Wegegruppe. Eine reine Zusammenfassung der Anzeige reicht nicht: Gruppenzugehörigkeit, Vollständigkeit, Konfliktprüfung und Aufbewahrung müssen gemeinsam umgesetzt werden. Die Einzeländerungen bleiben als Belege erhalten; eine Operation verbindet sie.
+
+Es gibt bereits zwei Vorbilder: Landschaften gruppieren Audit-Zeilen über `operation_id`; politische Geometrieoperationen speichern mehrere Objekte in einem Audit-Eintrag. Beide decken jeweils nur ihren Bereich ab. Die Landschaftslösung sollte wegen ihrer unten genannten Schutzlücken nicht unverändert auf alle Bereiche übertragen werden.
+
+Die folgende Bestandsaufnahme entstand durch statische Codeprüfung und Abruf des Falls. Dabei wurden keine Produktionsdaten verändert und keine produktiven Rücknahmen, Datenbankgrößen oder Laufzeiten geprüft. Die anschließend ausgeführten lokalen Prüfungen des Piloten stehen oben. Die nachstehende Inventur unterscheidet direkt geeignete Schreibwege von Erweiterungskandidaten. Eine vollständige Aussage über sämtliche Nebenwirkungen aller Import- und Sync-Zweige erfordert deren gesonderte Prüfung vor der jeweiligen Umsetzung.
+
+## Bestehende Architektur und Befunde
+
+### Karte
+
+- `api/_internal/map/features.php:2824`, `avesmapsUpdatePathGroupDetails`: bis zu **250 Abschnitte**, eine Transaktion, eine gemeinsame Kartenrevision, aber je geschriebenem Abschnitt ein `update_path_details`-Audit. `via_path_group` nennt nur die Anzahl und ist keine eindeutige Vorgangskennung.
+- `features.php:509`, `avesmapsUndoAuditChange`: sperrt Audit und Objekt, prüft Bearbeitbarkeit, vergleicht die betroffenen Spalten mit dem Nachher-Zustand und schreibt einen Gegenbeleg. Die Funktion besitzt selbst die Transaktion und kann daher nicht einfach innerhalb einer äußeren Sammeltransaktion aufgerufen werden.
+- Der Konfliktvergleich arbeitet auf Spaltenebene. Bei `properties_json` führt auch eine inzwischen geänderte andere Eigenschaft derselben JSON-Spalte zur Ablehnung. Das ist konservativ, aber sicherer als das Überschreiben fremder Änderungen. Eine spätere feinere Feldprüfung wäre ein eigener Umbau.
+- Die Karte unterstützt einmaliges Wiederherstellen durch Rücknahme eines `undo_`-Eintrags; `undo_undo_` ist nicht erneut rücknehmbar. Diese bestehende Grenze muss auch bei Gruppen ausdrücklich gelten.
+- **Zwei zentrale Kartenschreiber**: `avesmapsWriteMapAuditLog` und `avesmapsWikiSyncWriteMapAuditLog` in `api/_internal/wiki/locations-helpers.php:210`. Beide müssen dieselbe Operationszuordnung und Aufräumpolitik erhalten. Zusätzlich gibt es direkte Audit-INSERTs, etwa für Meldungen; ein Umbau nur des ersten Schreibers ist unvollständig.
+
+### Landschaften
+
+- `api/_internal/app/ecosystem.php:1975`: übernimmt eine vom Client gelieferte Kennung und Beschriftung für den Aufruf. `js/map-features/map-features-ecosystem-region-store.js:54` verbindet mehrere Requests einer Geste.
+- `ecosystem.php:5045`: liest Audit-Zeilen und gruppiert sie anschließend. Damit ist die Begrenzung der gelesenen Zeilen noch keine Begrenzung auf vollständige Operationen.
+- `ecosystem.php:5342`: lädt eine Operation und nimmt ihre Zeilen in umgekehrter Reihenfolge innerhalb einer Transaktion zurück.
+- **Konfliktschutz fehlt hier gegenüber der Kartenlösung:** `avesmapsEcosystemRestoreAuditRow` schreibt alte Werte zurück, ohne zuvor für die betroffenen Objekte den aktuellen Stand gegen `after_json` zu prüfen. Die vorgelagerte Prüfung betrifft nur Rücknahmestatus und unterstützte Aktionsarten. Spätere Änderungen können dadurch überschrieben werden.
+- Die Gruppenauswahl erfolgt nur über `operation_id`, ohne zusätzliche Bindung an den ursprünglichen Akteur. UUID-Syntaxprüfung ersetzt keine serverseitige Zuordnung zu Konto, Operationstyp und Abschlusszustand.
+- Eine gemeinsame Kennung macht mehrere ursprüngliche Requests nicht atomar. Ein abgebrochener Vorgang kann bereits gespeicherte Teiländerungen hinterlassen. Ein Gruppenkopf muss das sichtbar unterscheiden.
+
+### Herrschaftsgebiete
+
+- `api/_internal/political/territories-audit.php:361`: eine Rücknahme kann mehrere Geometrien und Territorien aus einem Snapshot wiederherstellen; aktuelle Snapshots werden verglichen, Änderungen erfolgen transaktional.
+- `territories-audit.php:289`: nur die freigegebenen Geometrieaktionen sind rücknehmbar. Politische `undo_`-Einträge sind nicht erneut rücknehmbar. Nicht stillschweigend das Karten-Redo auf diese Domäne übertragen.
+- Ableitungs- und Hard-Delete-Protokolle sind nicht automatisch rücknehmbar. Insbesondere abgeleitete Außengrenzen liegen nicht in derselben Tabelle wie die vom Geometrie-Undo bedienten Originale.
+
+### Aufbewahrung und individuelle Historien
+
+`api/_internal/audit-prune.php` begrenzt auf **200 physische Audit-Zeilen pro Person über alle drei Protokolle zusammen**. Systemakteure `0` und `NULL` bilden einen gemeinsamen Topf. Globale Unfallbremsen: Karte 10.000, Landschaften 4.000, Politik 3.000 Zeilen.
+
+**Konkreter Widerspruch:** Eine Wegegruppe darf 250 Abschnitte umfassen, die Historie derselben Person aber nur 200 Zeilen. Weil nach jeder Audit-Schreibung aufgeräumt wird, kann eine tatsächlich 250 Änderungen erzeugende Operation ihre eigenen ersten Belege bereits während des Schreibens verlieren. Das folgt aus den Codegrenzen; es ist keine Messung eines konkreten Live-Vorgangs.
+
+Auch das Schreiben von Gegenbelegen beim Undo konkurriert mit den Originalen um dieses Budget. Eine gruppierte Oberfläche darf deshalb nie aus einer verbliebenen Teilmenge eine vollständig rücknehmbare Operation ableiten.
+
+Der Personenfilter steuert die Anzeige, nicht die Rücknahmeberechtigung. Der Kartenverlauf benötigt `review` zum Lesen und bietet Rücknahmen bei `edit`; der Schreibweg prüft zusätzlich die Bearbeitbarkeit. Eine neue Operationskennung darf diese bestehenden Prüfungen nicht umgehen. Ursprünglicher Akteur und rücknehmender Akteur bleiben getrennt dokumentiert.
+
+## Inventur der Sammelaktionen
+
+| Bereich und Einstieg | Heutiges Verhalten / Nutzen | Einordnung |
+|---|---|---|
+| Wegegruppe: `avesmapsUpdatePathGroupDetails` | Viele gleichartige Belege in einer Transaktion; Name, Typ, Anzeige und Verkehrsmittel | **Erster Ausbau**; klare Operationsgrenze |
+| Saisonfenster: `avesmapsApplyTransportSeasonsToWikiSiblings` | Eine Detailänderung pflanzt sich auf Geschwisterabschnitte fort | Hoher Nutzen; Ursprungsabschnitt und Weitergabe gemeinsam erfassen |
+| Kraftlinien: `avesmapsUpdatePowerlineLine`, `avesmapsReorderPowerlineLine` | Eine Linienaktion schreibt mehrere Abschnitte; Umordnung kann Bestand und Geometrie verändern | Hoher Nutzen; vollständige Aktionsfolge und Abhängigkeiten zuerst prüfen |
+| Wiki-Wege: `avesmapsWikiPathAssign`, `AssignTo`, `ClearAssign`, `AssignAll` in `wiki/paths.php` | Zuweisung/Lösen betrifft mehrere Segmente; Audit über Wiki-Schreiber | Pro Benutzerauftrag gruppieren, nicht bloß nach Artikel oder Zeit |
+| Wegverlauf: `avesmapsWikiPathVerlaufApplyCaseWithContext`, `ApplyCleanCases` | Ein Verlauf betrifft mehrere Zuordnungen; weitere Ableitungen folgen | Erst Nebenwirkungen und Transaktionsgrenzen aufnehmen |
+| Siedlungen: `BulkConnect`, `BulkAssignTerritories`, `BulkRecordRuins`, `BulkRecordCoats` in `wiki/settlements.php` | Unterschiedliche Sammelschreiber; Zuweisungen besitzen Audit-Helfer | Gute Kandidaten; Audit-Abdeckung jeder Variante separat schließen |
+| Regionen: `avesmapsWikiRegionAssignAll` in `wiki/regions.php` | Mehrere Beschriftungen / Zuweisungen, Wiki-Audit | Gruppierbar; gebundene Landschaften mitprüfen |
+| Landschaften: Malen, Radieren, Verschmelzen, Zerschneiden | `withEcosystemOperation` ist bereits an Pinsel und Geometrieoperationen angebunden | Bestehende Aggregation härten statt doppelt bauen |
+| Landschaften: Löschen/Kaskaden, `PushRegionDataToLabelsAll` und Unterfunktionen | Region, Flächen und Kartenbeschriftungen können gemeinsam betroffen sein | Domänenübergreifende Abhängigkeiten; eigene Ausbaustufe |
+| Politische Geometrie: Teilen, boolesche Operationen, Löschen | Mehrere Objekt-Snapshots bereits in einem Beleg | Vorhandene Semantik bewahren, einheitlich anzeigen |
+| Politische gemeinsam verschobene Grenzen | Lokaler Undo-Schritt enthält mehrere Regionen; Speicherung einzeln | Geste als Operationsgrenze; unabhängige HTTP-Transaktionen beachten |
+| Garetien: `avesmapsGaretienApplyStep`, `avesmapsGaretienUebernehmen` in `import/garetien-uebernahme.php` | Wiederaufnehmbare Übernahme mit verschiedenen Karten-/Landschaftsschreibern und Quellenarbeit | Lauf anzeigen, zunächst nur klar begrenzte Teiloperationen rücknehmbar machen |
+| Wiki-Sync-Plan und Sync-Monitor | Ausgewählte Übernahmen, Löschungen und mehrstufige Läufe | Sammelprotokoll ist teilweise schon vorhanden; kein allgemeines Undo allein daraus ableiten |
+| Sammlungs-/Meldungsaktionen | `collection-audit.php`, `report-audit.php`; teils nach Commit und best effort protokolliert | Ohne vollständigen atomaren Vorher-Zustand nur Nachweis, kein Sammel-Undo |
+| Reisewerte, Zoombänder, Landschaftsdarstellung | `travel-values.php`, `zoom-bands.php`, `ecosystem-display.php` protokollieren bereits ganze Einstellungen | Keine Zeilenflut; Rücknehmbarkeit wäre ein eigener Adapter |
+| Quellenabgleich, Publikationsabgleich, technische Reparaturen, Medienabrufe und Import-Staging | Große Läufe, teils externe Effekte oder nicht in diesen drei Undo-Protokollen repräsentierte Daten | Nicht pauschal einschließen; eigene reversible Zustände und Grenzen nachweisen |
+
+Die letzten Kategorien sind bewusst keine Zusage, ihre Aktionen seien bereits rücknehmbar. Ein zusammenfassender Beleg enthält nicht automatisch die Daten für eine inverse Operation.
+
+## Zielmodell
+
+Eine kleine Tabelle `audit_operation` ergänzt die bestehenden Protokolle. Sie hält Identität, ursprünglichen Akteur, fachlichen Operationstyp, Beschriftung, Status, Anzahl und Bytegewicht der Mitglieder sowie Verknüpfungen zur Rücknahme/Wiederherstellung. Die drei Protokolle referenzieren den Kopf; Snapshots werden **nicht zusätzlich im Kopf dupliziert**.
+
+Für neue serverseitige Sammelbefehle entsteht die Kennung im Server. Bei mehreren Requests bindet der Server die Client-Kennung an das authentifizierte Konto und den Auftrag; abgeschlossene Operationen nehmen keine weiteren Mitglieder an. Ein serverseitiger Sequenzwert ordnet Mitglieder auch über Tabellen hinweg. Zeitstempel und tabellenlokale IDs reichen dafür nicht.
+
+Sinnvolle Zustände: `open`, `complete`, `partial`, `undone`, `expired`. Ein Verbindungsabbruch bedeutet nicht automatisch `complete`. Erwartete und tatsächlich gespeicherte Mitglieder werden unterschieden. Idempotenz pro Teilauftrag verhindert doppelte Writes nach einem Retry; eine UUID allein verhindert sie nicht.
+
+Einzelaktionen ohne Kennung bleiben Einzelaktionen. Historische Belege werden nicht anhand ähnlicher Zeitstempel oder Namen nachträglich zusammengefasst. Für bereits existierende Landschaftskennungen lässt sich die ursprüngliche Vollständigkeit nach früherem Pruning nicht zuverlässig rekonstruieren; solche Altgruppen dürfen keine neue Vollständigkeitsgarantie erhalten.
+
+## Rücknahmeablauf
+
+1. Optional eine lesende Vorschau mit Anzahl, betroffenen Objekten und bereits erkennbaren Hindernissen laden. Die Vorschau ist keine Schreibfreigabe und reserviert nichts.
+2. In einem POST Berechtigung prüfen und eine Transaktion eröffnen; Operationskopf sperren und Abschluss, Vollständigkeit und Rücknahmestatus prüfen.
+3. Alle Mitglieder und betroffenen Fachobjekte in fester Reihenfolge sperren. Mehrfachänderungen desselben Objekts in umgekehrter Operationsreihenfolge auswerten; nicht jede ältere Zwischenstufe gegen denselben heutigen Zustand vergleichen.
+4. Sämtliche Konflikt-, Namens-, Sperr- und Abhängigkeitsprüfungen ausführen. Bei einem Konflikt die ganze Rücknahme abbrechen. Keine still übersprungenen Mitglieder.
+5. Inverse Änderungen über transaktionslose interne Domänenfunktionen anwenden. Bestehende öffentliche Einzel-Undo-Funktionen bleiben Transaktionsbesitzer ihrer eigenen Requests und dürfen nicht verschachtelt aufgerufen werden.
+6. Eine neue Gegenoperation mit dem rücknehmenden Akteur und ihren Belegen schreiben, Originale markieren, relevante Revisionen erhöhen und committen. Originalaktion und Rücknahme müssen anschließend unabhängig zuordenbar bleiben.
+7. Betroffene Karten-/Landschafts-/Politikdaten einmal aktualisieren. Keine vollständige Neuladung je Kindzeile.
+
+DDL gehört vor die Transaktion. Externe Wiki-, Bild- oder Netzwerkabrufe gehören nicht in die Rücknahme. Ein Wiederherstellen bekommt die gleichen Konfliktprüfungen; es ist im ersten Ausbau nur dort verfügbar, wo der vorhandene Kartenvertrag es unterstützt.
+
+## Serverlast und Speicher
+
+- Die vorhandenen Aufräumer laufen bei beiden Kartenschreibern nach **jedem** Kindbeleg. Bei einer Gruppe soll die Aufbewahrung einmal am Operationsabschluss geprüft werden. Offene Operationen benötigen trotzdem harte Größen-/Laufzeitgrenzen und eine begrenzte Bereinigung, damit ein abgebrochener Auftrag nicht unbegrenzt Daten hält.
+- Ein Sammel-Undo benötigt einen Request statt N Requests, aber weiterhin ungefähr O(N) Datenprüfungen und Writes. Es beseitigt wiederholte Initialisierung und Reloads, nicht die fachliche Arbeit.
+- Indexe: Operationskopf nach `(actor_user_id, created_at, id)`, Mitglieder nach `(operation_id, sequence)`; bestehende Objektindexe nutzen. Mitglieds- und Bytezähler beim Schreiben pflegen, nicht bei jedem Listenabruf alle JSON-Daten summieren.
+- Listen liefern kleine Operationszusammenfassungen; Kinddetails werden begrenzt nachgeladen. Gruppieren muss **vor** Pagination stattfinden. Personenfilter, Zähler und Liste müssen dieselbe Einheit zählen.
+- Die dokumentierten alten Größen von etwa 2 KB je Karten- und 40 KB je Landschaftsbeleg sind nur Planungswerte aus August. Beispiel: 200 Operationen × 100 Kinder × 40 KB wären ungefähr **800 MB je Person**. Bloße Gruppierung spart keine Snapshot-Bytes.
+- Daher: höchstens 200 sichtbare Vorgänge je Person als vorgeschlagene neue Obergrenze, zusätzlich begrenzte Snapshot-Bytes und Mitglieder je Person und global. Diese Änderung von „200 Zeilen“ zu „200 Vorgängen“ ist eine bewusste Produktentscheidung, keine automatische Folge des Datenmodells.
+- Retention entfernt komplette abgeschlossene Operationen, niemals beliebige Kinder. Große Löschmengen dürfen intern portioniert werden, müssen aber vorher die gesamte Operation als nicht mehr rücknehmbar markieren. Ein kleiner verbleibender Hinweis „Rücknahme abgelaufen“ braucht selbst eine Aufbewahrungsgrenze.
+- Für den Wege-Piloten die vorhandenen 250 Segmente als Obergrenze beibehalten; zusätzlich Snapshot-Bytegrenze setzen. Konkrete Byte-/Zeitbudgets erst anhand aktueller Daten und STRATO-Messungen festlegen. Große Importläufe bleiben in begrenzte Teiloperationen untergliedert; keine minutenlange Alles-oder-nichts-Transaktion versprechen.
+- Snapshot-Kompression oder Feld-Patches nicht mit dem ersten Ausbau vermischen. Sie ändern Wiederherstellung und Konfliktvergleich und benötigen eine eigene Versionierung und Migration.
+
+## Audit gegenüber Strg-Z
+
+Audit-Rücknahme ist eine ausdrücklich gewählte, persistierte Korrektur eines benannten Vorgangs. Sie kann nach einem Reload erfolgen und muss spätere Änderungen anderer Editoren respektieren.
+
+Strg-Z bleibt bei den lokalen Bearbeitungsschritten: Landschaftsecken, Pinsel und politische Geometriesitzung. `map-features-ecosystem-edit.js:875` stellt lokalen Zustand wieder her und löst bei bereits gespeichertem Zustand eine normale neue Speicherung aus. `map-features-region-geometry-undo.js` erfasst auch mitbewegte Nachbarregionen. Texteingaben behalten ihr eigenes Undo.
+
+`review-panels-change-log.js:1092` dokumentiert ausdrücklich die Entfernung des globalen Audit-Strg-Z. Der neue Sammelknopf darf diese Trennung nicht wieder aufheben. Ein lokaler Undo-Write gehört zu einer neuen Korrekturoperation, nicht als nachträgliches Mitglied zur bereits abgeschlossenen Originaloperation.
+
+## Baufolge und Abnahme
+
+1. **Gemeinsame Grundlage:** Schema, Operationskontext, beide Kartenschreiber und direkte Schreiber inventarisieren/abgrenzen; gruppensichere Retention, Zähler und abgelaufene Operationen. Alte Einzelbelege bleiben lesbar.
+2. **Wege-Pilot:** `update_path_group_details` bekommt einen vollständigen Operationskopf. Karten-Undo in Transaktionshülle und interne Rücknahme zerlegen. Eintrag „Weg bearbeitet – 27 Abschnitte“ mit Details und gemeinsamem Rücknahmeknopf. Bestehendes Karten-Redo als Gruppe erhalten.
+3. **Nahe Kartenfälle:** Saisonweitergabe und Kraftlinien; anschließend Wiki-Wege/-Regionen/-Siedlungen nach Prüfung ihrer Nebenwirkungen. Jeden sichtbaren Ausbau einzeln ausliefern und abnehmen.
+4. **Landschaften härten:** aktueller Zustand gegen Nachher-Snapshot, Akteursbindung, Abschlusszustand und Vollständigkeit; danach vorhandene Gesten an gemeinsame Köpfe anbinden.
+5. **Domänenübergreifende Fälle:** Beschriftungskaskaden, Garetien und ausgewählte Sync-Läufe mit eigenen Adaptern und begrenzten Teiloperationen. Nicht rücknehmbare Bestandteile offen kennzeichnen.
+
+Erforderliche Verifikation vor Auslieferung:
+
+- 1, 27 und 250 tatsächlich geänderte Wegabschnitte; No-op-Speicherung erzeugt keinen leeren Vorgang.
+- Ein einzelner Konflikt oder eine fremde Objektsperre verhindert jede Teilrücknahme; auch Mehrfachänderungen desselben Objekts funktionieren in richtiger Reihenfolge.
+- Zwei Editoren, gleiche Zeitstempel, gleiche/fremde Client-Kennung, Doppelklick und Retry: keine vermischten oder doppelten Operationen.
+- Fehler beim letzten Kind, Abbruch vor Abschluss und fehlendes Mitglied: kein unberechtigtes „vollständig“ und keine halbe Rücknahme.
+- Aufbewahrung über alle drei Protokolle, Systemakteure 0/NULL, Original plus Gegenbeleg, Bytebudget und Löschportionierung: keine zerrissenen rücknehmbaren Gruppen.
+- MySQL-Integration mit Transaktionen und Sperren; SQLite allein belegt weder Sperrverhalten noch MySQL-Kompatibilität.
+- Echte Oberfläche: Wegegruppe speichern, Verlauf öffnen, Gruppe aufklappen, rückgängig machen, Karte prüfen, wiederherstellen; anderer Editor und Personenfilter; Strg-Z in Textfeld und Geometriesitzung.
+- Requestzahl, SQL-Zahl, Snapshot-Bytes und Laufzeit für die Obergrenze messen. Vor Push das gesamte Testfeld nach den Workflow-Mustern fahren; Prüfagenten und getrennte Live-Abnahme nach AGENTS.md einplanen.
+
+**Empfehlung:** zuerst gemeinsame Aufbewahrung plus Wege-Pilot. Eine umfassende, universelle Rücknahme aller Importe im ersten Schritt wäre wegen der unterschiedlichen Datenmodelle und Transaktionsgrenzen erheblich riskanter und für den gemeldeten Alltagsfall nicht nötig.

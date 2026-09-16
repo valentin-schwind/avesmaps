@@ -41,9 +41,18 @@ final class AvesmapsWegeGruppeTestPdo extends PDO
     public function prepare(string $query, array $options = []): PDOStatement|false
     {
         $query = str_replace('FOR UPDATE', '', $query);
+        $query = str_replace('CURRENT_TIMESTAMP(3)', 'CURRENT_TIMESTAMP', $query);
         $query = str_replace('NOW(3)', "datetime('now')", $query);
 
         return parent::prepare($query, $options);
+    }
+
+    public function query(string $query, ?int $fetchMode = null, mixed ...$fetchModeArgs): PDOStatement|false {
+        if (str_starts_with($query, 'SHOW COLUMNS FROM ')) {
+            $query = "SELECT name AS Field FROM pragma_table_info('map_audit_log')";
+        }
+
+        return parent::query($query, $fetchMode, ...$fetchModeArgs);
     }
 
     public function exec(string $statement): int|false
@@ -68,7 +77,8 @@ $pdo->exec('CREATE TABLE map_features (
 $pdo->exec('CREATE TABLE map_revision (id INTEGER PRIMARY KEY, revision INTEGER)');
 $pdo->exec('CREATE TABLE map_audit_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT, feature_id INTEGER NULL, action TEXT,
-    actor_user_id INTEGER, before_json TEXT, after_json TEXT
+    actor_user_id INTEGER, before_json TEXT, after_json TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP, undone_at TEXT, undone_by INTEGER, undo_audit_id INTEGER
 )');
 $pdo->exec('CREATE TABLE map_feature_locks (public_id TEXT PRIMARY KEY, user_id INTEGER, username TEXT, locked_until TEXT)');
 
@@ -195,23 +205,25 @@ assert($stand[AVESMAPS_GRUPPE_IDS[3]]['subtype'] === 'Gebirgspass');
 assert((int) $pdo->query('SELECT COUNT(*) FROM map_audit_log')->fetchColumn() === 1,
     'je GESCHRIEBENEM Segment eine Protokollzeile -- nicht je genanntem');
 
-// ── 4) Je Segment eine eigene Protokollzeile, und sie heisst wie die des Einzelweges ──────────
+// ── 4) Ein vollständiger, unteilbarer Sammelbeleg ──────────────────────────────────────────
 $seed($pdo);
 avesmapsUpdatePathGroupDetails($pdo, [
     'public_ids' => $alleDrei,
     'fields' => ['show_label'],
     'show_label' => true,
 ], $user);
-$eintraege = $pdo->query('SELECT feature_id, action, after_json FROM map_audit_log ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
-assert(count($eintraege) === 3, 'drei Segmente, drei Eintraege -- ein Sammelvermerk liesse zwei ausserhalb der Historie');
-foreach ($eintraege as $eintrag) {
-    // 💣 `update_path_details`, nicht ein eigener Name: das Rueckgaengig arbeitet auf Feature-Ebene
-    // und kennt genau diese Aktion (avesmapsUndoColumnsForAuditAction).
-    assert($eintrag['action'] === 'update_path_details', 'die Aktion muss die undobare sein');
-    $nach = json_decode((string) $eintrag['after_json'], true);
-    assert(($nach['via_path_group'] ?? 0) === 3, 'der Eintrag sagt, dass die Weg-Ebene geschrieben hat');
+$eintraege = $pdo->query('SELECT feature_id, action, before_json, after_json FROM map_audit_log ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
+assert(count($eintraege) === 1, 'eine Speicherung ist ein rücknehmbarer Vorgang');
+assert($eintraege[0]['feature_id'] === null, 'die Gruppe gehört nicht nur einem Abschnitt');
+assert($eintraege[0]['action'] === 'update_path_group_details');
+$vor = avesmapsPathGroupAuditMembers(json_decode($eintraege[0]['before_json'], true));
+$nach = avesmapsPathGroupAuditMembers(json_decode($eintraege[0]['after_json'], true));
+assert(count($vor) === 3 && array_keys($vor) === array_keys($nach), 'alle drei Abschnitte sind vollständig belegt');
+foreach ($vor as $id => $member) {
+    assert(!isset($member['properties_json']['show_label']));
+    assert($nach[$id]['properties_json']['show_label'] === true);
+    assert(!array_key_exists('geometry_json', $member), 'unveränderte Geometrien werden nicht dupliziert');
 }
-assert(count(array_unique(array_column($eintraege, 'feature_id'))) === 3, 'je Segment ein eigener Eintrag');
 
 // ── 5) Eine tote oder gestrichene Kennung wird still uebersprungen ────────────────────────────
 $seed($pdo);

@@ -46,7 +46,7 @@ function syncPathRendering() {
 	});
 }
 
-function applyPathFeatureResponse(path, feature) {
+function applyPathFeatureResponse(path, feature, { deferRefresh = false } = {}) {
 	const publicId = feature.id || feature.properties?.public_id || getPathPublicId(path);
 	const displayName = feature.properties?.display_name || feature.properties?.name || getPathDisplayName(path);
 	const pathSubtype = normalizePathSubtype(feature.properties?.feature_subtype || feature.properties?.name || path.properties?.feature_subtype);
@@ -55,6 +55,9 @@ function applyPathFeatureResponse(path, feature) {
 		...path.geometry,
 		coordinates: feature.geometry.coordinates.map(([x, y]) => [x, y]),
 	};
+	for (const key of feature.removed_properties || []) {
+		delete path.properties[key];
+	}
 	path.properties = {
 		...path.properties,
 		...feature.properties,
@@ -63,6 +66,9 @@ function applyPathFeatureResponse(path, feature) {
 		original_name: displayName,
 		feature_subtype: pathSubtype,
 	};
+	if (deferRefresh) {
+		return;
+	}
 	// 💣 HIER landen gespeicherte Eigenschaften auf einem bestehenden Weg -- auch `transport_seasons`
 	// und `allowed_transports`. Ohne dieses Verwerfen bliebe ein frisch gesetztes Fenster unsichtbar,
 	// bis jemand neu lädt, und der Editor hielte das für einen verlorenen Speichervorgang.
@@ -70,6 +76,34 @@ function applyPathFeatureResponse(path, feature) {
 	updatePathLayerGeometry(path);
 	updatePathLayerStyle(path);
 	refreshPathLayerPopup(path);
+	refreshPlannerAfterFeatureChange({ updateRoute: true });
+}
+
+// Erst den ganzen Bestand übernehmen, danach Darstellung und Planer einmal aktualisieren.
+function applyPathGroupAuditResponse(features) {
+	const changed = [];
+	for (const feature of features) {
+		const path = findPathByPublicId(feature.id);
+		if (path) {
+			applyPathFeatureResponse(path, feature, { deferRefresh: true });
+			changed.push({ path, created: false });
+		} else {
+			const added = normalizeRoutePathFeature(feature, getNextLocalPathId());
+			pathData.push(added);
+			changed.push({ path: added, created: true });
+		}
+	}
+	avesmapsWegEinschraenkungNeuRechnen();
+	for (const { path, created } of changed) {
+		if (created) {
+			pathLayers.push(createPathLayer(path));
+		} else {
+			updatePathLayerGeometry(path);
+			updatePathLayerStyle(path);
+			refreshPathLayerPopup(path);
+		}
+	}
+	syncPathVisibility();
 	refreshPlannerAfterFeatureChange({ updateRoute: true });
 }
 

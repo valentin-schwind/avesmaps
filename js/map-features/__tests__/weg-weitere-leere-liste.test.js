@@ -28,7 +28,7 @@ const kontext = vm.createContext({
 	refreshPlannerAfterFeatureChange: () => {},
 });
 vm.runInContext(schneide(lies("js/map-features/map-features-path-lifecycle.js"),
-	"function applyPathFeatureResponse(path, feature) {", "\nfunction removePathFeature"), kontext);
+	"function applyPathFeatureResponse(", "\nfunction removePathFeature"), kontext);
 const merge = vm.runInContext("applyPathFeatureResponse", kontext);
 
 const bp = { wiki_key: "b-renpfad", name: "Bärenpfad", wiki_url: "https://x/B" };

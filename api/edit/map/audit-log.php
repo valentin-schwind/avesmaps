@@ -68,8 +68,10 @@ function avesmapsListMapAuditLog(PDO $pdo, bool $canUndoChanges, array $editorNa
             audit.feature_id,
             audit.action,
             audit.created_at,
-            audit.after_json,
-            audit.before_json,
+            CASE WHEN audit.action IN (\'update_path_group_details\', \'undo_update_path_group_details\', \'undo_undo_update_path_group_details\')
+                THEN JSON_REMOVE(audit.after_json, \'$.members\') ELSE audit.after_json END AS after_json,
+            CASE WHEN audit.action IN (\'update_path_group_details\', \'undo_update_path_group_details\', \'undo_undo_update_path_group_details\')
+                THEN JSON_REMOVE(audit.before_json, \'$.members\') ELSE audit.before_json END AS before_json,
             audit.undone_at,
             audit.undo_audit_id,
             features.public_id,
@@ -116,6 +118,7 @@ function avesmapsNormalizeAuditRow(array $row, bool $canUndoChanges): array {
     return [
         'id' => (int) $row['id'],
         'action' => $action,
+        'member_count' => avesmapsIsPathGroupAuditAction($action) ? (int) ($after['count'] ?? 0) : 0,
         'created_at' => (string) $row['created_at'],
         'username' => (string) ($row['username'] ?? ''),
         // 💣 WER, WENN ES KEIN MENSCH WAR (Befund A39). Die Import-Tuer moderiert mit einem Token;
@@ -137,8 +140,9 @@ function avesmapsNormalizeAuditRow(array $row, bool $canUndoChanges): array {
         'name' => (string) ($row['name'] ?? ($after['name'] ?? $before['name'] ?? '')),
         // Was der Schritt getan hat, in einem Satz -- leer, wenn sich nichts sagen laesst. Die
         // Spaltenliste kommt von der Undo-Seite, damit Zeile und Knopf dasselbe meinen.
-        'detail' => avesmapsMapAuditDetailText($action, $before, $after, avesmapsUndoColumnsForAuditAction($action)),
-        'focus' => avesmapsBuildAuditFocusTarget($row, $before, $after),
+        'detail' => avesmapsIsPathGroupAuditAction($action) ? avesmapsPathGroupAuditDetail($after)
+            : avesmapsMapAuditDetailText($action, $before, $after, avesmapsUndoColumnsForAuditAction($action)),
+        'focus' => avesmapsIsPathGroupAuditAction($action) ? ($after['focus'] ?? null) : avesmapsBuildAuditFocusTarget($row, $before, $after),
     ];
 }
 

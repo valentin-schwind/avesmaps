@@ -359,6 +359,12 @@ function changeLogFilterEntries(entries, selected) {
 }
 
 function formatChangeAction(action) {
+	if (action === "undo_update_path_group_details") {
+		return "Wegegruppe zurückgenommen";
+	}
+	if (action === "undo_undo_update_path_group_details") {
+		return "Wegegruppe wiederhergestellt";
+	}
 	if (String(action || "").startsWith("undo_")) {
 		return `Rückgängig: ${formatChangeAction(String(action).replace(/^undo_/, ""))}`;
 	}
@@ -374,6 +380,7 @@ function formatChangeAction(action) {
 		update_powerline_details: "Kraftlinie geändert",
 		create_path: "Weg erstellt",
 		update_path_details: "Weg geändert",
+		update_path_group_details: "Wegegruppe geändert",
 		update_path_geometry: "Wegverlauf geändert",
 		create_label: "Label erstellt",
 		update_label: "Label geändert",
@@ -836,6 +843,9 @@ function changeLogEntryRow(entry) {
 		const istWiederherstellen = isUndoChangeLogEntry(entry);
 		undoButtonElement.textContent = istWiederherstellen ? "↷" : "↶";
 		undoButtonElement.title = istWiederherstellen ? "Wiederherstellen" : "Rückgängig";
+		if (Number(entry.member_count) > 0) {
+			undoButtonElement.title = `${entry.member_count} Abschnitte gemeinsam ${istWiederherstellen ? "wiederherstellen" : "rückgängig machen"}`;
+		}
 		undoButtonElement.setAttribute("aria-label", undoButtonElement.title);
 		actionsElement.appendChild(undoButtonElement);
 	} else {
@@ -1123,7 +1133,12 @@ async function undoChangeLogEntry(entry) {
 			scheduleEcosystemAreaReload?.({ immediate: true });
 		} else {
 			const result = await undoMapAuditChange(Number(entry.id));
-			applyMapFeatureEditResult(result);
+			const members = result?.feature?.features;
+			if (Array.isArray(members)) {
+				applyPathGroupAuditResponse(members);
+			} else {
+				applyMapFeatureEditResult(result);
+			}
 			updateRevisionFromEditResponse(result);
 		}
 		await loadChangeLog();

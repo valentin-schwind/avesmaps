@@ -22,6 +22,7 @@ require_once __DIR__ . '/../routing/transport-season.php';
 // braucht und diese hier nicht mitnehmen kann -- die Begruendung steht im Kopf jener Datei.
 require_once __DIR__ . '/field-origins.php';
 require_once __DIR__ . '/../audit-prune.php';
+require_once __DIR__ . '/audit-path-group.php';
 require_once __DIR__ . '/../schema-ensure-once.php';
 
 // 🔴 DIESE BIBLIOTHEK WIRFT SIE, ALSO DEKLARIERT SIE SIE AUCH. Bis zum 20.08.2026 stand die
@@ -416,7 +417,8 @@ function avesmapsCanUndoAuditAction(string $action): bool {
         return false;
     }
 
-    return avesmapsIsCreateAuditAction($action)
+    return avesmapsIsPathGroupAuditAction($action)
+        || avesmapsIsCreateAuditAction($action)
         || $action === 'delete_feature'
         || avesmapsUndoColumnsForAuditAction($action) !== [];
 }
@@ -522,6 +524,13 @@ function avesmapsUndoAuditChange(PDO $pdo, array $payload, array $user): array {
         }
         if (!empty($auditEntry['undone_at'])) {
             throw new InvalidArgumentException('Diese Änderung wurde bereits rückgängig gemacht.');
+        }
+
+        if (avesmapsIsPathGroupAuditAction($action)) {
+            $response = avesmapsUndoPathGroupAudit($pdo, $auditEntry, $user);
+            $pdo->commit();
+
+            return $response;
         }
 
         $featureId = (int) ($auditEntry['feature_id'] ?? 0);
@@ -3009,7 +3018,7 @@ function avesmapsUpdatePathGroupDetails(PDO $pdo, array $payload, array $user): 
                FROM map_features
               WHERE public_id IN (' . $platzhalter . ")
                 AND feature_type = 'path' AND is_active = 1
-              FOR UPDATE"
+              ORDER BY id ASC FOR UPDATE"
         );
         $statement->execute($publicIds);
         $features = $statement->fetchAll(PDO::FETCH_ASSOC);
@@ -3029,6 +3038,9 @@ function avesmapsUpdatePathGroupDetails(PDO $pdo, array $payload, array $user): 
         );
 
         $written = 0;
+        $auditBefore = [];
+        $auditAfter = [];
+        $auditBounds = [];
         foreach ($features as $feature) {
             // ⚠️ MIT LEEREM RUMPF: `expected_revision` gehoert einem einzelnen Objekt und gibt es
             // hier nicht. Geprueft wird die SPERRE -- bearbeitet jemand gerade einen der
@@ -3159,26 +3171,25 @@ function avesmapsUpdatePathGroupDetails(PDO $pdo, array $payload, array $user): 
                 'updated_by' => (int) $user['id'],
             ]);
 
-            // 💣 JE SEGMENT EIN EIGENER EINTRAG, und er heisst `update_path_details` wie der des
-            // Einzelweges: das Rueckgaengig arbeitet auf Feature-Ebene und kennt genau diese
-            // Aktion (avesmapsUndoColumnsForAuditAction). Ein Sammelvermerk liesse sieben von acht
-            // Aenderungen ausserhalb der Historie stehen.
-            avesmapsWriteMapAuditLog($pdo, (int) $feature['id'], 'update_path_details', (int) $user['id'],
-                avesmapsEncodeAuditJson($feature),
-                avesmapsEncodeAuditJson([
-                    'public_id' => (string) $feature['public_id'],
-                    'feature_type' => 'path',
-                    'name' => $name,
-                    'feature_subtype' => $subtype,
-                    'properties_json' => $properties,
-                    'revision' => $revision,
-                    // Damit im Protokoll steht, dass hier die WEG-EBENE geschrieben hat und nicht
-                    // jemand acht Masken hintereinander -- wortgleiche Absicht wie `via_wiki_key`.
-                    'via_path_group' => count($features),
-                ]));
+            $auditBefore[] = avesmapsPathGroupAuditMember($feature);
+            $auditAfter[] = avesmapsPathGroupAuditMember(array_replace($feature, [
+                'name' => $name,
+                'feature_subtype' => $subtype,
+                'properties_json' => $properties,
+            ]));
+            $auditBounds[] = avesmapsCalculateGeometryBounds(avesmapsReadGeometryFromColumnValue($feature['geometry_json']));
             $written++;
         }
 
+        if ($written > 0) {
+            $focus = avesmapsAuditFocusFromBounds(
+                min(array_column($auditBounds, 'min_x')), min(array_column($auditBounds, 'min_y')),
+                max(array_column($auditBounds, 'max_x')), max(array_column($auditBounds, 'max_y'))
+            );
+            avesmapsWritePathGroupAudit($pdo, 'update_path_group_details', (int) $user['id'],
+                avesmapsPathGroupAuditSnapshot($auditBefore, $fields, $focus),
+                avesmapsPathGroupAuditSnapshot($auditAfter, $fields, $focus));
+        }
         $pdo->commit();
 
         return [
