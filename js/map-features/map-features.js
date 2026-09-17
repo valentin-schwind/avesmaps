@@ -466,7 +466,8 @@ function getPathStyleColors(path) {
 	// Breite). pathBreitenFaktor ist der gemeinsame Leser -- siehe map-features-path-domain.js.
 	const widthScale = (typeof pathBreitenFaktor === "function") ? pathBreitenFaktor(path, map.getZoom()) : 1;
 
-	const additionalWidth = pathSubtype === "Strasse" && widthScale > 0 ? 1 : 0;
+	const isStream = typeof pathIstBach === "function" && pathIstBach(path);
+	const additionalWidth = (pathSubtype === "Strasse" || isStream) && widthScale > 0 ? 1 : 0;
 
 	const style = {
 		// Reichsstraßen bekommen einen grauen Rand (Kontur), alle anderen weiterhin weiß.
