@@ -95,12 +95,12 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 
 ### P-007 · api/_internal/map/features.php · Verfahren C
 - Status: offen
-- Stand: 59e0aae86 · Blob: b25063607f6ec668de5c8d1b77739e41e05fa7e5
-- Block: „Antwort-Bauer“ — avesmapsBuildPointFeatureResponse … avesmapsBuildRegionFeatureResponse (5 Funktionen, ~110 Zeilen ab Z. 4119)
+- Stand: fc7a9fb5b · Blob: 3525b471753480c1e0b26799fcf66a2a319a22b8
+- Block: „Antwort-Bauer“ — avesmapsBuildPointFeatureResponse … avesmapsBuildRegionFeatureResponse (5 Funktionen, ~115 Zeilen ab Z. 3941)
 - Ziel: api/_internal/map/features-response.php, require_once an der Blockstelle
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 1 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 4277 Zeilen, 68 Commits/180 d · heiß (2 d, wartet auf Abkühlung)
 - Fallen: Enger als der freie Block: `avesmapsDecodeJsonColumnForEdit` (kraftlinie-kurve-schreiben-test liest den Quelltext) und `avesmapsUuidV4` (settlement-places-test nennt den Namen; die Funktion ist eine von drei gleichlautenden Fassungen unter drei Namen — features/territory/sync, Doppelungs-Paket) bleiben in `features.php`.
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 290836) · 08.09.2026 nachgezogen: 3b6439131 und 179c64277 (Kreuzungstyp) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 3b6439131 (Kreuzungstyp) und 80cb6bbeb (Merker) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 13.09.2026 nachgezogen: a04ffc929 (die Art Vor-/Mittelgebirge faellt) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 15.09.2026 nachgezogen: f28a45a97 (54 tote PHP-Funktionen entfernt) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei; der Boden des Fingerabdrucks (liste.md, Owner-Punkt) gilt weiter · 16.09.2026 nachgezogen: a393adbe9, ca719313d und 59e0aae86 (Wegname an Wiki-Wegen) sowie 4609938a7 haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei; der Boden des Fingerabdrucks (liste.md, Owner-Punkt) gilt weiter
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 290836) · 08.09.2026 nachgezogen: 3b6439131 und 179c64277 (Kreuzungstyp) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 3b6439131 (Kreuzungstyp) und 80cb6bbeb (Merker) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 13.09.2026 nachgezogen: a04ffc929 (die Art Vor-/Mittelgebirge faellt) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 15.09.2026 nachgezogen: f28a45a97 (54 tote PHP-Funktionen entfernt) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei; der Boden des Fingerabdrucks (liste.md, Owner-Punkt) gilt weiter · 16.09.2026 nachgezogen: a393adbe9, ca719313d und 59e0aae86 (Wegname an Wiki-Wegen) sowie 4609938a7 haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei; der Boden des Fingerabdrucks (liste.md, Owner-Punkt) gilt weiter · 17.09.2026 nachgezogen: 301e8d771, 936b39b59, 6433bcfd5 und 54bd1aff3 (Audit: Wegegruppen, Saisonweitergabe, Kraftlinien und Wiki-Wege gemeinsam zuruecknehmen) haben die Datei bewegt, keiner der Hunks liegt im Block; Block an den Namen unveraendert zusammenhaengend und frei, jetzt ab Z. 3941. Neues Register der Vorpruefung `js/review/__tests__/label-wiki-override-kette.test.js:144` liest features.php nur fuer die Konstante AVESMAPS_LABEL_WIKI_ORIGIN_FIELDS (ausserhalb). Namens- und Fragmentpruefung gegen alle Tests, die features.php ausserhalb einer require-Zeile nennen: vier Tests rufen Blocknamen zur Laufzeit nach `require` (ort-wiki-no-article-test, weg-merker-reichweite-test, ecosystem-edit-label-region-test, location-type-classifier.test.js), keiner schneidet sie aus dem Text. Der Boden des Fingerabdrucks (liste.md, Owner-Punkt) gilt weiter
 
 ### P-008 · api/_internal/app/feature-sources.php · Verfahren C
 - Status: offen
@@ -112,13 +112,13 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 189240) · 08.09.2026 nachgezogen: sieben Commits des Kanon- und Quellen-Umbaus (651b53f53 bis f87bdccad) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: fuenf Commits des Quellen- und Merker-Umbaus (75cc06da3 bis 80cb6bbeb) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 13.09.2026 nachgezogen: 825603242 und cd5dae452 (der Kanon der Landschaftsflaechen) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 14.09.2026 nachgezogen: d683724e4 (schweigt die Landschaftsflaeche, gilt der Artikel ihrer Beschriftung) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei, weiter ab Z. 2400 · 15.09.2026 uebersprungen (nicht abgekuehlt): rangliste.mjs meldete 5 Tage, weil es das AUTORdatum liest (`--pretty=format:@%ad`) -- d683724e4 ist am 10.09. geschrieben, aber erst am 14.09. auf origin gelandet, die Datei ist also seit einem Tag bewegt. Blob unveraendert (gilt); Kandidat fruehestens am 19.09.2026
 
 ### P-009 · api/_internal/wiki/settlements.php · Verfahren C
-- Status: offen
-- Stand: 5e8bb1862 · Blob: 408f67a7c942639b1e66796dacd904807bac67a9
+- Status: verworfen (Quelltext-Test: wappen-dritter-zustand-test.php schneidet drei Blockfunktionen aus settlements.php)
+- Stand: fc7a9fb5b · Blob: c4d790b3a5734d4766fbbdfdf9dee25bba56bae1
 - Block: „Wappen aus dem Wiki“ — avesmapsWikiSettlementCoatStatus … avesmapsWikiSettlementClearCoat (8 Funktionen, ~250 Zeilen ab Z. 414)
 - Ziel: api/_internal/wiki/settlements-wappen.php, require_once an der Blockstelle
 - Vorprüfung (05.09.2026): Ladezeit-Bezug 0 · Register 0 · Quelltext-Tests 0 (Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 1997 Zeilen, 67 Commits/180 d · heiß (3 d, wartet auf Abkühlung)
 - Fallen: Wappen laufen NUR über `avesmapsResolveGatedCoatUrl` (AGENTS §11, `coat-url.php`) — hier liegt die Wiki-Seite (Status, Bulk-Record, Metadaten), nicht der Riegel. Datei ist heiß (67 Commits); abkühlen lassen.
-- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 133799) · 08.09.2026 nachgezogen: 3650115d0 (Wiki-Abruf wartet nicht auf die Drossel) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 80cb6bbeb (die Schreiber des Merkers fallen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 15.09.2026 nachgezogen: 799c5e44b (Stadtteile ohne Infobox werden Innerorts-Staetten) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
+- Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 133799) · 08.09.2026 nachgezogen: 3650115d0 (Wiki-Abruf wartet nicht auf die Drossel) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 80cb6bbeb (die Schreiber des Merkers fallen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 15.09.2026 nachgezogen: 799c5e44b (Stadtteile ohne Infobox werden Innerorts-Staetten) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 17.09.2026 VERWORFEN, und der Grund stand schon am 05.09. da: `api/_internal/wiki/__tests__/wappen-dritter-zustand-test.php` liest settlements.php per `$lies('api/_internal/wiki/settlements.php')` und schneidet mit `$rumpf(...)` die Ruempfe von avesmapsWikiSettlementClearCoat (Z. 44), …BulkRecordCoats (Z. 53) und …SetWikiCoat (Z. 71) aus dem TEXT; `js/review/__tests__/wappen-box-kartendialog.test.js:272-273` liest die Datei ueber `lies("api", "_internal", "wiki", "settlements.php")` und sucht per Regex `'coat_none' => ($props['coat_none'] ?? false) === true` -- auch das steht im Block. Die Vorpruefung sieht beide nicht, weil der Pfad ueber einen Helfer mit Argumenten zusammengesetzt wird (Owner-Punkt in liste.md). Vorher bewegten b7c9b313d, fa13ae0e7, b1cfeab3c und 69938c629 (Audit-Pakete) die Datei, 69938c629 auch den Rumpf von avesmapsWikiSettlementBulkRecordCoats; der Block stand an den Namen weiter zusammenhaengend ab Z. 484. Struktureller Grund, verfaellt NICHT, solange die beiden Tests nur settlements.php lesen
 
 ### P-010 · api/_internal/routing/client-graph.php · Verfahren C
 - Status: verworfen (Fingerabdruck: Block zu klein)
@@ -211,14 +211,14 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Verlauf: 05.09.2026 angelegt (Analyse, Rangwert 17250) · 08.09.2026 nachgezogen: 4044c7e5d (die drei Wiki-Tafeln stehen nur noch einmal) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 80cb6bbeb (die Schreiber des Merkers fallen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 16.09.2026 erledigt als 8bacff264: -> api/_internal/wiki/locations-faelle.php, locations.php 1139 -> 847 Zeilen; fuenf Funktionen, die 293 verschobenen Zeilen byte-gleich, require_once an der Blockstelle (Z. 661, direkt vor avesmapsWikiSyncBuildLocationProperties). Fingerabdruck 313/298 = 15 Zeilen / 4,79 %. Die Falle des Pakets zu api/wiki-sync.php ist UEBERHOLT: die Server-Datei ist am 14.09.2026 entfernt worden und antwortet live mit 404 (vor dem Bau gemessen); gegengeprueft wurde stattdessen GET /api/edit/wiki/settlements.php -- sauberer 401-Envelope statt eines Fatals, die Kette settlements.php -> locations.php -> locations-faelle.php laedt also. ZWEI Quelltext-Tests mussten mitwandern, beide von der Vorpruefung NICHT gesehen (sie sieht Namen, keine Fragmente): undo-stellt-feature-type-zurueck-test.php schneidet die Schreibwege aus dem Quelltext und braucht die Aktion wiki_sync_update_point aus avesmapsWikiSyncUpdateLocationFeature -- ohne die Geschwisterdatei in seiner Dateiliste faellt er an Z. 123 (gefahren); und wikisync-fall-no-article-test.php, der Rueckbau-Waechter gegen wiki_no_article, las nur locations.php, waehrend sein eigener Kommentar genau diese Funktion als eine der zwei gedeckten nennt -- Befund des Widerlegers (blockend), er haette lautlos Geltung verloren. Er liest jetzt beide Haelften ueber file_get_contents(a) . '?>' . file_get_contents(b), wie citymap-sync-test.php seit P-013 daneben, und seine Vakuum-Zusicherung nennt aus jeder Datei einen Namen. Drei Gegenproben gefahren: Marker in locations.php rot, Marker in locations-faelle.php rot, Verkettung gekuerzt -> Vakuum-Riegel rot. 🪤 Beim Bau dieselbe Falle wie bei P-013, aber in ihrer GEFAEHRLICHEN Form: das schliessende PHP-Tag stand als Zeichen in einem //-Kommentar und beendete den PHP-Modus -- php -l meldete NICHTS (der Rest ist gueltiges Inline-HTML), der Test lief mit Exit 0 durch und gab ab dort nur noch seinen Quelltext aus. Aufgefallen ist es allein daran, dass die Gegenprobe gruen blieb. Testfeld 632 JS + 444 PHP, vor und nach dem Schnitt zeichengleich (rot nur link-url-test.php, vorbestehend, und wiki-konstanten-einmal-test.php, Worktree unter .claude/). Agenten: Widerleger EIN blockender Fund (oben; nach der Reparatur vom selben Agenten nachgeprueft und als erledigt bestaetigt), Testbindung kein Fund, Behauptung in zwei Runden -- die erste bestaetigte einen Stand, den die Reparatur ueberholt hat, die zweite fand die Zeilenangabe der Gegenprobe (124 statt 123) und wurde vor dem Commit korrigiert
 
 ### P-020 · api/app/ecosystem-areas.php · Verfahren D
-- Status: offen
+- Status: verworfen (überholt: 34c012baa bindet den Ensure an einen datenbankgebundenen Fingerabdruck)
 - Stand: 1cb5e09bd · Blob: f2ed1e0535fdb007ac502be626e113d3b3d4d4fd
 - Block: „Ensure auf dem öffentlichen Lesepfad“ — avesmapsEcosystemEnsureTables … avesmapsEcosystemEnsureTables (gerufen in ecosystem-areas.php Z. 111, definiert in api/_internal/app/ecosystem.php Z. 275, 13 Abfragen in Schleifen plus DDL je Aufruf)
 - Ziel: `avesmapsEcosystemEnsureTables($pdo)` am Lesepfad `api/app/ecosystem-areas.php` durch `avesmapsSchemaEnsureOnce('ecosystem', (new ReflectionFunction('avesmapsEcosystemEnsureTables'))->getFileName(), fn() => avesmapsEcosystemEnsureTables($pdo))` binden — der zweite Parameter ist die Datei, in der die Ensure-Funktion DEFINIERT ist (heute `ecosystem.php`; nach einem C-Schnitt automatisch die Geschwisterdatei), NIE `__FILE__` des Aufrufers: `ecosystem-areas.php` hat 20 Commits in 180 Tagen, `ecosystem.php` 94 — die Dateien ändern sich unabhängig, und ein falscher Pfad zeigte eine neue Spalte bis zu eine Stunde lang nicht an (Backend-Agent 05.09.2026). Riegel: `api/_internal/schema-ensure-once.php`, dieselbe Bauform wie beim politischen Endpunkt (AGENTS §10). NUR der Lesepfad; alle Schreibwege in ecosystem.php behalten den Roh-Ensure.
 - Messskript: tools/perf/ecosystem-areas-ensure.php (zu schreiben) — zählender PDO-Wrapper über der SQLite-Fixture der `climate-*-test.php`: Abfragen je `GET areas`-Aufruf vorher/nachher (Erwartung beim zweiten Aufruf: minus die 38 `prepare/query/exec` von `avesmapsEcosystemEnsureTables` Z. 275–1108, darunter 18 `CREATE TABLE` und 8 `SHOW COLUMNS`/`PRAGMA` — Behauptungsprüfer 05.09.2026; „13“ war die Zahl des Geruchs, nicht der Arbeit), `ausgabe_sha256` des JSON-Rumpfs gleich.
 - Vorprüfung (05.09.2026): gleiche Ausgabe, weniger Arbeit — ABER `avesmapsEcosystemEnsureTables` trägt neben DDL auch DATENMIGRATIONEN und SEEDS (`UPDATE ecosystem_area SET terrain_erosion = terrain_levels`, `affects_paths`-Seed, die `offroad_factor`-Tabelle; Z. 505–535, 765–800). Mit dem Riegel laufen sie höchstens einmal je Stunde statt je Anfrage — nie öfter. Vor dem GO prüfen: verlässt sich ein SCHREIBWEG darauf, dass der Lesepfad einen Backfill für frisch angelegte Zeilen nachholt? Wenn ja, ist es keine reine Perf-Änderung. Die zwei Warnungen in `ecosystem.php` gegen einen geteilten „was anything new?“-Merker meinen das WIEDER-Ausführen eines Seeds — das tut der Riegel nicht.
 - Fallen: 💣 Der Marker trägt die MTIME der DEFINIERENDEN Datei — das ist die Datei, in der `avesmapsEcosystemEnsureTables` steht (heute ecosystem.php; nach einem C-Schnitt der Ensure-Funktionen deren Geschwisterdatei), sonst läuft ein neuer `ALTER TABLE` bis zu eine Stunde später in „Unknown column“. 💣 Nie innerhalb einer Transaktion rufen (DDL committet implizit). ⚠️ Fällt OFFEN aus (Temp nicht schreibbar → Ensure wie bisher). 🔴 Die Live-Gegenprobe nach dem Deploy beweist den Marker-Pfad NICHT (der gerade gelaufene Ensure ist ohnehin frisch) — der Beleg ist der DIFF: der Behauptungsprüfer liest das zweite Argument. Owner-Probe: erstes von drei Perf-Paketen.
-- Verlauf: 05.09.2026 angelegt (Perf-Geruch: abfrage-in-schleife ×13 in avesmapsEcosystemEnsureTables; Aufrufer auf dem Lesepfad belegt) · 05.09.2026 GO Owner (Perf-Probe 1 von 3; nur mit Agenten, Riegel D)
+- Verlauf: 05.09.2026 angelegt (Perf-Geruch: abfrage-in-schleife ×13 in avesmapsEcosystemEnsureTables; Aufrufer auf dem Lesepfad belegt) · 05.09.2026 GO Owner (Perf-Probe 1 von 3; nur mit Agenten, Riegel D) · 17.09.2026 VERWORFEN, ueberholt -- obwohl der Frischelauf „gilt“ meldet: er vergleicht nur den Blob von ecosystem-areas.php, und der hat sich nicht bewegt. Die Arbeit, die das Paket einsparen sollte, faellt seit `34c012baa` (05.09.2026, „das Gebirgsrelief zeigt den Verbund“) nicht mehr an: avesmapsEcosystemEnsureTables ist ein Weiterreicher auf `avesmapsEcosystemSchemaEnsure` (`api/_internal/app/ecosystem-schema-state.php`), und der laeuft die Migration auf MySQL nur, wenn der Fingerabdruck in `ecosystem_schema_state` nicht passt -- sonst EIN `SELECT fingerprint` plus sha256 ueber vier Dateien (ecosystem.php, die Zustandsdatei selbst, travel-values-migration.php, travel-values.php). Der Kopf der Datei begruendet die Bauform ausdruecklich: „Datenbankgebundener Nachweis statt Prozess-/Temp-Merker: ein Restore oder eine neue Datenbank muss die Migration erneut durchlaufen.“ Ein `avesmapsSchemaEnsureOnce` (Temp-Marke) davor widerspraeche genau dieser Entscheidung. Die Rest-Kosten (vier hash_file je Anfrage, ecosystem.php rund 6.150 Zeilen) sind nicht gemessen -- Owner-Punkt in liste.md; die Perf-Probe 1 von 3 braucht damit ein anderes Paket
 
 ### P-021 · api/_internal/app/lore.php · Verfahren D
 - Status: GO nötig
@@ -302,7 +302,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 
 ### P-028 · api/_internal/map/features.php · Verfahren C
 - Status: offen
-- Stand: 59e0aae86 · Blob: b25063607f6ec668de5c8d1b77739e41e05fa7e5
+- Stand: fc7a9fb5b · Blob: 3525b471753480c1e0b26799fcf66a2a319a22b8
 - Block: „Doppelung: UUID v4 und map_revision-Zähler“ — avesmapsUuidV4 … avesmapsUuidV4 (dreifach: `features.php` Z. 4251, `political/territory.php` `avesmapsPoliticalUuidV4` Z. 1082, `wiki/sync.php` `avesmapsWikiSyncUuidV4` Z. 104; dazu `avesmapsNextMapRevision` `features.php` Z. 4069 ~ `avesmapsWikiSyncNextMapRevision` `wiki/locations-helpers.php` Z. 149)
 - Ziel: neue abhängigkeitsfreie Datei `api/_internal/uuid.php` (nur die eine Funktion) und ein ebenso kleiner `map-revision.php`; die alten Namen bleiben als Weiterreicher. NICHT durch Requiren einer der drei Großdateien — Kommentare in `citymaps.php:902`, `ecosystem.php:70`, `game-literature.php:791`, `edit/reports/locations.php:8` begründen, warum niemand die 2700-Zeilen-Datei für einen 15-Zeilen-Helfer einbindet.
 - Unterschied: keiner außer Namen (UUID: Rumpf nach Namensersetzung byte-identisch, 15 Zeilen; NextMapRevision ×2 ebenso). ⚠️ `avesmapsNextEcosystemRevision` (ecosystem.php Z. 1258) ist KEINE Doppelung: eigene Tabelle `ecosystem_revision`, eigener Cache-Kreis (`956d53ee9e`, 26.07.2026, begründet in `ecosystem.php:12-16`).
@@ -310,7 +310,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Empfehlung: zusammenlegen in eine abhängigkeitsfreie Datei — erfüllt genau die im Code genannte Bedingung.
 - Beleg: `git blame -w -L 4251,4251 -- api/_internal/map/features.php` u. a.; Kommentare `api/_internal/app/citymaps.php:902-903`, `api/_internal/app/ecosystem.php:70-72`.
 - Fallen: `settlement-places-test.php` sucht `avesmapsUuidV4` im Quelltext von `features.php` (Prüfung 3b) — der Weiterreicher muss dort stehen bleiben oder der Test mitwandern.
-- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00 / 0,91; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher) · 08.09.2026 nachgezogen: 3b6439131 und 179c64277 (Kreuzungstyp) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 3b6439131 (Kreuzungstyp) und 80cb6bbeb (Merker) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 13.09.2026 nachgezogen: a04ffc929 (die Art Vor-/Mittelgebirge faellt) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 15.09.2026 nachgezogen: f28a45a97 (54 tote PHP-Funktionen entfernt) hat die Datei bewegt; die drei UUID- und die zwei NextMapRevision-Fassungen sind weiter gleich bis auf Namen und Leerraum (features.php Z. 4098/3911, political/territory.php Z. 907, wiki/sync.php Z. 114, wiki/locations-helpers.php Z. 149), block.frei · 16.09.2026 nachgezogen: a393adbe9, ca719313d und 59e0aae86 (Wegname an Wiki-Wegen) sowie 4609938a7 haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
+- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00 / 0,91; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher) · 08.09.2026 nachgezogen: 3b6439131 und 179c64277 (Kreuzungstyp) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 3b6439131 (Kreuzungstyp) und 80cb6bbeb (Merker) haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 13.09.2026 nachgezogen: a04ffc929 (die Art Vor-/Mittelgebirge faellt) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 15.09.2026 nachgezogen: f28a45a97 (54 tote PHP-Funktionen entfernt) hat die Datei bewegt; die drei UUID- und die zwei NextMapRevision-Fassungen sind weiter gleich bis auf Namen und Leerraum (features.php Z. 4098/3911, political/territory.php Z. 907, wiki/sync.php Z. 114, wiki/locations-helpers.php Z. 149), block.frei · 16.09.2026 nachgezogen: a393adbe9, ca719313d und 59e0aae86 (Wegname an Wiki-Wegen) sowie 4609938a7 haben die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 17.09.2026 nachgezogen: 301e8d771, 936b39b59, 6433bcfd5 und 54bd1aff3 (Audit-Pakete) haben die Datei bewegt; die drei UUID- und die zwei NextMapRevision-Fassungen sind nach Namensersetzung und Leerraum-Normalisierung weiter zeichengleich (md5 der Ruempfe gegengemessen; features.php Z. 4078/3891, political/territory.php Z. 907, wiki/sync.php Z. 114, wiki/locations-helpers.php Z. 149), block.frei
 
 ### P-029 · api/_internal/wiki/lore-sync.php · Verfahren C
 - Status: offen
@@ -335,6 +335,270 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Beleg: `ecosystem-display.php:366`, `zoom-bands.php:156`; Tests `ecosystem-display-test.php`, `zoom-bands-test.php` prüfen je nur den eigenen Aufrufer.
 - Fallen: beide Leser fallen OFFEN aus (jeder Fehler ⇒ Vorgabe, AGENTS §11 Zoombänder) — der geteilte Leser muss dieselbe Regel tragen; `avesmapsAppSettingEnsureWideValue` nur aus Schreibern rufen (AGENTS §10).
 - Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher) · 15.09.2026 nachgezogen: d9ec0e669 (Beispielgebirge je Gebirgsform) hat die Datei bewegt; avesmapsEcosystemDisplayRead (jetzt Z. 412) und avesmapsZoomBandsRead (zoom-bands.php Z. 156) sind weiter gleich bis auf Namen, Konstanten und eine Umlautschreibung im Kommentar, block.frei
+
+### P-031 · api/_internal/wiki/sync-monitor.php · Verfahren C
+- Status: offen
+- Stand: fc7a9fb5b · Blob: 511d66bbc8d1250af94f90894cce499881d0c49b
+- Block: „Tabellen, Editorzustand und Status“ — avesmapsWikiSyncMonitorEnsureTables … avesmapsWikiSyncMonitorBuildStatus (7 Funktionen, ~270 Zeilen ab Z. 33)
+- Ziel: api/_internal/wiki/sync-monitor-status.php, require_once an der Blockstelle
+- Vorprüfung (17.09.2026): Ladezeit-Bezug 0 · Register 3 (alle in tools/refactoring/__tests__/vorpruefung.test.js -- die Fixture aus liste.md, Owner-Punkt 06.09.; kein echtes Register) · Quelltext-Tests 1 (dieselbe Fixture; Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 (die sieben Konstanten Z. 11-17 und die sechs require_once Z. 20-31 stehen vor der Blockstelle) · Datei 746 Zeilen, 80 Commits/180 d · Namens- und Fragmentpruefung gegen alle Tests, die sync-monitor.php ausserhalb einer require-Zeile nennen: kein Treffer
+- Fallen: Kopfkommentar DEUTSCH (Dateikopf deutsch). Die Lib wird von rund zwanzig Tests und Werkzeugen mit BLANKEM `require` geladen (`tools/wikidump/test-dump-*.php`, `region-art-parsing-test.php:35`, `stadtteil-kategorie-test.php:28`) -- mit `require_once` in der Lib ist die Geschwisterdatei davor geschuetzt, aber genau diese Liste zeigt ein Redeclare zuerst: nach dem Schnitt die `tools/wikidump/test-*.php` einzeln fahren. avesmapsWikiSyncMonitorEnsureTables (153 Zeilen DDL) haengt heute an KEINEM `avesmapsSchemaEnsureOnce` -- wer ihn spaeter dort anbindet, nennt die GESCHWISTERDATEI als definierende Datei (AGENTS §10, der Schluessel traegt deren mtime). P-024s `require_once wiki-crawler-base.php` (Z. ~383) liegt ausserhalb; der Rest-Block Z. 387-548 (Enqueue … ResolveCanonicalTitles) liegt unter dem Boden des Fingerabdrucks.
+- Verlauf: 17.09.2026 angelegt (Ueberwachungsmodus; der Block stand im Verlauf von P-012 als freier Rest)
+
+### P-032 · js/review/review-conflicts.js · Verfahren A
+- Status: offen
+- Stand: fc7a9fb5b · Blob: 3cce5c9a782cf610fd257b6887ea8c6c458fdde2
+- Block: „Filter und Schiene der Konfliktliste“ — getLegacyConflicts … renderConflictRail (8 Funktionen, ~199 Zeilen ab Z. 265)
+- Ziel: js/review/review-conflicts-filter.js, <script> direkt NACH review-conflicts.js in derselben `<template data-nur-editor>` (index.html Z. 3903-3907)
+- Vorprüfung (17.09.2026): Ladezeit-Bezug 0 · Register 0 · Quelltext-Tests 1 (js/ui/__tests__/kanon-flaechen.test.js schneidet conflictPartyKanonBadge … createConflictPartyElement, ausserhalb; Blocknamen: 0) · vm-Bindung 2 (conflict-dublette-verben.test.js und conflict-resolve-complaints.test.js laden die GANZE Datei; Blocknamen nicht transitiv gebunden) · Konstanten fehlend 0 · Datei 1276 Zeilen, 34 Commits/180 d · Namens- und Fragmentpruefung: kein Treffer
+- Fallen: 💣 Der Block liest `LEGACY_CASE_SEVERITY`, `LEGACY_COMMON_VERBS` und `LEGACY_RULE_INFO` -- `const` auf oberster Ebene von review-conflicts.js (Z. 151/171/178); die neue Datei steht NACH ihr, und nichts darin darf zur Ladezeit laufen (review-wiki-sync-cases.js:356-361 beschreibt genau diese Todeszone). 💣 index.html Z. 1641 nennt `review-conflicts.js` in einem HTML-Kommentar -- fuer einen Reihenfolgetest mit `html.indexOf(…)` ein frueheres Tag (AGENTS §11, Hintergrundklick). ⚠️ `js/app/__tests__/nur-editor-skripte.test.js`: eine Vorlage traegt nur `<script src>`-Tags, und die Freigaben aus Teil C gelten fuer Namen „in einer Vorlage“ -- die neue Datei gehoert in DIESELBE. ⚠️ Beide vm-Tests nach dem Schnitt fahren: sie laden nur review-conflicts.js. Kopfkommentar ENGLISCH wie der Dateikopf. Fingerabdruck: 199 Zeilen -- Kopf hoechstens 7 Zeilen.
+- Verlauf: 17.09.2026 angelegt (Ueberwachungsmodus)
+
+### P-033 · api/_internal/app/lore.php · Verfahren C
+- Status: offen
+- Stand: fc7a9fb5b · Blob: 8bb0980a2e29cffcfe58fd38657a70565f3a2e82
+- Block: „Vorkommen fuer Orte samt Regeltreffern“ — avesmapsLoreReadForPlaces … avesmapsLoreMergeRuleHitsIntoResult (3 Funktionen, ~234 Zeilen ab Z. 1055)
+- Ziel: api/_internal/app/lore-orte.php, require_once an der Blockstelle (der Block ist das Dateiende)
+- Vorprüfung (17.09.2026): Ladezeit-Bezug 0 · Register 0 · Quelltext-Tests 1 (js/ui/__tests__/listen-statuskreis.test.js:405 bindet den Aufruf avesmapsLoreReadPlaceKeysOnMap(...) in Z. 483/765, ausserhalb; Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 1288 Zeilen, 26 Commits/180 d · Namenspruefung: lore-merge-rule-hits-test.php ruft MergeRuleHitsIntoResult zur Laufzeit nach `require_once lore.php` (transparent)
+- Fallen: Kopfkommentar DEUTSCH. avesmapsLoreReadStats (Z. 1007) bleibt -- anderes Thema. P-021 (D, GO noetig) liegt in derselben Datei (avesmapsLoreReadPlaceKeysOnMap) ausserhalb; P-014 hat `lore-schluessel.php` abgespalten, Namensform lore-<thema>.php. Der Block davor (Z. 729-995, ReadMapStatusByEntry … ResolveGoodsByName) ist durch listen-statuskreis.test.js gebunden und bleibt.
+- Verlauf: 17.09.2026 angelegt (Ueberwachungsmodus)
+
+### P-034 · js/map-features/map-features-political-territory-loader.js · Verfahren A
+- Status: offen
+- Stand: fc7a9fb5b · Blob: b2fee85d4c1311cf1b5d69fa419e08182739eb94
+- Block: „Abgeleitete Grenzen und Geometrie-Rueckfaelle der Ebene“ — readPoliticalTerritoryDerivedSourceIds … readPoliticalTerritoryLayerFallbacks (9 Funktionen, ~193 Zeilen ab Z. 240)
+- Ziel: js/map-features/map-features-political-territory-fallbacks.js, <script> direkt NACH dem Loader (index.html Z. 4126, Besucherpfad, keine Vorlage)
+- Vorprüfung (17.09.2026): Ladezeit-Bezug 0 · Register 2 (ebenen-pan-guard.test.js:25 und ebenen-zwischenspeicher.test.js:36 lesen den Loader als Text) · Quelltext-Tests 2 (dieselben; Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 853 Zeilen, 39 Commits/180 d · Namenspruefung: ebenen-zwischenspeicher.test.js:70 legt applyPoliticalTerritoryDerivedBoundaryVisibility als globale Attrappe an (kein Schnitt)
+- Fallen: 💣 „Gepruefte Doppelungen ohne Paket“ unten: `readSourceIds` (map-features-derived-boundary-runtime-fix.js) ist der statische Rueckfall fuer die Ladeluecke, bis readPoliticalTerritoryDerivedSourceIds greift -- die neue Datei laedt DIREKT nach dem Loader, sonst verschiebt sich diese Luecke. ⚠️ Beide Register-Tests schneiden Funktionen des Pan-Guards und des Zwischenspeichers aus dem Loader (ausserhalb) und stubben Blocknamen -- nach dem Schnitt fahren. ⚠️ Die Stil-Anwendung davor (Z. 176-238, 4 Funktionen, 63 Zeilen) bleibt, zu klein. Jeder Besucher laedt die neue Datei. Fingerabdruck: 193 Zeilen -- Kopf hoechstens 7 Zeilen, sonst ueber 5 %.
+- Verlauf: 17.09.2026 angelegt (Ueberwachungsmodus)
+
+### P-035 · api/_internal/wiki/publication-parsing.php · Verfahren C
+- Status: offen
+- Stand: fc7a9fb5b · Blob: 424ae7d07c49ed6201127c5c54f8b44a9f228ebc
+- Block: „Produkt-Infobox und Literaturart“ — avesmapsWikiProductGameLiteratureKind … avesmapsWikiBuildPublicationUrl (12 Funktionen, ~332 Zeilen ab Z. 282)
+- Ziel: api/_internal/wiki/publication-parsing-produkt.php, require_once an der Blockstelle (der Block ist das Dateiende)
+- Vorprüfung (17.09.2026): Ladezeit-Bezug 0 · Register 0 · Quelltext-Tests 0 · vm-Bindung 0 · Konstanten fehlend 0 · Datei 613 Zeilen, 16 Commits/180 d · Namenspruefung: publication-parsing-test.php ruft alle zwoelf zur Laufzeit nach require_once (transparent)
+- Fallen: Kopfkommentar ENGLISCH, und der Reinheitsvertrag des Dateikopfs („Pure, DB-free wikitext parsers … no PDO, no HTTP, no dump reads“) gilt fuer die Geschwisterdatei mit. ⚠️ `citymap-sync-test.php:700-712` laedt die require-Kette des Dump-Endpunkts ueber eine feste Liste (`'/../publication-parsing.php'`) und prueft, dass jede fremde Funktion aus citymap-sync.php definiert ist -- transparent ueber require_once, nach dem Schnitt fahren. ⚠️ AGENTS §11 Literatur: die drei Rollen normalisiert avesmapsGameLiteratureNormalizeRole (game-literature.php:172), NICHT avesmapsGameLiteratureRoleForKind im Block -- nur der Ort aendert sich. Der Rest Z. 36-208 (Publikationsabschnitt, 173 Zeilen) liegt unter dem Boden.
+- Verlauf: 17.09.2026 angelegt (Ueberwachungsmodus)
+
+### P-036 · api/_internal/app/terrain-store.php · Verfahren C
+- Status: offen
+- Stand: fc7a9fb5b · Blob: 4ad5f4592d1feb0a72c4efc3c0a3031407806f3a
+- Block: „Hoehenraster: Fingerabdruck, Ablage und Status“ — avesmapsTerrainGuardRasterShape … avesmapsTerrainHeightmapStatus (7 Funktionen, ~325 Zeilen ab Z. 80)
+- Ziel: api/_internal/app/terrain-store-hoehenraster.php, require_once an der Blockstelle
+- Vorprüfung (17.09.2026): Ladezeit-Bezug 0 · Register 0 · Quelltext-Tests 0 · vm-Bindung 0 · Konstanten fehlend 0 (die fuenf Konstanten Z. 36-72 stehen davor) · Datei 774 Zeilen, 12 Commits/180 d · Namenspruefung: terrain-store-test.php ruft Guard und Fingerprints zur Laufzeit (transparent)
+- Fallen: Kopfkommentar ENGLISCH, und der PURITY CONTRACT des Dateikopfs gilt der Geschwisterdatei mit („side-effect-free on include“, „💣 NO avesmapsEcosystemEnsureTables ANYWHERE IN THIS FILE“). ⚠️ ZWEI Pakete auf derselben Datei (P-037): das `require_once` des einen darf nicht in den Block des anderen fallen (Lehre 06.09.2026); nach dem ersten Schnitt das zweite nachziehen. AGENTS §11 (Konfliktzentrum, label.duplicate): terrain-store.php liest `is_active = 1` + `height_schritt` der Gipfel-Beschriftungen -- nur der Ort aendert sich.
+- Verlauf: 17.09.2026 angelegt (Ueberwachungsmodus)
+
+### P-037 · api/_internal/app/terrain-store.php · Verfahren C
+- Status: offen
+- Stand: fc7a9fb5b · Blob: 4ad5f4592d1feb0a72c4efc3c0a3031407806f3a
+- Block: „Hoehenprofile der Wege und Reiselaeufe“ — avesmapsTerrainProfileForLine … avesmapsTerrainTravelStatus (6 Funktionen, ~341 Zeilen ab Z. 434)
+- Ziel: api/_internal/app/terrain-store-profile.php, require_once an der Blockstelle (der Block ist das Dateiende)
+- Vorprüfung (17.09.2026): Ladezeit-Bezug 0 · Register 0 · Quelltext-Tests 0 · vm-Bindung 0 · Konstanten fehlend 0 · Datei 774 Zeilen, 12 Commits/180 d · Namenspruefung: terrain-store-test.php ruft avesmapsTerrainProfileForLine zur Laufzeit
+- Fallen: 💣 AVESMAPS_TERRAIN_PROFILE_BATCH und …_BUDGET_MS stehen ZWISCHEN den beiden Bloecken (Z. ~410) -- das `require_once` gehoert hinter sie. AGENTS §11 (Wege-Editor): die vier Profilzahlen sind [Anstieg, Abstieg, steiler Anstieg, steiler Abstieg] in Speicherrichtung (avesmapsTerrainProfileForLine) -- nur der Ort aendert sich. Kopfkommentar und Reinheitsvertrag wie P-036.
+- Verlauf: 17.09.2026 angelegt (Ueberwachungsmodus)
+
+### P-038 · api/_internal/political/territories-audit.php · Verfahren C
+- Status: offen
+- Stand: fc7a9fb5b · Blob: 5fb64242d4b8afbef84e6b1857035ebb709ed232
+- Block: „Schnappschuesse, Zaehlungen und Eintraege des Audits“ — avesmapsPoliticalAuditSnapshotsEqual … avesmapsPoliticalBuildMissingTerritoryEntryAudit (10 Funktionen, ~267 Zeilen ab Z. 628)
+- Ziel: api/_internal/political/territories-audit-snapshots.php, require_once an der Blockstelle (der Block ist das Dateiende)
+- Vorprüfung (17.09.2026): Ladezeit-Bezug 0 · Register 0 · Quelltext-Tests 1 (api/_internal/__tests__/audit-prune-test.php liest avesmapsPoliticalPruneGeometryAuditLog, ausserhalb; Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 894 Zeilen, 10 Commits/180 d · Namens- und Fragmentpruefung: kein Treffer
+- Fallen: Kopfkommentar DEUTSCH. Z. 2 traegt einen Stempel-Heilungskommentar und Z. 7-13 drei require_once -- nicht anfassen. AGENTS §10: ein Protokoll-Schnappschuss wird nie nachgezogen, jeder LESER rechnet die bbox aus der Geometrie (avesmapsPoliticalApplyGeometryAuditSnapshot, ausserhalb); avesmapsPoliticalBuildGeometryAuditSnapshot hier baut sie nur -- der Ort aendert sich, sonst nichts. Historiker 17.09.2026: FetchTerritoryByPublicIdForAudit/…ByIdForAudit sind KEINE Doppelung von avesmapsPoliticalFetchGeometryRowByPublicIdRaw (drei Tabellen) -- nicht zusammenlegen.
+- Verlauf: 17.09.2026 angelegt (Ueberwachungsmodus)
+
+### P-039 · api/_internal/wiki/sync-plan.php · Verfahren C
+- Status: offen
+- Stand: fc7a9fb5b · Blob: 38f22f674f41265ae8a5db17f25f20b691db0042
+- Block: „Laeufe und Positionen des Plans“ — avesmapsSyncPlanBuildingRun … avesmapsSyncPlanPendingItems (11 Funktionen, ~204 Zeilen ab Z. 371)
+- Ziel: api/_internal/wiki/sync-plan-laeufe.php, require_once an der Blockstelle
+- Vorprüfung (17.09.2026): Ladezeit-Bezug 0 · Register 0 · Quelltext-Tests 2 (lore-regeln-kachel.test.js: avesmapsSyncPlanStartRun; territory-plan-test.php: SelectedKeys, RecordSkip, MarkItem, SupersedeRuns -- alle ausserhalb; Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 1025 Zeilen, 11 Commits/180 d · Namenspruefung: garetien-uebernahme-test.php ruft OpenRun, AddItem, SetSelection, PendingItems zur Laufzeit
+- Fallen: Kopfkommentar ENGLISCH. ⚠️ sync-plan-endpoint-chain-test.php und sync-monitor-endpoint-chain-test.php laden die require-Ketten der Endpunkte und pruefen, dass jede fremde Funktion der Rechen-/Ausfuehr-Haelften definiert ist -- transparent ueber require_once, nach dem Schnitt fahren. AGENTS §11 Uebernahme-Vorschau: der Loeschriegel steht serverseitig in `apply` -- nur der Ort der Lauf-Helfer aendert sich. Die Entscheidungen Z. 719-927 sind gebunden (Abschnitt „Von Tests am Quelltext festgehalten“). Fingerabdruck: 204 Zeilen -- Overhead hoechstens 10.
+- Verlauf: 17.09.2026 angelegt (Ueberwachungsmodus)
+
+### P-040 · js/review/review-wiki-sync-cases.js · Verfahren A
+- Status: offen
+- Stand: fc7a9fb5b · Blob: 8abc7b7bfcecf66308e5083461f45801bbab73cd
+- Block: „Filter und Gruppierung der Fallliste“ — getWikiSyncOpenGroupKeys … getWikiSyncGroupedCases (13 Funktionen, ~210 Zeilen ab Z. 96)
+- Ziel: js/review/review-wiki-sync-cases-filter.js, <script> direkt nach review-wiki-sync-cases.js in derselben `<template data-nur-editor>` (index.html Z. 3903-3907)
+- Vorprüfung (17.09.2026): Ladezeit-Bezug 0 · Register 3 (wikisync-faelle-erst-beim-oeffnen.test.js:24, tools/paths/test-wiki-sync-panel-tab.mjs:114, tools/refactoring/__tests__/vorpruefung.test.js:107 -- Fixture) · Quelltext-Tests 3 (wikisync-faelle-erst-beim-oeffnen.test.js: renderWikiSyncCases/…WennAusstehend; tools/wikidump/test-wikidump-frontend-cases.mjs: getWikiSyncCaseTypeOrder/…Label/readWikiSyncDriftLatLng -- alle ausserhalb; Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 926 Zeilen, 11 Commits/180 d · Namenspruefung: wikisync-faelle-erst-beim-oeffnen.test.js stubbt sechs Blocknamen global (kein Schnitt)
+- Fallen: 💣 `tools/paths/test-wiki-sync-panel-tab.mjs:114` fuehrt die Dateiliste `searched` von Hand (Lehre 02.09.2026) -- die neue Datei gehoert in dieselbe Zeile. ⚠️ nur-editor-skripte.test.js (Vorlage, siehe P-032). ⚠️ getWikiSyncCaseTypeOrder/…Label (Z. 307-350) sind gebunden und bleiben -- der Block endet davor. P-041 liegt auf derselben Datei (Lehre 06.09.2026). Kopfkommentar ENGLISCH wie der Dateikopf.
+- Verlauf: 17.09.2026 angelegt (Ueberwachungsmodus)
+
+### P-041 · js/review/review-wiki-sync-cases.js · Verfahren A
+- Status: offen
+- Stand: fc7a9fb5b · Blob: 8abc7b7bfcecf66308e5083461f45801bbab73cd
+- Block: „Fall-Elemente bauen“ — getWikiSyncCaseTypeHint … appendCoordinateDriftCaseBody (9 Funktionen, ~369 Zeilen ab Z. 364)
+- Ziel: js/review/review-wiki-sync-cases-elemente.js, <script> direkt nach review-wiki-sync-cases.js in derselben Vorlage
+- Vorprüfung (17.09.2026): Ladezeit-Bezug 0 · Register 3 (wie P-040) · Quelltext-Tests 3 (wie P-040; Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 926 Zeilen, 11 Commits/180 d · Fragmentpruefung: test-wiki-sync-panel-tab.mjs sucht per Regex `typeof (\w+) === "function"` -- Treffer NUR im Block
+- Fallen: 💣 test-wiki-sync-panel-tab.mjs ist hier doppelt Register: Dateiliste UND typeof-Scan ueber genau diese Liste -- ohne die neue Datei darin sieht der Test die Waechter im Block nicht mehr (still, nicht rot). 💣 Der Kommentar Z. 356-361 direkt ueber dem Block: getWikiSyncCaseTypeHint liest LEGACY_RULE_INFO aus review-conflicts.js zur Aufrufzeit -- nichts im Block darf zur Ladezeit laufen. ⚠️ createWikiSyncCaseElement wird aus review-conflicts.js gerufen (Z. 819 hier). ⚠️ readWikiSyncDriftLatLng (Z. 749, ausserhalb) ist Teil der Doppelung P-052.
+- Verlauf: 17.09.2026 angelegt (Ueberwachungsmodus)
+
+### P-042 · api/_internal/conflicts/repair.php · Verfahren C
+- Status: offen
+- Stand: fc7a9fb5b · Blob: c3476654b004ed7604305652014ce36fa64d6a34
+- Block: „Reparaturverben Verknuepfen und Dublette loeschen“ — avesmapsConflictLinkRowRefusal … avesmapsConflictDeleteLabel (7 Funktionen, ~387 Zeilen ab Z. 366)
+- Ziel: api/_internal/conflicts/repair-verben.php, require_once an der Blockstelle
+- Vorprüfung (17.09.2026): Ladezeit-Bezug 0 · Register 0 · Quelltext-Tests 1 (kein-wiki-eintrag-ist-weg-test.php: avesmapsConflictResolve/…UnlinkFeature, ausserhalb; Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 · Datei 870 Zeilen, 13 Commits/180 d · Namenspruefung: conflict-label-delete-test.php ruft vier Blockfunktionen zur Laufzeit
+- Fallen: Kopfkommentar ENGLISCH (Docblock-Stil wie der Dateikopf), und dessen „TWO SAFETY RULES“ gelten beiden Dateien. AGENTS §11 label.duplicate: `refuse_ecosystem_cascade` steht im Rumpf von avesmapsDeleteMapFeature (features.php), die zweite Rueckfrage beim Hoehenfeld im Browser -- avesmapsConflictDeleteLabel reicht nur durch; nichts davon wandert.
+- Verlauf: 17.09.2026 angelegt (Ueberwachungsmodus)
+
+### P-043 · api/_internal/wiki/publication-sync.php · Verfahren C
+- Status: GO nötig
+- Stand: fc7a9fb5b · Blob: 4edc740136c8c3d05395cb625e601aeb4acf8631
+- Block: „Doppelung: Skelett der Wiki-Abgleiche“ — avesmapsPublicationDefaultPageSource … avesmapsPublicationDefaultPageSource (Familie in fuenf Gruppen: DefaultPageSource ×4 citymap-sync.php:560 · game-literature-sync.php:384 · lore-sync.php:330 · publication-sync.php:466; LastStaged ×3 citymap-sync.php:791 · game-literature-sync.php:983 · publication-sync.php:1390; DecodeOrigins ×2 game-literature-sync.php:591 · lore-sync.php:605; LastSynced ×3 citymap-sync.php:738 · lore-sync.php:520 · powerlines.php:52; StampLastSynced ×3 citymap-sync.php:771 · game-literature-sync.php:1171 · lore-sync.php:551)
+- Ziel: DefaultPageSource und LastStaged in eine abhaengigkeitsfreie Datei (`api/_internal/wiki/wiki-abgleich-skelett.php`: `avesmapsWikiDefaultPageSource()`, `avesmapsWikiCatalogLastStaged($pdo, $tabelle)`); DecodeOrigins neben `api/_internal/map/field-origins.php`, wo die Herkunftsregel wohnt; LastSynced/StampLastSynced nur als KERN (`…($pdo, $settingKey)`) -- alle alten Namen bleiben als Einzeiler-Weiterreicher
+- Unterschied: keiner ausser Namen, Setting-Konstante bzw. Tabellenname; bei DecodeOrigins die Kommentarsprache
+- Warum: Kopie je neuem Abgleich: DefaultPageSource publication a7539689f (09.07.2026, Original) → game-literature 53530c7b4 (13.07.) → citymap b390cb77c (17.07.) → lore 3f4636263 (21.07.), jede Kopie nennt ihre Vorlage im Kommentar; LastSynced 927a6a135 (17.07.) → de2e5007a (22.07.) → 9cd1034b4 (23.07., „Mirrors avesmapsLoreLastSynced“); StampLastSynced 05285839a (25.08., Karte und Literatur in einem Commit) → 289d0b2a9 (06.09., Vorkommen); DecodeOrigins 53530c7b4 → aa50861df (06.08.). `46981a607` (14.09.2026) hat bewusst nur einen gemeinsamen KONSUMENTEN gebaut (`dump-sync-kind.php:153-223`) und die Leser getrennt ladbar gelassen (Kommentar Z. 177-180).
+- Empfehlung: zusammenlegen, in dieser Reihenfolge: DefaultPageSource (klarster Fall, kein Test pinnt) → LastStaged → DecodeOrigins → LastSynced/Stamp nur als Kern mit Weiterreichern
+- Beleg: `git blame -w` je Fundstelle; `grep -rn "DefaultPageSource\|LastStaged\|DecodeOrigins" api/_internal/wiki/__tests__` → leer; `api/_internal/wiki/__tests__/sync-lauf-stempel-test.php:203-280`
+- Fallen: 💣 `sync-lauf-stempel-test.php:203-280` pinnt die Aufrufe `avesmaps{Citymap,GameLiterature,Lore}StampLastSynced(` per str_contains in den `*-plan-apply.php` und den Fallzweigen von `dump.php` und prueft ihre ABWESENHEIT im PlanStep-Rumpf -- die drei Namen sind Pflicht, nicht Hoeflichkeit. 💣 Die neue Datei darf `app-setting.php` NICHT requiren: `powerlines.php:33-36` begruendet, warum die Leser ueber `function_exists` gefragt werden (jeder Kontext laedt eine andere Teilmenge). ⚠️ Kraftlinien haben keinen eigenen Stempler (inline in avesmapsWikiPowerlineReconcile, keine Rechen-/Ausfuehr-Trennung) -- nicht hineinziehen. ⚠️ `$tabelle` bei LastStaged ist immer eine Konstante des Aufrufers, nie Eingabe. ⚠️ Nebendateien ungleich kalt (game-literature-sync.php zuletzt 14.09.).
+- Verlauf: 17.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) -- 15 Paare in einer Familie
+
+### P-044 · api/_internal/political/territories-support.php · Verfahren C
+- Status: GO nötig
+- Stand: fc7a9fb5b · Blob: 2fc1d40badfd5dac43f539da46e8eb0238db12b0
+- Block: „Doppelung: Geometrie-Kleinhelfer“ — avesmapsPoliticalCollectCoordinatePairs … avesmapsPoliticalCollectCoordinatePairs (Sammler dreifach: territories-support.php:94 · `api/_internal/map/features.php:820` avesmapsCollectGeometryCoordinatePairs · `api/_internal/audit-focus.php:133` avesmapsAuditCollectCoordinatePairs; bbox aus Geometrie zweifach: `features.php:802` avesmapsCalculateGeometryBounds ~ `territories-geometry.php:1535` avesmapsPoliticalCalculateGeometryBounds)
+- Ziel: eine reine, domaenenneutrale Datei (`api/_internal/geo/coordinate-pairs.php`, Vorbild `api/_internal/text/ascii-fold.php`) mit dem Sammler und einem bbox-KERN, der nicht wirft; alle Namen bleiben als Weiterreicher, die bbox-Weiterreicher behalten ihre Exception-Klasse
+- Unterschied: Sammler: keiner ausser Namen/Klammerstil. bbox: nur die Exception-Klasse -- `RuntimeException` (map) gegen `InvalidArgumentException` (political), und die ist VERDRAHTET: die Map-Endpunkte antworten darauf 503 `service_unavailable` (api/edit/map/features.php:115/129, audit-log.php:48/52), der politische 400 `invalid_request` (territories-endpoint.php:309/313)
+- Warum: 7321512ed (13.05.2026, map, „Extend review change undo“) → d760df69e (15.05., political, adaptierte Kopie mit anderer Exception); die dritte Sammler-Fassung kam mit 602637b0f (06.09.) -- deren „steht jetzt einmal“ meinte die Fokus-Umrechnung, nicht den Sammler darunter
+- Empfehlung: zusammenlegen -- der Sammler direkt, bbox als Kern plus zwei Wrapper, die ihre Exception-Klasse behalten
+- Beleg: `git blame -w -L 802,818 -- api/_internal/map/features.php`, `-L 1535,1551 -- territories-geometry.php`, `-L 133,147 -- audit-focus.php`, `-L 820,832 -- features.php`, `-L 94,106 -- territories-support.php`; `grep -n "catch (InvalidArgumentException\|catch (RuntimeException"` in den drei Endpunkten
+- Fallen: 💣 Eine Textzusammenlegung der bbox-Fassungen kippt lautlos den HTTP-Code eines Live-Endpunkts (400 ↔ 503); kein Test prueft den Pfad „Geometrie ohne Koordinaten“. ⚠️ `audit-focus.php` traegt einen Reinheitsvertrag und wird aus vier Domaenen eingebunden -- die neue Datei ebenso rein, kein Code auf oberster Ebene. ⚠️ features.php ist heiss (Nebendatei).
+- Verlauf: 17.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker)
+
+### P-045 · api/_internal/wiki/locations-helpers.php · Verfahren C
+- Status: GO nötig
+- Stand: fc7a9fb5b · Blob: b9a6f68faaf03103b09f801be58accfd65f879ad
+- Block: „Doppelung: Sperrtabelle map_feature_locks anlegen“ — avesmapsWikiSyncEnsureMapFeatureLocksTable … avesmapsWikiSyncEnsureMapFeatureLocksTable (Zwilling `api/_internal/map/features.php:1283` avesmapsEnsureMapFeatureLocksTable)
+- Ziel: eine gemeinsame Ensure-Funktion in einer neutralen Datei ohne Map- oder Wiki-Abhaengigkeit; beide Namen bleiben als Weiterreicher
+- Unterschied: keiner (DDL zeichengleich)
+- Warum: eine Definition seit 57994ce6b (08.05.2026, „Add editor conflict protection“); 883115de8 (20.05.) kopierte sie in die WikiSync-Ortsbibliothek, damit die Ortsbearbeitung die Sperre ohne die Editor-Lib pruefen kann; beide Kopien wanderten am 14.06.2026 in die M5-Splits (192bae223 → features.php, fd8de3a58 → locations-helpers.php)
+- Empfehlung: zusammenlegen
+- Beleg: `git log --all -S "CREATE TABLE IF NOT EXISTS map_feature_locks"`; `git blame -w -L 1283,1295 -- api/_internal/map/features.php`, `-L 126,138 -- api/_internal/wiki/locations-helpers.php`; `grep -rn EnsureMapFeatureLocksTable --include=*.php`
+- Fallen: 💣 `avesmapsEnsureMapFeatureLocksTableEinmal` (features.php:1299) ruft `avesmapsSchemaEnsureOnce('map_feature_locks', __FILE__, …)` -- der Schluessel traegt die mtime der DEFINIERENDEN Datei (AGENTS §10). Zieht die DDL um, muss der Wrapper die NEUE Datei nennen; mit `__FILE__` = features.php liefe eine spaeter ergaenzte Spalte bis zu eine Stunde in „Unknown column“ (der Historiker las das andersherum -- AGENTS §10 gilt). ⚠️ `garetien-uebernahme.php:3846` ruft die rohe Fassung; `schema-ensure-once-test.php:67` prueft die Aufrufzeile in `api/edit/map/features.php`. ⚠️ features.php ist heiss (Nebendatei).
+- Verlauf: 17.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker)
+
+### P-046 · api/_internal/routing/map-data.php · Verfahren C
+- Status: GO nötig
+- Stand: fc7a9fb5b · Blob: 792046ebe6d89378dff14c51fb8f004748a722a0
+- Block: „Doppelung: JSON-Spalte dekodieren“ — avesmapsDecodeRouteMapJsonColumn … avesmapsDecodeRouteMapJsonColumn (fuenffach: `api/_internal/political/territory.php:874` avesmapsPoliticalDecodeJson · `api/_internal/wiki/sync.php:79` avesmapsWikiSyncDecodeJson · `api/app/map-features.php:1006` avesmapsDecodeJsonColumn · `api/app/map-search.php:789` avesmapsDecodeJsonColumnForSearch)
+- Ziel: `api/_internal/text/json-column.php` (Blattdatei ohne eigene require, Muster `ascii-fold.php`); territory.php und sync.php requiren sie und behalten ihre Namen (sie sind die Domaenen-Singletons mit 12 bzw. 14 Aufruferdateien); die drei Privatkopien werden Weiterreicher
+- Unterschied: keiner -- `JSON_THROW_ON_ERROR`, `JsonException`, `[]` bei null/''/Nicht-Array in allen fuenf; nur Variablenname und Einrueckung
+- Warum: fuenf Features an fuenf Tagen: a1ce7c11f (06.05.2026, SQL-Fundament) · 1e59daad3 (12.05., WikiSync) · c1d972d65 (13.05., Spotlight-Suche) · d760df69e (15.05., Territorien) · b512e9f63 (25.05., Routing-Kartendaten); an keiner Stelle ein Kommentar, warum neu statt eingebunden
+- Empfehlung: zusammenlegen
+- Beleg: `git log --all -S'function <name>('` je Fassung; `grep -rn "avesmapsPoliticalDecodeJson(\|avesmapsWikiSyncDecodeJson(" api --include=*.php`
+- Fallen: 💣 NICHT nach `bootstrap.php`: territory.php und sync.php sind ausdruecklich ohne Bootstrap ladbar (`api/_internal/media-license-migration-run.php:20`, `wikisync-fall-no-article-test.php:43`). ⚠️ `api/app/__tests__/wege-suche-weitere-test.php` schneidet vier ANDERE Namen aus map-search.php und bringt fuer …ForSearch eine eigene Attrappe mit -- nachfahren. ⚠️ `avesmapsDecodeJsonColumnForEdit` (features.php:~4057) sieht gleich aus, wird aber von kraftlinie-kurve-schreiben-test.php woertlich zitiert -- nicht hineinziehen. ⚠️ map-features.php und map-search.php sind ENDPUNKTE: sie requiren die neue Datei, niemand requiret sie.
+- Verlauf: 17.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) -- 10 Paare
+
+### P-047 · api/app/contact.php · Verfahren C
+- Status: GO nötig
+- Stand: fc7a9fb5b · Blob: 07f82bf172ae85d7d7bf28b240fdc92fda58ae21
+- Block: „Doppelung: Spam-Erkennung der zwei Formulare“ — avesmapsContactContainsSpam … avesmapsContactIsLinkOnly (Zwillinge `api/app/report-location.php:410` avesmapsContainsSpamText und `:421` avesmapsIsLinkOnlyText)
+- Ziel: die reine Erkennung in eine neue `_internal`-Datei (`avesmapsTextContainsSpamWord($wert, $woerter)`, `avesmapsTextIsLinkOnly($wert)`); jede Datei reicht ihre EIGENE Wortliste herein, die alten Namen bleiben als Weiterreicher
+- Unterschied: ContainsSpam: Rumpf gleich bis auf die Konstante; IsLinkOnly: byte-gleich. Die Listen selbst unterscheiden sich: contact.php 9 Woerter, report-location.php 7 (`bitcoin` und `forex` nur beim Kontakt) -- nirgends begruendet
+- Warum: report-location d3ef9bfc1 (09.05.2026, „report spam filtering“) → contact 85882c44b (29.06., Kontaktformular kopiert das Muster, erweitert die eigene Liste, nie zurueckgeglichen)
+- Empfehlung: zusammenlegen, NUR die Mechanik; die Listendrift ist eine eigene Owner-Frage (liste.md)
+- Beleg: `sed -n 129,148p api/app/contact.php`; `sed -n 410,429p api/app/report-location.php`; Kopf von `api/_internal/app/report-outcome.php`; `api/_internal/app/__tests__/report-outcome-test.php`
+- Fallen: 💣 Beide Dateien sind ENDPUNKTE (Handler ab `try` Z. 13 bzw. 78) -- keiner kann den anderen requiren. 💣 Oracle-Schutz von report-location (c6ceb9814, 05.08.2026): Link-only-Pruefung VOR der Wortpruefung, beide mit 201 -- `report-outcome-test.php` nagelt Reihenfolge und Position am Quelltext fest; die Reihenfolge gehoert dem Endpunkt und bleibt unberuehrt. ⚠️ Vorpruefung meldet 2 Register (js/app/legal-contact-form.js:32, js/config.js:275) -- vor dem Bau lesen.
+- Verlauf: 17.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) -- dazu das byte-gleiche vierte Paar IsLinkOnly, das der Scan nicht meldete
+
+### P-048 · api/_internal/routing/synthetic-refine.php · Verfahren C
+- Status: GO nötig
+- Stand: fc7a9fb5b · Blob: 03e5dd0a0cb420e37539a712f272a27e8226865b
+- Block: „Doppelung: Routing-Kante entfernen“ — avesmapsRemoveClientRouteConnectionById … avesmapsRemoveClientRouteConnectionById (Zwilling `api/_internal/routing/client-graph.php:1578` avesmapsRemoveClientRouteConnection)
+- Ziel: der einzige Aufruf (synthetic-refine.php:90) ruft avesmapsRemoveClientRouteConnection; …ById bleibt als Einzeiler-Weiterreicher (oder faellt auf Owner-Wort)
+- Unterschied: Rumpf byte-gleich; der Docblock ohne „wieder“ und ohne Herkunftsabsatz
+- Warum: d241d97b8 (02.08.2026) legte …ById an, als die kanonische Fassung noch in detour.php lag und synthetic-refine.php keinen Weg dorthin hatte; 4acf6f3e1 (14.08., „Zwei Abschriften derselben Graph-Operation waeren zwei zu viel“) zog sie nach client-graph.php -- seither erreicht synthetic-refine.php sie ueber offroad-leg.php → client-graph.php, und die Kopie ist ueberfluessig; niemand hat es bemerkt
+- Empfehlung: zusammenlegen (die juengere ist seit dem 14.08.2026 ueberfluessig)
+- Beleg: `git blame -w -L 146,155 -- api/_internal/routing/synthetic-refine.php` (d241d97b8), `-L 1572,1587 -- client-graph.php` (4acf6f3e1); `grep -n "^require" api/_internal/routing/{synthetic-refine,offroad-leg,client-graph}.php`; `grep -rn RemoveClientRouteConnection api/_internal/routing/__tests__` → leer
+- Fallen: Kein Test pinnt den Namen; das Verhalten pruefen synthetic-refine-test.php und abgangspunkt-test.php -- nach dem Schnitt fahren. AGENTS §11 Routing: synthetic-refine.php biegt nur die Geometrie bereits gepruefter Kanten -- nur der Aufrufweg aendert sich.
+- Verlauf: 17.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker)
+
+### P-049 · html/citymap-editor.html · Verfahren B
+- Status: GO nötig
+- Stand: fc7a9fb5b · Blob: 4b8890ed6326848f3fb6037d8c45176c8ab7dac8
+- Block: „Doppelung: POST-Huelle der Editorseiten“ — citymapPost … citymapPost (achtfach: citymap-editor.html:699 · game-literature-editor.html:647 · wiki-sync-monitor.html:1880 · wiki-sync-powerline-editor.html:222 · wiki-sync-settlement-editor.html:1702 settlementDetailPost, :2294, :5089 zoomBandsPost; dazu js/review/review-citymap-autoget.js:25 submitCitymapAutogetAction ~ review-game-literature-cover-autoget.js:24 submitGameLiteratureCoverAutogetAction)
+- Ziel: eine geteilte Datei mit `avesmapsEditorPost(url, body)` nach dem Vorbild `js/review/sync-plan-sheet.js:809` (syncPlanDefaultPost); jede iframe-Seite laedt sie per eigenem `<script src>`, die alten Namen bleiben inline als Einzeiler
+- Unterschied: keiner ausser der Endpunkt-Konstante (POST, JSON, `payload.ok !== true` wirft)
+- Warum: je neuer Editorfunktion abgeschrieben: settlement ca113e7b2 (08.07.2026) → citymap 2b6bf972c (16.07.) → Zoombaender f40ff253c (16.08.); Autoget fcfaa8eb7 (17.07.) → 053cd61c0 (18.07.); kein Kommentar verweist auf die Geschwister. Der Scan mit `--min 10` fand nur 3 der 8 Huellen
+- Empfehlung: zusammenlegen
+- Beleg: `grep -rn "^\s*async function \w*Post(body)" html js`; `git blame -w` je Fundstelle
+- Fallen: 💣 settlementDetailPost ist vm-transitiv gebunden (ueber renderSettlementDetail; mehr als zehn Tests laden wiki-sync-settlement-editor.html ganz) -- ohne die neue Datei im selben vm-Kontext wird jeder Aufruf dort zum ReferenceError. 💣 Die Editorseiten sind eigenstaendige iframe-Dokumente (AGENTS §11, Sammelmenue): je Seite ein eigenes `<script src>`. ⚠️ Die Vorpruefung meldet fuer citymapPost Ladezeit-Bezuege (Z. 2098, 2235-2247) -- der Name muss beim Laden stehen, der Weiterreicher bleibt inline. ⚠️ Verfahren B: der Stempler laeuft ueber html/*.html, kein Hand-?v=.
+- Verlauf: 17.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) -- der Historiker fand die fuenf weiteren Kopien
+
+### P-050 · js/review/review-region-sync.js · Verfahren A
+- Status: GO nötig
+- Stand: fc7a9fb5b · Blob: dc0a1faace1a6ae1deab164bc2702b6183e59ee8
+- Block: „Doppelung: Kontinent-Filteroptionen“ — regionContinentOptions … regionContinentOptions (Zwilling `js/review/review-path-sync.js:61` pathContinentOptions)
+- Ziel: eine Funktion mit Zeilenquelle und Kontinent-Leser als Parameter; beide Namen bleiben
+- Unterschied: nur die Modulvariable (pathSyncData/regionSyncData) und der Zeilen-Leser (pathRowContinent/regionRowContinent)
+- Warum: EIN Commit 07a9d3295 (22.06.2026, „add continent filter to region/path/settlement editor lists“) -- bewusst dreifach gebaut; Region und Weg laufen im selben Dokument (index.html Z. 3811/3817)
+- Empfehlung: zusammenlegen fuer Region und Weg; `settlementContinentOptions` NICHT (iframe-Kopie, im Code als „mirrors“ dokumentiert)
+- Beleg: `git blame -w -L 61,74 -- js/review/review-path-sync.js` und `-L 37,50 -- js/review/review-region-sync.js` → beide 07a9d3295
+- Fallen: 💣 review-path-sync.js ist als GANZE Datei vm-gebunden (liste.md „Verworfen“, 04.09.2026: drei Tests laden sie allein und binden 51 von 52 Funktionen transitiv) -- steht der Rumpf von pathContinentOptions danach in einer Datei, die diese Tests nicht laden, bricht der Weiterreicher dort. Vorher die drei Lader lesen. ⚠️ Die Vorpruefung meldet fuer regionContinentOptions einen Ladezeit-Bezug (Z. 450) -- der Name muss beim Laden stehen.
+- Verlauf: 17.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker)
+
+### P-051 · js/map-features/map-features-citymaps.js · Verfahren A
+- Status: GO nötig
+- Stand: fc7a9fb5b · Blob: b7f1d11aceeb738aac93284e72d8fbf7b8649615
+- Block: „Doppelung: Ortsbezug eines Werks bauen“ — avesmapsBuildCitymapPlaceRef … avesmapsBuildCitymapPlaceRef (Zwilling `js/map-features/map-features-game-literature.js:532` avesmapsBuildGameLiteraturePlaceRef)
+- Ziel: `avesmapsBuildPlaceRef(placeRef, normalizeKeyFn)` in einer Datei, die vor beiden laedt; beide Namen bleiben
+- Unterschied: nur der Normalisierer im else-Zweig (avesmapsNormalizeCitymapKey gegen avesmapsNormalizeGameLiteratureKey); die Normalisierer selbst unterscheiden sich (Literatur hat einen NFD-Rueckfall) und bleiben getrennt
+- Warum: bd24cc22e (12.07.2026, Abenteuer; 07.08. mit da302a2ae umbenannt) → 2b6bf972c (16.07., Karten) -- Abschrift in die Nachbardomaene
+- Empfehlung: zusammenlegen
+- Beleg: `git blame -w -L 475,488 -- js/map-features/map-features-citymaps.js`, `-L 532,545 -- js/map-features/map-features-game-literature.js`; `grep -rln "BuildCitymapPlaceRef\|BuildGameLiteraturePlaceRef" js tools` → nur die Quelldateien
+- Fallen: Beide sind Besucher-Skripte (index.html Z. 4228/4235) -- die geteilte Datei laedt vor beiden, und jeder Besucher laedt sie; kein Test nennt die Namen.
+- Verlauf: 17.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker)
+
+### P-052 · js/review/review-wiki-sync-resolve.js · Verfahren A
+- Status: GO nötig
+- Stand: fc7a9fb5b · Blob: 1b5dd2c0e017fb2c570798c52f6bfcec97ec52a1
+- Block: „Doppelung: Lage eines WikiSync-Falls lesen“ — normalizeWikiSyncLatLng … normalizeWikiSyncLatLng (Zwilling `js/review/review-wiki-sync-cases.js:749` readWikiSyncDriftLatLng)
+- Ziel: readWikiSyncDriftLatLng wird Weiterreicher auf normalizeWikiSyncLatLng (beide Dateien in derselben Vorlage, index.html Z. 3904-3906)
+- Unterschied: keiner ausser dem Parameternamen
+- Warum: 7a76f8bf3 (14.06.2026) zuerst; afa6d01d5 (03.07.) legte die Parallelfunktion mit dem Kommentar „same convention as payload.proposed_location (review-wiki-sync-resolve.js)“ an -- der Autor kannte die andere
+- Empfehlung: zusammenlegen
+- Beleg: `git blame -w -L 749,759 -- js/review/review-wiki-sync-cases.js` (afa6d01d5), `-L 450,462 -- js/review/review-wiki-sync-resolve.js` (7a76f8bf3)
+- Fallen: 💣 `tools/wikidump/test-wikidump-frontend-cases.mjs:60` schneidet readWikiSyncDriftLatLng per extractFunction aus review-wiki-sync-cases.js und fuehrt sie aus -- ein Weiterreicher auf eine Funktion, die der Test nicht laedt, bricht ihn (Testharnisch, Owner-Sache). ⚠️ Die Vorpruefung meldet fuer normalizeWikiSyncLatLng Ladezeit-Bezuege (Z. 417-420).
+- Verlauf: 17.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker)
+
+### P-053 · js/map-features/map-features-derived-boundary-context-action.js · Verfahren A
+- Status: GO nötig
+- Stand: fc7a9fb5b · Blob: 425c79ca4cabf99463e31bc54054db78c8ae60c3
+- Block: „Doppelung: Ringflaeche (Gausssche Trapezformel)“ — avesmapsDerivedTargetRingArea … avesmapsDerivedTargetRingArea (Zwilling `js/map-features/map-features-ecosystem-geometry.js:86` ecosystemRingArea)
+- Ziel: avesmapsDerivedTargetRingArea ruft ecosystemRingArea (oder beide eine neutrale Geometriedatei); die Namen bleiben
+- Unterschied: keiner ausser Variablennamen
+- Warum: 491e85629 (26.07.2026; der Dateikopf warnt ausdruecklich vor Duplikaten wie pointInGeometry) → a963b5ec2 (25.08.) unabhaengig neu geschrieben
+- Empfehlung: zusammenlegen
+- Beleg: `git blame -w -L 72,80 -- js/map-features/map-features-derived-boundary-context-action.js` (a963b5ec2), `-L 86,95 -- js/map-features/map-features-ecosystem-geometry.js` (491e85629)
+- Fallen: ⚠️ Z. 72 steht VOR der IIFE der Datei (Z. 82) -- globale Funktion, kein IIFE-Fall. 💣 ZWEI Ladewege: im Browser laedt `map-features-political-territory-repository.js:101-105` die Datei dynamisch nach (Register 2), ecosystem-geometry.js steht fest in index.html Z. 3960; in Node `require()`n `ecosystem-geometry.test.js:6` und `derived-boundary-ziel-punkt.test.js:35` die Dateien einzeln -- dort gibt es keinen gemeinsamen globalen Raum (dieselbe Falle wie bei featureSourcePagesShorten, AGENTS §11 Quellenliste).
+- Verlauf: 17.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker)
+
+### P-054 · js/ui/wiki-assign-literatur.js · Verfahren A
+- Status: GO nötig
+- Stand: fc7a9fb5b · Blob: a344d08f0873ec91dc13533230f2243e9760c8e8
+- Block: „Doppelung: Kleinhelfer der Wiki-Zuweisungs-Datenwege“ — avesmapsWikiAssignLiteraturHerkunft … avesmapsWikiAssignLiteraturHerkunft (Herkunft vierfach: wiki-assign-literatur.js:130 · wiki-assign-ort.js:322 · wiki-assign-landschaft.js:444 generalisiert · inline wiki-feld-herkunft.js:88 in avesmapsWikiFeldStand; Kartenwerte dreifach wiki-assign-landschaft.js:378 · -literatur.js:208 · -territorium.js:250, dazu inline wiki-assign-ort.js:291-301; SyncWerte -literatur.js:281 ~ -ort.js:379, Landschaft schon generalisiert als …SyncWerteFuer)
+- Ziel: `avesmapsWikiFeldHerkunftFilter(herkunft, felder)` in `js/ui/wiki-feld-herkunft.js` (ersetzt auch Z. 88), `avesmapsWikiAssignKartenwerte(quelle, felder, normalisiere)` und die angehobene SyncWerteFuer-Form in einer reinen geteilten Datei; alle Namen bleiben unter `module.exports`
+- Unterschied: keiner im Rumpf (Kartenwerte bis auf den je eigenen *Text-Aufruf); die SyncWerte des Territoriums sind eine echte Variante mit Eltern-Aufloesung und bleiben
+- Warum: alles am 16./17.08.2026 im Umbau „Wiki-Zuweisung vereinheitlichen“: Ort 406fa96c6 (06:53, Original, inline) → Territorium 6a2c0f623 → Landschaft bf2a74567/374b82da8 → Literatur ddb0b9661; Herkunft 1cf269f9e (17.08.) erzeugte zwei Fassungen in EINEM Commit, 85cd1e62b die dritte. Entwurf `docs/superpowers/specs/2026-08-15-wiki-zuweisung-vereinheitlichung-design.md` §3a schuetzt nur die Feldzuordnung, nicht diese objektartlose Mechanik
+- Empfehlung: zusammenlegen -- Herkunft zuerst (vierfach, eine davon in der Datei, die genau das buendeln soll), dann Kartenwerte, dann SyncWerte; `*Treffer` (Karte ~ Ort) NICHT (zwei einfache von sechs Varianten)
+- Beleg: `git blame -w -L 130,140 -- js/ui/wiki-assign-literatur.js`, `-L 322,332 -- js/ui/wiki-assign-ort.js`; `git show 1cf269f9e -- js/ui/wiki-assign-ort.js js/ui/wiki-assign-literatur.js`; `sed -n 85,90p js/ui/wiki-feld-herkunft.js`
+- Fallen: 💣 AGENTS §11 Wiki-Zuweisung: ein Datenweg kennt kein DOM, kein fetch, keinen Modulzustand -- die geteilte Datei ebenso. 💣 Die Tests `js/ui/__tests__/wiki-assign-<art>.test.js` `require()`n ihre Datei einzeln -- die geteilte Datei muss auch per require erreichbar sein (zwei Ladewege, AGENTS §11 Quellenliste). ⚠️ Nebenbefund: `String(wert ?? "").trim()` steht achtfach (avesmapsWikiFeldNormalize, avesmapsWikiAssignDiffNormalize, sechs *Text) -- wiki-feld-herkunft.js:20 warnt selbst „zwei Normalisierungen sind zwei Wahrheiten“. ⚠️ Ladezeit-Bezug Z. 305 laut Vorpruefung (Erklaerungsobjekt) -- der Name bleibt.
+- Verlauf: 17.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) -- sieben Paare
+
+### P-055 · api/_internal/wiki/regions.php · Verfahren C
+- Status: GO nötig
+- Stand: fc7a9fb5b · Blob: 2c847a45a2550b4c3104ea0ea646abdb180e4a0e
+- Block: „Doppelung: Crawl-Skelett, die vier Paare“ — avesmapsWikiRegionFetchCategory … avesmapsWikiRegionFetchCategory (Paare regions.php ↔ paths.php: FetchCategory Z. 321 ~ 175 · StartRun 288 ~ 147 · RunStatus 702 ~ 613 · Clear 769 ~ 675)
+- Ziel: `api/_internal/wiki/wiki-crawler-base.php` (seit P-024 vorhanden), parametrisiert ueber Queue-/Staging-Tabelle, Default-Seeds und Max-Depth-Konstante; die Path-/Region-Namen bleiben als Weiterreicher
+- Unterschied: wie P-024 (Historiker 05.09.2026): wortgleich bis auf Namen, Tabellenkonstanten und Ensure-Aufruf; der Scan vom 17.09.2026 meldet alle vier Paare unveraendert mit gleichheit 1,00
+- Warum: wie P-024: regions kopierte aus sync-monitor (cc29579ef, 05.06.2026), paths aus regions (fdcbfe33a, 06.06.)
+- Empfehlung: zusammenlegen -- der zweite Schritt der Empfehlung von P-024
+- Beleg: P-024; `node tools/refactoring/doppelungen.mjs --wurzel . --min 10`
+- Fallen: ⚠️ avesmapsWikiSyncMonitorRunStatus/…StartRun in sync-monitor.php sind ECHT anders und bleiben draussen (P-024). ⚠️ Der Tabellenname wird Parameter und wandert in den SQL-Text -- denselben Bezeichner-Riegel wie avesmapsWikiCrawlEnqueue benutzen (Verlauf P-024). ⚠️ paths.php und regions.php sind heiss (16.09./15.09.).
+- Verlauf: 17.09.2026 angelegt als Folgepaket von P-024 (dessen Verlauf: „Die vier Paare … stehen noch aus - dafuer ein Folgepaket“). Das GO vom 05.09.2026 galt der Empfehlung „Enqueue zuerst, dann die vier Paare“ als Ganzem -- die Routine setzt trotzdem GO noetig, weil nur der Owner `offen` setzt; eine Zeile genuegt
 
 ---
 
@@ -381,6 +645,15 @@ Freie Blöcke ≥ 150 Zeilen, für die noch kein Paket geschnitten ist — weil 
 | `api/_internal/wiki/sync-monitor-model.php` | 974 | 3 | 30 d | 749Z/16 `avesmapsWikiSyncMonitorStagingColumns` … `avesmapsWikiSyncMonitorSetExcluded`<br>208Z/4 `avesmapsWikiSyncMonitorIsCustomNodeKey` … `avesmapsWikiSyncMonitorApplyCustomNodes` |
 | `api/_internal/routing/graph.php` | 925 | 3 | 77 d | 920Z/21 `avesmapsBuildRouteGraph` … `avesmapsBuildRouteEdge` |
 
+### Nachtrag 17.09.2026 (Ueberwachungsmodus)
+
+Freie Bloecke ≥ 150 Zeilen in abgekuehlten Dateien (Commitdatum ≥ 5 Tage), die KEIN Paket geworden sind -- mit Grund. Die Pakete P-031 … P-042 stehen oben; gebundene Bloecke stehen im naechsten Abschnitt.
+
+- **Unter dem Boden des Fingerabdrucks** (je Block < ~170 Zeilen): `sync-monitor.php` Z. 387-548 (Enqueue … ResolveCanonicalTitles, zudem P-024-Familie) · `ui-controls.js` Distanzmessung Z. 157-327 und Verkehrsmittel-Menue Z. 329-482 · `publication-parsing.php` Z. 36-208 · `path-flow.php` Z. 29-199 · `api-metrics.php` Spool Z. 340-498 · `review-visitor-analytics.js` Z. 600-761 · `api-client.js` Z. 274-443 · `map-features-political-territory-loader.js` Stil-Anwendung Z. 176-238.
+- **Mischthema, kein Name aus den Funktionen:** `wiki/sync.php` Z. 207-443 (Drossel-Absagen, Bot-Zustand, Cookies; der Teil ab avesmapsWikiBotZustand hat ~140 Zeilen) und Z. 1047-1716 (Titelstapel, API-Anfrage, Match-Schluessel nach AGENTS §5, Kerntabellen, Laeufe) · `visitor-analytics.php` Z. 252-454 und 697-853 (sieben Tests lesen die Datei) · `locations-helpers.php` Z. 12-202 und 210-610 (traegt NextMapRevision und EnsureMapFeatureLocksTable, P-028/P-045) · `sync-plan.php` Z. 48-295 (Regeln plus DDL) · `publication-sync.php` Z. 31-236 und 255-1025.
+- **Der Block ist (fast) die ganze Datei** -- ein Paket braucht zuerst eine Unterteilung mit Thema: `territories-geometry.php` (99 %), `territories-derived-geometry.php` (99 %), `routing/graph.php` (99 %), `curve-labels.php` (98 %), `sync-monitor-tree.php` (96 %), `lore-rule-store.php` (95 %), `conflicts/rules.php` (92 %), `media-license-migration-run.php` (92 %), `lore-rule-match.php` (91 %), `backup/db-dump.php` (89 %), `offroad-grid.php` (89 %), `dump-fetch.php` (86 %), `lore-rule-derive.php` (83 %), `dump-category-layer.php` (78 %), `path-flow.php` Z. 211-926 (77 %), `review-region-parent-tree.js` (70 %), `offroad-leg.php` (67 %), `territories-audit.php` Z. 17-603 (66 %), `eigener-knoten-wiki-bindung.php` Z. 41-588 (59 %).
+- **Endpunkt:** `api/edit/political/subtree-display.php` Z. 625-1224 -- der Handler laeuft beim include; ein `require_once` an der Blockstelle am Dateiende kaeme zu spaet.
+
 ## Von Tests am Quelltext festgehalten (kein Paket, Stand 05.09.2026)
 
 Diese Blöcke wären frei, aber ein Test liest den QUELLTEXT der Datei und sucht Funktionsnamen darin (Prüfung 3/3b). Damit hat **Verfahren B im Erstbestand kein Paket** — die Editorseiten werden von ihren Tests durchweg per Text geschnitten. Ein Paket braucht hier zuerst den Test: sein Pfad muss der Geschwisterdatei folgen (eine Zeile, wie ein Register) — das ist eine Änderung am Testharnisch und damit Owner-Sache, nicht Routine.
@@ -397,6 +670,18 @@ Diese Blöcke wären frei, aber ein Test liest den QUELLTEXT der Datei und sucht
 | `html/citymap-editor.html` | Detailansicht (`ceImageGroup` … `renderDetail`) | editor-abschnittsreihenfolge.test.js, wiki-assign-karte.test.js |
 | `js/review/review-panels-change-log.js` | Fokus und Rückgängig (`findLabelMarkerByPublicId` … `undoChangeLogEntry`) | change-log-target.test.js:115 (Regex-Literal `/getChangeLogFocusTooltip[\s\S]{0,220}…/` am Quelltext) — gefunden vom Behauptungsprüfer 05.09.2026, seither Prüfung 3 |
 | `js/routing/route-engine.js` | Server-Route in Anzeige-Segmente (`getServerRouteDebug` … `buildRouteResultFromServerRoute`) | route-entry-path-ids.test.js, route-entry-terrain.test.js (Lade-Helfer `const load = (rel) => { … runInThisContext(readFileSync(…)) }`, rufen `buildServerGeometryRouteSegment`/`installServerPrimaryRouting` — transitiv ist die halbe Datei gebunden) |
+| `api/_internal/wiki/settlements.php` | Wappen aus dem Wiki (`avesmapsWikiSettlementCoatStatus` … `…ClearCoat`, P-009) | wappen-dritter-zustand-test.php (`$rumpf` fuer BulkRecordCoats, SetWikiCoat, ClearCoat), wappen-box-kartendialog.test.js:273 (Regex `'coat_none' => …`) -- Pfad per Helfer zusammengesetzt, von der Vorpruefung nicht gesehen (17.09.2026) |
+| `api/_internal/wiki/sync.php` | Bot-Sitzung und Diagnose (`avesmapsWikiBotSitzungDatei` … `avesmapsWikiBotDiagnoseUrteil`) | bot-login-test.php:252 (Regex `function avesmapsWikiBotSitzungSicherstellen\(.*?\n\}`) und :267 (zaehlt die Aufrufe von avesmapsWikiSyncLogServerError in sync.php) -- Pfad `$wikiVerzeichnis . '/sync.php'`, von der Vorpruefung nicht gesehen (17.09.2026) |
+| `api/_internal/wiki/publication-sync.php` | Abgleich-Schritt (`avesmapsPublicationPlanItem` … `…ReconcileStep`) und Plan-Schritt (`…PlanForEntity` … `…SyncPhaseStep`) | publication-ziel-landschaft-test.php (Code-Fragmente aus FetchLiveEntityBatch, ReconcileStep, PlanForEntity), reconcile-transaction-test.php (`ReconcileEntity($pdo`) (17.09.2026) |
+| `api/_internal/routing/travel-values.php` | Aktive Werte (`avesmapsTravelValuesPrime` … `…RampShape`) und Eingang/Kalibrierung (`…ParseNumber` … `…CalibrationRows`) | speed-table-and-rest-rule.test.js:255 (liest die Reisetage per Regex), tempowerte-dialog.test.js:24 (`$payload['grid']`, `$payload['ground_penalties']`); dazu steht die Datei im Migrations-Fingerabdruck von `ecosystem-schema-state.php` -- Code, der in eine Geschwisterdatei wandert, fiele aus ihm heraus (17.09.2026) |
+| `api/_internal/wiki/dump-hybrid-state.php` | Zustandstabelle und Kartenzeilen (`avesmapsWikiDumpHybridEnsureStateTable` … `…ComputeBuildingMapRows`) | hybrid-state-spalten-test.php:59 (`$nachzuruesten = [`) (17.09.2026) |
+| `api/_internal/wiki/sync-plan.php` | Entscheidungen (`avesmapsSyncPlanRecordDecline` … `…DecisionTargetsForItems`) | sync-plan-decline-changetype-test.php (SQL `ON DUPLICATE KEY UPDATE declined_at …` woertlich) (17.09.2026) |
+| `api/_internal/wiki/lore-sync.php` | Planpositionen (`avesmapsLorePlanItem` … `…LastStaged`) | lore-retire-parity-test.php:57 (ABWESENHEIT von `NOT IN (SELECT wiki_key FROM …` in der ganzen Datei -- nach einem Schnitt still blind) (17.09.2026) |
+| `api/_internal/wiki/eigener-knoten-wiki-bindung.php` | Kandidaten, Felder und Plan (`…FelderSchreiben` … `…Plan`) | eigener-knoten-wiki-bindung-ziele-test.php (Inventar per `str_contains` ueber die ganze Datei, Abwesenheit von UPDATE IGNORE und Upsert) (17.09.2026) |
+| `api/_internal/wiki/sync-monitor-model.php` | Eigene Knoten (`avesmapsWikiSyncMonitorIsCustomNodeKey` … `…ApplyCustomNodes`) | territory-selection-test.php:62 (`$bodyOf` schneidet ApplyCustomNodes; der Name steht in einem Array-Literal, von der Vorpruefung nicht gesehen) (17.09.2026) |
+| `api/_internal/app/lore.php` | Statuskreis je Eintrag (`avesmapsLoreReadMapStatusByEntry` … `…ResolveGoodsByName`) | listen-statuskreis.test.js:405 (Aufruf `avesmapsLoreReadPlaceKeysOnMap($pdo, array_keys($allPlaceKeys))` in Z. 765) (17.09.2026) |
+| `js/ui/ui-controls.js` | Massstabsband (`watchMapScaleBandLift` …) | touch-scale.test.js:372/384 (`new ResizeObserver(syncMapScaleBandLift)`) (17.09.2026) |
+| `html/citymap-editor.html`, `html/game-literature-editor.html` | `runAcSearch` | js/pages/__tests__/editor-ortsvorschlaege-arten.test.js:37 (`ausschneiden(html, datei, "runAcSearch")` aus BEIDEN Seiten) -- Luecke dieser Tabelle, gefunden vom Historiker 17.09.2026 |
 
 ## Nicht-Ziele der Routine (Owner-Entscheid 05.09.2026, brauchen einen eigenen Plan)
 
@@ -410,3 +695,13 @@ Der Doppelungs-Scan meldet sie als zeichengleich; der Historiker hat belegt, war
 - `readSourceIds` (`map-features-derived-boundary-runtime-fix.js`) ~ `readPoliticalTerritoryDerivedSourceIds` (`map-features-political-territory-loader.js`): die statische Kopie ist der Rückfall für die kurze asynchrone Ladelücke, bevor das injizierte Skript greift — am 27.06.2026 im Audit (`docs/cleanup-audit-2026-06-27.md`, A2) bewusst ANGEGLICHEN statt zusammengelegt (`945762f734`, Owner-GO). Ein Zusammenlegen risse die Timing-Lücke wieder auf.
 - `avesmapsSuppressCitymapLink`/`…CitymapPlace` (`api/_internal/app/citymaps.php`) ~ `avesmapsSuppressGameLiteraturePlace` (`game-literature.php`): ECHTE andere Geschäftsregel — Karten tombstonen bei `origin !== 'manual'`, Literatur nur bei `origin === 'wiki'` (Abschnittskommentar vor `avesmapsAddCitymapPlace`, seit P-011 in `citymaps-links.php`: „Deliberate copies … the two tables differ“). Zusammenlegen wäre ein Fehler; kein Test hält die Abweichung fest — das ist die eigentliche Lücke.
 - `avesmapsNextEcosystemRevision` (`ecosystem.php` Z. 1258) gegen `avesmapsNextMapRevision`: eigene Tabelle `ecosystem_revision`, eigener Cache-Kreis, damit eine Zeichenkampagne nicht bei jeder Speicherung die 29-MB-Kartennutzlast invalidiert (`956d53ee9e`, `ecosystem.php:12-16`). Gewollt.
+
+Nachtrag 17.09.2026 (Historiker-Laeufe des Ueberwachungsmodus):
+
+- `avesmapsPoliticalNameExists` (`territories-support.php:125`) ~ `avesmapsPoliticalSlugExists` (`territory.php:617`): KEINE Doppelung -- Spalte `name` (weich, kein UNIQUE, Anzeige-Suffix „(2)“) gegen `slug` (`uq_political_territory_slug`, mit der Papierkorb-Falle aus `eigener-knoten-wiki-bindung.php:71-87`). Der Scan anonymisiert String-Literale positional und setzt die Spalten gleich.
+- `avesmapsEcosystemWikiSlug` (`ecosystem.php:2321`) ~ `avesmapsPoliticalSlug` (`territory.php:892`): gewollt -- ecosystem.php ruft keinen politischen Code (Kopf Z. 54-63, Kommentar Z. 2313-2320); `ecosystem-geometry-test.php:411-433` haelt beide ueber 17 Faelle zeichengleich (AGENTS §5).
+- `avesmapsKartenarchivLinkToken` (`kartenarchiv-link.php:117`) ~ `avesmapsGenerateShareCode` (`api/app/share-link.php:41`): gewollt -- das Alphabet ist bewusst uebernommen (e522864e9 nennt share-link.php zweimal), die Laenge 32 statt 8 sicherheitsbegruendet („dieser IST der Zugang“); share-link.php ist ein Endpunkt.
+- `ceWikiEntry` (`citymap-editor.html:1286`) ~ `aeWikiEntry` (`game-literature-editor.html:1204`): gewollt -- die Karte sucht nach TITEL (`citymap.wiki_key` ist ein Bauschluessel, AGENTS §11), die Literatur nach `wiki_key` (d2cd4e2df / 3da657c92, 16.08.2026).
+- `avesmapsPoliticalFetchTerritoryByPublicIdForAudit`/`…ByIdForAudit` (`territories-audit.php:692/708`) ~ `avesmapsPoliticalFetchGeometryRowByPublicIdRaw` (`territories-geometry.php:1417`): KEINE Doppelung -- drei Tabellen/Spalten; `Raw` ist die Audit-Lesung ohne is_active-Filter neben avesmapsPoliticalFetchGeometryByPublicId (alle aus 9d938c047, 28.05.2026).
+- `avesmapsPoliticalReadOptionalInt`/`…ReadOptionalZoom` (`territories-read.php:1440/1469`) ~ `avesmapsPoliticalSubtreeDisplayReadOptionalYear`/`…Zoom` (`api/edit/political/subtree-display.php:433/148`): kein Einzelpaket -- subtree-display.php ist systematisch isoliert (rund 30 SubtreeDisplay-Funktionen, requiret nur territory.php; f7d2a2c47/e867ba8c7, 31.05.2026). Wenn ueberhaupt, dann „subtree-display.php entkoppeln“ als eigenes GO-Paket. Die gleichnamigen Fassungen in `display-overrides.php:63-91` sind `function_exists`-geschuetzt und nie im selben Request (`zoom-sync-requires-test.php:22-28`) -- kein Redeclare.
+- `avesmapsWikiAssignKarteTreffer` ~ `avesmapsWikiAssignOrtTreffer`: Randerscheinung -- die zwei einfachen von sechs Treffer-Bauern; die uebrigen vier sind echte Varianten (arten, haengtAn, Eltern, kanonischer Name).
