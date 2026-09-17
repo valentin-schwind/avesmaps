@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 17.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 18.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -525,7 +525,7 @@
 				<p>Straßen, Pfade, Flüsse und Seewege. Sie tragen die Reiseplanung — deshalb ist hier Sorgfalt wichtiger als anderswo.</p>
 
 				<h4>Ganze Straße oder Abschnitt</h4>
-				<p>Ein Weg liegt auf der Karte in <strong>Abschnitten</strong>. Alle Abschnitte mit demselben Namen bilden eine <strong>Straße</strong>, auch über Lücken hinweg. Im Bearbeiten-Modus wählst du per Klick, woran du arbeitest:</p>
+				<p>Ein Weg liegt auf der Karte in <strong>Abschnitten</strong>. Alle Abschnitte mit demselben Namen bilden eine <strong>Straße</strong>, auch über Lücken hinweg. Per Klick wählst du, woran du arbeitest:</p>
 				<table class="hb-table">
 					<tr><th>Klick</th><th>Gelb markiert ist</th></tr>
 					<tr><td>Erster Klick auf eine Linie</td><td>die <strong>ganze Straße</strong></td></tr>
@@ -918,8 +918,14 @@
 					<li><strong>„Grenzen bearbeiten"</strong> — nur die Geometrie.</li>
 					<li><strong>„Grenzen berechnen"</strong> — errechnet die Außengrenze aus den Kindern (nur bei reinen Container-Gebieten sinnvoll).</li>
 					<li><strong>„Orte hier zuordnen"</strong> — ordnet die Orte innerhalb dieses einen Gebiets zu.</li>
-					<li>Dazu die Formwerkzeuge: <strong>Verschieben</strong>, <strong>Gebiet zerschneiden</strong>, <strong>Mit anderem vereinigen</strong>, <strong>Von anderem ausschneiden</strong>, <strong>Neues Gebiet herauslösen</strong>, <strong>Löschen</strong> — und <strong>„Infobox anzeigen"</strong>.</li>
+					<li><strong>„Infobox anzeigen"</strong>, <strong>„Neues Gebiet herauslösen"</strong> und <strong>„Löschen"</strong>.</li>
 				</ul>
+				<p><strong>Die Formwerkzeuge stehen in zwei Untermenüs.</strong> Fahr mit der Maus auf den Eintrag, dann klappt es auf:</p>
+				<table class="hb-table">
+					<tr><th>Untermenü</th><th>Darin</th></tr>
+					<tr><td><strong>„Form ändern ▸"</strong></td><td>Verschieben · Gebiet zerschneiden</td></tr>
+					<tr><td><strong>„Mit anderem Gebiet ▸"</strong></td><td>die vier Verrechnungen — siehe <em>Die Formwerkzeuge</em> weiter unten</td></tr>
+				</table>
 				<figure class="hb-shot">
 					<img src="screenshots/07-gebiet-menu.png" alt="Gebiets-Kontextmenue mit Grenzen bearbeiten, Territoriumseditor oeffnen, Grenzen berechnen, Verschieben, Gebiet zerschneiden, vereinigen, ausschneiden, herausloesen, Loeschen" />
 					<figcaption>Das Rechtsklick-Menü eines Gebiets. Je nach Gebiet erscheinen zusätzliche Einträge.</figcaption>
@@ -959,7 +965,7 @@
 					<tr><td><strong>Von anderem ausschneiden und anderes beibehalten</strong></td><td>dasselbe</td><td>bleibt stehen</td></tr>
 					<tr><td><strong>Neues von anderem ausschneiden</strong></td><td>nur die <em>Überlappung</em> beider</td><td>bleibt stehen</td></tr>
 				</table>
-				<div class="hb-note hb-tip"><strong>Beim Zielgebiet zählt der Rand, nicht die Fläche.</strong> Solange eine der vier Operationen auf ihr Ziel wartet, nimmt nur noch die <em>Kontur</em> eines Gebiets den Klick an — die Ränder werden dafür sichtbar dicker, das ist der Hinweis darauf. Dein Ausgangsgebiet ist ganz aus dem Spiel und lässt sich gar nicht mehr treffen. Der Grund: Lag es <em>über</em> dem gewünschten Ziel, fing früher seine eigene Fläche jeden Klick ab, und an das Gebiet darunter kam man mit der Maus nicht heran. Bei <strong>Verschieben</strong> und <strong>Gebiet zerschneiden</strong> gilt das nicht — die brauchen die Fläche.</div>
+				<div class="hb-note hb-tip"><strong>Beim Zielgebiet zählt der Rand, nicht die Fläche.</strong> Solange eine der vier Operationen auf ihr Ziel wartet, nimmt nur noch die <em>Kontur</em> eines Gebiets den Klick an — die Ränder werden dafür sichtbar dicker, das ist der Hinweis darauf. Dein Ausgangsgebiet ist ganz aus dem Spiel und lässt sich gar nicht mehr treffen. Bei <strong>Verschieben</strong> und <strong>Gebiet zerschneiden</strong> gilt das nicht — die brauchen die Fläche.</div>
 				<div class="hb-note hb-warn"><strong>Die ersten beiden verbrauchen das Gebiet, das du anklickst.</strong> Hat es keine Fläche mehr übrig, ist es weg. Der lange Name „…&nbsp;und anderes beibehalten" ist genau dafür da — er ist nicht die umständliche Variante, sondern die vorsichtige. Im Zweifel nimm sie: Was zu viel stehen bleibt, kannst du danach immer noch löschen; was verbraucht wurde, holst du nur über den Reiter <a href="#aenderungen">Änderungen</a> zurück.</div>
 
 				<h4>Im Territoriumseditor</h4>
@@ -983,16 +989,35 @@
 				<h3 id="regionen" class="hb-sub">Regionen</h3>
 				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick auf die Beschriftung → „Bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neues Label" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Regionen</p>
 				<p>„Regionen" sind die <strong>Landschaftsnamen auf der Karte</strong> — das Svellttal, der Farindelwald, das Meer der Sieben Winde. Technisch sind es Beschriftungen, keine Flächen. Liegt eine <a href="#landschaften">Fläche</a> darunter, bearbeitest du beide im selben Fenster; liegt keine darunter, heißt es <em>„Freies Label bearbeiten"</em>.</p>
+				<h4>Die Blöcke des Dialogs</h4>
 				<ul class="hb-steps">
 					<li><strong>Kopf</strong> — <em>Name</em> und <em>Art</em>, beide mit <strong>↻</strong> zum Übernehmen aus dem Wiki. Die Art ist nicht auf „Region" beschränkt — die vollständige Liste steht unter <a href="#n-listen">Die Auswahllisten</a>. Der Haken <em>Nodix</em> steht im Reiter <em>Beschriftung</em>.</li>
 					<li><strong>Höhe (Schritt)</strong> — steht unten im selben Block und erscheint nur, wenn die Art <em>Berggipfel</em> oder <em>Vulkan</em> ist: ein Zahlenfeld mit Schieberegler (0–20.000). Ein leeres Feld füllt sich dabei mit <strong>5.000</strong> — der Wert, mit dem die Karte für einen Gipfel ohne erfasste Höhe ohnehin rechnet. Eine <em>bereits erfasste</em> Höhe bleibt unangetastet, auch wenn du den Dialog nur öffnest.</li>
 					<li><strong>Darstellung</strong> — Größe, <em>Kurvenbeschriftung</em>, <em>Anzahl Kurvenlabel</em> (erscheint erst mit dem Haken), „Sichtbar ab/bis Zoom", Priorität. Damit steuerst du, wann und wie prominent die Beschriftung erscheint. An Größen- und Zoomreglern steht als Marke, was die Tafel <a href="#landschaften">„Darstellung"</a> für diese Art vorschlägt — du darfst davon abweichen. <strong>Größe und Priorität wirken sofort auf der Karte</strong>, während du am Regler ziehst. Schließt du den Dialog <em>ohne</em> zu speichern („Abbrechen", ×, ESC), geht die Beschriftung auf ihren alten Stand zurück. Bei einer <em>neuen</em> Beschriftung gibt es noch keinen Marker, an dem sich das zeigen könnte.</li>
 					<li><strong>Wiki-Landschaft</strong> — der <a href="#v-wiki">Zuweisungskasten</a>. Liegt eine Fläche darunter, gehört der Artikel der Fläche: Fläche und alle ihre Beschriftungen tragen immer denselben. Änderst du ihn hier, ziehen beim Speichern die übrigen Beschriftungen mit.</li>
-						<li><strong>Quellen</strong> — derselbe Block wie bei Orten und Wegen, über den gemeinsamen Quellenkatalog. <strong>Die Quellen gehören der Fläche</strong>, nicht der Beschriftung: liegt eine Fläche darunter, siehst und änderst du hier deren Liste. Eine eigene hat nur eine <em>freie</em> Beschriftung ohne Fläche.</li>
+					<li><strong>Quellen</strong> — derselbe Block wie bei Orten und Wegen, über den gemeinsamen Quellenkatalog. <strong>Die Quellen gehören der Fläche</strong>, nicht der Beschriftung: liegt eine Fläche darunter, siehst und änderst du hier deren Liste. Eine eigene hat nur eine <em>freie</em> Beschriftung ohne Fläche.</li>
 				</ul>
 				<div class="hb-note hb-tip"><strong>Der Name läuft auf der Mittelachse seiner Fläche.</strong> Dafür gibt es zwei Bedienelemente: den Haken <em>Kurvenbeschriftung</em> und <em>Anzahl Kurvenlabel</em> (1–3), also wie viele Namen die Fläche tragen darf. Beide gehören der <strong>Region</strong>, nicht der einzelnen Beschriftung, und stehen genau einmal im Reiter <em>Beschriftung</em>. <strong>Ohne Fläche gibt es keine Mittelachse</strong>: bei Meeren, Inseln und Gipfeln stehen beide verriegelt da und nennen den Grund.</div>
-				<p>Im Reiter <strong>Editor → WikiSync → Regionen</strong> steht der Knopf <strong>„Landschaften bearbeiten"</strong>. Er öffnet ein eigenes Fenster — den siebten <a href="#n-editoren">Sync-Editor</a> — mit der Regionenliste links, den <em>Eigenschaften</em> in der Mitte und <em>„Vorschau &amp; Vorkommen"</em> rechts. Das <strong>„🚨 Syncen"</strong> steht im Menüband, genau wie bei Orten und Kraftlinien — nicht im Reiter. Daneben stehen drei Kacheln, alle für die <a href="#landschaften">Landschaften-Ebene</a>: <strong>„Rechnen ▾"</strong> mit den Läufen <em>Zugehörigkeit</em>, <em>Höhenraster</em>, <em>Wegprofile</em>, <em>Kurven</em> und <em>„Wiki &amp; Art"</em> — der letzte trägt Wiki-Landschaft und Art einer Fläche an ihre Beschriftungen nach; die Unterzeile des Knopfes sagt, welcher gerade läuft —, dazu <em>„Geländeabhängiges Reisen"</em> und <em>„Darstellung"</em>. Für die Beschriftungsarbeit brauchst du davon nur die letzte.</p>
-				<p>Für viele Beschriftungen auf einmal führt der Weg weiterhin über die Liste im Reiter: dort trägt jede Zeile den Knopf <strong>„Label zuweisen"</strong>. Er stellt <em>alle</em> Beschriftungen der Karte zur Auswahl — nicht nur die namensgleichen —, hakt die bereits verknüpften vor und sagt bei einer Beschriftung, die an einer <em>anderen</em> Wiki-Landschaft hängt, dazu, dass das Zuweisen sie umhängt. Hängt eine Beschriftung an einer Fläche, bekommt die ganze Fläche den Artikel. Erst <strong>„Vorschau"</strong> (ein Trockenlauf, der nichts schreibt), dann <strong>„Zuweisen"</strong>; änderst du zwischendurch die Auswahl, verfällt die Vorschau. <em>Lösen</em> lässt sich eine Verknüpfung hier nicht — das bleibt Sache des Label-Dialogs oben.</p>
+				<h4>Der Landschaften-Editor</h4>
+				<p class="hb-path"><strong>Editor → WikiSync → Regionen → „Landschaften bearbeiten"</strong></p>
+				<p>Einer der <a href="#n-editoren">Sync-Editoren</a>, mit drei Spalten: links <strong>Regionen</strong>, in der Mitte <strong>Eigenschaften</strong>, rechts <strong>„Vorschau &amp; Vorkommen"</strong>. Oben das Menüband — dort steht auch das Syncen, nicht im Reiter. Für die Beschriftungsarbeit brauchst du davon nur <strong>„Darstellung"</strong>.</p>
+				<table class="hb-table">
+					<tr><th>Kachel</th><th>Was sie tut</th></tr>
+					<tr><td><strong>🚨 Syncen</strong></td><td>Holt die Regionen aus dem Dump. <em>Betreiber-Aktion.</em></td></tr>
+					<tr><td><strong>Rechnen ▾</strong></td><td>Fünf Läufe für die <a href="#landschaften">Landschaften-Ebene</a>: <em>Zugehörigkeit</em>, <em>Höhenraster</em>, <em>Wegprofile</em>, <em>Kurven</em> und <em>„Wiki &amp; Art"</em> — der letzte trägt Wiki-Landschaft und Art einer Fläche an ihre Beschriftungen nach. Welcher gerade läuft, sagt die Unterzeile des Knopfes.</td></tr>
+					<tr><td><strong>Geländeabhängiges Reisen</strong></td><td>AN/AUS: rechnet Anstieg und Gefälle in die Reisezeiten ein — für alle Besucher.</td></tr>
+					<tr><td><strong>Darstellung</strong></td><td>Farbe, Größe und Zoomband je Flächen- und Namensart. Ansehen darf jeder Editor, <em>einstellen nur Admins.</em></td></tr>
+				</table>
+				<h4>Viele Beschriftungen auf einmal</h4>
+				<p>In der Liste im Reiter trägt jede Zeile den Knopf <strong>„Label zuweisen"</strong>.</p>
+				<ul class="hb-steps">
+					<li>Er stellt <em>alle</em> Beschriftungen der Karte zur Auswahl, nicht nur die namensgleichen. Die bereits verknüpften sind vorgehakt.</li>
+					<li>Hängt eine Beschriftung an einer <em>anderen</em> Wiki-Landschaft, steht das an ihrer Zeile. Die Vorschau zählt, wie viele davon umgehängt werden.</li>
+					<li>Hängt sie an einer Fläche, bekommt die ganze Fläche den Artikel.</li>
+					<li>Erst <strong>„Vorschau"</strong> — ein Trockenlauf, der nichts schreibt —, dann <strong>„Zuweisen"</strong>. Änderst du zwischendurch die Auswahl, verfällt die Vorschau.</li>
+				</ul>
+				<p><em>Lösen</em> lässt sich eine Verknüpfung hier nicht. Das macht der Dialog oben.</p>
+				<h4>Verschieben, duplizieren, löschen</h4>
 				<p>Der Linksklick auf eine Beschriftung bietet außerdem <strong>„Label verschieben"</strong>, <strong>„Position zurücksetzen"</strong>, <strong>„Label duplizieren"</strong> und <strong>„Label löschen"</strong> — sowie <strong>„Neue Kraftlinie"</strong>. <strong>„Position zurücksetzen"</strong> holt die Beschriftung auf den Punkt zurück, den das Anlegen einer Fläche vergibt, und steht nur dort, wo eine Fläche darunter liegt; trägt die Fläche mehrere Beschriftungen, fragt sie vorher nach. Kraftlinien sind ein eigener Objekttyp, unabhängig vom Wegenetz — siehe unten.</p>
 
 				<h3 id="landschaften" class="hb-sub">Landschaften</h3>
