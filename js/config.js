@@ -679,8 +679,11 @@ const MAP_TILE_STYLES = {
 	// fragt, sperrt `original` und `none` gleich mit aus, obwohl die gar nichts aufgedruckt haben
 	// (genau das ist am 27.08.2026 bei „Standard × Original" passiert, siehe
 	// js/map-features/map-features-location-name-labels.js).
-	old: { label: "Old", url: "./tiles/old/{z}/map_{x}_{y}.webp", ortsnamenImBild: true },
-	original: { label: "Original", url: "./tiles/original/{z}/map_{x}_{y}.webp" },
+	// 🔴 `maxNativeZoom: 4` -- alt und original enden bei Kachelordner 4; z5 wird nicht mehr abgerufen,
+	// ab Zoom 4 skaliert Leaflet die vorhandenen Kacheln nur noch hoch (etwas weicher, kein 404-Risiko
+	// mehr fuer einen fehlenden Ordner 5).
+	old: { label: "Old", url: "./tiles/old/{z}/map_{x}_{y}.webp", ortsnamenImBild: true, maxNativeZoom: 4 },
+	original: { label: "Original", url: "./tiles/original/{z}/map_{x}_{y}.webp", maxNativeZoom: 4 },
 	stylized: { label: "Modern", url: "./tiles/stylized/{z}/map_{x}_{y}.webp" },
 };
 const MAP_FEATURE_UPDATE_API_URL = window.AVESMAPS_MAP_FEATURE_UPDATE_ENDPOINT || "api/edit/map/features.php";
