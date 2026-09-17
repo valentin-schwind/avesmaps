@@ -1,7 +1,7 @@
 // Die Klickfolge auf der KARTE (Entwurf 2026-09-14 §3): der erste Klick markiert die ganze Strasse, der zweite
 // den Abschnitt. Die Regel steht rein in weg-auswahl.js; hier nur Zustand, Linienfarbe, Aufheben und der Klick auf
 // den NAMEN eines Wiki-Wegs (Nachtrag 2026-09-14-wege-mehrfachzuweisung-design.md §9.4).
-// 🔴 NUR IM BEARBEITEN-MODUS. Besucher klicken wie bisher (E4 gilt dem Bearbeiten).
+// Besucher und Editoren nutzen dieselbe Markierung; Schreibaktionen bleiben im Editorband geschuetzt.
 // ⚠️ Normales Skript, NICHT in <template data-nur-editor>: der Klick-Zuhoerer in
 // map-features-path-rendering.js nennt diese Namen, und der laedt fuer jeden (nur-editor-skripte.test.js).
 
@@ -94,7 +94,6 @@ function avesmapsWegAuswahlSetzen(stand, abschnitt) {
 }
 
 function avesmapsWegAuswahlKlick(path) {
-	if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) { return null; }
 	const abschnitt = typeof avesmapsWegAbschnittAufKarte === "function" ? avesmapsWegAbschnittAufKarte(path) : null;
 	if (!abschnitt) { return null; }
 	const stand = avesmapsWegAuswahlNachKlick(avesmapsWegAuswahlStand, abschnitt.gruppe.key, abschnitt.way.public_id);
@@ -120,6 +119,7 @@ function avesmapsWegAuswahlAufheben() {
  * mousemove) fragt ohne ihn und liest das Menue, wie es JETZT steht.
  */
 function avesmapsWegWerkzeugLaeuft(menueBeimDruecken) {
+	if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) { return false; }
 	const tastatur = typeof window !== "undefined" ? window.avesmapsKeyboardShortcuts : null;
 	if (!tastatur || typeof tastatur.toolActive !== "function") { return true; }
 	if (tastatur.toolActive()) { return true; }
@@ -148,7 +148,7 @@ function avesmapsWegKartenVorKlick() {
 
 /** Welcher Abschnitt wird mit diesem Karten-Klick ueber seinen NAMEN angeklickt? Sonst null. */
 function avesmapsWegNamenKlickZiel(event) {
-	if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE || !event || !event.containerPoint || !event.latlng) { return null; }
+	if (!event || !event.containerPoint || !event.latlng) { return null; }
 	if (typeof window === "undefined" || typeof window.avesmapsWegNamenTreffer !== "function") { return null; }
 	if (avesmapsWegWerkzeugLaeuft(avesmapsWegMenueBeimDruecken)) { return null; }
 	const treffer = window.avesmapsWegNamenTreffer(event.containerPoint);
@@ -178,6 +178,12 @@ function avesmapsWegNamenKlickZiel(event) {
  * (createPathLayer) -- Wiki-Ziel-Pick, Schiedsrichter, Auswahl, Infopanel.
  */
 function avesmapsWegKartenKlick(event) {
+	// Der Siedlungs-Popup kann den Canvas-Marker bereits ersetzt haben: denselben Klick nicht neu bewerten.
+	if (event && event.avesmapsSiedlungGeoeffnet) {
+		avesmapsWegMenueBeimDruecken = false;
+		avesmapsWegAuswahlAufheben();
+		return;
+	}
 	const pfad = avesmapsWegNamenKlickZiel(event);
 	avesmapsWegMenueBeimDruecken = false;   // der Merker gilt diesem Klick, keinem spaeteren ohne preclick
 	const mitte = pfad && Array.isArray(pfad._pathLines) ? pfad._pathLines[1] : null;
@@ -208,7 +214,7 @@ function avesmapsWegAuswahlGruppenPfade(path) {
 }
 
 function avesmapsWegAuswahlVerdrahten() {
-	if (avesmapsWegAuswahlVerdrahtet || typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) { return; }
+	if (avesmapsWegAuswahlVerdrahtet) { return; }
 	if (typeof map === "undefined" || !map || typeof map.on !== "function") { return; }
 	avesmapsWegAuswahlVerdrahtet = true;
 	// Ein Klick daneben hebt die Markierung auf (§3.1), ein Klick auf den NAMEN eines Wiki-Wegs markiert (Nachtrag §9.4) --

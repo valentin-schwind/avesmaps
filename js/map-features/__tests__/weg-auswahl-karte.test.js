@@ -147,10 +147,18 @@ assert.strictEqual(aufgefrischt, 1, "ohne Markierung tut der Klick nichts");
 // 6. Die ganze Strasse als Pfade (fuer den Dialog)
 assert.deepStrictEqual(K.avesmapsWegAuswahlGruppenPfade(rs8).map((p) => p.properties.public_id), ["rs-6", "rs-7", "rs-8"]);
 
-// 7. Besucher: kein Zustand, keine Farbe
+// 7. Besucher: dieselbe Klickfolge und gelbe Kontur/Mitte wie im Editor.
 global.IS_EDIT_MODE = false;
-assert.strictEqual(K.avesmapsWegAuswahlKlick(rs7), null);
-assert.strictEqual(farbe(rs7), "#mitte");
+K.avesmapsWegAuswahlAufheben();
+assert.deepStrictEqual(K.avesmapsWegAuswahlKlick(rs7), { gruppe: "name:Reichsstraße 2", publicId: null });
+assert.deepStrictEqual([rs6, rs7, rs8].map(farbe), [GELB, GELB, GELB]);
+assert.deepStrictEqual([rs6, rs7, rs8].map(rand), [GELB, GELB, GELB]);
+K.avesmapsWegAuswahlKlick(rs7);
+assert.deepStrictEqual([rs6, rs7, rs8].map(farbe), ["#mitte", GELB, "#mitte"]);
+updatePathLayerStyle(rs7);
+assert.strictEqual(farbe(rs7), GELB, "Neuzeichnen erhaelt die Besucherauswahl");
+K.avesmapsWegKartenKlick();
+assert.deepStrictEqual([rs6, rs7, rs8].map(farbe), ["#mitte", "#mitte", "#mitte"]);
 global.IS_EDIT_MODE = true;
 
 // 8. Markierungszeile und Editorband -- createPathPopupMarkup mit Attrappen gefahren
@@ -193,7 +201,9 @@ assert.ok(!teil.includes("Ganze Straße"), "nach dem zweiten Klick nie „Ganze 
 assert.ok(teil.includes('"data-weg-umfang":"abschnitt"') && teil.includes("<Verlauf bearbeiten"), teil);
 
 global.IS_EDIT_MODE = false;
-assert.ok(createPathPopupMarkup(rs7).startsWith("KOPF[]"), "Besucher sehen keine Zeile");
+const besucherMarkup = createPathPopupMarkup(rs7);
+assert.ok(besucherMarkup.includes("Abschnitt"), "Besucher sehen den markierten Umfang");
+assert.ok(!besucherMarkup.includes("<Bearbeiten") && !besucherMarkup.includes("<Verlauf bearbeiten") && !besucherMarkup.includes("<Weg löschen"), "Schreibaktionen bleiben verborgen");
 global.IS_EDIT_MODE = true;
 
 // 9. Verdrahtung: Reihenfolge im Klick-Zuhoerer, Aufheben beim Start

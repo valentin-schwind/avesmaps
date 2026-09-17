@@ -11,13 +11,14 @@ const end = source.indexOf("\n}", start);
 assert.ok(start >= 0 && end > start);
 
 function createWorld(editMode, wikiLinked) {
-    const calls = { popup: 0, panel: 0, edit: 0, settlement: false };
+    const calls = { popup: 0, panel: 0, edit: 0, settlement: false, selection: 0 };
     const feature = {
         properties: wikiLinked ? { wiki_path: { wiki_key: "wiki:test" } } : {},
         geometry: { coordinates: [[0, 0], [1, 1]] },
     };
     const context = {
         IS_EDIT_MODE: editMode,
+        avesmapsWegAuswahlKlick: (selected) => { assert.equal(selected, feature); calls.selection += 1; },
         map: {},
         window: {
             avesmapsTryOpenLocationAtContainerPoint: () => calls.settlement,
@@ -62,7 +63,9 @@ for (const editMode of [false, true]) {
             assert.equal(line.options.interactive, true, "Auch ohne Wiki muss die Linie Klicks annehmen.");
             assert.equal(line.options.bubblingMouseEvents, false, "Der Klick darf keine Kartenaktion auslösen.");
             const event = { containerPoint: { x: 10, y: 10 }, latlng: [0, 0] };
+            const previousSelection = calls.selection;
             line.handlers.click(event);
+            assert.equal(calls.selection, previousSelection + 1, "Jeder Linienklick aktiviert die Markierung, auch fuer Besucher.");
             assert.equal(calls.popup, 1, "Der Linienklick öffnet die Infobox.");
             calls.popup = 0;
 

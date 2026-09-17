@@ -503,10 +503,13 @@ const locationCanvasLayer = {
 	},
 
 	_onClick(event) {
+		if (event.avesmapsSiedlungGeoeffnet) { return; }
 		// A settlement hit sets the active gold marker (in _tryOpen). No settlement here -> deselect: this is
 		// either an empty click or a lower-priority feature (road/region), neither of which is the active
 		// location. (Road/region layers call _tryOpen themselves first, so a settlement still wins.)
-		if (!this._tryOpenAtContainerPoint(event.containerPoint)) {
+		if (this._tryOpenAtContainerPoint(event.containerPoint)) {
+			event.avesmapsSiedlungGeoeffnet = true;
+		} else {
 			clearActiveLocationMarker();
 		}
 	},

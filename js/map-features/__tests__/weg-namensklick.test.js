@@ -93,7 +93,21 @@ ohneFeuer("der Verlauf-Editor laeuft", () => { global.activePathGeometryEdit = {
 ohneFeuer("das Kontextmenue ist offen", () => { menue.hidden = false; }, () => { menue.hidden = true; });
 const tastatur = global.window.avesmapsKeyboardShortcuts;
 ohneFeuer("ohne Tastatur-Modul GESCHLOSSEN", () => { delete global.window.avesmapsKeyboardShortcuts; }, () => { global.window.avesmapsKeyboardShortcuts = tastatur; });
-ohneFeuer("Besucher", () => { global.IS_EDIT_MODE = false; }, () => { global.IS_EDIT_MODE = true; });
+global.IS_EDIT_MODE = false;
+const siedlungsKlick = klick(27, 2);
+siedlungsKlick.avesmapsSiedlungGeoeffnet = true;
+gefeuert.length = 0;
+K.avesmapsWegKartenKlick(siedlungsKlick);
+assert.strictEqual(gefeuert.length, 0, "Bereits geoeffnete Siedlung bleibt vorn, auch wenn ihr Canvas-Marker schon ersetzt wurde");
+delete global.window.avesmapsKeyboardShortcuts;
+K.avesmapsWegAuswahlAufheben();
+K.avesmapsWegKartenKlick(klick(27, 2));
+assert.strictEqual(K.avesmapsWegAuswahlFuerPfad(rs8).publicId, null, "Besucher: Namensklick markiert die ganze Strasse ohne Editorwerkzeuge");
+K.avesmapsWegKartenKlick(klick(27, 2));
+assert.strictEqual(K.avesmapsWegAuswahlFuerPfad(rs8).publicId, "rs-8", "Besucher: zweiter Namensklick markiert den naechsten Abschnitt");
+K.avesmapsWegAuswahlAufheben();
+global.window.avesmapsKeyboardShortcuts = tastatur;
+global.IS_EDIT_MODE = true;
 ohneFeuer("Treffer ohne Wiki-Schluessel", () => { treffer = { name: "x" }; }, () => { treffer = { wikiKey: "reichsstrasse-2" }; });
 gefeuert.length = 0;
 K.avesmapsWegKartenKlick(klick(5, 1));
@@ -227,3 +241,23 @@ K.avesmapsWegKartenKlick(klick(38, 1));
 assert.strictEqual(gefeuert.length, 0, "ein Artikel, den kein Abschnitt traegt, findet keine Strasse");
 
 console.log("weg-namensklick.test.js: ok");
+
+// Ein bereits zum Popup-Marker gewordener Ort bleibt Gewinner desselben Kartenereignisses.
+const canvasQuelle = lies("js/map-features/map-features-location-canvas-layer.js");
+const canvasAnfang = canvasQuelle.indexOf("_onClick(event) {");
+const canvasEnde = canvasQuelle.indexOf("\n\t},", canvasAnfang);
+assert.ok(canvasAnfang >= 0 && canvasEnde > canvasAnfang);
+const canvasKlick = new Function("event", "clearActiveLocationMarker", canvasQuelle.slice(canvasAnfang + "_onClick(event) {".length, canvasEnde));
+let promoted = false;
+const echtesEreignis = klick(27, 2);
+canvasKlick.call({ _ready: true, _tryOpenAtContainerPoint: () => {
+    if (promoted) { return false; }
+    promoted = true;
+    return true;
+} }, echtesEreignis, () => {});
+assert.strictEqual(echtesEreignis.avesmapsSiedlungGeoeffnet, true);
+gefeuert.length = 0;
+K.avesmapsWegKartenKlick(echtesEreignis);
+assert.strictEqual(gefeuert.length, 0, "Der echte Canvas-Klick verhindert den nachfolgenden Wegklick trotz Promotion.");
+
+canvasKlick.call({ _ready: true, _tryOpenAtContainerPoint: () => { throw new Error("Ein gewonnener Klick darf nicht erneut geprueft werden."); } }, echtesEreignis, () => { throw new Error("Die aktive Siedlung darf nicht geloescht werden."); });

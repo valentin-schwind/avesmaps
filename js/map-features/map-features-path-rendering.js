@@ -243,9 +243,9 @@ function createPathPopupMarkup(path) {
 	// Einmal gebaut, an zwei Stellen gereicht -- siehe map-features-location-marker-entry.js.
 	const pathKanon = typeof renderFeatureKanonBadge === "function"
 		? renderFeatureKanonBadge("path", getPathPublicId(path)) : "";
-	// Entwurf 2026-09-14 §3.4: im Bearbeiten-Modus sagt eine Zeile unter der Wegart, WAS markiert ist -- ohne
-	// Kasten, im Titelblock. Ohne Markierung (Besucher, Suche, Deeplink) keine Zeile.
-	const wegAuswahl = IS_EDIT_MODE && typeof avesmapsWegAuswahlFuerPfad === "function" ? avesmapsWegAuswahlFuerPfad(path) : null;
+	// Eine Zeile unter der Wegart sagt Besuchern und Editoren, WAS markiert ist.
+	// Ohne Markierung (Suche, Deeplink) bleibt sie leer.
+	const wegAuswahl = typeof avesmapsWegAuswahlFuerPfad === "function" ? avesmapsWegAuswahlFuerPfad(path) : null;
 	// 🔴 Ein Leser fuer Infobox und Dialog (avesmapsWegMarkierungszeileAufKarte): am Abschnitt „Abschnitt N: …", nie ein Text
 	// der ganzen Strasse (Owner 15.09.2026).
 	const markierungZeile = wegAuswahl && typeof avesmapsWegMarkierungszeileAufKarte === "function"
@@ -549,10 +549,10 @@ function createPathLayer(path) {
 				L.DomEvent.stop(event);
 				return;
 			}
-			// Entwurf 2026-09-14 §3.1: im Bearbeiten-Modus markiert der Klick erst die ganze Strasse, dann den
+			// Entwurf 2026-09-14 §3.1: der Klick markiert erst die ganze Strasse, dann den
 			// Abschnitt. NACH dem Schiedsrichter (ein Ort auf dem Weg gewinnt weiter) und VOR dem Anzeigen: die
 			// Infobox liest die Markierung aus dem Markup, das dieser Aufruf neu baut.
-			if (IS_EDIT_MODE && typeof avesmapsWegAuswahlKlick === "function") {
+			if (typeof avesmapsWegAuswahlKlick === "function") {
 				avesmapsWegAuswahlKlick(path);
 			}
 			// Infopanel (?infopanel=true): Weg-/Fluss-Info ins rechte Panel statt ins schwebende Popup.

@@ -1249,8 +1249,9 @@
 		if (!wegRegister.length && !kurvenlabelClickRegister.length) {
 			return;
 		}
-		if (typeof window.avesmapsTryOpenLocationAtContainerPoint === "function"
-				&& window.avesmapsTryOpenLocationAtContainerPoint(event.containerPoint)) {
+		if (event.avesmapsSiedlungGeoeffnet || (typeof window.avesmapsTryOpenLocationAtContainerPoint === "function"
+				&& window.avesmapsTryOpenLocationAtContainerPoint(event.containerPoint))) {
+			event.avesmapsSiedlungGeoeffnet = true;
 			return; // Siedlung gewinnt (Prioritaet Siedlung > Strasse/Fluss > Region > Gebiet)
 		}
 		const hit = wayLabelHitTest(wegRegister, event.containerPoint);
@@ -1316,6 +1317,8 @@
 		// den Fuell-Schritt der Zeilen "Auch Teil von"/"Verlaeuft auch ueber": die Infobox-Route laeuft ueber
 		// avesmapsShowPathInInfopanel wie beim Linien-Klick, der Popup-Fall fuellt denselben Platzhalter ueber
 		// avesmapsWegWeitereFuellen wie der Weg-Popup der Linie.
+		// Der gemeinsame Karten-Klick markiert anschliessend Strasse oder Abschnitt und oeffnet die Infobox.
+		if (typeof avesmapsWegKartenKlick === "function") { return; }
 		const labeledPath = findPathForWayLabelEntry(hit);
 		const markup = labeledPath
 			? (labeledPath._popupMarkup || (typeof createPathPopupMarkup === "function" ? createPathPopupMarkup(labeledPath) : null))

@@ -610,7 +610,7 @@ routeDataRequest
 			window.avesmapsAutoOpenRouteInInfopanel();
 		}
 		startLiveMapUpdates(); applyPlaceFocusFromUrl(); applyWikiDeeplinkFromUrl(); map.on("zoomend", notifyEditorZoomLevel);
-		// Entwurf 2026-09-14 §3.1: ein Klick daneben hebt die Wege-Markierung auf (nur Bearbeiten-Modus).
+		// Entwurf 2026-09-14 §3.1: ein Klick daneben hebt die Wege-Markierung fuer Besucher und Editoren auf.
 		if (typeof avesmapsWegAuswahlVerdrahten === "function") { avesmapsWegAuswahlVerdrahten(); }
 	})
 	.catch((err) => console.error("Fehler beim Laden der GeoJSON-Datei:", err))
