@@ -466,12 +466,14 @@ function getPathStyleColors(path) {
 	// Breite). pathBreitenFaktor ist der gemeinsame Leser -- siehe map-features-path-domain.js.
 	const widthScale = (typeof pathBreitenFaktor === "function") ? pathBreitenFaktor(path, map.getZoom()) : 1;
 
+	const additionalWidth = pathSubtype === "Strasse" && widthScale > 0 ? 1 : 0;
+
 	const style = {
 		// Reichsstraßen bekommen einen grauen Rand (Kontur), alle anderen weiterhin weiß.
 		outline: isReichsstrasse ? "#9a9a9a" : "#ffffff",
 		center: centerColors[pathSubtype] || centerColors.Weg,
-		outlineWeight: baseOutlineWeight * widthScale,
-		centerWeight: baseCenterWeight * widthScale,
+		outlineWeight: baseOutlineWeight * widthScale + additionalWidth,
+		centerWeight: baseCenterWeight * widthScale + additionalWidth,
 		outlineOpacity: outlineOverride != null ? 1 : (simplifiedRender ? PATH_RENDER_CONFIG.simplifiedOutlineOpacity : 1),
 	};
 
