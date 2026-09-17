@@ -1704,7 +1704,7 @@ function addCreatedLabelFeature(feature) {
 	return entry;
 }
 
-function applyLabelFeatureResponse(entry, feature) {
+function applyLabelFeatureResponse(entry, feature, deferRefresh = false) {
 	const label = normalizeLabelFeature(feature);
 	// 💣 DIE ANTWORT DES SCHREIBWEGS KENNT KEINE KURVE. Sie entsteht nur im LESEPFAD
 	// (avesmapsCurveApplyToFeatures in api/app/map-features.php); der Editor-Endpunkt gibt das nackte
@@ -1723,13 +1723,20 @@ function applyLabelFeatureResponse(entry, feature) {
 	// 🔴 UND KEINE EBENE -- dieselbe Falle wie die Kurve, siehe avesmapsLabelEbeneErgaenzen.
 	avesmapsLabelEbeneErgaenzen(label, entry.label);
 	Object.assign(entry.label, label);
-	entry.marker.setLatLng(label.coordinates);
+	if (deferRefresh) {
+		return;
+	}
+	refreshLabelFeatureResponse(entry);
+	avesmapsLabelInfopanelNachziehen();
+}
+
+function refreshLabelFeatureResponse(entry) {
+	entry.marker.setLatLng(entry.label.coordinates);
 	// Ueber den gemeinsamen Rasterer, damit der Zoom-Merker der Bedarfs-Rasterung mitwandert -- sonst
 	// hielte eine gerade gespeicherte Beschriftung ihren Stand fuer aelter, als er ist.
 	avesmapsLabelIconRastern(entry, map.getZoom());
 	refreshLabelMarkerPopup(entry);
 	syncLabelMarkerVisibility(entry);
-	avesmapsLabelInfopanelNachziehen();
 }
 
 // DIE EBENE DER FLAECHE UEBERLEBT DIE ANTWORT DES SCHREIBWEGS.

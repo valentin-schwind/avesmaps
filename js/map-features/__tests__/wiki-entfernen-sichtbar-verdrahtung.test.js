@@ -143,7 +143,7 @@ frisch = ergaenze(undefined)({ ecosystemRegionKind: "", ecosystemRegionPublicId:
 assert.strictEqual(frisch.ecosystemRegionKind, "vegetation"); checks++;
 
 // 💣 BEIDE Anwender der Antwort gehen hindurch -- der in-place-Weg und der ersetzende.
-const antwortStart = labels.indexOf("function applyLabelFeatureResponse(entry, feature) {");
+const antwortStart = labels.indexOf("function applyLabelFeatureResponse(entry, feature, deferRefresh = false) {");
 const antwort = ohneKommentare(labels.slice(antwortStart, labels.indexOf("\n}\n", antwortStart) + 2));
 assert.ok(/avesmapsLabelEbeneErgaenzen\(label, entry\.label\)/.test(antwort), "applyLabelFeatureResponse ergaenzt die Ebene"); checks++;
 const lokalStart = labels.indexOf("function applyLabelFeatureLocally(feature) {");

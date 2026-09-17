@@ -82,17 +82,17 @@ function avesmapsLandschaftWikiTabelleFehlt(PDOException $fehler): bool
  * sie stillgelegt ist -- dann ist die Beschriftung frei, und kein primaerer Zeiger einer anderen Region
  * springt ein). Sonst die Region, die sie als primaere Beschriftung nennt.
  */
-function avesmapsLandschaftWikiRegionDerBeschriftung(PDO $pdo, string $labelPublicId, array $properties): ?array
+function avesmapsLandschaftWikiRegionDerBeschriftung(PDO $pdo, string $labelPublicId, array $properties, bool $sperren = false): ?array
 {
     $eigener = trim((string) ($properties['ecosystem_region_public_id'] ?? ''));
     $labelPublicId = trim($labelPublicId);
     try {
         if ($eigener !== '') {
-            $statement = $pdo->prepare('SELECT * FROM ecosystem_region WHERE public_id = :p AND is_active = 1 LIMIT 1');
+            $statement = $pdo->prepare('SELECT * FROM ecosystem_region WHERE public_id = :p AND is_active = 1 LIMIT 1' . ($sperren ? ' FOR UPDATE' : ''));
             $statement->execute(['p' => $eigener]);
         } elseif ($labelPublicId !== '') {
             $statement = $pdo->prepare(
-                'SELECT * FROM ecosystem_region WHERE label_public_id = :l AND is_active = 1 ORDER BY id ASC LIMIT 1'
+                'SELECT * FROM ecosystem_region WHERE label_public_id = :l AND is_active = 1 ORDER BY id ASC LIMIT 1' . ($sperren ? ' FOR UPDATE' : '')
             );
             $statement->execute(['l' => $labelPublicId]);
         } else {

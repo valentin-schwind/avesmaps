@@ -108,6 +108,8 @@ foreach ($imTrichter as $f) {
 $erlaubteRuempfe = [
     // Der Berggipfel des Garetien-Imports: ein FREIES Label, der Rumpf geht an avesmapsCreateLabelFeature.
     'api/_internal/import/garetien-uebernahme.php' => 1,
+    // Nur der deutsche Feldtitel im Verlauf, kein Properties-Rumpf oder Wiki-Schreiber.
+    'api/_internal/map/audit-path-group.php' => 1,
 ];
 $ruempfe = [];
 foreach (waechterDateien($wurzel . '/api', '.php') as $pfad) {

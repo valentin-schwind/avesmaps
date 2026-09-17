@@ -6,6 +6,8 @@ require_once __DIR__ . '/../audit-focus.php';
 
 // Ein Request, eine Transaktion, ein unteilbarer Beleg. Keine Gruppierung nach Uhrzeit.
 const AVESMAPS_MAP_GROUP_AUDIT_ACTIONS = [
+    'assign_wiki_label_group', 'undo_assign_wiki_label_group', 'undo_undo_assign_wiki_label_group',
+    'bulk_assign_wiki_label_group', 'undo_bulk_assign_wiki_label_group', 'undo_undo_bulk_assign_wiki_label_group',
     'link_wiki_location_group', 'undo_link_wiki_location_group', 'undo_undo_link_wiki_location_group',
     'local_coat_location_group', 'undo_local_coat_location_group', 'undo_undo_local_coat_location_group',
     'set_coat_location_group', 'undo_set_coat_location_group', 'undo_undo_set_coat_location_group',
@@ -144,10 +146,11 @@ function avesmapsMapGroupAuditMembers(array $snapshot, string $featureType = 'pa
 function avesmapsUndoMapGroupAudit(PDO $pdo, array $entry, array $user): array {
     $before = avesmapsDecodeJsonColumnForEdit($entry['before_json']);
     $after = avesmapsDecodeJsonColumnForEdit($entry['after_json']);
+    $labelGroup = str_contains($entry['action'], 'wiki_label_group');
     $locationGroup = str_contains($entry['action'], '_location_group');
-    $featureType = $locationGroup ? 'location' : (str_contains($entry['action'], 'powerline_group') ? 'powerline' : 'path');
+    $featureType = $labelGroup ? 'label' : ($locationGroup ? 'location' : (str_contains($entry['action'], 'powerline_group') ? 'powerline' : 'path'));
     $full = str_contains($entry['action'], 'reorder_powerline_group');
-    $columns = $locationGroup ? ['properties_json'] : ['name', 'feature_subtype', 'properties_json'];
+    $columns = ($locationGroup || $labelGroup) ? ['properties_json'] : ['name', 'feature_subtype', 'properties_json'];
     if ($full) {
         $columns = array_merge($columns, ['is_active'], AVESMAPS_POWERLINE_GROUP_FULL_COLUMNS);
     }
@@ -166,6 +169,10 @@ function avesmapsUndoMapGroupAudit(PDO $pdo, array $entry, array $user): array {
             throw new AvesmapsConflictException('Ein Abschnitt des Sammelbelegs gehört nicht mehr zu diesem Kartenobjekt.');
         }
         $features[$id] = $feature;
+    }
+    if ($labelGroup) {
+        require_once __DIR__ . '/../wiki/region-label-audit.php';
+        avesmapsWikiRegionAssertFreeLabels($pdo, array_values($features));
     }
     foreach ($features as $id => $feature) {
         $member = $beforeMembers[$id];
@@ -197,37 +204,40 @@ function avesmapsUndoMapGroupAudit(PDO $pdo, array $entry, array $user): array {
 
     return ['fields' => $before['fields'] ?? [], 'revision' => $revision, 'features' => $responses, 'steps' => count($responses), 'feature_type' => $featureType,
         'source_payload' => $full ? avesmapsPowerlineGroupSourcePayload($pdo, $before) : null,
-        'kanon_je_kennung' => str_contains($entry['action'], 'wiki_path_group')
+        'kanon_je_kennung' => $labelGroup ? avesmapsWikiLocationGroupKanon($pdo, array_column($beforeMembers, 'public_id'), 'region') : (str_contains($entry['action'], 'wiki_path_group')
             ? avesmapsWikiPathGroupKanon($pdo, $before, $after)
             : (str_contains($entry['action'], 'link_wiki_location_group')
-                ? avesmapsWikiLocationGroupKanon($pdo, array_column($responses, 'public_id')) : null)];
+                ? avesmapsWikiLocationGroupKanon($pdo, array_column($responses, 'public_id')) : null))];
 }
 
-// Der Delta-Lesepfad liefert keinen Kanon. Nur die betroffenen Orte werden hier nachgetragen.
-function avesmapsWikiLocationGroupKanon(PDO $pdo, array $ids): array {
+// Der Delta-Lesepfad liefert keinen Kanon. Nur die betroffenen Orte oder freien Labels werden nachgetragen.
+function avesmapsWikiLocationGroupKanon(PDO $pdo, array $ids, string $entityType = 'settlement'): array {
+    if (!in_array($entityType, ['settlement', 'region'], true)) {
+        throw new InvalidArgumentException('Unbekannte Objektart für den Kanonnachtrag.');
+    }
     require_once __DIR__ . '/../app/feature-sources.php';
     $slots = implode(',', array_fill(0, count($ids), '?'));
     $read = $pdo->prepare("SELECT entity_public_id, source_id, reference_kind FROM feature_sources
-        WHERE entity_type = 'settlement' AND status = 'approved' AND entity_public_id IN ($slots) LIMIT 2501");
-    $read->execute($ids);
+        WHERE entity_type = ? AND status = 'approved' AND entity_public_id IN ($slots) LIMIT 2501");
+    $read->execute(array_merge([$entityType], $ids));
     $links = $read->fetchAll(PDO::FETCH_ASSOC);
     if (count($links) > 2500) {
-        throw new InvalidArgumentException('Die betroffenen Orte haben zu viele Quellen für einen gemeinsamen Kanonnachtrag.');
+        throw new InvalidArgumentException('Die betroffenen Objekte haben zu viele Quellen für einen gemeinsamen Kanonnachtrag.');
     }
     $refs = [];
     $sourceIds = [];
     foreach ($links as $link) {
         $sourceIds[(int) $link['source_id']] = true;
-        $refs['settlement:' . $link['entity_public_id']][] = ['source_id' => (int) $link['source_id'],
+        $refs[$entityType . ':' . $link['entity_public_id']][] = ['source_id' => (int) $link['source_id'],
             'reference_kind' => (string) ($link['reference_kind'] ?? '')];
     }
     [$catalog] = avesmapsMapGroupSourceCatalog($pdo, $sourceIds);
-    return avesmapsFeatureSourcesKanonAusEingaben('settlement', $ids, $catalog, $refs,
-        avesmapsFeatureSourcesWikiNamespacesFuerKennungen($pdo, 'settlement', $ids));
+    return avesmapsFeatureSourcesKanonAusEingaben($entityType, $ids, $catalog, $refs,
+        avesmapsFeatureSourcesWikiNamespacesFuerKennungen($pdo, $entityType, $ids));
 }
 
 function avesmapsMapGroupAuditDetail(array $snapshot): string {
-    $labels = ['coat' => 'Wappen', 'wiki_settlement' => 'Wiki-Verknüpfung und Beschreibung', 'is_ruined' => 'Ruinenstatus', 'territory_assignment' => 'Herrschaftsgebiet-Zuordnung', 'wiki_path_assignment' => 'Wiki-Zuordnung', 'wiki_path' => 'Wiki-Zuordnung und Wegname', 'name' => 'Name', 'feature_subtype' => 'Wegart', 'show_label' => 'Beschriftung', 'allowed_transports' => 'Verkehrsmittel',
+    $labels = ['wiki_region' => 'Wiki-Regionszuordnung', 'coat' => 'Wappen', 'wiki_settlement' => 'Wiki-Verknüpfung und Beschreibung', 'is_ruined' => 'Ruinenstatus', 'territory_assignment' => 'Herrschaftsgebiet-Zuordnung', 'wiki_path_assignment' => 'Wiki-Zuordnung', 'wiki_path' => 'Wiki-Zuordnung und Wegname', 'name' => 'Name', 'feature_subtype' => 'Wegart', 'show_label' => 'Beschriftung', 'allowed_transports' => 'Verkehrsmittel',
         'details' => 'Abschnittsdetails', 'transport_seasons' => 'Saisonfenster',
         'powerline_details' => 'Name, Darstellung und Beschreibung', 'rewire' => 'Verbindungen und Quellenzuordnung'];
     $fields = [];
@@ -238,8 +248,9 @@ function avesmapsMapGroupAuditDetail(array $snapshot): string {
     }
 
     $count = (int) ($snapshot['count'] ?? 0);
-    $noun = ($snapshot['feature_type'] ?? '') === 'location' ? ($count === 1 ? ' Ort · ' : ' Orte gemeinsam · ')
-        : ($count === 1 ? ' Abschnitt · ' : ' Abschnitte gemeinsam · ');
+    $noun = ($snapshot['feature_type'] ?? '') === 'label' ? ($count === 1 ? ' Beschriftung · ' : ' Beschriftungen gemeinsam · ')
+        : (($snapshot['feature_type'] ?? '') === 'location' ? ($count === 1 ? ' Ort · ' : ' Orte gemeinsam · ')
+        : ($count === 1 ? ' Abschnitt · ' : ' Abschnitte gemeinsam · '));
     return $count . $noun . implode(', ', $fields);
 }
 

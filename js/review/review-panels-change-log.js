@@ -366,6 +366,12 @@ function formatChangeAction(action) {
 		local_coat_location_group: "Lokale Wiki-Wappen für Orte aktiviert",
 		undo_local_coat_location_group: "Lokale Wappenübernahme zurückgenommen",
 		undo_undo_local_coat_location_group: "Lokale Wappenübernahme wiederhergestellt",
+		assign_wiki_label_group: "Wiki-Region für Beschriftungen zugewiesen",
+		undo_assign_wiki_label_group: "Wiki-Regionszuordnung zurückgenommen",
+		undo_undo_assign_wiki_label_group: "Wiki-Regionszuordnung wiederhergestellt",
+		bulk_assign_wiki_label_group: "Regionsabgleich: Teilpaket zugewiesen",
+		undo_bulk_assign_wiki_label_group: "Regionsabgleich: Teilpaket zurückgenommen",
+		undo_undo_bulk_assign_wiki_label_group: "Regionsabgleich: Teilpaket wiederhergestellt",
 		set_coat_location_group: "Wiki-Wappen für Orte übernommen",
 		undo_set_coat_location_group: "Wappenübernahme zurückgenommen",
 		undo_undo_set_coat_location_group: "Wappenübernahme wiederhergestellt",
@@ -879,7 +885,7 @@ function changeLogEntryRow(entry) {
 		undoButtonElement.textContent = istWiederherstellen ? "↷" : "↶";
 		undoButtonElement.title = istWiederherstellen ? "Wiederherstellen" : "Rückgängig";
 		if (Number(entry.member_count) > 0) {
-			undoButtonElement.title = `${entry.member_count} ${entry.feature_type === "location" ? (entry.member_count === 1 ? "Ort" : "Orte gemeinsam") : (entry.member_count === 1 ? "Abschnitt" : "Abschnitte gemeinsam")} ${istWiederherstellen ? "wiederherstellen" : "rückgängig machen"}`;
+			undoButtonElement.title = `${entry.member_count} ${entry.feature_type === "label" ? (entry.member_count === 1 ? "Beschriftung" : "Beschriftungen gemeinsam") : entry.feature_type === "location" ? (entry.member_count === 1 ? "Ort" : "Orte gemeinsam") : (entry.member_count === 1 ? "Abschnitt" : "Abschnitte gemeinsam")} ${istWiederherstellen ? "wiederherstellen" : "rückgängig machen"}`;
 		}
 		undoButtonElement.setAttribute("aria-label", undoButtonElement.title);
 		actionsElement.appendChild(undoButtonElement);
@@ -1142,6 +1148,23 @@ function isUndoChangeLogEntry(entry) {
 // Ctrl+Z belongs to local geometry editing only, where a miss costs nothing.
 // Die politische Infobox wird im öffentlichen Lesepfad aus der aktuellen Hierarchie
 // abgeleitet. Ein einzelner Deltaabruf erneuert alle betroffenen Orte nach dem Commit.
+function applyLabelGroupAuditResponse(group) {
+	const kanon = group.kanon_je_kennung;
+	if (!kanon || group.features.some(feature => !Object.hasOwn(kanon, feature.properties?.public_id || feature.id))) {
+		throw new Error("Die Änderung wurde gespeichert. Die Quellenhinweise fehlen; bitte die Karte neu laden.");
+	}
+	avesmapsKanonTafelNachtragen("region", kanon);
+	const entries = [];
+	for (const feature of group.features) {
+		const entry = findLabelMarkerByPublicId(feature.properties?.public_id || feature.id);
+		if (!entry) continue;
+		applyLabelFeatureResponse(entry, feature, true);
+		entries.push(entry);
+	}
+	for (const entry of entries) refreshLabelFeatureResponse(entry);
+	avesmapsLabelInfopanelNachziehen();
+}
+
 async function applyLocationGroupAuditResponse(group) {
 	const url = new URL(MAP_FEATURES_API_URL, window.location.href);
 	url.searchParams.set("since_revision", String(Math.max(0, Number(group.revision) - 1)));
@@ -1244,6 +1267,8 @@ async function undoChangeLogEntry(entry) {
 			const members = result?.feature?.features;
 			if (Array.isArray(members) && result.feature.feature_type === "location") {
 				await applyLocationGroupAuditResponse(result.feature);
+			} else if (Array.isArray(members) && result.feature.feature_type === "label") {
+				applyLabelGroupAuditResponse(result.feature);
 			} else if (Array.isArray(members) && result.feature.feature_type === "powerline") {
 				applyPowerlineGroupAuditResponse(members, result.feature.source_payload);
 			} else if (Array.isArray(members)) {

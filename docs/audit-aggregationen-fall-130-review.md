@@ -131,6 +131,22 @@ Browserprüfung auf lokaler MySQL-Fixture: Originalverlauf und Original-Infopane
 
 Die bisherigen Snapshot-/Aufbewahrungsquoten gelten weiter; die Gesamtfolge hat keine unbegrenzte Aufbewahrungsgarantie. Historische Belege werden nicht nachträglich zusammengefasst. Weitere Wiki-Regionen-/Verlauf-Sync-Aktionen, Landschaftshärtung und domänenübergreifende Importe bleiben offen. **Fall #130 ist insgesamt noch nicht abgeschlossen.**
 
+## Zehnter Ausbau: Namensabgleich freier Wiki-Regionsbeschriftungen
+
+Die automatischen Aktionen `assign` und `assign_all` speichern freie Beschriftungen als gemeinsam rücknehmbare Pakete. Die ausdrückliche Auswahl `assign_labels` mit Landschaftsflächen und weiteren gebundenen Beschriftungen gehört zum nächsten Ausbau und bleibt hier unverändert.
+
+- `assign` übernimmt höchstens 200 namensgleiche freie Beschriftungen in einer Transaktion. Größere Mengen werden vor dem ersten Write abgelehnt. Der bisherige Namensabgleich bleibt erhalten; nur `assign_all` verwendet zusätzlich seine bisherigen Kontinent-, Art- und Typfilter sowie den Ausschluss bereits gleicher Wiki-Schlüssel.
+- `assign_all` speichert Pakete zu höchstens 200 Beschriftungen. Bei einem Fehler bleiben frühere vollständige Pakete samt Belegen erhalten; die Antwort nennt die erreichte Anzahl und den Teilabschluss. Fehlgeschlagene Pakete werden vollständig zurückgesetzt. Die Aufbewahrung darf keine eigenen früheren Pakete desselben Laufs verdrängen.
+- Alle Mitglieder werden vor dem ersten Write gesperrt und gegen den geplanten Stand geprüft. Neue eigene oder primäre Landschaftsbindungen werden aus einer sperrenden aktuellen Lesesicht geprüft, beim Speichern ebenso wie bei Undo/Redo. Gebundene Beschriftungen werden nicht über diesen Weg zurückgenommen.
+- Ein geändertes Paket erhält eine gemeinsame Revision und einen Beleg mit dem tatsächlichen Akteur. No-op und Vorschau erzeugen beides nicht. Quellen- und Snapshot-Grenzen werden schon beim Speichern geprüft.
+- Die Rücknahme liefert vollständiges Label-GeoJSON und einen begrenzten Kanonnachtrag unter `region:<UUID>`. Der Browser übernimmt zuerst alle Daten, aktualisiert danach die Darstellung und einmal das offene Infopanel. Vorhandene Kurven und abgeleitete Ebenen überleben die Schreibantwort.
+
+**Geprüft:** 1/27/200 Labels mit Undo/Redo und No-op, Ablehnung von 201 bei `assign`, Teilpakete und Konflikte, fremde Editorsperre, Fehler am letzten Write, Snapshot-Limit, 2.501 Quellenlinks und Retention bei 6.000 Labels. Derselbe Ablauf besteht mit SQLite und MySQL mit JSON-Spalten. MySQL-Zweiprozessproben prüfen eine während des Wartens entstandene Primärbindung sowie die umgekehrte Sperrfolge mit dem echten `avesmapsEcosystemAdoptLabelPointer`: genau ein vollständiger Vorgang, keine offene Transaktion und begrenzte Wartezeit; ein Deadlock wird zurückgerollt.
+
+**Bedienprobe:** Auf einer lokalen MySQL-Prüfseite 27 Beschriftungen zugewiesen, den originalen Verlauf aufgeklappt, gemeinsam zurückgenommen und wiederhergestellt. Das offene Original-Infopanel zeigte Wiki-Zuordnung und Kanon unmittelbar korrekt, geprüft in Hell und Dunkel. Label-Normalizer, Gruppenaktualisierung und Popup-Neubindung sind Originalcode; Markerbild und Popup-Inhalt sind in dieser Fixture vereinfacht. Das ist keine Abnahme des vollständigen Landschaftseditors oder echter Touch-Bedienung. VM-Tests prüfen zusätzlich Datenreihenfolge, fehlenden Kanonnachtrag sowie Kurven-/Ebenenerhalt.
+
+Das gesamte Workflow-Feld lief unter Linux mit LF-Zeilenenden: 455 PHP- und 642 JavaScript-Dateien; nur der bereits bekannte lokale DNS-Test `link-url-test.php:114` bleibt rot. Die produktive Bedienung folgt mit dem getrennten Owner-Blick nach Auslieferung.
+
 ## Ergebnis
 
 Sammel-Undos sind machbar. Der erste geeignete Anwendungsfall ist die Bearbeitung einer Wegegruppe. Eine reine Zusammenfassung der Anzeige reicht nicht: Gruppenzugehörigkeit, Vollständigkeit, Konfliktprüfung und Aufbewahrung müssen gemeinsam umgesetzt werden. Die Einzeländerungen bleiben als Belege erhalten; eine Operation verbindet sie.

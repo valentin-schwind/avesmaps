@@ -65,7 +65,8 @@ try {
                 $pdo,
                 array_key_exists('continent', $payload) ? (string) $payload['continent'] : 'Aventurien',
                 !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
-                (string) ($payload['art'] ?? '')
+                (string) ($payload['art'] ?? ''),
+                (int) ($user['id'] ?? 0)
             ),
             default => null,
         };
@@ -74,11 +75,7 @@ try {
             avesmapsErrorResponse(400, 'invalid_request', 'Unbekannte Regionen-Sync-POST-Action: ' . $action);
         }
 
-        if (in_array($action, ['assign', 'assign_all'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
-            avesmapsWikiSyncNextMapRevision($pdo);
-        }
-
-        avesmapsJsonResponse(200, $response);
+        avesmapsJsonResponse(($response['ok'] ?? true) === false ? 409 : 200, $response);
     }
 
     if ($requestMethod !== 'GET') {
@@ -117,6 +114,8 @@ try {
     }
 
     avesmapsJsonResponse(200, $response);
+} catch (AvesmapsConflictException $error) {
+    avesmapsErrorResponse(409, 'edit_conflict', $error->getMessage());
 } catch (InvalidArgumentException $error) {
     // Eigene Pruefungen der Bibliothek, die das Feld oder den Grund benennen (z. B. „Label zuweisen" an einer
     // Flaeche ohne Bearbeitungsrecht, 15.09.2026) -- duerfen nach draussen, wie im Karten-Endpunkt.
