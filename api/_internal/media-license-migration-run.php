@@ -661,7 +661,7 @@ function avesmapsMediaLicenseCollectSettlementCoats(PDO $pdo, int $limit, int $c
  * deklariert stillschweigend ignoriert.
  *
  * 🔧 Fix 1 der ersten Pruefrunde: die Override-Abfrage verglich `metadata_overrides_json <> ''` --
- * diese Spalte ist eine MySQL-JSON-Spalte (sync-monitor.php:87), und MySQL wandelt den
+ * diese Spalte ist eine MySQL-JSON-Spalte (sync-monitor-status.php:65), und MySQL wandelt den
  * Nicht-JSON-Operanden vor dem Vergleich um: `CAST('' AS JSON)` ist `ERROR 3141` (leeres Dokument).
  * Der Sammler waere unter der echten Datenbank IMMER gescheitert. Ersatzlos gestrichen -- `IS NOT
  * NULL` reicht (dieselben zwei Zeilen wie coat-url.php:128, sync-monitor-identity.php:395: eine
