@@ -4939,9 +4939,17 @@
 				_garetienInnerortsLetzterKey = null;
 				garetienInnerortsFrischLaden(objekt);
 			} else {
+				// 🔴 DIE TYPWAHL BLEIBT STEHEN (Discord #134): `garetienNaeheBeiBedarfLaden` leert sie, weil
+				// ein NEUES Objekt ohne Wahl beginnen soll -- hier ist es dasselbe Objekt, nur ein anderer
+				// Radius. Gemerkt wird die ausdrückliche Wahl, sonst die ANGEZEIGTE Vorgabe: ohne eigenen
+				// Typ ist das die alphabetisch erste Gruppe, und die wechselte mit jedem neu gefundenen Typ.
+				const wahlVorher = _garetienNaeheWahl !== null
+					? _garetienNaeheWahl
+					: (garetienNaeheStandZu(objekt).wahl || null);
 				_garetienNaeheGefunden = null;
 				_garetienNaeheLetzterKey = null;
 				garetienNaeheBeiBedarfLaden(objekt);
+				_garetienNaeheWahl = wahlVorher;
 			}
 			garetienDetailRendern(objekte || zustand.objekte || []);
 			return;

@@ -194,7 +194,79 @@ async function pruefeAbruf() {
 	}
 }
 
-pruefeAbruf().then(() => {
+// =================================================================================================
+// F. Der Naehe-Spinner laesst die TYPWAHL stehen (Discord #134, 17.09.2026)
+// =================================================================================================
+// Meldung, woertlich: „Bei der Veraenderung der Meilen-Zahl in ‚Umkreis+' soll sich die aktuelle
+// Auswahl der Typen nicht veraendern." Der Spinner verwirft Ergebnis und Riegel seiner Suche (E), und
+// `garetienNaeheBeiBedarfLaden` hielt das fuer einen OBJEKTWECHSEL -- dort wird die Wahl zu Recht
+// geleert, hier nicht: es ist dasselbe Objekt, nur ein anderer Radius.
+async function pruefeTypwahl() {
+	const echtesFetch = global.fetch;
+	let antwort = [];
+	global.fetch = function () {
+		const gefunden = antwort;
+		return Promise.resolve({ json: () => Promise.resolve({ ok: true, gefunden: gefunden }) });
+	};
+	const treffer = (key, typ) => ({ key: key, typ: typ, stand: "offen" });
+	try {
+		// (1) eine AUSDRUECKLICHE Wahl ueberlebt das Drehen
+		const burg = { key: "n:burg", name: "Burg Dohlenfels", typ: "Burg", ziel: "location",
+			subtyp: "gebaeude", geometrie: [[100, 100]] };
+		mod.garetienUmkreisVergessen();
+		antwort = [treffer("t:1", "Burg"), treffer("t:2", "Dorf"), treffer("t:3", "Wald")];
+		mod.garetienDetailWaehlen(burg.key, [burg]);
+		// ⚠️ von Hand: ohne Detailspalte im gefaelschten DOM zeichnet garetienDetailRendern nichts
+		// und stoesst den Abruf deshalb auch nicht an
+		mod.garetienNaeheBeiBedarfLaden(burg);
+		await new Promise((f) => setImmediate(f));
+		gleich(mod.garetienNaeheStandZu(burg).wahl, "gleich",
+			"Vorgabe ist der eigene Typ (Aufgabe 13) -- sonst prueft der Rest nichts");
+		mod.garetienNaeheWahlSetzen("Dorf");
+		gleich(mod.garetienNaeheStandZu(burg).wahl, "Dorf", "die Wahl sitzt");
+		antwort = [treffer("t:1", "Burg"), treffer("t:2", "Dorf"), treffer("t:3", "Wald"),
+			treffer("t:4", "Dorf")];
+		mod.garetienEingabenAendern({ target: spinnerZiel("naehe", 8) }, [burg]);
+		await new Promise((f) => setImmediate(f));
+		gleich(mod.garetienNaeheStandZu(burg).wahl, "Dorf",
+			"💣 #134: nach dem Drehen am Umkreis steht die Typwahl noch auf „Dorf\"");
+		gleich(mod.garetienNaeheAktuelleMenge(burg).length, 2,
+			"...und die Menge ist die der NEUEN Suche in diesem Typ");
+
+		// (2) auch die ANGEZEIGTE Vorgabe bleibt stehen, wenn niemand gewaehlt hat. Ohne eigenen Typ
+		// ist sie die alphabetisch erste Gruppe -- und die wechselte, sobald der groessere Umkreis
+		// einen Typ findet, der davor einsortiert (hier „Au" vor „Dorf").
+		const ohneTyp = { key: "n:ohne", name: "Irgendwas", typ: "", ziel: "location",
+			subtyp: "gebaeude", geometrie: [[200, 200]] };
+		mod.garetienUmkreisVergessen();
+		antwort = [treffer("u:1", "Dorf"), treffer("u:2", "Wald")];
+		mod.garetienDetailWaehlen(ohneTyp.key, [ohneTyp]);
+		mod.garetienNaeheBeiBedarfLaden(ohneTyp);
+		await new Promise((f) => setImmediate(f));
+		gleich(mod.garetienNaeheStandZu(ohneTyp).wahl, "Dorf", "ohne eigenen Typ: die erste Gruppe");
+		antwort = [treffer("u:0", "Au"), treffer("u:1", "Dorf"), treffer("u:2", "Wald")];
+		mod.garetienEingabenAendern({ target: spinnerZiel("naehe", 12) }, [ohneTyp]);
+		await new Promise((f) => setImmediate(f));
+		gleich(mod.garetienNaeheStandZu(ohneTyp).wahl, "Dorf",
+			"💣 #134: die angezeigte Wahl springt beim Drehen nicht auf „Au\"");
+
+		// (3) ⚠️ ein OBJEKTWECHSEL leert die Wahl weiterhin -- die Regel aus Aufgabe 13 bleibt
+		mod.garetienNaeheWahlSetzen("Wald");
+		antwort = [treffer("t:1", "Burg"), treffer("t:3", "Wald")];
+		mod.garetienDetailWaehlen(burg.key, [burg]);
+		mod.garetienNaeheBeiBedarfLaden(burg);
+		await new Promise((f) => setImmediate(f));
+		gleich(mod.garetienNaeheStandZu(burg).wahl, "gleich",
+			"ein anderes Objekt beginnt ohne Wahl -- sonst truege sie in die naechste Zeile hinein");
+
+		mod.garetienDetailWaehlen(null, []);
+		mod.garetienUmkreisVergessen();
+	} finally {
+		global.fetch = echtesFetch;
+	}
+}
+
+pruefeAbruf().then(pruefeTypwahl).then(() => {
 	console.log("OK: " + checks + " Pruefungen");
 }).catch((fehler) => {
 	console.error(fehler);
