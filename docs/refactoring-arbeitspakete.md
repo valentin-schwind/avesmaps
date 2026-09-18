@@ -242,7 +242,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 
 ### P-023 · api/_internal/wiki/regions.php · Verfahren C
 - Status: offen
-- Stand: 59e0aae86 · Blob: 2c847a45a2550b4c3104ea0ea646abdb180e4a0e
+- Stand: e7c2d97b5 · Blob: 2d62cfe95b57a481c20dc9e7cc548fbd586d2c9b
 - Block: „Doppelung: Kurzbeschreibung aus dem Wikitext“ — avesmapsWikiRegionExtractDescription … avesmapsWikiRegionExtractDescription (dreifach: `paths.php` `avesmapsWikiPathExtractDescription` Z. 551–589, `regions.php` Z. 617–658, `settlements.php` `avesmapsWikiSettlementExtractDescription` Z. 780–821)
 - Ziel: neue abhängigkeitsfreie Datei `api/_internal/wiki/wiki-text-extract.php` mit `avesmapsWikiExtractLeadDescription(string $wikitext, string $infoboxBlock): string`, `require_once` aus paths/regions/settlements (Vorbild: `path-naming.php`, „dependency-free, required by BOTH paths.php and powerlines.php“). Die drei alten Namen bleiben als Einzeiler-Weiterreicher, bis alle Aufrufer umgestellt sind.
 - Unterschied: keiner außer Namen und drei Leerzeilen (paths kompakter; regions ↔ settlements diff-Exit 0) — Regex, Grenzwerte 700/1200, Aufruf von `avesmapsWikiSyncCleanPoliticalTerritoryWikiValue` wortgleich.
@@ -250,7 +250,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Empfehlung: zusammenlegen — keine Verhaltensvereinigung nötig, die drei sind heute wortgleich; reine Deduplizierung plus drei `require_once`-Zeilen.
 - Beleg: `git blame -w -L 551,589 -- api/_internal/wiki/paths.php` → fdcbfe33af; `-L 619,660 -- regions.php` → cc29579ef4; `-L 779,821 -- settlements.php` → 3e9982813b; `grep -rln ExtractDescription` → nur die vier Dateien, kein Test.
 - Fallen: kein Test hält die drei gegeneinander — eine Änderung an einer Kopie (Grenzwert 1200) bliebe in den anderen stehen. Historiker-Lauf 05.09.2026.
-- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher) · 06.09.2026 nachgezogen: `82f713e18` (P-024) hat das Enqueue bei Z. 261-263 auf einen Weiterreicher gekuerzt -- der Block wandert um rund -21 Zeilen und bleibt an den Namen frei · 08.09.2026 nachgezogen: 72ebea96b (die Regionen-Suche findet auch unter Titel, Synonym und Schluessel) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 80cb6bbeb (die Schreiber des Merkers fallen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 14.09.2026 nachgezogen: a1e26c4ec (eine Wiki-Schlucht wird zur Art Schlucht statt Tal) hat die Datei bewegt; Block an den Namen unveraendert frei, jetzt Z. 617-658 · 16.09.2026 nachgezogen: 4609938a7 (Flaeche und Beschriftung tragen denselben Wiki-Artikel) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei
+- Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher) · 06.09.2026 nachgezogen: `82f713e18` (P-024) hat das Enqueue bei Z. 261-263 auf einen Weiterreicher gekuerzt -- der Block wandert um rund -21 Zeilen und bleibt an den Namen frei · 08.09.2026 nachgezogen: 72ebea96b (die Regionen-Suche findet auch unter Titel, Synonym und Schluessel) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 09.09.2026 nachgezogen: 80cb6bbeb (die Schreiber des Merkers fallen) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 14.09.2026 nachgezogen: a1e26c4ec (eine Wiki-Schlucht wird zur Art Schlucht statt Tal) hat die Datei bewegt; Block an den Namen unveraendert frei, jetzt Z. 617-658 · 16.09.2026 nachgezogen: 4609938a7 (Flaeche und Beschriftung tragen denselben Wiki-Artikel) hat die Datei bewegt; Block an den Namen unveraendert zusammenhaengend und frei · 18.09.2026 nachgezogen: 6cd5c4094 (Wiki-Zuordnungen freier Beschriftungen gemeinsam zuruecknehmen) hat die Datei ab Z. 819 bewegt; Block an den Namen unveraendert zusammenhaengend und frei, Zeilennummern unveraendert (Z. 617)
 
 ### P-024 · api/_internal/wiki/sync-monitor.php · Verfahren C
 - Status: erledigt (82f713e18)
@@ -337,13 +337,13 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Verlauf: 05.09.2026 angelegt (Doppelungs-Scan, gleichheit 1,00; Historiker) · 05.09.2026 GO Owner (zusammenlegen; alte Namen bleiben als Weiterreicher) · 15.09.2026 nachgezogen: d9ec0e669 (Beispielgebirge je Gebirgsform) hat die Datei bewegt; avesmapsEcosystemDisplayRead (jetzt Z. 412) und avesmapsZoomBandsRead (zoom-bands.php Z. 156) sind weiter gleich bis auf Namen, Konstanten und eine Umlautschreibung im Kommentar, block.frei
 
 ### P-031 · api/_internal/wiki/sync-monitor.php · Verfahren C
-- Status: offen
+- Status: erledigt (e7c2d97b5)
 - Stand: fc7a9fb5b · Blob: 511d66bbc8d1250af94f90894cce499881d0c49b
 - Block: „Tabellen, Editorzustand und Status“ — avesmapsWikiSyncMonitorEnsureTables … avesmapsWikiSyncMonitorBuildStatus (7 Funktionen, ~270 Zeilen ab Z. 33)
 - Ziel: api/_internal/wiki/sync-monitor-status.php, require_once an der Blockstelle
 - Vorprüfung (17.09.2026): Ladezeit-Bezug 0 · Register 3 (alle in tools/refactoring/__tests__/vorpruefung.test.js -- die Fixture aus liste.md, Owner-Punkt 06.09.; kein echtes Register) · Quelltext-Tests 1 (dieselbe Fixture; Blocknamen: 0) · vm-Bindung 0 · Konstanten fehlend 0 (die sieben Konstanten Z. 11-17 und die sechs require_once Z. 20-31 stehen vor der Blockstelle) · Datei 746 Zeilen, 80 Commits/180 d · Namens- und Fragmentpruefung gegen alle Tests, die sync-monitor.php ausserhalb einer require-Zeile nennen: kein Treffer
 - Fallen: Kopfkommentar DEUTSCH (Dateikopf deutsch). Die Lib wird von rund zwanzig Tests und Werkzeugen mit BLANKEM `require` geladen (`tools/wikidump/test-dump-*.php`, `region-art-parsing-test.php:35`, `stadtteil-kategorie-test.php:28`) -- mit `require_once` in der Lib ist die Geschwisterdatei davor geschuetzt, aber genau diese Liste zeigt ein Redeclare zuerst: nach dem Schnitt die `tools/wikidump/test-*.php` einzeln fahren. avesmapsWikiSyncMonitorEnsureTables (153 Zeilen DDL) haengt heute an KEINEM `avesmapsSchemaEnsureOnce` -- wer ihn spaeter dort anbindet, nennt die GESCHWISTERDATEI als definierende Datei (AGENTS §10, der Schluessel traegt deren mtime). P-024s `require_once wiki-crawler-base.php` (Z. ~383) liegt ausserhalb; der Rest-Block Z. 387-548 (Enqueue … ResolveCanonicalTitles) liegt unter dem Boden des Fingerabdrucks.
-- Verlauf: 17.09.2026 angelegt (Ueberwachungsmodus; der Block stand im Verlauf von P-012 als freier Rest)
+- Verlauf: 17.09.2026 angelegt (Ueberwachungsmodus; der Block stand im Verlauf von P-012 als freier Rest) · 18.09.2026 erledigt als `e7c2d97b5` (-> sync-monitor-status.php, 746 -> 478 Zeilen; sieben Funktionen, die 270 verschobenen Zeilen byte-gleich; Fingerabdruck 283/271 = 4,2 %). Die Ortsangabe `sync-monitor.php:87` in media-license-migration-run.php:664 zeigte in den Block und wanderte mit (jetzt `sync-monitor-status.php:65`). Live belegt: Deploy-Lauf 35315244361 success, beide Lib-Dateien im Log uebertragen, `GET /api/edit/wiki/sync-monitor.php` (laedt die Kette in Z. 19, vor der Anmeldung) antwortet mit dem sauberen 401-Envelope statt eines Fatals. Drei Agenten ohne blockenden Fund
 
 ### P-032 · js/review/review-conflicts.js · Verfahren A
 - Status: offen
@@ -590,7 +590,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 
 ### P-055 · api/_internal/wiki/regions.php · Verfahren C
 - Status: GO nötig
-- Stand: fc7a9fb5b · Blob: 2c847a45a2550b4c3104ea0ea646abdb180e4a0e
+- Stand: e7c2d97b5 · Blob: 2d62cfe95b57a481c20dc9e7cc548fbd586d2c9b
 - Block: „Doppelung: Crawl-Skelett, die vier Paare“ — avesmapsWikiRegionFetchCategory … avesmapsWikiRegionFetchCategory (Paare regions.php ↔ paths.php: FetchCategory Z. 321 ~ 175 · StartRun 288 ~ 147 · RunStatus 702 ~ 613 · Clear 769 ~ 675)
 - Ziel: `api/_internal/wiki/wiki-crawler-base.php` (seit P-024 vorhanden), parametrisiert ueber Queue-/Staging-Tabelle, Default-Seeds und Max-Depth-Konstante; die Path-/Region-Namen bleiben als Weiterreicher
 - Unterschied: wie P-024 (Historiker 05.09.2026): wortgleich bis auf Namen, Tabellenkonstanten und Ensure-Aufruf; der Scan vom 17.09.2026 meldet alle vier Paare unveraendert mit gleichheit 1,00
@@ -598,7 +598,7 @@ Stand der Erstfüllung: `1cb5e09bd` (05.09.2026), 30 Pakete. Verworfen/nachgezog
 - Empfehlung: zusammenlegen -- der zweite Schritt der Empfehlung von P-024
 - Beleg: P-024; `node tools/refactoring/doppelungen.mjs --wurzel . --min 10`
 - Fallen: ⚠️ avesmapsWikiSyncMonitorRunStatus/…StartRun in sync-monitor.php sind ECHT anders und bleiben draussen (P-024). ⚠️ Der Tabellenname wird Parameter und wandert in den SQL-Text -- denselben Bezeichner-Riegel wie avesmapsWikiCrawlEnqueue benutzen (Verlauf P-024). ⚠️ paths.php und regions.php sind heiss (16.09./15.09.).
-- Verlauf: 17.09.2026 angelegt als Folgepaket von P-024 (dessen Verlauf: „Die vier Paare … stehen noch aus - dafuer ein Folgepaket“). Das GO vom 05.09.2026 galt der Empfehlung „Enqueue zuerst, dann die vier Paare“ als Ganzem -- die Routine setzt trotzdem GO noetig, weil nur der Owner `offen` setzt; eine Zeile genuegt
+- Verlauf: 17.09.2026 angelegt als Folgepaket von P-024 (dessen Verlauf: „Die vier Paare … stehen noch aus - dafuer ein Folgepaket“). Das GO vom 05.09.2026 galt der Empfehlung „Enqueue zuerst, dann die vier Paare“ als Ganzem -- die Routine setzt trotzdem GO noetig, weil nur der Owner `offen` setzt; eine Zeile genuegt · 18.09.2026 nachgezogen: 6cd5c4094 (Wiki-Zuordnungen freier Beschriftungen gemeinsam zuruecknehmen) hat die Datei ab Z. 819 bewegt; alle vier Paare liegen davor (StartRun 288, FetchCategory 321, RunStatus 702, Clear 769), an den Namen unveraendert und frei
 
 ---
 
