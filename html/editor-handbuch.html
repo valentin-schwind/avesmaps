@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 18.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 20.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -1023,17 +1023,16 @@
 				<h3 id="landschaften" class="hb-sub">Landschaften</h3>
 				<p class="hb-path"><strong>Auf der Karte:</strong> Kartenmodus „Landschaften" wählen (Taste <kbd>L</kbd>) &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick auf leere Karte → „Hier hinzufügen" → „Neue Vegetation" &nbsp;·&nbsp; <strong>Ecken bearbeiten:</strong> Rechtsklick auf die Fläche → „Fläche bearbeiten" &nbsp;·&nbsp; oder <strong>Doppelklick auf die Fläche</strong></p>
 				<p>Während eine <a href="#regionen">Region</a> nur ein <em>Name</em> auf der Karte ist, ist eine Landschaft eine <strong>Fläche</strong>: der Umriss des Farindelwaldes, die Ausdehnung des Raschtulswalls, der Rand der Khôm. Daraus rechnet die Karte später das Gelände und damit die Reisezeiten — eine sauber gezogene Fläche ist also keine Dekoration.</p>
-				<div class="hb-note hb-warn"><strong>Ein einfacher Klick wählt nur aus — die Ecken kommen erst auf Ansage.</strong> Dorthin führen zwei Wege, und beide tun genau dasselbe: <strong>Rechtsklick auf die Fläche → „Fläche bearbeiten"</strong> (der sichtbare) oder <strong>Doppelklick auf die Fläche</strong> (der schnelle). Danach ziehst du die Ecken ganz normal. Bei den <a href="#territorien">Territorien</a> ist das anders, dort genügt die Auswahl; wer von dort kommt, sucht hier zunächst vergeblich. Ein Doppelklick <em>neben</em> die Fläche beendet das Ecken-Bearbeiten wieder. Liegen die Ecken schon frei, sagt der Menüeintrag das und tut sonst nichts — so bleibt dir <kbd>Strg</kbd>+<kbd>Z</kbd> erhalten.</div>
+				<div class="hb-note hb-warn"><strong>Ein einfacher Klick wählt nur aus.</strong> Die Ecken kommen erst per <strong>Doppelklick</strong> oder über <strong>„Fläche bearbeiten"</strong>. Bei den <a href="#territorien">Territorien</a> genügt dagegen die Auswahl — wer von dort kommt, sucht hier vergeblich.</div>
 				<h5>Die vier Ebenen</h5>
 				<p>Oben auf der Karte steht der Ebenen-Schalter: <strong>Alle · Derographie · Vegetation · Topographie · Klimazonen</strong>. Immer nur <em>eine</em> Ebene nimmt Klicks entgegen — die, die dort ausgewählt ist. <strong>In „Alle" kannst du nicht bearbeiten.</strong> Wähl erst eine Ebene. Anklicken und Auswählen gehen dort, aber Flächenmenü, Ecken-Editor, „Neue Fläche" und <kbd>Strg</kbd>+<kbd>Z</kbd> fallen weg. Umschalten lädt nichts neu und wirft nichts weg.</p>
-				<div class="hb-note hb-tip"><strong>„Alle" zeigt nicht alles.</strong> Die <strong>Klimazonen</strong> bleiben dort ganz aus — ihre kartenbreiten Bänder legten sich sonst über alles andere. Die <strong>Derographie</strong> liegt ohne Füllung obenauf und nimmt keine Klicks; anfassbar ist dort nur ihr <em>Name</em>, der ihre Fläche zeigt. So kommst du an Wald und Gebirge darunter heran.</div>
-					<div class="hb-note hb-tip"><strong>Konturen siehst du nur beim Bearbeiten.</strong> Die Karte zeichnet die Kante einer Fläche nur, solange <em>eine</em> Ebene im Editiermodus offen ist. In „Alle" und für Besucher gibt es keine Kontur.</div>
+				<div class="hb-note hb-tip"><strong>Konturen siehst du nur beim Bearbeiten.</strong> Die Karte zeichnet die Kante einer Fläche nur, solange <em>eine</em> Ebene im Editiermodus offen ist. In „Alle" und für Besucher gibt es keine Kontur.</div>
 				<table class="hb-table">
-					<tr><th>Ebene</th><th>Was hineingehört</th></tr>
-					<tr><td><strong>Vegetation</strong></td><td>Wälder, Steppen, Sümpfe, Wüsten — der Bewuchs. Hier liegt die meiste Arbeit, deshalb ist sie vorausgewählt.</td></tr>
-					<tr><td><strong>Topographie</strong></td><td>Das Relief: Gebirge, Hügelland, Ebenen, Gewässer.</td></tr>
-					<tr><td><strong>Derographie</strong></td><td>Die großen erdkundlichen Räume darüber.</td></tr>
-					<tr><td><strong>Klimazonen</strong></td><td><strong>Sonderfall — wird nicht gezeichnet, sondern gerechnet.</strong> Siehe unten.</td></tr>
+					<tr><th>Ebene</th><th>Was hineingehört</th><th>In „Alle"</th></tr>
+					<tr><td><strong>Vegetation</strong></td><td>Wälder, Steppen, Sümpfe, Wüsten — der Bewuchs. Hier liegt die meiste Arbeit, deshalb ist sie vorausgewählt.</td><td>sichtbar</td></tr>
+					<tr><td><strong>Topographie</strong></td><td>Das Relief: Gebirge, Hügelland, Ebenen, Gewässer.</td><td>sichtbar</td></tr>
+					<tr><td><strong>Derographie</strong></td><td>Die großen erdkundlichen Räume darüber.</td><td>Ohne Füllung obenauf, nimmt keine Klicks. Anfassbar ist nur ihr <em>Name</em> — so kommst du an Wald und Gebirge darunter heran.</td></tr>
+					<tr><td><strong>Klimazonen</strong></td><td><strong>Sonderfall — wird nicht gezeichnet, sondern gerechnet.</strong> Siehe unten.</td><td><strong>Ganz aus.</strong> Ihre kartenbreiten Bänder legten sich sonst über alles andere.</td></tr>
 				</table>
 				<div class="hb-note hb-tip"><strong>Dieselbe Landschaft gehört oft in zwei Ebenen.</strong> Der Farindel ist Wald (Vegetation) <em>und</em> Relief (Topographie) — rund die Hälfte aller Flächen sind solche Zwillinge. Zeichne sie nicht zweimal: <strong>„Kopieren …"</strong> im Flächenmenü legt denselben Umriss in der anderen Ebene noch einmal an. Es ist eine echte Kopie, keine Verknüpfung — verschiebst du später eine Ecke, bewegt sich nur die eine Fläche.</div>
 				<h5>Eine neue Fläche zeichnen</h5>
