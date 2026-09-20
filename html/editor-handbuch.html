@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 20.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 21.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -1338,14 +1338,14 @@
 				<p>Pflanzen, Tiere, Spezies und Handelswaren aus dem Wiki — was wo wächst, lebt und gehandelt wird. Ein Vorkommen bekommt <strong>keinen eigenen Punkt auf der Karte</strong>. Es erscheint in der Infobox der Orte, Regionen, Wege und Gebiete, zu denen es gehört — bei Wegen und Routen-Etappen über die Landschaften, durch die sie führen. Eine <a href="#lebensraum-regeln">Lebensraum-Regel</a> wirkt auf alle diese Stellen.</p>
 				<p>Unter der Auswahl steht <em>ein</em> Knopf: <strong>„Vorkommen bearbeiten"</strong>. Er öffnet das Fenster und startet nichts. Das Datum des letzten Syncs steht in der Auswahlzeile selbst — oder „nie", solange der Bestand leer ist.</p>
 				<div class="hb-note hb-tip"><strong>Der Sync steht nicht im Reiter, sondern im Fenster</strong> — als 🚨-Kachel <strong>„Vorkommen syncen"</strong> in dessen Menüband. Er braucht mehrere Minuten. Manuelle und unterdrückte Einträge bleiben unangetastet.</div>
-				<p>Die Arten stehen als Reiter über der Liste. Alle vier sind gleichberechtigt; <strong>Spezies</strong> erscheint in der Infobox als vierte Zeile unter Flora.</p>
+				<p>Die Arten stehen als Reiter über der Liste. <strong>Spezies</strong> erscheint in der Infobox als vierte Zeile unter Flora.</p>
 
 				<h5>Das Fenster</h5>
 				<p>Oben das <a href="#n-editoren">Menüband</a> mit vier Kacheln:</p>
 				<table class="hb-table">
 					<tr><th>Kachel</th><th>Was sie tut</th></tr>
 					<tr><td><strong>🚨 Vorkommen syncen</strong></td><td>Liest den Wiki-Dump und vergleicht. Siehe <em>Der Sync</em> unten.</td></tr>
-					<tr><td><strong>Fauna · Flora · Waren · Spezies</strong></td><td>Vier Schalter für die <em>öffentliche Anzeige</em>. Die Daten bleiben liegen und sind beim Zurückschalten sofort wieder da.</td></tr>
+					<tr><td><strong>Fauna · Flora · Waren · Spezies</strong></td><td>Vier Schalter für die <em>öffentliche Anzeige</em>; die Kachel trägt ihren Zustand (<em>„Fauna: AN"</em>). Die Daten bleiben liegen und sind beim Zurückschalten sofort wieder da.</td></tr>
 					<tr><td><strong>Zugehörigkeit rechnen</strong></td><td>Öffnet den <a href="#landschaften">Landschaften</a>-Editor, wo du rechnest.</td></tr>
 					<tr><td><strong>Regeln ableiten</strong></td><td>Baut Regeln aus den Wiki-Feldern. Siehe <a href="#lebensraum-regeln">Lebensraum-Regeln</a>.</td></tr>
 				</table>
@@ -1367,24 +1367,32 @@
 					<tr><td><strong>Auf Karte</strong></td><td>auffindbar · offen · nicht zugewiesen — die drei Zustände des <a href="#kreise">grünen Kreises</a></td></tr>
 					<tr><td><strong>Vorkommen über</strong></td><td>Orte · Regeln</td></tr>
 				</table>
-				<p>Den Trichter gibt es in beiden Listen, im Reiter wie im Fenster. Gefiltert wird auf dem Server — die Auswahl greift auf den ganzen Bestand, nicht nur auf die geladenen Zeilen.</p>
+				<p>Den Trichter gibt es in beiden Listen, im Reiter wie im Fenster. Er greift auf den ganzen Bestand, nicht nur auf die geladenen Zeilen.</p>
 				<div class="hb-note hb-tip"><strong>„Kontinent" steht schon auf <em>Aventurien</em>.</strong> Diese Vorgabe markiert den Knopf nicht. Suchst du etwas aus Myranor oder Uthuria und findest es nicht, steht sie noch.</div>
-				<p><strong>Ein Klick auf eine Listenzeile öffnet den Editor</strong> und füllt die beiden rechten Spalten. Ein Klick auf eine andere Zeile wechselt direkt dorthin; <strong>„← Zurück zur Liste"</strong> leert die Spalten nur. Nichts geht dabei verloren — Felder speichern beim Fokusverlust.</p>
+				<p><strong>Ein Klick auf eine Listenzeile öffnet den Editor</strong> und füllt die beiden rechten Spalten. Ein Klick auf eine andere Zeile wechselt direkt dorthin; <strong>„← Zurück zur Liste"</strong> leert die Spalten nur. Nichts geht dabei verloren.</p>
 
 				<h5>Einen Eintrag bearbeiten</h5>
 				<p>Überschreibbar sind:</p>
 				<ul>
 					<li><strong>Name</strong></li>
 					<li><strong>Gruppe</strong></li>
+					<li><strong>Gegenstandstyp</strong> — nur bei Waren</li>
 					<li><strong>Lebensraum</strong></li>
 					<li><strong>Weitere Namen</strong></li>
-					<li><strong>Gegenstandstyp</strong> — nur bei Waren</li>
 				</ul>
 				<p><strong>Es gibt keinen Speichern-Knopf.</strong> Ein Feld wird gespeichert, sobald es den Fokus verliert, und trägt danach die Marke <strong>„von Hand"</strong>.</p>
 				<p>Darunter steht <strong>„Vorkommen"</strong> mit einer Zahl in Klammern — sie zählt die Ortszeilen <em>und</em> die Regelkarten darunter zusammen. Einen neuen Ort trägst du unten ins Feld <em>„Ort, Region oder Gebiet …"</em> und drückst <strong>„+ Ort"</strong>; das <strong>„×"</strong> am Ende einer Zeile nimmt einen wieder weg. Daneben sitzt <strong>„+ Regel"</strong> — siehe <a href="#lebensraum-regeln">Lebensraum-Regeln</a>.</p>
 				<p>Unter den Stammdaten stehen die <strong>Quellen</strong> — <strong>dieselbe Quellenverwaltung wie beim Ort, der Region, dem Weg und dem Gebiet</strong>: hinzufügen mit Titel, Link, Art und Seitenzahl, entfernen, und eine Vorschlagsliste über den geteilten Quellenkatalog. Was aus dem Publikationsteil des Wiki-Artikels stammt, steht unter <strong>„automatisch"</strong> — was du selbst einträgst, darunter.</p>
 				<div class="hb-note hb-tip"><strong>Zwei Felder, zwei Regeln.</strong> Bei den <strong>Quellen</strong> nimm den Vorschlag aus der Liste — dann hängt dein Eintrag am selben Buch wie alle anderen. Beim <strong>Ortsfeld</strong> gibt es keine Vorschläge: es ist ein reines Textfeld, der Name muss stimmen.</div>
-				<div class="hb-note hb-warn"><strong>Was du von Hand tust, überlebt jeden weiteren Sync.</strong> Überschriebene Felder bleiben stehen. Ein entfernter Wiki-Ort wandert unter <strong>„Entfernte Wiki-Orte"</strong> und kommt nicht zurück, auch wenn das Wiki ihn weiter nennt — mit <strong>„wieder aufnehmen"</strong> holst du ihn selbst zurück. Dasselbe gilt für Quellen: eine entfernte Wiki-Quelle bleibt entfernt, eine selbst eingetragene bleibt stehen. Und ein Feld, das du wieder <em>leerst</em>, gibst du damit ans Wiki zurück: Beim nächsten Sync steht dort erneut der Wiki-Wert.</div>
+				<p><strong>Was du von Hand tust, überlebt jeden weiteren Sync</strong> — bis auf eine Ausnahme:</p>
+				<table class="hb-table">
+					<tr><th>Was du tust</th><th>Beim nächsten Sync</th></tr>
+					<tr><td>Ein Feld überschreiben</td><td>bleibt stehen, mit der Marke <strong>„von Hand"</strong></td></tr>
+					<tr><td>Ein Feld wieder <em>leeren</em></td><td><strong>steht wieder der Wiki-Wert</strong> — Leeren gibt das Feld ans Wiki zurück</td></tr>
+					<tr><td>Einen Wiki-Ort mit <strong>×</strong> entfernen</td><td>bleibt entfernt, auch wenn das Wiki ihn weiter nennt. Er steht unter <strong>„Entfernte Wiki-Orte"</strong>; <strong>„↺ wieder aufnehmen"</strong> holt ihn zurück</td></tr>
+					<tr><td>Eine Wiki-Quelle entfernen</td><td>bleibt entfernt</td></tr>
+					<tr><td>Eine Quelle selbst eintragen</td><td>bleibt stehen</td></tr>
+				</table>
 
 				<h5 id="lebensraum-regeln">Lebensraum-Regeln — statt hundert Orte einzeln</h5>
 				<p>Manches wächst überall dort, wo eine bestimmte Landschaft und ein bestimmtes Klima zusammenkommen. Dafür gibt es die <strong>Regel</strong>: Du beschreibst die Bedingung <em>einmal</em>, und der Eintrag erscheint von selbst bei jedem Ort und jeder Fläche, auf die sie zutrifft. <strong>„+ Regel"</strong> unter der Liste öffnet den Regeleditor; <strong>„Bearbeiten"</strong> an einer bestehenden Regelkarte öffnet ihn wieder. Die Kachel <strong>„Regeln ableiten"</strong> im Menüband baut solche Regeln in einem Zug aus den Wiki-Feldern <em>Verbreitung</em> und <em>Vorkommen</em>; sie schreibt nichts, sondern legt sie dir als <a href="#uebernahme">Übernahme-Vorschau</a> vor, und übernommen wird nur, was angehakt ist. Von Hand gebaute Regeln fasst sie nie an.</p>
@@ -1396,12 +1404,24 @@
 					<tr><td><strong>innerhalb der Klimazone</strong></td><td>Eine <em>Spanne</em> auf dem Streifen von Norden nach Süden: Der erste Klick setzt das eine Ende, der zweite das andere.</td></tr>
 				</table>
 				<div class="hb-note hb-tip"><strong>Ohne Landschaftsart meint das Feld die Fläche <em>selbst</em>.</strong> „Almada" allein trifft genau diese eine Fläche, nicht die vierzehn Wälder darin — ein Ort, keine Auswahl. Welche der beiden Lesarten gerade gilt, sagt dir der ausgeschriebene Satz.</div>
-				<p>Unten steht <strong>„Was die Regel trifft"</strong> — wie viele Flächen und Orte gerade zutreffen, mit dem Rechenweg je Bedingung. Die Zahl wird kurz nach jeder Änderung neu geholt; <em>„wird berechnet …"</em> ist also kein Fehler. <strong>„Regel übernehmen"</strong> speichert, <strong>„Regel löschen"</strong> nimmt sie wieder weg, <strong>„Abbrechen"</strong> verwirft.</p>
-				<div class="hb-note hb-warn"><strong>Jede einzelne Bedingung muss etwas einschränken.</strong> Nicht nur die Regel als Ganzes: Bleiben in <em>einer</em> Bedingung alle drei Felder leer, träfe die Regel alles, und gespeichert wird sie nicht. Der Editor sagt vorher, welche gemeint ist — <em>„Bedingung 2 schränkt nichts ein"</em> —, und die Trefferanzeige bleibt so lange auf <em>„Noch keine Einschränkung"</em> stehen. Entweder du füllst die Bedingung, oder du nimmst sie heraus.</div>
+				<p>Unten steht <strong>„Was die Regel trifft"</strong> — wie viele Flächen und Orte gerade zutreffen, mit dem Rechenweg je Bedingung. Die Zahl wird kurz nach jeder Änderung neu geholt; <em>„wird berechnet …"</em> ist also kein Fehler. Darunter stehen die Knöpfe:</p>
+				<table class="hb-table">
+					<tr><th>Knopf</th><th>Was er tut</th></tr>
+					<tr><td><strong>Regel löschen</strong></td><td>Nimmt die Regel weg. Steht nur an einer schon gespeicherten Regel.</td></tr>
+					<tr><td><strong>Abbrechen</strong></td><td>Verwirft, was du gerade eingestellt hast.</td></tr>
+					<tr><td><strong>Regel übernehmen</strong></td><td>Speichert.</td></tr>
+				</table>
+				<div class="hb-note hb-warn"><strong>Jede einzelne Bedingung muss etwas einschränken</strong>, nicht nur die Regel als Ganzes. Bleiben in <em>einer</em> Bedingung alle drei Felder leer, wird die Regel nicht gespeichert. Der Editor nennt sie — <em>„Bedingung 2 schränkt nichts ein"</em> —; füll sie oder nimm sie heraus.</div>
 				<p>Regelkarten stehen hinter den Orten in derselben Liste und tragen die Marke <strong>„von Hand"</strong>. Eine Regel legst immer du an, nie der Wiki-Abgleich — sie überlebt jeden Sync. Die Trefferzahl siehst du nur im geöffneten Regeleditor.</p>
 
 				<h5>Der Sync</h5>
-				<p>Ein Klick auf die 🚨-Kachel erledigt beides hintereinander: erst den Dump lesen, dann vergleichen. Der Fortschritt läuft in der Kachel selbst mit („Dump lesen … 12.000 Seiten · 900 Einträge", dann „vergleichen … 300/5100"), damit darunter nichts verspringt. <strong>Geschrieben wird dabei nichts.</strong> Am Ende steht, was der Lauf gefunden hat („17 Unterschiede — Vorschau offen: 4 neu, 11 geändert, 2 stillzulegen"), und die <a href="#uebernahme">Übernahme-Vorschau</a> geht auf. Erst dein <strong>„Übernehmen"</strong> darin schreibt. Das Datum in „zuletzt gesynct" rückt dagegen mit <em>jedem</em> Lauf vor — auch wenn es nichts zu übernehmen gab.</p>
+				<p>Ein Klick auf die 🚨-Kachel erledigt alles hintereinander. <strong>Geschrieben wird dabei nichts.</strong></p>
+				<ul class="hb-steps">
+					<li><strong>Dump lesen, dann vergleichen.</strong> Der Fortschritt läuft in der Kachel selbst mit — <em>„Dump lesen … 12.000 Seiten · 900 Einträge"</em>, dann <em>„vergleichen … 300/5100"</em>.</li>
+					<li><strong>Das Ergebnis</strong> steht danach als Satz da: <em>„Vorkommen: 17 Unterschiede — Vorschau offen (4 neu, 11 geändert, 2 stillzulegen)."</em></li>
+					<li><strong>Die <a href="#uebernahme">Übernahme-Vorschau</a> geht auf</strong> — immer, auch bei null Unterschieden. Erst dein <strong>„Übernehmen"</strong> darin schreibt.</li>
+				</ul>
+				<p>Das Datum in „zuletzt gesynct" rückt dagegen mit <em>jedem</em> Lauf vor — auch wenn es nichts zu übernehmen gab.</p>
 				<p><strong>Ein vorheriges „Dump holen" ist nicht nötig</strong> — der Knopf holt sich, was er braucht. Ein zweiter Klick während des Laufs bleibt wirkungslos. Geht etwas schief, steht der Grund in der Kachel.</p>
 				<div class="hb-note hb-tip"><strong>Ein kontinentweiter Eintrag steht nur im aufgeklappten Teil der Infobox</strong> — „Tiefzwerg" hängt sonst an jedem Ort. Der Menüband-Schalter <strong>„Spezies"</strong> ist der Notaus für die ganze Art.</div>
 			</section>
@@ -1451,13 +1471,12 @@
 				<table class="hb-table">
 					<tr><th>Knopf</th><th>Was passiert</th></tr>
 					<tr><td><strong>Behält den Link</strong></td><td>Dieses Objekt bleibt verknüpft, <em>alle anderen im Fall</em> verlieren ihre Verknüpfung.</td></tr>
-					<tr><td><strong>Trennen</strong></td><td>Dieses Objekt verliert die Verknüpfung. <strong>Hält nicht dauerhaft:</strong> passt der Name zu einem Artikel, kann der Server ihn später wieder vorschlagen.</td></tr>
+					<tr><td><strong>Trennen</strong></td><td>Dieses Objekt verliert die Verknüpfung. <strong>Die Trennung hält</strong> — der Server schlägt von sich aus keinen Link mehr vor.</td></tr>
 					<tr><td><strong>Artikel übernehmen</strong></td><td>Nur bei „Kein Wiki-Schlüssel", und nur wenn ein Vorschlag dasteht: verknüpft das Objekt mit dem gefundenen Artikel. Teile, die schon eine Verknüpfung tragen, bleiben unangetastet und werden dir hinterher genannt.</td></tr>
 					<tr><td><strong>Genehmigt</strong></td><td>Fund richtig, Lage richtig. Ändert keine Daten.</td></tr>
 					<tr><td><strong>Beschriftung löschen</strong></td><td>Nur bei <em>„Dieselbe Beschriftung zweimal"</em>: nimmt <strong>genau diese eine</strong> Beschriftung von der Karte. Die anderen des Falls bleiben, die letzte verbleibende lässt sich nicht löschen. Umkehrbar über den Änderungs-Log, wie jedes Löschen im Editor.</td></tr>
 					<tr><td><strong>Zurückstellen</strong> / <strong>Archivieren</strong></td><td>Ändern keine Daten.</td></tr>
 				</table>
-				<div class="hb-note hb-tip"><strong>„Trennen" hält.</strong> Der Server schlägt den Link von sich aus nicht wieder vor. Taucht im Wiki später doch ein passender Artikel auf, macht der nächste Abgleich den Fall wieder auf — das ist gewollt.</div>
 				<div class="hb-note hb-warn"><strong>Bei einem Weg und bei einer Kraftlinie fasst jeder dieser Knöpfe die <em>ganze Linie</em></strong> — alle Abschnitte, nicht nur den, den du ansiehst; das gilt für alle vier Knöpfe oben. Bei <strong>Ort, Region und Territorium</strong> trifft der Klick genau das eine Objekt. Der Knopf nennt die Reichweite vorher, und die Zahl daneben („6 Segmente") ist wörtlich gemeint.</div>
 				<p>Manche Objekte tragen den Hinweis <em>„aus der Wiki-Zuordnung"</em>. Bei ihnen hängt die Verknüpfung an der ganzen Infobox — Einwohner, Region, Wappen. Sie werden hier bewusst nicht angefasst; das gehört in den jeweiligen Sync-Editor.</p>
 				<h4>Wann ein Fall wiederkommt</h4>
