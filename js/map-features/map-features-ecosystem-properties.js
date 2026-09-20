@@ -1211,7 +1211,25 @@
 		if (!box) {
 			return;
 		}
-		const entry = linkedEcosystemLabelEntry(area);
+		// 🔴 DIE BOX GEHÖRT DER BESCHRIFTUNG, DIE DAS FENSTER BEARBEITET -- nicht dem primären Label
+		// der Fläche. Seit eine Fläche mehrere tragen darf (13 von 1026), sind das zwei verschiedene
+		// Dinge, erreichbar über die Geschwisterwahl im Beschriftungsreiter.
+		// 💣 Und diese Stelle ist der LETZTE Schreiber der Box: `openLabelEditDialog` füllt zuerst das
+		// Formular und reicht die Fläche ZULETZT nach, die ruft dann hierher. Solange der Haken nur
+		// ANGEZEIGT wurde, war das höchstens ein Anzeigefehler; seit er mitgespeichert wird (Meldung
+		// #137), schriebe der Stand des primären Labels auf das offene -- also wird hier dasselbe
+		// Label gelesen, das `populateLabelEditForm` befüllt hat.
+		// 🔴 Ein FREMDER Dialogstand zählt nicht: nennt das Feld ein Label, das nicht an DIESER Fläche
+		// hängt, gilt wieder das primäre. Sonst entschiede die Reihenfolge zweier Öffner darüber,
+		// welches Objekt man bearbeitet. Dieselbe Frage wie in `applyRegionToLabels`.
+		const offeneId = String(document.getElementById("label-edit-public-id")?.value || "");
+		const offene = offeneId !== "" && typeof findLabelEntryByPublicId === "function"
+			? findLabelEntryByPublicId(offeneId)
+			: null;
+		const gehoertZurFlaeche = Boolean(offene) && typeof ecosystemRegionOfLabel === "function"
+			&& String(area?.region_public_id || "") !== ""
+			&& String(ecosystemRegionOfLabel(offene.label)?.public_id || "") === String(area.region_public_id);
+		const entry = gehoertZurFlaeche ? offene : linkedEcosystemLabelEntry(area);
 		box.disabled = false;
 		box.checked = Boolean(entry) && entry.label?.showName !== false;
 	}
@@ -2665,7 +2683,18 @@
 			return;
 		}
 		const box = propertiesElement("showname");
-		const showName = box && !box.disabled ? Boolean(box.checked) : (label.showName !== false);
+		// 🔴 DIE BOX BEDIENT DIE OFFENE BESCHRIFTUNG, nicht zwangsläufig dieses primäre Label
+		// (syncPropertiesShowName). Ist eine ANDERE offen -- über die Geschwisterwahl erreichbar, sobald
+		// eine Fläche mehrere trägt --, gilt ihr Stand hier NICHT: sonst schriebe der Haken der einen
+		// Beschriftung auf die andere. Ihren eigenen Stand speichert das Beschriftungsformular selbst
+		// (`show_name` in buildLabelEditPayload, Meldung #137).
+		// ⚠️ Leeres Feld heisst „keine Beschriftung offen" -- dann gehört die Box diesem Label, und der
+		// Flächen-Knopf ist ihr einziger Schreibweg.
+		const offeneLabelId = String(document.getElementById("label-edit-public-id")?.value || "");
+		const boxGiltHier = offeneLabelId === "" || offeneLabelId === String(labelPublicId);
+		const showName = box && !box.disabled && boxGiltHier
+			? Boolean(box.checked)
+			: (label.showName !== false);
 		const nodixBox = propertiesElement("nodix");
 		const nextNodix = nodixBox && !nodixBox.disabled ? Boolean(nodixBox.checked) : Boolean(label.isNodix);
 		const nextSubtype = String(propertiesElement("type")?.value || "") || label.labelType || "region";

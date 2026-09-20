@@ -189,6 +189,20 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 	document.getElementById("label-edit-max-zoom").value = label.maxZoom ?? remembered.maxZoom ?? 7;
 	document.getElementById("label-edit-priority").value = label.priority ?? remembered.priority ?? 3;
 	document.getElementById("label-edit-is-nodix").checked = Boolean(labelEntry ? label.isNodix : (remembered.isNodix ?? false));
+	// 🔴 Der Anzeigehaken („Auf der Karte anzeigen") gehört dem Label, wird aber im Beschriftungs-
+	// reiter des vereinigten Landschaftsfensters bedient. Er MUSS hier befüllt werden:
+	// `syncPropertiesShowName` (map-features-ecosystem-properties.js) tut es nur auf dem FLÄCHEN-Weg,
+	// und eine freie Beschriftung -- 229 von 1011 tragen keine Fläche -- sähe sonst eine nie befüllte
+	// Box, deren `false` das erste Speichern als Ausblenden schriebe.
+	// ⚠️ `!== false`: an alten Zeilen FEHLT die Angabe, und der Lesepfad des Hauses rechnet sie
+	// überall als SICHTBAR -- die sichere Richtung.
+	// 🔴 Ein NEUES Label beginnt sichtbar. `create_label` fällt serverseitig ohnehin auf `true`
+	// (features.php:3153); ein Dialog, der unsichtbare Beschriftungen anlegt, wäre eine Falle.
+	// Darum NICHT aus `remembered` -- die Sichtbarkeit ist keine Darstellungsvorliebe.
+	const showNameBox = document.getElementById("ecosystem-properties-showname");
+	if (showNameBox) {
+		showNameBox.checked = labelEntry ? label.showName !== false : true;
+	}
 	// 🔴 Empty is NOT zero. A peak nobody has measured leaves the field blank; writing "0" here would
 	// record sea level as a fact. The height is also NOT remembered for new labels the way the display
 	// values are -- copying the last peak's height onto the next one would invent data.
@@ -1056,6 +1070,18 @@ function buildLabelEditPayload(formElement) {
 		max_zoom: Number.parseInt(String(formData.get("max_zoom") || "5"), 10),
 		priority: Number.parseInt(String(formData.get("priority") || "3"), 10),
 		is_nodix: formData.get("is_nodix") === "on",
+		// 🔴 DER ANZEIGEHAKEN GEHÖRT DEM LABEL und reist deshalb hier mit (Meldung #137, 18.09.2026).
+		// Seine Box steht im Beschriftungsreiter HINTER dem `</form>` und trägt darum
+		// `form="label-edit-form"` -- ohne das sieht `new FormData(form)` sie NICHT, und
+		// `update_label` liesse den Haken als „nicht geändert" stehen (features.php:3302). Genau so
+		// war er im Beschriftungsreiter nicht abschaltbar, während alle anderen Felder gespeichert
+		// wurden. Dieselbe Umrechnung wie beim Nodix darüber: eine abgehakte Checkbox erscheint GAR
+		// NICHT in FormData, `=== "on"` ist also die vollständige Frage.
+		// 💣 Der Schlüssel reist IMMER mit -- tragbar nur, weil `populateLabelEditForm` die Box bei
+		// JEDEM Öffnen aus dem Label befüllt, auch bei einer freien Beschriftung ohne Fläche. Fiele
+		// die Befüllung weg, schriebe das erste Speichern ein `false` aus einer nie befüllten Box
+		// und machte die Beschriftung unsichtbar.
+		show_name: formData.get("show_name") === "on",
 		// 🔴 Die Merkliste reist IMMER mit, auch leer: eine leere Liste ist dasselbe wie ein fehlender
 		// Schlüssel („nichts kam aus dem Wiki, also alles von uns"), und das ist die sichere Richtung.
 		// ⚠️ Kein Rückfall auf `[]`, wenn die Funktion fehlt -- dann sagt dieses Speichern gar nichts,

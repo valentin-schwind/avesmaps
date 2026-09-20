@@ -2338,9 +2338,18 @@
 				</form>
 						<!-- Jede Region HAT ihr Karten-Label (am Point of Inaccessibility); dieser Haken
 						     entscheidet nur, ob es gezeichnet wird. Ausblenden statt löschen, damit Ort,
-						     Größe, Drehung und Zoom-Band beim Wiedereinschalten noch da sind. -->
+						     Größe, Drehung und Zoom-Band beim Wiedereinschalten noch da sind.
+						     💣 `form="label-edit-form"` IST TRAGEND: dieser Haken steht HINTER dem `</form>`
+						     seines Formulars, und ohne die Zuordnung sieht `new FormData(form)` ihn NICHT --
+						     `buildLabelEditPayload` schickte dann kein `show_name`, und `update_label` liest
+						     einen fehlenden Schlüssel als „nicht geändert" (features.php:3302). Genau das war
+						     Meldung #137: alle anderen Felder wurden gespeichert (Toast „Label gespeichert."),
+						     nur der Haken kam beim nächsten Öffnen zurück. Geschrieben wurde er einzig über den
+						     FLÄCHEN-Weg (`renameLinkedEcosystemLabel`) -- daher „in vielen Fällen".
+						     ⚠️ Dieselbe Zuordnung tragen `label-edit-text` und `label-edit-type` weiter oben;
+						     `label-edit-is-nodix` braucht sie nicht, es liegt im Formular. -->
 						<label data-landschaft-inhalt class="ecosystem-properties-dialog__checkbox">
-							<input id="ecosystem-properties-showname" name="show_name" type="checkbox" />
+							<input id="ecosystem-properties-showname" name="show_name" form="label-edit-form" type="checkbox" />
 							<span data-i18n="ecosystem.properties.showName">Auf der Karte anzeigen</span>
 						</label>
 				</div>
