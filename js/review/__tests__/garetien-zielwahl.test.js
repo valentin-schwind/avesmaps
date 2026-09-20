@@ -118,6 +118,88 @@ gleich(garetienZielVorbelegung({ key: "ort", typ: "Dorf", ziel: "location", subt
 	"location", "ein Ort bleibt ein Ort");
 
 // =================================================================================================
+// B2. DIE GEGENRICHTUNG -- ein großes `Berg`-Polygon beginnt als Gebirgsfläche (Discord #135)
+// =================================================================================================
+// Owner 20.09.2026: „große Berg-Polygone als Gebirge vorbelegen". Garetiens `Berg` wurde über
+// AVESMAPS_GARETIEN_TYP_MAP bedingungslos ein Gipfel-Label -- auch „Berge über Donfanger"
+// (1870 Meilen²) und „Berge über Finsterrode" (1833 Meilen²), die zwei gemeldeten.
+// 🔴 DIE SCHWELLE IST GEMESSEN: am 20.09.2026 über beide Berge-Ebenen (78 `Berg`-Zeilen mit
+// Polygon) liegt die größte Lücke der Verteilung bei 35,07 -> 97,99 Meilen² (Faktor 2,8); sie
+// trennt 37 Einzelgipfel von 41 Flächen. Jede Zahl zwischen 36 und 97 trifft dieselben 41 Zeilen.
+const bergPunkt = (kante) => ({
+	key: "b-" + kante, typ: "Berg", ziel: "label", subtyp: "berggipfel", kind: "",
+	geometrie: quadrat(kante),
+});
+
+// 4 Einheiten² = 144 Meilen², also über der Schwelle von 50.
+gleich(garetienZielVorbelegung(bergPunkt(4)).ziel, "region",
+	"ein großes Berg-Polygon (144 Meilen²) beginnt als Fläche");
+gleich(garetienZielVorbelegung(bergPunkt(4)).subtyp, "gebirge",
+	"und zwar als Gebirge -- Owner-Entscheid, nicht als Hügelland");
+// 💣 `kind` MUSS MIT. Eine Fläche ohne Landschaftsebene ist für jeden Leser danach eine Fläche
+// ohne Ebene; die drei Werte stehen genau so in AVESMAPS_GARETIEN_TYP_MAP unter `Gebirge`.
+gleich(garetienZielVorbelegung(bergPunkt(4)).kind, "topographie",
+	"💣 samt Landschaftsebene -- dieselben drei Werte wie die TYP_MAP unter `Gebirge`");
+
+// ⚠️ Und darunter bleibt er ein Gipfel. Ohne diese Zeile wäre nur belegt, dass die Regel etwas
+// tut, nicht dass sie eine SCHWELLE hat. 2 Einheiten² = 36 Meilen², knapp darunter.
+gleich(garetienZielVorbelegung(bergPunkt(2)).ziel, "label",
+	"ein kleines Berg-Polygon (36 Meilen²) bleibt ein Gipfel");
+
+// 💣 DIE REGEL GILT NUR `Berg`, NICHT DER BERGFAMILIE -- die läuft in die andere Richtung. Ein
+// großer Hügel bleibt Hügelland; würde er „gebirge", machte die Gegenrichtung aus jeder großen
+// Hügellandschaft ein Gebirge, und niemand hätte das bestellt.
+const grosserHuegel = { key: "h", typ: "Huegel", ziel: "region", subtyp: "huegelland",
+	kind: "topographie", geometrie: quadrat(4) };
+gleich(garetienZielVorbelegung(grosserHuegel).subtyp, "huegelland",
+	"💣 ein großer Hügel bleibt Hügelland");
+const grossesGebirge = { key: "g", typ: "Gebirge", ziel: "region", subtyp: "gebirge",
+	kind: "topographie", geometrie: quadrat(4) };
+gleich(garetienZielVorbelegung(grossesGebirge).subtyp, "gebirge",
+	"und ein großes Gebirge bleibt, was es ist");
+
+// 💣 OHNE GEOMETRIE GREIFT AUCH DIE GEGENRICHTUNG NICHT -- 0 heißt UNBEKANNT, nicht „groß".
+gleich(garetienZielVorbelegung({ key: "bo", typ: "Berg", ziel: "label", subtyp: "berggipfel" }).ziel,
+	"label", "💣 ein Berg ohne Geometrie bleibt ein Gipfel");
+// 💣 UND DAS IST DER TRAGENDE RIEGEL: unter drei Punkten gibt es keine Fläche. Belegte die Regel
+// hier „region" vor, böte das Fenster die Form gar nicht an und der Server wiese sie mit „Aus n
+// Punkten laesst sich kein Ziel der Art region bauen" ab. `garetienFlaecheMeilen2` liefert für
+// zwei Punkte 0, und genau daran hängt es -- nicht an einer eigenen Punktzählung.
+gleich(garetienZielVorbelegung({ key: "b2", typ: "Berg", ziel: "label", subtyp: "berggipfel",
+	geometrie: [[0, 0], [9, 9]] }).ziel,
+	"label", "💣 zwei Punkte ergeben keine Fläche -- und damit keine Vorbelegung auf eine");
+
+// 🔴 DIE SCHWELLE SELBST -- `>=`, nicht `>`. Ohne einen Fall, der GENAU auf ihr liegt, überlebt
+// ein verrutschtes Vergleichszeichen jeden Test (in der Mutationsprobe vom 20.09.2026 die einzige
+// Mutation, die entwischt ist). ⭐ Das Rechteck 50/9 × 1 misst in IEEE754 exakt 50 -- die erste
+// Zeile ist der Beleg dafür und fällt sofort auf, falls das je nicht mehr stimmt.
+const grenzflaeche = [[0, 0], [50 / 9, 0], [50 / 9, 1], [0, 1]];
+gleich(garetienFlaecheMeilen2(grenzflaeche), 50, "die Prüffläche misst exakt die Schwelle");
+gleich(garetienZielVorbelegung({ key: "grenz", typ: "Berg", ziel: "label", subtyp: "berggipfel",
+	geometrie: grenzflaeche }).ziel,
+	"region", "🔴 genau auf der Schwelle wandert er schon -- die Regel ist >=, nicht >");
+
+// 💣 EIN `Berg`, DER SCHON EINE FLÄCHE VORSCHLÄGT, WIRD NICHT ANGEFASST. Heute gibt es den nicht --
+// AVESMAPS_GARETIEN_TYP_MAP führt `Berg` als Label --, und genau deshalb steht die Zusicherung
+// hier: sie hält den Riegel fest, der die Regel davon abhält, eine bereits vorgeschlagene Fläche
+// zu überschreiben, sollte die TYP_MAP den Typ je anders führen. Ohne sie ist der Riegel eine
+// Zeile, die niemand vermisst, wenn sie verschwindet.
+gleich(garetienZielVorbelegung({ key: "bf", typ: "Berg", ziel: "region", subtyp: "huegelland",
+	kind: "topographie", geometrie: quadrat(4) }).subtyp,
+	"huegelland", "💣 ein Berg, der schon Fläche ist, behält seine Art");
+
+// 🔴 DIE KOPPLUNG, AUF DIE ES ANKOMMT: was die Vorbelegung wählt, muss das Fenster auch ANBIETEN.
+// Eine Vorbelegung auf eine Form, die `garetienMoeglicheFormen` nicht führt, stünde im Auswahlfeld
+// als Wert, den kein <option> trägt -- der Editor sähe eine leere Wahl. Am 20.09.2026 über alle
+// 262 echten Berge-Zeilen beider Ebenen gefahren: 41 wandern aufwärts, 8 abwärts, 0 unmöglich.
+[bergPunkt(4), bergPunkt(2), grosserHuegel, grossesGebirge, bergflaeche(0.5)].forEach((o) => {
+	const gewaehlt = garetienZielVorbelegung(o).ziel;
+	const moeglich = garetienMoeglicheFormen(o).map((f) => f.key);
+	wahr(moeglich.indexOf(gewaehlt) !== -1,
+		"🔴 die Vorbelegung „" + gewaehlt + "\u201C für " + o.typ + " ist eine wählbare Form");
+});
+
+// =================================================================================================
 // C. WELCHE FORM DIE GEOMETRIE HERGIBT
 // =================================================================================================
 const formen = (punkte) => garetienMoeglicheFormen({ geometrie: punkte }).map((f) => f.key).join(",");

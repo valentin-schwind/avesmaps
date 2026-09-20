@@ -5868,18 +5868,38 @@
 	}
 
 	/*
-	 * Die Vorbelegung der zwei Felder: der Vorschlag -- außer eine sehr kleine Bergfläche.
+	 * Die Vorbelegung der zwei Felder: der Vorschlag -- außer eine Bergfläche, deren GRÖSSE etwas
+	 * anderes sagt als ihr Typ. Die Regel läuft in BEIDE Richtungen, und beide sind gemessen.
 	 *
-	 * 🔴 DIE REGEL GILT NUR DER BERGFAMILIE, und das ist gemessen, nicht gewählt. Über alle 18
+	 * 🔴 ABWÄRTS GILT SIE NUR DER BERGFAMILIE, und das ist gemessen, nicht gewählt. Über alle 18
 	 * Ebenen: „klein" trennt nicht Berg von Fläche, sondern SEEN von allem anderen -- 59 von 96
 	 * Seen liegen unter 5 Meilen², während der Median der `Berg`-Zeilen bei 136 Meilen² liegt.
 	 * Eine globale Größenschwelle machte also die Mehrheit der Seen zu Beschriftungen und ließe
 	 * die Hälfte der Berge trotzdem Fläche. Auf Gebirge und Hügel beschränkt trifft sie 8 Zeilen.
-	 * ⚠️ `Berg` steht NICHT in der Liste: diese Zeilen werden ohnehin zu Gipfeln, unabhängig von
-	 * ihrer Größe.
+	 *
+	 * 🔴 AUFWÄRTS GILT SIE NUR `Berg` (Discord #135, Owner 20.09.2026: „große Berg-Polygone als
+	 * Gebirge vorbelegen"). Garetiens `Berg` wurde über AVESMAPS_GARETIEN_TYP_MAP BEDINGUNGSLOS
+	 * ein Gipfel-Label -- auch „Berge über Donfanger" (1870 Meilen²) und „Berge über Finsterrode"
+	 * (1833 Meilen²), die zwei gemeldeten. Hier stand bis zum 20.09.2026 „`Berg` steht NICHT in der
+	 * Liste: diese Zeilen werden ohnehin zu Gipfeln, unabhängig von ihrer Größe" -- als
+	 * Feststellung gemeint, gelesen wurde sie als Absicht.
+	 *
+	 * 🔴 DIE ZWEI SCHWELLEN SIND ZWEI ZAHLEN, KEINE GESPIEGELTE. Zwischen ihnen liegt die Zone, in
+	 * der die Größe nichts aussagt und der Typ gilt. Am 20.09.2026 über beide Berge-Ebenen gemessen
+	 * (78 `Berg`-Zeilen mit Polygon): ihre Verteilung ist ZWEIGIPFLIG, und die größte Lücke der
+	 * ganzen Reihe liegt bei 35,07 -> 97,99 Meilen² (Faktor 2,8). Sie trennt 37 Einzelgipfel
+	 * („Hörnel" 1,01, „Ruthberg" 1,10) von 41 Flächen (bis 5411 Meilen² -- größer als jedes echte
+	 * `Gebirge`, dessen größtes 3207 misst).
+	 * ⭐ JEDE Zahl zwischen 36 und 97 trifft exakt dieselben 41 Zeilen; die 50 steht in der Mitte
+	 * der Lücke, damit ein Datenzuwachs sie nicht verschiebt. Sie ist NICHT aus der 5 abgeleitet --
+	 * wer sie für deren Zehnfaches hält, verschiebt beim nächsten Mal die falsche.
+	 * ⚠️ Der Preis ist gemessen und angenommen: „Nattersqueller Berge" (19,82) und „Brüder" (35,07)
+	 * behalten die Gipfel-Vorbelegung, obwohl ihr Name eine Fläche nennt. Die Vorbelegung ist ein
+	 * Vorschlag, den der Editor umstellt -- im Zweifel bleibt sie beim bisherigen Verhalten.
 	 */
 	const AVESMAPS_GARETIEN_BERGFAMILIE = ["Gebirge", "Huegel"];
 	const AVESMAPS_GARETIEN_BERG_SCHWELLE_MEILEN2 = 5;
+	const AVESMAPS_GARETIEN_GEBIRGE_SCHWELLE_MEILEN2 = 50;
 
 	function garetienZielVorbelegung(objekt) {
 		const o = objekt || {};
@@ -5888,18 +5908,36 @@
 			subtyp: String(o.subtyp || ""),
 			kind: String(o.kind || ""),
 		};
-		if (vorschlag.ziel !== "region") { return vorschlag; }
-		if (AVESMAPS_GARETIEN_BERGFAMILIE.indexOf(String(o.typ || "")) === -1) { return vorschlag; }
+		const typ = String(o.typ || "");
 		// 💣 EINE FEHLENDE GEOMETRIE IST NICHT „KLEIN". `garetienFlaecheMeilen2` liefert 0, wenn
 		// keine oder weniger als drei Punkte da sind -- 0 heisst UNBEKANNT, nicht winzig. Ohne
 		// diesen Riegel schlug die Regel bei jedem Objekt ohne mitgereiste Geometrie zu und machte
 		// aus einem Hügelland stillschweigend einen Berggipfel. Gefangen hat das der bestehende
 		// Test der Kopfzeile, nicht eine neue Zeile.
+		// 💣 UND SEIT DEM 20.09.2026 TRÄGT ER DIE ZWEITE RICHTUNG MIT: unter drei Punkten gibt es
+		// keine Fläche (garetienMoeglicheFormen hier, avesmapsGaretienMoeglicheZiele auf dem
+		// Server), und genau das fängt die 0 ab. Ohne ihn belegte die Aufwärtsregel eine Form vor,
+		// die das Fenster gar nicht anbietet und der Server mit „Aus n Punkten laesst sich kein
+		// Ziel der Art region bauen" abweist. Deshalb steht er VOR beiden Zweigen und wird nicht
+		// in einen von beiden hineingezogen.
 		const flaeche = garetienFlaecheMeilen2(o.geometrie);
-		if (flaeche <= 0 || flaeche >= AVESMAPS_GARETIEN_BERG_SCHWELLE_MEILEN2) {
-			return vorschlag;
+		if (flaeche <= 0) { return vorschlag; }
+		// Abwärts: eine sehr kleine Gebirgs-/Hügelfläche beginnt als Gipfel.
+		if (vorschlag.ziel === "region" && AVESMAPS_GARETIEN_BERGFAMILIE.indexOf(typ) !== -1
+			&& flaeche < AVESMAPS_GARETIEN_BERG_SCHWELLE_MEILEN2) {
+			return { ziel: "label", subtyp: "berggipfel", kind: "" };
 		}
-		return { ziel: "label", subtyp: "berggipfel", kind: "" };
+		// 🔴 Aufwärts: ein großes `Berg`-Polygon beginnt als Gebirgsfläche -- mit GENAU den drei
+		// Werten, die AVESMAPS_GARETIEN_TYP_MAP dem Typ `Gebirge` gibt (garetien-abgleich.php).
+		// Eine zweite Schreibweise davon wäre die Divergenz, vor der dort der Kommentar warnt.
+		// ⚠️ `vorschlag.ziel === "label"` ist heute für jeden `Berg` wahr; der Riegel steht
+		// trotzdem da, damit die Regel keine bereits vorgeschlagene Fläche anfasst, sollte die
+		// TYP_MAP den Typ je anders führen.
+		if (vorschlag.ziel === "label" && typ === "Berg"
+			&& flaeche >= AVESMAPS_GARETIEN_GEBIRGE_SCHWELLE_MEILEN2) {
+			return { ziel: "region", subtyp: "gebirge", kind: "topographie" };
+		}
+		return vorschlag;
 	}
 
 	// 💣 DER ZUSTAND LIEGT NEBEN DEM DOM, wie bei den übrigen Feldern des Kastens: die Detailspalte
