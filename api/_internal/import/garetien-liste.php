@@ -997,6 +997,20 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             // ⚠️ `erster === letzter` ist KEIN Ersatz: die Punkte kommen roh aus garetien.de und
             // werden beim Bau nur in `[$punkte]` gewickelt -- ein unsauber geschlossener Ring ist
             // moeglich, und dann raet der Browser falsch.
+            // 💣 DIE ROHE PUNKTLISTE EINES PUNKTZIELS -- sonst findet das Fenster sie nie wieder
+            // (Discord #135). `geometrie` daneben traegt bei einem Punktziel nur die MITTE, und aus
+            // einer Mitte laesst sich keine Flaeche rechnen: die Vorbelegung „ein grosses
+            // Berg-Polygon wird eine Gebirgsflaeche" lief deshalb fuer ALLE 78 `Berg`-Zeilen ins
+            // Leere, und das Auswahlfeld bot „Flaeche" gar nicht erst an -- auch von Hand war sie
+            // nicht erreichbar, obwohl der Server sie laengst erlaubt
+            // (avesmapsGaretienPunkteAusVorschlag liest dieselbe Liste).
+            // 🔴 EIGENES FELD, NIEMALS `geometrie` UMWIDMEN: die gehoert mit `geometrie_typ`
+            // daneben der KARTE. Truege sie fuer einen Gipfel vierzig Punkte, zeichnete das
+            // Fenster ihn als Umriss -- genau die Regression, die der Kommentar dort beschreibt.
+            // 🔴 Und NUR, wo sie sonst verloren ginge: `after.punkte` entsteht im Planbau unter
+            // genau dieser Bedingung (Punktziel mit mehr als einem Quellpunkt). Eine Flaeche
+            // traegt ihre Liste schon in `geometrie`; hier ein zweites Mal waere nur Nutzlast.
+            'quellpunkte' => avesmapsGaretienListeObjektGeometrie((array) ($erstesAfter['punkte'] ?? [])),
             'geometrie_typ' => (string) ($erstesAfter['geometry']['type'] ?? ''),
             'wiki_url' => avesmapsGaretienListeArtikelUrl($zeile, $erstesAfter),
             // Die Quelle, die beim Uebernehmen mitreist -- Beschriftung, Namensnennung, Lizenz.

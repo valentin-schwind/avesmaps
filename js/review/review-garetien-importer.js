@@ -5845,8 +5845,25 @@
 	// avesmapsGaretienMoeglicheZiele auf dem Server, und sie steht dort wie hier, weil beide sie
 	// brauchen: der Server lehnt ab, das Fenster bietet gar nicht erst an. ⚠️ Der SERVER ist die
 	// Wahrheit; diese Liste erspart dem Editor nur eine Fehlermeldung.
+	// 🔴 DIE PUNKTE, AUS DENEN SICH EINE FORM RECHNEN LÄSST -- und das sind bei einem PUNKTZIEL
+	// nicht die seiner `geometrie`. Ein `Berg` trägt dort nur seine Mitte; seine rohe Liste kommt
+	// als `quellpunkte` mit (garetien-liste.php, Discord #135). Ohne diesen Leser rechnete
+	// `garetienFlaecheMeilen2` aus einem einzelnen Punkt 0, der Riegel darunter griff, und die
+	// Aufwärtsregel lief für jedes der 78 `Berg`-Polygone ins Leere -- die Regel war richtig
+	// gebaut und konnte trotzdem nie zuschlagen.
+	// ⚠️ RÜCKFALL AUF `geometrie`, und er ist der Normalfall: eine Fläche oder ein Weg trägt seine
+	// Liste dort und bekommt gar keine Quellpunkte -- derselbe Fall, in dem der Planbau
+	// `after.punkte` weglässt. Ein leeres `quellpunkte` heisst also „steht schon in geometrie".
+	// 🔴 EIN Leser für BEIDE Fragen (welche Formen gibt es, und wie gross ist sie): liefen sie
+	// auseinander, böte das Fenster eine Fläche an, die die Vorbelegung nicht sieht -- oder
+	// umgekehrt eine Vorbelegung, die im Auswahlfeld gar nicht zur Wahl steht.
+	function garetienFormPunkte(objekt) {
+		const quell = (objekt && objekt.quellpunkte) || [];
+		return quell.length > 0 ? quell : ((objekt && objekt.geometrie) || []);
+	}
+
 	function garetienMoeglicheFormen(objekt) {
-		const punkte = ((objekt && objekt.geometrie) || []).length;
+		const punkte = garetienFormPunkte(objekt).length;
 		return AVESMAPS_GARETIEN_FORMEN.filter(function (form) {
 			return punkte >= form.mindestPunkte;
 		});
@@ -5920,7 +5937,7 @@
 		// die das Fenster gar nicht anbietet und der Server mit „Aus n Punkten laesst sich kein
 		// Ziel der Art region bauen" abweist. Deshalb steht er VOR beiden Zweigen und wird nicht
 		// in einen von beiden hineingezogen.
-		const flaeche = garetienFlaecheMeilen2(o.geometrie);
+		const flaeche = garetienFlaecheMeilen2(garetienFormPunkte(o));
 		if (flaeche <= 0) { return vorschlag; }
 		// Abwärts: eine sehr kleine Gebirgs-/Hügelfläche beginnt als Gipfel.
 		if (vorschlag.ziel === "region" && AVESMAPS_GARETIEN_BERGFAMILIE.indexOf(typ) !== -1
