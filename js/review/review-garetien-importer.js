@@ -4549,10 +4549,10 @@
 			// wählt dieselbe Vorauswahl der Wegart wie bisher. Eine leere LISTE ist dagegen eine
 			// Aussage („kein Verkehrsmittel darf hier fahren") und reist mit.
 			showLabel: false, transports: null,
-			// 🔴 KREUZUNGEN AN BEIDE ENDEN, VORGABE AN (Owner 02.09.2026). Ein importierter Weg ohne
+			// 🔴 KREUZUNGEN AN BEIDE ENDEN, VORGABE AUS (Owner 21.09.2026, vorher AN). Ein importierter Weg ohne
 			// Endknoten hängt im Routennetz an nichts -- die Begründung steht serverseitig an
 			// avesmapsGaretienSetztEndkreuzungen.
-			endpointCrossings: true,
+			endpointCrossings: false,
 			// 🔴 Die Strömungsrichtung eines FLUSSES. `forward` ist die Richtung, in der die Quelle
 			// ihre Punkte aufzählt -- eine ANNAHME, und deshalb zeigt die Karte sie als Dreiecke
 			// und dieser Kasten lässt sie drehen. ⚠️ Steht auch an einer Straße im Zustand, wird
@@ -5417,7 +5417,7 @@
 		let markup = garetienEingefuegtWirdUeberschrift("Weg")
 			+ garetienEingefuegtWirdHakenZeile(objekt, "Wegname anzeigen",
 				"showLabel", eingaben.showLabel, deaktiviert)
-			// 🔴 VORGABE AN (Owner 02.09.2026). Ohne Endknoten hängt der Weg im Routennetz an
+			// 🔴 VORGABE AUS (Owner 21.09.2026, vorher AN). Ohne Endknoten hängt der Weg im Routennetz an
 			// nichts: der Graphbau verwirft jeden Weg, dessen Endpunkt auf keinem bekannten Ort
 			// und keiner Kreuzung liegt -- gezeichnet und trotzdem unbefahrbar.
 			+ garetienEingefuegtWirdHakenZeile(objekt, "Kreuzung an Anfang und Ende",

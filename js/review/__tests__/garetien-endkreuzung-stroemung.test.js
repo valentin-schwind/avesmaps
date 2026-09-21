@@ -58,32 +58,40 @@ const fluss = (key) => ({
 const pfad = (key) => Object.assign({}, fluss(key), { typ: "Pfad", subtyp: "Pfad" });
 
 // =================================================================================================
-// A. DAS HÄKCHEN — Vorgabe AN
+// A. DAS HÄKCHEN — Vorgabe AUS (Owner 21.09.2026; bis dahin AN seit 02.09.2026)
 // =================================================================================================
 // 🔴 Ohne Endknoten hängt ein importierter Weg im Routennetz an nichts: der Graphbau verwirft jeden
 // Weg, dessen Endpunkt auf keinem bekannten Ort und keiner Kreuzung liegt — gezeichnet und
-// trotzdem unbefahrbar. Deshalb ist die Vorgabe AN und nicht aus.
+// trotzdem unbefahrbar. Trotzdem ist die Vorgabe seit dem 21.09.2026 AUS: wer die Kreuzungen
+// braucht, hakt sie je Weg an.
 // Aufgabe 9 (09.09.2026) / Aufgabe 11 (14.09.2026): Darstellung sowie Wiki & Quellen -- seither
 // die Bloecke D und E, mit ihnen dieser ganze Weg-Kasten -- erscheinen erst auf der Stage.
 const wegP1 = pfad("p1");
 fenster.avesmapsGaretienStageHinzufuegen([wegP1]);
 const mPfad = fenster.garetienEingefuegtWirdMarkup(wegP1);
 wahr(mPfad.includes("Kreuzung an Anfang und Ende"), "das Häkchen steht im Weg-Kasten: " + mPfad);
-wahr(/data-gi-feld="endpointCrossings"[^>]*checked/.test(mPfad)
-	|| /checked[^>]*data-gi-feld="endpointCrossings"/.test(mPfad),
-	"🔴 und es ist VORGEHAKT: " + mPfad);
+wahr(!/data-gi-feld="endpointCrossings"[^>]*checked/.test(mPfad)
+	&& !/checked[^>]*data-gi-feld="endpointCrossings"/.test(mPfad),
+	"🔴 und es ist NICHT vorgehakt: " + mPfad);
+const angehakt0 = pfad("p1b");
+fenster.avesmapsGaretienStageHinzufuegen([angehakt0]);
+fenster.garetienEingabenZustandZu(angehakt0).endpointCrossings = true;
+const mAngehakt = fenster.garetienEingefuegtWirdMarkup(angehakt0);
+wahr(/data-gi-feld="endpointCrossings"[^>]*checked/.test(mAngehakt)
+	|| /checked[^>]*data-gi-feld="endpointCrossings"/.test(mAngehakt),
+	"und ein angehaktes Häkchen zeigt sich als angehakt: " + mAngehakt);
 
 // Und es reist mit — auch als `true`.
 const rumpfPfad = fenster.garetienEingabenFuerServer(pfad("p2"));
-gleich(rumpfPfad.endpoint_crossings, true,
+gleich(rumpfPfad.endpoint_crossings, false,
 	"🔴 `endpoint_crossings` reist IMMER mit. Der Server fällt ohne das Feld auf JA zurück (für "
 	+ "„Alle angezeigten einfügen“); ein abgeschaltetes Häkchen muss deshalb ausdrücklich `false` "
 	+ "senden, sonst wäre es wirkungslos");
 
-const abgehakt = pfad("p3");
-fenster.garetienEingabenZustandZu(abgehakt).endpointCrossings = false;
-gleich(fenster.garetienEingabenFuerServer(abgehakt).endpoint_crossings, false,
-	"ein abgeschaltetes Häkchen sendet ausdrücklich false");
+const angehakt = pfad("p3");
+fenster.garetienEingabenZustandZu(angehakt).endpointCrossings = true;
+gleich(fenster.garetienEingabenFuerServer(angehakt).endpoint_crossings, true,
+	"ein angeschaltetes Häkchen sendet true");
 
 // =================================================================================================
 // B. DIE STRÖMUNGSRICHTUNG — nur ein Flussweg
@@ -272,6 +280,9 @@ gleich(karte.AVESMAPS_GARETIEN_FELD_ENDKREUZUNGEN, fenster.AVESMAPS_GARETIEN_FEL
 // bewusst nur die gewählte Zeile, und ein abgeschriebener Bau hätte in „Anzeigen" nichts gezeigt.
 const wegA = pfad("k1");
 const wegB = pfad("k2");
+// Die Vorgabe ist AUS: die Marke gibt es erst, wenn jemand das Häkchen setzt.
+fenster.garetienEingabenZustandZu(wegA).endpointCrossings = true;
+fenster.garetienEingabenZustandZu(wegB).endpointCrossings = true;
 const ortC = Object.assign({}, fluss("k3"), { typ: "Ort", ziel: "location", subtyp: "dorf" });
 fenster.avesmapsGaretienStageHinzufuegen([wegA, wegB, ortC]);
 const gezeichnet = fenster.avesmapsGaretienAufDerKarte([wegA, wegB, ortC]);

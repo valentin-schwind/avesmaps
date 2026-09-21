@@ -948,11 +948,11 @@ const kWeg = { key: "k2", ziel: "path", subtyp: "Pfad" };
 // Einstellungen schickt); ein abgeschaltetes Häkchen muss deshalb ausdrücklich `false` senden.
 // ⚠️ `flow_dir` steht NICHT dabei: der Pfad ist kein Flussweg.
 assert.deepStrictEqual(garetienEingabenFuerServer(kWeg),
-	{ ziel: "path", subtyp: "Pfad", kind: "", show_label: false, endpoint_crossings: true },
+	{ ziel: "path", subtyp: "Pfad", kind: "", show_label: false, endpoint_crossings: false },
 	"ein unangetasteter Weg schickt show_label, die Zielwahl und die Kreuzungen mit, KEINE Verkehrsmittel");
 garetienEingabenZustandZu(kWeg).transports = ["groupFoot"];
 assert.deepStrictEqual(garetienEingabenFuerServer(kWeg),
-	{ ziel: "path", subtyp: "Pfad", kind: "", show_label: false, endpoint_crossings: true,
+	{ ziel: "path", subtyp: "Pfad", kind: "", show_label: false, endpoint_crossings: false,
 		allowed_transports: ["groupFoot"] },
 	"erst eine angefasste Auswahl reist als Liste mit");
 

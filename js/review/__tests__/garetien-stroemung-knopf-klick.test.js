@@ -162,6 +162,9 @@ gleich(kartenRufe.length, rufeVorGesperrt, "und zeichnet nichts");
 
 // 🔴 NUR KNÖPFE. Häkchen und Zahlenfelder schreibt weiterhin der `input`-Zuhörer; liefe ein Klick
 // auf ein Häkchen zusätzlich hier durch, hätte dasselbe Feld zwei Schreibwege.
+// Die Vorgabe ist seit 21.09.2026 AUS; damit ein Schreiben (ungehaktes Feld -> false) sichtbar
+// wird, steht das Feld vorher auf AN.
+api.garetienEingabenZustandZu(fluss).endpointCrossings = true;
 const haken = macheKnoten("input",
 	{ type: "checkbox", "data-gi-feld": "endpointCrossings" }, "");
 klicke(haken);
