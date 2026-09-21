@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 21.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 22.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -277,7 +277,7 @@
 				<li><a href="#nachschlagen" data-keywords="referenz listen tabelle">Nachschlagen</a>
 					<ul>
 						<li><a href="#n-listen" data-keywords="wegtyp ortsgröße transportmittel kategorie quellentyp auswahl vulkan tal insel inselgruppe">Die Auswahllisten</a></li>
-						<li><a href="#n-haekchen" data-keywords="unverbunden kreuzungen offene wegenden mapstil prüfen ring nodices labels beschriftungen grenzen ausblenden kartenoptionen anzeige anzeige-menü auge ebenen orte ortsklassen seewege flüsse wege ausgegraut gesperrt verborgene orte verborgen kreuzung melden">Die Prüf-Häkchen</a></li>
+						<li><a href="#n-haekchen" data-keywords="unverbunden kreuzungen offene wegenden mapstil prüfen ring nodices labels beschriftungen grenzen ausblenden kartenoptionen anzeige anzeige-menü auge ebenen orte ortsklassen seewege flüsse wege ausgegraut gesperrt verborgene orte verborgen kreuzung melden doppelte beschriftungen wiki-zuweisung freie labels markieren kartenfächer">Die Prüf-Häkchen</a></li>
 						<li><a href="#n-menues" data-keywords="rechtsklick kontextmenü hinzufügen anlegen gebiet hierher reisen route messen strg notausgang kartenmenü nur editoren was ist hier markierung link teilen auf karte suchen">Die beiden Kontextmenüs</a></li>
 						<li><a href="#n-kopfmenue" data-keywords="menü kopfzeile hülle hamburger drei striche abmelden logout karte herunterladen svg vektor illustrator inkscape affinity ebenen passmarken semantische metadaten glätten originalkarte archiv kacheln datenbank-backup dump admin benutzerverwaltung">Das ☰-Menü der Kopfzeile</a></li>
 						<li><a href="#n-editoren" data-keywords="menüband kachel syncen links prüfen vorschauen overlay regionen landschaften wege">Die acht Sync-Editoren</a></li>
@@ -1999,30 +1999,52 @@
 				</table>
 
 				<h3 id="n-haekchen" class="hb-sub">Die Prüf-Häkchen</h3>
-				<p>Sie stehen im <strong>Anzeige-Menü</strong> an der Karte. Aufgeklappt wird es über den Knopf mit dem <strong>Auge</strong>: rechte <em>untere</em> Ecke der Karte, ganz oben im Knopfbund — über der Lupe und der Ansichts-Kachel. Sie ändern nichts an den Daten, sie zeigen nur.</p>
-				<p>Das Menü hat <strong>fünf Gruppen</strong>, und der Unterschied ist der Blick. <strong>„Orte"</strong> (die sechs Ortsklassen als Bildknöpfe) und <strong>„Ebenen"</strong> sagen, was die Karte <em>zeigt</em> — die beiden sieht jeder Besucher. <strong>„Prüfen"</strong> zeigt in zwei Spalten, was an der Karte <em>nicht stimmt</em>, <strong>„Mapstil"</strong> wechselt den Kartengrund, und <strong>„Freie Labels markieren"</strong> leuchtet eine Beschriftungsart an. Die letzten drei tragen neben der Überschrift den Zusatz <em>„nur Editoren"</em> und stehen erst im Bearbeiten-Modus da.</p>
+				<p>Sie stehen im <strong>Anzeige-Menü</strong> an der Karte. Aufgeklappt wird es über den Knopf mit dem <strong>Auge</strong>: rechte <em>untere</em> Ecke der Karte, ganz oben im Knopfbund — über der Lupe und dem Kartenfächer. Sie ändern nichts an den Daten, sie zeigen nur.</p>
+				<p>Das Menü hat <strong>fünf Gruppen</strong>. <strong>Orte</strong> und <strong>Ebenen</strong> sagen, was die Karte <em>zeigt</em> — die sieht jeder Besucher. <strong>Prüfen</strong>, <strong>Mapstil</strong> und <strong>Freie Labels markieren</strong> tragen neben der Überschrift den Zusatz <em>„nur Editoren"</em> und stehen erst im Bearbeiten-Modus da.</p>
+
+				<h4>Orte und Ebenen</h4>
+				<p><strong>Orte</strong> sind die sechs Ortsklassen als Bildknöpfe. <strong>Ebenen</strong> sind fünf Zeilen:</p>
 				<table class="hb-table">
 					<tr><th>Häkchen</th><th>Zeigt</th></tr>
-					<tr><td><strong>Wege</strong> / <strong>Flüsse</strong> / <strong>Seewege</strong></td><td>Die Linien der jeweiligen Sorte. In den <em>Landschaften</em> heißt die Flusszeile <strong>„Flüsse und Seen"</strong> und blendet auch die Seeflächen aus, aber nicht die Seenamen — die hängen an <em>Beschriftungen</em>. In den anderen Ansichten sind Seen Teil der Kartengrafik. <strong>Seewege</strong> ist als einzige Zeile der Gruppe „Ebenen" auf den Bearbeiten-Modus beschränkt — außerhalb wäre der Haken wirkungslos.</td></tr>
+					<tr><td><strong>Wege</strong></td><td>Die Straßen und Pfade.</td></tr>
 					<tr><td><strong>Labels</strong></td><td>Die Beschriftungen der Karte. <em>Übersteuert den Kartenmodus in beide Richtungen:</em> abgehakt sind sie weg, wo der Modus sie zeigen würde — angehakt da, wo er sie unterdrückt.</td></tr>
 					<tr><td><strong>Grenzen</strong></td><td>Die Territoriengrenzen, ebenfalls als Übersteuerung des Modus. Beide Haken gibt es, weil Beschriftungen und Grenzen beim Zeichnen im Weg stehen.</td></tr>
+					<tr><td><strong>Flüsse und Seen</strong></td><td>So heißt die Zeile in den <em>Landschaften</em>; dort blendet sie auch die Seeflächen aus, aber nicht die Seenamen — die hängen an <em>Beschriftungen</em>. In jeder anderen Ansicht heißt sie nur <strong>Flüsse</strong> und sagt im Titel warum: Seen sind dort Teil der Kartengrafik.</td></tr>
+					<tr><td><strong>Seewege</strong></td><td>Die Schiffsrouten. Als einzige Zeile der Gruppe auf den Bearbeiten-Modus beschränkt — außerhalb wäre der Haken wirkungslos.</td></tr>
+				</table>
+
+				<h4>Prüfen</h4>
+				<p>Neun Häkchen. Jedes kennt einen Befund und rechnet ihn aus. Im Menü tragen ihre Zeilen <strong>den Marker selbst als Zeichen</strong> — dunkler Kern, farbiger Ring —, die Farbe steht also schon in der Zeile.</p>
+				<table class="hb-table">
+					<tr><th>Häkchen</th><th>Zeigt</th></tr>
 					<tr><td><strong>Kreuzungen</strong></td><td>Alle Knotenpunkte des Wegenetzes.</td></tr>
-					<tr><td><strong>Unverbunden</strong></td><td><em>Pinker Ring:</em> Ort oder Kreuzung ohne Anschluss ans Wegenetz (Regel 5). Blendet jeden Fund samt Namen ein — auch wenn dessen Ortsgröße gerade aus ist und ohne dass „Kreuzungen" dafür anstehen muss.</td></tr>
-					<tr><td><strong>Kreuzungen mit 2 Wegen</strong></td><td><em>Türkiser Ring:</em> die auflösbare Durchgangs-Kreuzung (Regel 2) — sie hat genau zwei Arme, es läuft kein fremder Weg über sie hinweg, und beide Arme sind derselben Wegart. Nur dann lassen sich die zwei Stücke zu einem zusammenziehen.</td></tr>
-					<tr><td><strong>Offene Wegenden</strong></td><td><em>Roter Weg, roter Ring am Ende:</em> ein Weg, an dessen Ende weder Ort noch Kreuzung liegt — für die Routenplanung existiert er damit <em>gar nicht</em>. Ein Klick auf den Ring öffnet den Geometrie-Editor. Häufigster Fall ist der <em>lose Stoß</em>: mehrere Wegenden auf demselben Punkt, auf dem keine Kreuzung sitzt.</td></tr>
 					<tr><td><strong>Nodices</strong></td><td>Als Nodix markierte Objekte.</td></tr>
 					<tr><td><strong>Verborgene Orte</strong></td><td>Holt die als <a href="#siedlungen">verborgen</a> markierten Orte samt Namen zurück aufs Bild. Kein eigener Ring und keine eigene Farbe — der Haken erzeugt keine Markierung, er zeigt nur wieder, was sonst weggelassen wird.</td></tr>
+					<tr><td><strong>Unverbunden</strong></td><td><em>Pinker Ring:</em> Ort oder Kreuzung ohne Anschluss ans Wegenetz (Regel 5). Trägt derselbe Marker auch den türkisen Befund, gewinnt der pinke — es wird immer nur einer gezeigt.</td></tr>
 					<tr><td><strong>nur Labels mit Region</strong></td><td>Blendet alle Beschriftungen aus, an denen <em>keine</em> Landschaftsfläche hängt — was stehen bleibt, ist die Restliste zum Nacharbeiten. Steht nur da, wenn die Landschaften-Ebene eingeschaltet ist.</td></tr>
-				<tr><td><strong>Keine Wiki-Zuweisung</strong></td><td><em>Dunkelrot:</em> Ring am Ort, Saum am Weg, Kontur an der Landschaftsfläche, Halo an der Beschriftung — überall dort, wo kein Wiki-Artikel zugewiesen ist. Er blendet als einziger nichts ein, er markiert nur, was ohnehin zu sehen ist.</td></tr>
-				<tr><td><strong>Doppelte Beschriftungen</strong></td><td><em>Violetter Kasten:</em> ein Name steht mehrfach auf der Karte — zweimal als freie Beschriftung, oder einmal als Beschriftung und einmal als Wegname. Welche zwei zusammengehören, entscheidest du.</td></tr>
-				<tr><td><strong>Mapstil</strong></td><td>Kein Häkchen, sondern eine Auswahl: Modern · Original · Old. Sie hat im Menü eine eigene Gruppe.</td></tr>
-				<tr><td><strong>Freie Labels markieren</strong></td><td>Auch kein Häkchen, sondern eine Auswahl mit eigener Gruppe. Sie zieht einen <em>karminroten Kasten</em> um jede freie Beschriftung der gewählten Art. Die Liste kommt aus dem Bestand, mit Anzahl — „Fluss (19)", „Wald (175)" —, dazu „Keine" und „Alle".</td></tr>
+					<tr><td><strong>Kreuzungen mit 2 Wegen</strong></td><td><em>Türkiser Ring:</em> die auflösbare Durchgangs-Kreuzung (Regel 2) — sie hat genau zwei Arme, es läuft kein fremder Weg über sie hinweg, und beide Arme sind derselben Wegart. Nur dann lassen sich die zwei Stücke zu einem zusammenziehen.</td></tr>
+					<tr><td><strong>Offene Wegenden</strong></td><td><em>Roter Weg, roter Ring am Ende:</em> ein Weg, an dessen Ende weder Ort noch Kreuzung liegt — für die Routenplanung existiert er damit <em>gar nicht</em>. Ein Klick auf den Ring öffnet den Geometrie-Editor. Häufigster Fall ist der <em>lose Stoß</em>: mehrere Wegenden auf demselben Punkt, auf dem keine Kreuzung sitzt.</td></tr>
+					<tr><td><strong>Doppelte Beschriftungen</strong></td><td><em>Violetter Kasten:</em> ein Name steht mehrfach auf der Karte — zweimal als freie Beschriftung, oder einmal als Beschriftung und einmal als Wegname. Welche zwei zusammengehören, entscheidest du.</td></tr>
+					<tr><td><strong>Keine Wiki-Zuweisung</strong></td><td><em>Dunkelrot:</em> Ring am Ort, Saum am Weg, Kontur an der Landschaftsfläche, Halo an der Beschriftung — überall dort, wo kein Wiki-Artikel zugewiesen ist. Er blendet als einziger nichts ein, er markiert nur, was ohnehin zu sehen ist.</td></tr>
 				</table>
-				<p>Trägt ein Marker beide Fehler, gewinnt der pinke Ring — es wird immer nur einer gezeigt.</p>
-				<div class="hb-note hb-tip"><strong>Ein markierter Name wird auf jeder Zoomstufe gezeichnet</strong> — auch unterhalb der Stufe, ab der er sonst erscheint. Nur das Zoomband fällt weg: der Haken „Labels" und die gewählte Ansicht gelten weiter. Treffen violetter und karminroter Kasten denselben Namen, gewinnt der violette.</div>
-				<div class="hb-note hb-tip"><strong>Die Prüf-Häkchen holen ihre Funde hervor, statt sie nur zu markieren.</strong> <em>„Unverbunden"</em>, <em>„Kreuzungen mit 2 Wegen"</em>, <em>„Kreuzungen"</em> und <em>„Offene Wegenden"</em> zeigen ihre Funde unabhängig davon, welche Ortsgrößen an sind und wie weit du herausgezoomt hast. Der Bildausschnitt gilt weiterhin. Im Menü tragen ihre Zeilen <strong>den Marker selbst als Zeichen</strong> — dunkler Kern, farbiger Ring —, die Farbe steht also schon in der Zeile.</div>
-				<div class="hb-note hb-tip"><strong>Einen türkisen Fund kannst du melden, statt ihn selbst aufzulösen.</strong> Ein Klick auf die Kreuzung öffnet ihr Popup; darin steht neben „Zu Ort konvertieren" und „Kreuzung verschieben" die Kachel <strong>„Kreuzung melden"</strong>. Sie legt eine Zeile in die Zwischenablage — die Wegart und ein Link direkt auf die Stelle. <strong>Nicht die Nummer melden:</strong> „Kreuzung-2090" ist ein Zähler deines Browsers und rutscht, sobald jemand eine Kreuzung früher einsortiert — am nächsten Tag wäre sie falsch, der Link nicht.</div>
-				<div class="hb-note hb-tip"><strong>Ein ausgegrauter Schalter ist nicht kaputt.</strong> Manche Ansichten sperren einen Schalter ohnehin — dann ist seine Zeile grau und nennt im Titel den Grund. <strong>Kraftlinien</strong> sperrt Wege, Flüsse, Seewege, „Offene Wegenden", Grenzen und die Ortsklassen (dort zeichnet die „Magiersicht" nichts davon), <strong>Nur Karte</strong> sperrt die Grenzen, weil in dieser Ansicht gar keine Gebietsdaten geladen werden. Sein Zustand bleibt dabei unangetastet: Zurück in einer Ansicht, in der er wirkt, steht er wieder so, wie du ihn gelassen hast.</div>
+				<div class="hb-note hb-tip"><strong>Sie holen ihre Funde hervor, statt sie nur zu markieren.</strong> Ein Fund erscheint samt Namen — gleich welche Ortsklassen an sind, wie weit du herausgezoomt hast und ob der Name auf dieser Stufe sonst stünde. Nur der Bildausschnitt begrenzt sie.</div>
+				<div class="hb-note hb-tip"><strong>Einen türkisen Fund kannst du melden, statt ihn selbst aufzulösen.</strong> Ein Klick auf die Kreuzung öffnet ihr Popup; darin steht die Kachel <strong>„Kreuzung melden"</strong>. Sie legt die Wegart und einen Link auf die Stelle in die Zwischenablage. <strong>Nicht die Nummer melden:</strong> „Kreuzung-2090" ist ein Zähler deines Browsers und rutscht, sobald jemand eine Kreuzung weiter vorn einsortiert — der Link nicht.</div>
+
+				<h4>Mapstil und freie Labels</h4>
+				<p>Zwei Auswahlen statt Häkchen, jede mit eigener Gruppe.</p>
+				<ul>
+					<li><strong>Mapstil</strong> — der Kartengrund: <em>Modern</em> · <em>Original</em> · <em>Old</em>.</li>
+					<li><strong>Freie Labels markieren</strong> — zieht einen <em>karminroten Kasten</em> um jede freie Beschriftung der gewählten Art. Die Liste kommt aus dem Bestand, mit Anzahl — „Fluss (19)", „Wald (175)" —, dazu „Keine" und „Alle".</li>
+				</ul>
+				<div class="hb-note hb-tip"><strong>Warum „Freie Labels markieren" kein Prüf-Häkchen ist.</strong> Es rechnet keinen Befund aus. Welche zwei Namen dieselbe Sache meinen, entscheidest du — die meisten gleichartigen Beschriftungen sind völlig berechtigt. Treffen violetter und karminroter Kasten denselben Namen, gewinnt der violette.</div>
+
+				<h4>Wenn ein Schalter grau ist</h4>
+				<p>Manche Ansichten sperren einen Schalter ohnehin. Dann ist seine Zeile grau und nennt im Titel den Grund. Sein Zustand bleibt dabei unangetastet: Zurück in einer Ansicht, in der er wirkt, steht er wieder so, wie du ihn gelassen hast.</p>
+				<table class="hb-table">
+					<tr><th>Ansicht</th><th>Gesperrt</th><th>Warum</th></tr>
+					<tr><td><strong>Kraftlinien</strong></td><td>Wege · Flüsse · Seewege · Offene Wegenden · Grenzen · die Ortsklassen</td><td>Die „Magiersicht" zeigt nur Nodices und Kraftlinien.</td></tr>
+					<tr><td><strong>Nur Karte</strong></td><td>Grenzen</td><td>In dieser Ansicht sind keine Gebietsgrenzen geladen.</td></tr>
+				</table>
 				<div class="hb-note hb-tip"><strong>„Labels" und „Grenzen" halten nicht über einen Moduswechsel hinweg.</strong> Bei jedem Wechsel des Kartenmodus springen beide auf das zurück, was der neue Modus von sich aus zeigt. Sie sind eine Abweichung <em>nach</em> dem Wechsel, kein Dauerzustand.</div>
 
 				<h3 id="n-menues" class="hb-sub">Die beiden Kontextmenüs</h3>
