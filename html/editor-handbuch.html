@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 22.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 23.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -252,7 +252,7 @@
 						<li><a href="#bewertungen" data-keywords="sterne rating community spam verbergen einblenden löschen moderation">Bewertungen</a></li>
 						<li><a href="#mails" data-keywords="postfach kontakt empfangen gesendet archiv archivieren zurückholen papierkorb löschen">Mails</a></li>
 						<li><a href="#social" data-keywords="social media hub veröffentlichen posten beitrag kanal kanäle instagram facebook mastodon neuigkeiten probe hashtags bild zugang token entwurf vorschlag routine freigeben verwerfen erneut bildbeschreibung kennungen konsole">Social Media</a></li>
-						<li><a href="#aenderungen" data-keywords="audit protokoll rückgängig undo redo wiederherstellen strg+z meine alle filter editor suchen bündel verlauf meldung angenommen verworfen zurückgestellt">Änderungen</a></li>
+						<li><a href="#aenderungen" data-keywords="audit protokoll rückgängig undo redo wiederherstellen strg+z meine alle filter editor suchen bündel verlauf meldung angenommen verworfen zurückgestellt zurückgenommen fadenkreuz springen sammelvorgang">Änderungen</a></li>
 						<li><a href="#status" data-keywords="präsenz aktivität">Status</a>
 							<ul>
 								<li><a href="#status-besucher" data-keywords="statistik dashboard aufrufe zahlen analytics online jetzt live gleichzeitig anwesend">Besucher</a></li>
@@ -1720,19 +1720,44 @@
 				<h3 id="aenderungen" class="hb-sub">Änderungen</h3>
 				<p class="hb-path"><strong>Editor → Änderungen</strong></p>
 				<p>Das Protokoll aller Editor-Änderungen: wer, was, wann. Deine erste Anlaufstelle, um eine Änderung nachzuvollziehen <em>oder rückgängig zu machen</em>. Aufgeräumt wird <em>je Person</em>: jeder behält bis zu <strong>200</strong> Einträge.</p>
-				<p>Über der Liste stehen <strong>„Meine"</strong> und <strong>„Alle"</strong>, daneben ein <strong>Suchfeld</strong> und <strong>„Filter ▾"</strong> mit einem Häkchen je Editor. Ohne Auswahl zeigt die Liste die jüngsten 200 Einträge von allen, mit Auswahl die jüngsten 200 <em>der Ausgewählten</em>. Gesucht wird in dem, was in der Zeile steht — Objekt, Aktion, Erklärzeile, Urheber — und nur im Geladenen, nicht in der ganzen Historie.</p>
-				<p>Hier steht auch, wie über <a href="#meldungen">Meldungen</a> entschieden wurde: <strong>„Meldung angenommen"</strong>, <strong>„Meldung verworfen"</strong> und <strong>„Meldung zurückgestellt"</strong>, mit Namen und Begründung. Diese drei tragen <em>keinen</em> „Rückgängig"-Knopf. Was eine Annahme <em>erzeugt</em> hat (einen Ort, eine Karte), schreibt seinen eigenen Eintrag, und der ist der rücknehmbare.</p>
-				<p><strong>Jede Zeile ist ein Bündel</strong> und klappt über ihr Dreieck auf — auch eine mit nur einer Änderung. Zusammengezogen wird, was <em>dieselbe Person</em> am <em>selben Objekt</em> innerhalb einer Viertelstunde getan hat. Der Knopf zum Zurücknehmen steht <em>in der aufgeklappten Zeile</em>, nicht in der Kopfzeile: <strong>↶</strong> nimmt zurück, <strong>↷</strong> stellt wieder her. Danach steht in der Zeile <em>„Rückgängig gemacht"</em>, und oben entsteht ein <em>neuer</em> Eintrag <em>„Rückgängig: …"</em> — der lässt sich ebenfalls zurücknehmen.</p>
-				<p><strong>Ein Sammelvorgang ist ein Eintrag.</strong> Speichern für eine ganze Straße, Wiki-Zuweisungen an Wegen, eine Kraftlinie samt Umordnung oder Wiki-Übernahmen für viele Orte stehen je als eine Zeile da. <strong>↶</strong> nimmt alles darin gemeinsam zurück; der Tooltip nennt die Zahl.</p>
-				<p><strong>Ein Klick auf die Zeile springt auf der Karte zur Stelle.</strong> Ob das geht, sagt das Zeichen <strong>⊕</strong> am rechten Rand der Zeile: steht es da, gibt es einen Punkt zum Anfliegen. Zeilen ohne das Zeichen — etwa eine Entscheidung über eine Meldung — haben keine Stelle auf der Karte.</p>
-				<div class="hb-note hb-tip"><strong>Strg+Z wirkt hier nicht.</strong> Zurückgenommen wird nur mit einem Klick auf den benannten Eintrag. Die Tastenkombination gehört allein dem Zeichnen von Grenzen (siehe <a href="#territorien">Territorien</a>).</div>
+
+				<h4>Die Liste einstellen</h4>
+				<ul>
+					<li>Ganz oben stehen <strong>„Meine“</strong> und <strong>„Alle“</strong>. In der Zeile darunter das <strong>Suchfeld</strong> und <strong>„Filter ▾“</strong> mit einem Häkchen je Editor.</li>
+					<li>Ohne Auswahl zeigt die Liste die jüngsten 200 Einträge von allen, mit Auswahl die jüngsten 200 <em>der Ausgewählten</em>.</li>
+					<li>Gesucht wird in dem, was in der Zeile steht — Objekt, Aktion, Erklärzeile, Urheber. Nur im Geladenen, nicht in der ganzen Historie.</li>
+				</ul>
+
+				<h4>Die Zeichen einer Zeile</h4>
+				<table class="hb-table">
+					<tr><th>Zeichen</th><th>Wo</th><th>Was es heißt</th></tr>
+					<tr><td><strong>▸ ▾</strong></td><td>Kopfzeile, links</td><td>Bündel auf- und zuklappen.</td></tr>
+					<tr><td><strong>3×</strong></td><td>Kopfzeile, vor der Uhrzeit</td><td>So viele Änderungen stecken im Bündel.</td></tr>
+					<tr><td><strong>⊕</strong></td><td>aufgeklappte Zeile, vor der Uhrzeit</td><td>Ein Klick auf die Zeile fliegt zur Stelle auf der Karte. Ohne das Zeichen gibt es keine.</td></tr>
+					<tr><td><strong>↶</strong></td><td>aufgeklappte Zeile, rechts außen</td><td>Zurücknehmen.</td></tr>
+					<tr><td><strong>↷</strong></td><td>rechts außen</td><td>Wiederherstellen — steht an einem Eintrag „Rückgängig: …“ anstelle von <strong>↶</strong>.</td></tr>
+				</table>
+
+				<h4>Zurücknehmen</h4>
+				<p><strong>Jede Zeile ist ein Bündel</strong> — auch eine mit nur einer Änderung. Zusammengezogen wird, was <em>dieselbe Person</em> am <em>selben Objekt</em> innerhalb einer Viertelstunde getan hat.</p>
+				<ol class="hb-steps">
+					<li>Die Zeile aufklappen — die Kopfzeile trägt keinen Knopf.</li>
+					<li><strong>↶</strong> drücken. Danach steht in der Zeile <em>„zurückgenommen“</em> samt Namen.</li>
+					<li>Oben entsteht ein <em>neuer</em> Eintrag <em>„Rückgängig: …“</em>. Den holst du mit <strong>↷</strong> wieder zurück.</li>
+				</ol>
+				<p><strong>Ein Sammelvorgang ist ein Eintrag.</strong> Speichern für eine ganze Straße, Wiki-Zuweisungen an Wegen oder Wiki-Übernahmen für viele Orte stehen je als eine Zeile da. <strong>↶</strong> nimmt alles darin gemeinsam zurück; der Schwebezettel nennt die Zahl.</p>
+
+				<h4>Entscheidungen über Meldungen</h4>
+				<p>Hier steht auch, wie über <a href="#meldungen">Meldungen</a> entschieden wurde: <strong>„Meldung angenommen“</strong>, <strong>„Meldung verworfen“</strong> und <strong>„Meldung zurückgestellt“</strong>, mit Namen und Begründung. Diese drei tragen <em>kein</em> <strong>↶</strong>. Was eine Annahme <em>erzeugt</em> hat — einen Ort, eine Karte —, schreibt seinen eigenen Eintrag, und der ist der rücknehmbare.</p>
+
+				<div class="hb-note hb-tip"><strong>Strg+Z wirkt hier nicht.</strong> Zurückgenommen wird nur mit einem Klick auf <strong>↶</strong>. Die Tastenkombination gehört allein dem Zeichnen von Grenzen (siehe <a href="#territorien">Territorien</a>).</div>
 
 				<h3 id="status" class="hb-sub">Status</h3>
 				<p class="hb-path"><strong>Editor → Status</strong></p>
 				<p>Drei Unterreiter: <strong>Besucher</strong>, <strong>Editoren</strong> und <strong>API</strong>.</p>
 
 				<h4 id="status-besucher" class="hb-sub">Besucher</h4>
-				<p>Ein anonymes Dashboard: Aufrufe, Routen, beliebte Orte und Suchbegriffe, Verweildauer, Herkunft und Geräte — umschaltbar auf 7&nbsp;Tage, 30&nbsp;Tage, 12&nbsp;Monate oder den Gesamtzeitraum. Es zeigt keine personenbezogenen Daten, sondern nur Summen.</p>
+				<p>Ein anonymes Dashboard: Aufrufe, Routen, beliebte Orte und Suchbegriffe, Verweildauer, Herkunft und Geräte — umschaltbar auf <strong>7 T</strong>, <strong>30 T</strong>, <strong>12 M</strong> oder <strong>Alles</strong>. Es zeigt keine personenbezogenen Daten, sondern nur Summen.</p>
 				<p>Ganz oben, über den Zeitraum-Schaltern, steht <strong>„Gerade jetzt"</strong>: wer in diesem Moment auf der Seite ist, getrennt nach Besuchern und angemeldeten Editoren. Die Zeile darunter teilt die Besucher auf — <em>aktiv</em> (klickt, sucht oder plant gerade eine Route), <em>liest</em> (Seite offen, aber gerade keine Aktion) und <em>im&nbsp;Hintergrund</em> (der Tab liegt hinter einem anderen Fenster). Gezählt wird, wer sich in den letzten zweieinhalb Minuten gemeldet hat.</p>
 				<div class="hb-note hb-tip"><strong>„0 Besucher" ist keine Störung.</strong> Auf einer Seite dieser Größe steht dort die meiste Zeit eine kleine Zahl — oft nur du selbst. Ist die Besucher-Statistik abgeschaltet, fehlt die Zeile ganz.</div>
 
