@@ -671,6 +671,53 @@
 		return zustand.auswahl.size;
 	}
 
+	/*
+	 * Fall #141 (21.09.2026, Tigersprung): „Abgelehnt heißt abgelehnt" -- ein abgelehntes Objekt
+	 * verlässt die AUSWAHL und die STAGE. Wörtlich: „Ein aus der ‚Offen'-Liste abgelehntes Objekt
+	 * bleibt im Moment ausgewählt. Das soll nicht passieren [...] Aus der Stage heraus abgelehnte
+	 * Objekte sollen automatisch von der Stage genommen und abgewählt werden."
+	 *
+	 * 🔴 DER VIERTE ZUSTANDSAENDERER DER AUSWAHL -- und er nimmt deshalb die Leiste mit, wie die
+	 * drei darueber (umschalten, alle waehlen, aufheben). Die Regel steht HIER und nicht in den
+	 * Klickwegen: es gibt DREI Erzeuger einer Ablehnung, und eine Regel, die einen von ihnen
+	 * bindet, ist keine Regel (AGENTS.md §11). Wer einen Erzeuger ergaenzt, ergaenzt ihn in DIESER
+	 * Aufzaehlung: der Einzelknopf „Ablehnen" (garetienHandlungKlick), „Auswahl ablehnen"
+	 * (garetienAuswahlleisteKlick) und „Zuruecknehmen und ablehnen" (garetienRuecknahmeKlick ueber
+	 * garetienRuecknahmeSenden). Die MENGEN-Ruecknahme der Auswahlleiste ist KEIN vierter: sie
+	 * schickt nur `ruecknahme` und lehnt nichts ab (garetienRuecknahmeMengeAusfuehren).
+	 *
+	 * 🔴 SIE HAENGT AN DER HANDLUNG, NICHT AM ZUSTAND. Ein Objekt, das schon abgelehnt DASTEHT,
+	 * darf sehr wohl gewaehlt werden -- der Reiter „Abgelehnt" traegt „Auswahl wieder vorschlagen",
+	 * und ein Riegel „abgelehnt ⇒ nie gewaehlt" in avesmapsGaretienAuswahlAuffrischen naehme genau
+	 * diesem Knopf seine Menge weg, bei jedem Listenlauf und lautlos.
+	 *
+	 * 💣 GERUFEN WIRD SIE VOR DEM LISTENLAUF, nie danach: die Stage speist „Stage importieren" und
+	 * „Alle zentrieren", und deren Zahlen entstehen IN avesmapsGaretienListeRendern. Danach gerufen
+	 * stuende dort die alte Zahl, bis irgendwann etwas anderes neu zeichnet -- und auf dem Reiter
+	 * „Stage" kostete ein Nachzeichnen (garetienStageNeuZeichnen) einen ZWEITEN Abruf derselben
+	 * Liste.
+	 * ⚠️ Von der Stage genommen wird ueber die EINE Tuer (avesmapsGaretienStageEntfernen) -- sie
+	 * nimmt die „nur ihre"-Marke mit und loest einen Verbund auf, der dabei unter zwei Mitglieder
+	 * faellt.
+	 * ⚠️ Gemessen wird `o.key`, der Schluessel von Auswahl und Stage -- NICHT
+	 * garetienObjektSchluesselVon: der liefert fuer ein Fragment mit „|" im Schluessel absichtlich
+	 * "", weil der SERVER damit nichts anfangen kann. Hier wird nichts gesendet.
+	 */
+	function garetienAbgelehnteEntlassen(schluessel) {
+		const liste = (schluessel || [])
+			.filter(function (s) { return s !== null && s !== undefined; })
+			.map(String)
+			.filter(function (s) { return s !== ""; });
+		if (liste.length === 0) { return { auswahl: 0, stage: 0 }; }
+		const vonDerStage = avesmapsGaretienStageEntfernen(liste);
+		let ausDerAuswahl = 0;
+		liste.forEach(function (s) {
+			if (zustand.auswahl.delete(s)) { ausDerAuswahl++; }
+		});
+		if (ausDerAuswahl > 0) { garetienAuswahlleisteAuffrischen(); }
+		return { auswahl: ausDerAuswahl, stage: vonDerStage };
+	}
+
 	// „Auf die Stage": sie kommen ZUSAETZLICH auf die Stage und BLEIBEN gewaehlt und offen.
 	// ⚠️ Die Liste kommt HEREIN (Hausform in dieser Datei), damit sich am Ergebnis messen laesst,
 	// welche Objekte wirklich uebernommen wurden.
@@ -9118,7 +9165,12 @@
 		// nicht": selbst ein erfolgreiches Ablehnen sagte nichts, weil der Listenlauf danach die
 		// Statuszeile sofort auf die neutrale Bilanz zurücksetzt. Die Meldung reist deshalb MIT
 		// durch die eine Tür und wird dort NACH dem Listenlauf gesetzt.
-		return senden(rumpf, garetienHandlungMeldung(name, objekt));
+		// 🔴 Fall #141 (21.09.2026): UND ES ENTLAESST DAS OBJEKT AUS AUSWAHL UND STAGE. Auch das
+		// reist durch die eine Tuer -- dort steht die Reihenfolge zum Listenlauf, an der es haengt
+		// (garetienAbgelehnteEntlassen). „wieder" reicht nichts herein: wer ein Objekt zurueck in
+		// den Arbeitsvorrat holt, hat es nicht abgelehnt.
+		return senden(rumpf, garetienHandlungMeldung(name, objekt),
+			name === "ablehnen" ? [objekt.key] : null);
 	}
 
 	/* ---- Aufgabe 9+10: „Auswahl ablehnen" -- der Sammelweg -------------------------------------
@@ -9432,6 +9484,16 @@
 			// 💣 FIXRUNDE 1 (C1): GEDECKELT WAR DIE ANFRAGE, NICHT DIE HANDLUNG. `ids.slice(0, 200)`
 			// warf den Rest weg und meldete trotzdem die volle Zahl. Jetzt gehen ALLE ids hinaus,
 			// in Haeppchen -- derselbe Weg wie beim Stage-Import.
+			// 🔴 Fall #141 (21.09.2026): WAS ABGELEHNT WIRD, VERLAESST AUSWAHL UND STAGE -- und die
+			// Menge ist dieselbe, die die Meldung zaehlt (garetienLaesstSichEntscheiden, wie in
+			// garetienAuswahlAblehnenMengen). Eine zweite Rechnung darueber liefe beim ersten
+			// Zaehlerwechsel gegen die Anzeige, genau wie beim Knopf darueber.
+			// ⚠️ Der Schluessel ist `o.key` (Auswahl und Stage), nicht die Server-Kennung: hier
+			// wird nichts gesendet, hier wird aufgeraeumt.
+			// ⚠️ NUR beim Ablehnen -- „Wieder vorschlagen" ist die aufbauende Richtung und laesst
+			// die Auswahl stehen, damit man mit ihr weiterarbeiten kann.
+			const entlassen = name !== "auswahl_ablehnen" ? null
+				: gewaehlte.filter(garetienLaesstSichEntscheiden).map(function (o) { return o.key; });
 			return w.sendenMenge({
 				action: name === "auswahl_ablehnen" ? "decline" : "undecline",
 				kind: GARETIEN_PLAN_ART,
@@ -9440,7 +9502,7 @@
 				action: name === "auswahl_ablehnen" ? "objekte_ablehnen" : "objekte_wieder",
 				run_id: runId,
 				keys: schluessel,
-			});
+			}, entlassen);
 		}
 		if (name === "auswahl_ruecknahme") {
 			// ⚠️ Gezaehlt wird HIER mit derselben Tafel wie in der Anzeige, statt sich auf den
@@ -9599,7 +9661,11 @@
 	// desselben Objekts (Meldung 30.08.2026, siehe garetienRuecknahmeItems). `[].concat(...)`
 	// verpackt beides gleich: eine einzelne Zahl bleibt ein Ein-Element-Array, ein Array bleibt
 	// ein Array.
-	function garetienRuecknahmeSenden(itemIdsOderId, runId, ablehnenIds) {
+	// ⚠️ `entlassenSchluessel` (Fall #141, 21.09.2026): der Objektschluessel, den eine geglueckte
+	// ABLEHNUNG aus Auswahl und Stage nimmt -- der dritte Erzeuger in der Aufzaehlung an
+	// garetienAbgelehnteEntlassen. Die gewoehnliche Ruecknahme reicht nichts herein: sie stellt das
+	// Objekt zurueck in den Arbeitsvorrat, sie lehnt es nicht ab.
+	function garetienRuecknahmeSenden(itemIdsOderId, runId, ablehnenIds, entlassenSchluessel) {
 		const ids = [].concat(itemIdsOderId).map(Number).filter(function (id) { return id > 0; });
 		const abzulehnen = (ablehnenIds || []).map(Number).filter(function (id) { return id > 0; });
 		return avesmapsGaretienRufe(GARETIEN_ENDPUNKT, {
@@ -9616,6 +9682,11 @@
 			if (abzulehnen.length === 0) { return null; }
 			return avesmapsGaretienRufe(GARETIEN_PLAN_ENDPUNKT, {
 				action: "decline", kind: GARETIEN_PLAN_ART, run_id: runId, ids: abzulehnen,
+			}).then(function (antwort) {
+				// Fall #141: erst jetzt -- eine Ablehnung, die gar nicht hinausging, entlaesst
+				// nichts. VOR dem Listenlauf, wie bei den zwei Tueren daneben.
+				garetienAbgelehnteEntlassen(entlassenSchluessel);
+				return antwort;
 			});
 		}).then(function () { return avesmapsGaretienListeHolen(); })
 			.catch(function (fehler) { garetienListeFehlerZeigen(fehler); return null; });
@@ -9751,7 +9822,10 @@
 		const ablehnenIds = auchAblehnen
 			? ((objekt.items || []).map(function (item) { return item.id; }))
 			: null;
-		return senden(ids.length === 1 ? ids[0] : ids, runId, ablehnenIds);
+		// 🔴 Fall #141 (21.09.2026): nur „Zurücknehmen und ablehnen" entlässt das Objekt aus
+		// Auswahl und Stage -- die gewöhnliche Rücknahme stellt es zurück in den Arbeitsvorrat.
+		return senden(ids.length === 1 ? ids[0] : ids, runId, ablehnenIds,
+			auchAblehnen ? [objekt.key] : null);
 	}
 
 	// ---- Meldung C (30.08.2026): „Markierte zurücknehmen" -- seit Aufgabe 8 (Fixrunde 1) „Auswahl
@@ -10192,7 +10266,7 @@
 			+ teile.join(", ") + ".";
 	}
 
-	function garetienHandlungSendenMitMeldung(rumpf, meldung, rufe, listeHolen) {
+	function garetienHandlungSendenMitMeldung(rumpf, meldung, rufe, listeHolen, entlassenSchluessel) {
 		// 🔴 Die Tuer kommt aus garetienTuerFuer (15.09.2026): „Ablehnen" an einem Objekt OHNE Vorschlag
 		// geht an GARETIEN_ENDPUNKT, alles andere wie bisher an die Uebernahme-Tuer.
 		const tuer = typeof rufe === "function"
@@ -10211,6 +10285,13 @@
 					const feld = aktion === "objekte_ablehnen" ? "abgelehnt" : "wieder";
 					nichtsEntschieden = nachsatz !== "" && Number((antwort && antwort[feld]) || 0) === 0;
 				}
+				// Fall #141: die abgelehnten Objekte verlassen Auswahl und Stage -- VOR dem
+				// Listenlauf, weil der die Zahlen der Stage zeichnet (siehe garetienAbgelehnteEntlassen).
+				// ⚠️ Nur, wenn der Server wirklich entschieden hat: hat er das eine Objekt NICHT
+				// abgelehnt (es traegt inzwischen einen Vorschlag), bleibt es gewaehlt -- sonst
+				// saehe der Editor „Nicht abgelehnt: …" ueber einer Zeile, deren Haken gerade
+				// verschwunden ist.
+				if (!nichtsEntschieden) { garetienAbgelehnteEntlassen(entlassenSchluessel); }
 				return liste();
 			})
 			.then(function () {
@@ -10224,8 +10305,12 @@
 
 	// 🔴 EINE TUER, mit einem optionalen zweiten Argument -- kein zweiter Sendeweg neben diesem.
 	// Ohne `meldung` verhält sie sich zeichengleich wie vorher.
-	function avesmapsGaretienHandlungSenden(rumpf, meldung) {
-		return garetienHandlungSendenMitMeldung(rumpf, meldung, null, null);
+	// ⚠️ `entlassenSchluessel` (Fall #141, 21.09.2026): die Objektschluessel, die eine geglueckte
+	// ABLEHNUNG aus Auswahl und Stage nimmt. Ohne sie ist der Weg zeichengleich wie vorher -- jede
+	// andere Handlung (anhaken, wieder vorschlagen, Geometrie) reicht nichts herein und entlaesst
+	// deshalb nichts.
+	function avesmapsGaretienHandlungSenden(rumpf, meldung, entlassenSchluessel) {
+		return garetienHandlungSendenMitMeldung(rumpf, meldung, null, null, entlassenSchluessel);
 	}
 
 	/*
@@ -10243,7 +10328,7 @@
 	 * ganze Laufinventar neu ein, und eine Schleife darauf ist genau die Last, vor der AGENTS.md
 	 * warnt.
 	 */
-	function garetienMengeSendenMitMeldung(rumpf, ids, meldung, rufe, listeHolen, objektRumpf) {
+	function garetienMengeSendenMitMeldung(rumpf, ids, meldung, rufe, listeHolen, objektRumpf, entlassenSchluessel) {
 		const tuer = typeof rufe === "function"
 			? rufe
 			: function (r) { return avesmapsGaretienRufe(garetienTuerFuer(r), r); };
@@ -10293,7 +10378,18 @@
 					});
 				});
 			})
-			.then(function () { return liste(); })
+			.then(function () {
+				// Fall #141: die abgelehnten Objekte verlassen Auswahl und Stage -- VOR dem
+				// Listenlauf (die Begruendung steht an garetienAbgelehnteEntlassen).
+				// ⚠️ ANDERS ALS AM EINZELKNOPF OHNE AUSNAHME: die Antwort nennt hier nur ZAHLEN
+				// („1 Objekt traegt inzwischen einen Vorschlag"), nie WELCHES. Wer dafuer die ganze
+				// Menge gewaehlt liesse, naehme dem Normalfall -- 2500 abgelehnte Objekte -- die
+				// bestellte Wirkung wegen eines einzigen Nachzueglers. Ein zu Unrecht entlassenes
+				// Objekt steht weiter in „Offen" und ist mit einem Haken zurueckgeholt; die
+				// Meldung nennt es („Nicht abgelehnt: …").
+				garetienAbgelehnteEntlassen(entlassenSchluessel);
+				return liste();
+			})
 			.then(function () {
 				const nachsatz = objektHaeppchen.length === 0 ? ""
 					: garetienObjektEntscheidungNachsatz(objektSumme, String(objektRumpf.action || ""));
@@ -10310,8 +10406,10 @@
 	}
 
 	// ⚠️ `objektRumpf` (optional, 15.09.2026): die Objekte OHNE Vorschlag als `{action, run_id, keys}`.
-	function avesmapsGaretienMengeSenden(rumpf, ids, meldung, objektRumpf) {
-		return garetienMengeSendenMitMeldung(rumpf, ids, meldung, null, null, objektRumpf);
+	// ⚠️ `entlassenSchluessel` (optional, Fall #141, 21.09.2026): die Objektschluessel, die eine
+	// geglueckte ABLEHNUNG aus Auswahl und Stage nimmt. Ohne sie zeichengleich wie vorher.
+	function avesmapsGaretienMengeSenden(rumpf, ids, meldung, objektRumpf, entlassenSchluessel) {
+		return garetienMengeSendenMitMeldung(rumpf, ids, meldung, null, null, objektRumpf, entlassenSchluessel);
 	}
 
 	function garetienFragen(text) {
@@ -11927,6 +12025,10 @@
 			// Owner-Auftrag B (30.08.2026): „Keines markieren" -- der reine Zug; Beschriftung und
 			// Sperre kommen seit Fixrunde 1 (D2) aus garetienAuswahlleisteZustand.
 			avesmapsGaretienAuswahlAufheben,
+			// Fall #141 (21.09.2026): „Abgelehnt heißt abgelehnt" -- der vierte Zustandsaenderer
+			// der Auswahl. Exportiert, damit die Zusicherung ihn WIRKLICH faehrt, statt seinen
+			// Quelltext zu lesen.
+			garetienAbgelehnteEntlassen,
 			// Aufgabe 9+10 (07.09.2026): die Auswahlleiste und der Vorwaertsknopf
 			garetienAuswahlleisteZustand,
 			garetienAuswahlleisteMarkup,

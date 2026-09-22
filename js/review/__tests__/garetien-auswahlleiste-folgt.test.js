@@ -78,7 +78,11 @@ const quelle = fs.readFileSync(require("path").join(__dirname, "..", "review-gar
 const rufe = (quelle.match(/garetienAuswahlleisteAuffrischen\(\);/g) || []).length;
 // 🔴 6, seit dem 14.09.2026 (Bauplan 2026-09-14, Aufgabe 12): „alle n" im Listenkopf LOEST die Auswahl
 // auch wieder (avesmapsGaretienAlleAbwaehlen) -- ein Aenderer mehr, derselbe Auffrischer.
-pruefe(rufe === 6,
-	"sechs Aufrufe -- zwei Ausgänge des Umschalters, alle wählen, alle abwählen, aufheben, Verbund-Umschalter: " + rufe);
+// 🔴 7, seit dem 21.09.2026 (Fall #141): eine geglückte ABLEHNUNG entlässt ihre Objekte aus Auswahl
+// und Stage (garetienAbgelehnteEntlassen) -- der siebte Änderer, derselbe Auffrischer. Genau dieser
+// Zähler hat ihn beim Bau gefangen; er ist die Naht, nicht die Buchhaltung.
+pruefe(rufe === 7,
+	"sieben Aufrufe -- zwei Ausgänge des Umschalters, alle wählen, alle abwählen, aufheben, "
+	+ "Verbund-Umschalter, Ablehnung entlässt: " + rufe);
 
 console.log("OK -- " + n + " Zusicherungen");
