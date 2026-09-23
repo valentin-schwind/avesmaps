@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 23.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 24.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -250,7 +250,7 @@
 						<li><a href="#bug-system" data-keywords="discord fehler bug idee frage offen erledigt bot">Das automatische Bug-System</a></li>
 						<li><a href="#meldungen" data-keywords="community änderung vorschlagen position melden report bearbeitet erledigt offen alle filter wiederfinden angenommen verworfen begründung änderungswunsch beschreibung">Meldungen</a></li>
 						<li><a href="#bewertungen" data-keywords="sterne rating community spam verbergen einblenden löschen moderation">Bewertungen</a></li>
-						<li><a href="#mails" data-keywords="postfach kontakt empfangen gesendet archiv archivieren zurückholen papierkorb löschen">Mails</a></li>
+						<li><a href="#mails" data-keywords="postfach kontakt empfangen gesendet archiv archivieren zurückholen papierkorb löschen antworten beantworten">Mails</a></li>
 						<li><a href="#social" data-keywords="social media hub veröffentlichen posten beitrag kanal kanäle instagram facebook mastodon neuigkeiten probe hashtags bild zugang token entwurf vorschlag routine freigeben verwerfen erneut bildbeschreibung kennungen konsole">Social Media</a></li>
 						<li><a href="#aenderungen" data-keywords="audit protokoll rückgängig undo redo wiederherstellen strg+z meine alle filter editor suchen bündel verlauf meldung angenommen verworfen zurückgestellt zurückgenommen fadenkreuz springen sammelvorgang">Änderungen</a></li>
 						<li><a href="#status" data-keywords="präsenz aktivität">Status</a>
@@ -1655,9 +1655,23 @@
 
 				<h3 id="mails" class="hb-sub">Mails</h3>
 				<p class="hb-path"><strong>Editor → Community → Mails</strong></p>
-				<p>Das Postfach der Seite mit den Ansichten <strong>Empfangen</strong>, <strong>Gesendet</strong> und <strong>Archiv</strong> und einem ↻ zum Nachladen. Hier landet, was über das Kontaktformular hereinkommt. Ein Klick auf eine Zeile klappt die Mail darunter auf, ein zweiter wieder zu — bei empfangenen wie bei gesendeten. Zugeklappt bleiben Adressat, Betreff, Datum und die erste Zeile lesbar.</p>
-				<div class="hb-note hb-tip"><strong>„Ins Archiv verschieben" ist der Knopf neben dem Papierkorb</strong> — an jeder empfangenen <em>und</em> jeder gesendeten Zeile. Beides landet im Reiter <strong>Archiv</strong> und lässt sich dort einzeln zurückholen. Der Unterschied dahinter: Eine <em>empfangene</em> Mail wandert wirklich in den Archiv-Ordner des Postfachs; ein <em>gesendeter</em> Eintrag ist unser eigenes Protokoll und wird nur als archiviert vermerkt — die Mail selbst bleibt in „Gesendet" des Postfachs liegen. <strong>Aus dem Archiv heraus antworten kannst du nicht</strong>; hol den Eintrag dafür erst zurück, die Zeile sagt es auch selbst.</div>
-				<div class="hb-note hb-tip"><strong>Der 🗑 neben einer empfangenen Mail löscht nichts.</strong> Er verschiebt sie in den <em>Papierkorb-Ordner des Postfachs</em> — zurückholen kannst du sie dort mit jedem Mailprogramm. Findet der Server keinen Papierkorb-Ordner, bleibt die Mail liegen und sagt es; er legt keinen an und rät keinen Namen.</div>
+				<p>Das Postfach der Seite. Hier landet, was über das Kontaktformular hereinkommt. Drei Reiter: <strong>Empfangen</strong>, <strong>Gesendet</strong> und <strong>Archiv</strong>. Das ↻ lädt nach.</p>
+				<h4>Lesen und antworten</h4>
+				<ol class="hb-steps">
+					<li>Klick auf eine Zeile. Die Mail klappt darunter auf, ein zweiter Klick klappt sie zu.</li>
+					<li>Unter einer empfangenen Mail schreibst du ins Antwortfeld und klickst <strong>„Mail beantworten"</strong>.</li>
+					<li>Die Zeile trägt danach <strong>„✓ beantwortet"</strong>. Ein Klick darauf springt zur Antwort unter „Gesendet".</li>
+				</ol>
+				<p>Gesendete Zeilen zeigen auch zugeklappt Empfänger, Betreff, Datum, wer gesendet hat, und die erste Zeile.</p>
+				<h4>Die Knöpfe am Zeilenende</h4>
+				<table class="hb-table">
+					<tr><th>Knopf</th><th>Wo</th><th>Was er tut</th></tr>
+					<tr><td>Archivkasten</td><td>Empfangen, Gesendet</td><td><strong>„Ins Archiv verschieben"</strong></td></tr>
+					<tr><td>Papierkorb</td><td>nur Empfangen</td><td>Verschiebt die Mail in den Papierkorb-Ordner des Postfachs.</td></tr>
+					<tr><td>↩</td><td>Archiv</td><td>Holt den Eintrag zurück.</td></tr>
+				</table>
+				<p>Im Archiv stehen Empfangenes und Gesendetes getrennt untereinander. Von dort antwortest du nicht: hol die Mail erst mit ↩ zurück.</p>
+				<div class="hb-note hb-tip"><strong>Der Papierkorb löscht nichts.</strong> Jedes Mailprogramm holt die Mail aus dem Papierkorb-Ordner zurück. Fehlt der Ordner, bleibt die Mail liegen, und die Zeile sagt es.</div>
 
 				<h3 id="social" class="hb-sub">Social Media</h3>
 				<p class="hb-path"><strong>Editor → Community → Social Media</strong></p>
@@ -1811,7 +1825,7 @@
 				<div class="hb-note hb-warn"><strong>Der Wiki-Wert ist nicht immer der bessere.</strong> Lies den durchgestrichenen Wert, bevor du ↺ drückst — er kommt aus dem Infobox-Parser, nicht aus einer geprüften Angabe.</div>
 
 				<h3 id="v-live" class="hb-sub">Alles ist sofort live</h3>
-				<p>Es gibt <strong>keinen Entwurfsmodus</strong>. Klickst du „Speichern", sehen es alle Besucher im selben Moment. Das klingt gefährlicher, als es ist: Jede Änderung steht mit deinem Namen im Reiter <a href="#aenderungen">Änderungen</a> und lässt sich von dort zurücknehmen. Trotzdem gilt Regel zwei — kleine Schritte, danach kurz hinschauen.</p>
+				<p>Es gibt <strong>keinen Entwurfsmodus</strong>. Klickst du „Speichern", sehen es alle Besucher im selben Moment. Das klingt gefährlicher, als es ist: Jede Änderung steht mit deinem Namen im Reiter <a href="#aenderungen">Änderungen</a> und lässt sich von dort zurücknehmen. Trotzdem gilt <a href="#regeln">Regel zwei</a> — kleine Schritte, danach kurz hinschauen.</p>
 
 				<h3 id="v-graph" class="hb-sub">Das Wegenetz ist ein Graph</h3>
 				<p>Für die Reiseplanung ist die Karte kein Bild, sondern ein Netz aus Punkten und Kanten. Ein Weg verbindet ausschließlich das, was an seinen <em>beiden Endpunkten</em> liegt. Zwei Linien, die sich optisch kreuzen, sind für die Routenberechnung zwei Linien, die einander nicht berühren — deshalb die fünf Regeln unter <a href="#wege">Korrekte Wegzeichnung</a>. Wer sie verletzt, macht Orte unerreichbar.</p>
@@ -1916,7 +1930,7 @@
 					<tr><td>5</td><td>0–2 · 3–4 · 5–5 · 5–5 · 6–6</td></tr>
 					<tr><td>6 und mehr</td><td>0–2 · 3–4 · 5–5 · … · 5–5 · 6–6 — <em>jede weitere Zwischenebene bekommt ebenfalls 5–5</em></td></tr>
 				</table>
-				<div class="hb-note hb-tip"><strong>Bis zu vier Ebenen schließen die Bänder lückenlos aneinander an</strong> — 0–2, 3–4, 5, 6. Ein Gebiet beginnt genau eine Zoomstufe nach dem Ende seines Elternteils. <strong>Ab fünf Ebenen reicht der Vorrat nicht</strong>: Die Karte hat nur sieben Zoomstufen, also teilen sich <em>alle</em> Zwischenebenen das Band 5, und nur die unterste bekommt Zoom 6. Dass dort zwei Ränge gleichzeitig erscheinen, ist kein Fehler.</div>
+				<div class="hb-note hb-tip"><strong>Bis zu vier Ebenen schließen die Bänder lückenlos aneinander an</strong> — 0–2, 3–4, 5, 6. Ein Gebiet beginnt genau eine Zoomstufe nach dem Ende seines Elternteils. <strong>Ab fünf Ebenen reicht der Vorrat nicht</strong>: Die Bänder enden bei Zoom 6, also teilen sich <em>alle</em> Zwischenebenen das Band 5, und nur die unterste bekommt Zoom 6. Dass dort zwei Ränge gleichzeitig erscheinen, ist kein Fehler.</div>
 				<div class="hb-note hb-warn"><strong>Deine eigenen Zoomwerte überleben keinen erneuten Zuordnungslauf.</strong> Die Tabelle ist nur der Vorschlag des Editors, und du kannst jeden Wert überschreiben. Ordnet aber jemand im Wiki-Baum <em>irgendein</em> Gebiet dieser Kette neu zu, setzt der Server die Zoomwerte für <strong>jedes</strong> Gebiet der Kette auf die Vorgabe zurück. Prüf eine von Hand gesetzte Stufe danach noch einmal nach.</div>
 				<p>Zwei Begriffe, die dazugehören: Die <strong>Gültigkeit</strong> eines Gebiets steht in BF-Jahren („Bosparans Fall"), wobei <code>9999</code> heißt „bis heute nicht aufgelöst". Und <strong>umstrittene Gebiete</strong> — solche, die mehrere beanspruchen — erscheinen als Schraffur statt als Fläche.</p>
 
