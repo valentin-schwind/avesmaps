@@ -6,17 +6,21 @@ function buildRoutePlanViewModel(routeResult, routeNames, routeLocations = []) {
 	const safeRouteNames = Array.isArray(routeNames) ? routeNames : [];
 
 	const routeDescriptionSource = safeRouteLocations.length ? safeRouteLocations.map((location) => location?.name || "") : safeRouteNames;
+	// Die Namen sind TEXT, das <strong> drumherum ist Markup: escapt wird jeder Name, nie das Geruest.
+	// Ein Wegpunktname stammt nicht immer aus den Kartendaten -- ein Kartenpunkt heisst so, wie sein
+	// Eingabefeld beschriftet ist. Dieselbe Regel wie in routePlanPlaceMarkup (route-plan.js), das
+	// dieselben Namen in den Etappenzeilen escapt.
 	const routeDescription = routeDescriptionSource
 		.map((routeName, index) => {
 			if (index === 0) {
-				return `${tr("planner.journey.from", "von")} <strong>${routeName}</strong>`;
+				return `${tr("planner.journey.from", "von")} <strong>${escapeHtml(routeName)}</strong>`;
 			}
 
 			if (index === routeDescriptionSource.length - 1) {
-				return `${tr("planner.journey.to", "nach")} <strong>${routeName}</strong>`;
+				return `${tr("planner.journey.to", "nach")} <strong>${escapeHtml(routeName)}</strong>`;
 			}
 
-			return `${tr("planner.journey.via", "&uuml;ber")} ${routeName}`;
+			return `${tr("planner.journey.via", "&uuml;ber")} ${escapeHtml(routeName)}`;
 		})
 		.join(" ");
 

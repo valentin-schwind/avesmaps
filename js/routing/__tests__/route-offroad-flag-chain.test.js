@@ -17,6 +17,9 @@ const vm = require("vm");
 global.window = { location: { search: "" }, addEventListener() {}, setTimeout: () => 0, clearTimeout() {} };
 global.document = { getElementById: () => null, querySelectorAll: () => [], addEventListener() {}, documentElement: {} };
 global.tr = (key, fallback) => fallback;
+// route-view-model.js escapt die Namen der Reiseueberschrift mit escapeHtml aus js/app/utils.js -- im
+// Browser laedt index.html utils.js davor. Die ECHTE Fassung, keine Attrappe.
+global.escapeHtml = require("../../app/utils.js").escapeHtml;
 global.calculateScaledDistance = () => 0;
 
 // Die Etappen sind hier die EINGABE, nicht die Regel: geprueft wird, was die beiden Feldlisten mit
