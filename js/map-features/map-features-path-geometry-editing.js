@@ -154,11 +154,20 @@ async function splitPathAtNode(splitState) {
 		if (activePathGeometryEdit?.path === path) {
 			clearPathGeometryEdit();
 		}
-		removePathFeature(path);
-		addCreatedCrossingMarker(split.crossing);
-		ensureCrossingsEnabled();
-		for (const feature of split.paths) {
-			addCreatedPathFeature(feature);
+		// ⭐ Weg weg, Kreuzung und zwei Teilstuecke dazu -- und DANN einmal abgleichen
+		// (js/map-features/sammelabgleich.js). Vorher waren es fuenf volle Kartenabgleiche.
+		const einspielen = () => {
+			removePathFeature(path);
+			addCreatedCrossingMarker(split.crossing);
+			ensureCrossingsEnabled();
+			for (const feature of split.paths) {
+				addCreatedPathFeature(feature);
+			}
+		};
+		if (typeof avesmapsSammelabgleich === "function") {
+			avesmapsSammelabgleich(einspielen);
+		} else {
+			einspielen();
 		}
 		updateRevisionFromEditResponse(result);
 		showFeedbackToast("Weg geteilt und Kreuzung erstellt.", "success");

@@ -411,8 +411,18 @@ async function pollLiveMapUpdates() {
 
 		const features = Array.isArray(data.features) ? data.features : [];
 		if (features.length > 0) {
-			features.forEach(applyLiveMapFeatureUpdate);
-			refreshPlannerAfterFeatureChange({ updateRoute: true });
+			// ⭐ Alle Objekte einspielen, DANN einmal abgleichen (js/map-features/sammelabgleich.js).
+			// Vorher lief der volle Kartenabgleich je Objekt -- ein Import-Stapel von 50 Objekten fror
+			// jeden offenen Editor fuenfzigmal ein.
+			const einspielen = () => {
+				features.forEach(applyLiveMapFeatureUpdate);
+				refreshPlannerAfterFeatureChange({ updateRoute: true });
+			};
+			if (typeof avesmapsSammelabgleich === "function") {
+				avesmapsSammelabgleich(einspielen);
+			} else {
+				einspielen();
+			}
 			if (typeof loadChangeLog === "function") void loadChangeLog();
 			showFeedbackToast(`${features.length} Kartenänderung(en) aktualisiert.`, "info");
 		}

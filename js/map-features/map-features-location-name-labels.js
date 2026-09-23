@@ -207,7 +207,17 @@ function bumpLocationNameLabelStyleRevision() {
 	_locationNameLabelStyleRevision += 1;
 }
 
+// ⭐ Im Sammelabgleich (js/map-features/sammelabgleich.js) nur vorgemerkt -- aber NUR ohne
+// mitgegebenen Kontext: der Orts-Abgleich reicht seinen frisch gebauten herein und wendet ihn sofort an.
 function syncLocationNameLabelVisibility(visibilityContext = null) {
+	if (visibilityContext === null && typeof avesmapsSammelabgleichVormerken === "function"
+		&& avesmapsSammelabgleichVormerken("ortsnamen", () => syncLocationNameLabelVisibilityJetzt(null))) {
+		return;
+	}
+	syncLocationNameLabelVisibilityJetzt(visibilityContext);
+}
+
+function syncLocationNameLabelVisibilityJetzt(visibilityContext = null) {
 	const zoomLevel = map.getZoom();
 	const renderBounds = getMapRenderBounds();
 	const context = visibilityContext || createLocationVisibilityContext();

@@ -328,7 +328,17 @@ function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds
 		&& isMarkerEntryInRenderBounds(entry, renderBounds);
 }
 
+// ⭐ Im Sammelabgleich (js/map-features/sammelabgleich.js) nur vorgemerkt und am Ende EINMAL
+// ausgefuehrt -- jeder eingespielte Ort rief das, und mit „Unverbunden" baut es den Kreuzungs-Index
+// ueber alle Wege neu. Ausserhalb sofort wie bisher.
 function syncLocationMarkerVisibility() {
+	if (typeof avesmapsSammelabgleichVormerken === "function" && avesmapsSammelabgleichVormerken("orte", syncLocationMarkerVisibilityJetzt)) {
+		return;
+	}
+	syncLocationMarkerVisibilityJetzt();
+}
+
+function syncLocationMarkerVisibilityJetzt() {
 	syncLocationToggleButtons();
 	const zoomLevel = map.getZoom();
 	const renderBounds = getMapRenderBounds();
@@ -379,6 +389,11 @@ function syncLocationMarkerVisibility() {
 		locationCanvasLayer.setEntries(canvasEntries);
 	}
 	syncLocationNameLabelVisibility(visibilityContext);
+	// Die Ortsnamen sind damit abgeglichen -- ein im Sammelabgleich vorgemerkter Ortsnamen-Abgleich
+	// liefe sonst ein zweites Mal gegen denselben Stand.
+	if (typeof avesmapsSammelabgleichErledigt === "function") {
+		avesmapsSammelabgleichErledigt("ortsnamen");
+	}
 }
 
 function getMapRenderBounds() {

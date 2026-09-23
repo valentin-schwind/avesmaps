@@ -86,7 +86,16 @@ function syncPathViewportCulling() {
 	}
 }
 
+// ⭐ Im Sammelabgleich (js/map-features/sammelabgleich.js) nur vorgemerkt und am Ende EINMAL
+// ausgefuehrt -- der Live-Abgleich rief das je eingespieltem Weg. Ausserhalb sofort wie bisher.
 function syncPathVisibility() {
+	if (typeof avesmapsSammelabgleichVormerken === "function" && avesmapsSammelabgleichVormerken("wege", syncPathVisibilityJetzt)) {
+		return;
+	}
+	syncPathVisibilityJetzt();
+}
+
+function syncPathVisibilityJetzt() {
 	const ctx = currentPathVisibilityContext();
 
 	// Standardmäßig folgen die Fluss-Labels den Fluss-Pfaden. Sobald im ?pathtune=1-Panel der Label-Schalter
@@ -120,9 +129,20 @@ function syncPathVisibility() {
 		applyPathDrawOrder();
 	}
 	// Pfad-Namen-Canvas neu zeichnen (Sichtbarkeit von Wegen/Flüssen kann sich geändert haben).
-	if (window.AvesmapsPathLabelCanvasOverlay) {
-		window.AvesmapsPathLabelCanvasOverlay.redraw();
+	avesmapsWegnamenNeuZeichnen();
+}
+
+// Die Wegnamen-Leinwand neu zeichnen. Sie zeichnet ALLE Namen -- im Sammelabgleich
+// (js/map-features/sammelabgleich.js) deshalb nur einmal am Ende, ausserhalb sofort wie bisher.
+function avesmapsWegnamenNeuZeichnen() {
+	if (!window.AvesmapsPathLabelCanvasOverlay) {
+		return;
 	}
+	if (typeof avesmapsSammelabgleichVormerken === "function"
+		&& avesmapsSammelabgleichVormerken("wegnamen", () => window.AvesmapsPathLabelCanvasOverlay.redraw())) {
+		return;
+	}
+	window.AvesmapsPathLabelCanvasOverlay.redraw();
 }
 
 function shouldShowPathOnMap(path, { showPaths = true, showRivers = false, showSeaPaths = false } = {}) {

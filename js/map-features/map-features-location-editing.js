@@ -487,7 +487,13 @@ function addCreatedLocationMarker(feature, { openPopup = true } = {}) {
 	syncLocationMarkerVisibility();
 	refreshPlannerAfterFeatureChange();
 	if (openPopup) {
-		markerEntry.marker.openPopup();
+		// Wie bei der Kreuzung: im Sammelabgleich erst, wenn der Marker auf der Karte steht.
+		const popupOeffnen = () => markerEntry.marker.openPopup();
+		if (typeof avesmapsSammelabgleichDanach === "function") {
+			avesmapsSammelabgleichDanach(popupOeffnen);
+		} else {
+			popupOeffnen();
+		}
 	}
 	return markerEntry;
 }
@@ -549,7 +555,14 @@ function addCreatedCrossingMarker(feature) {
 	locationMarkers.push(markerEntry);
 	syncLocationMarkerVisibility();
 	refreshPlannerAfterFeatureChange();
-	markerEntry.marker.openPopup();
+	// Im Sammelabgleich (Weg teilen) kommt der Marker erst mit dem Orts-Abgleich auf die Karte -- das
+	// Popup oeffnet sich deshalb danach; an einem Marker ohne Karte steigt Leaflet still aus.
+	const popupOeffnen = () => markerEntry.marker.openPopup();
+	if (typeof avesmapsSammelabgleichDanach === "function") {
+		avesmapsSammelabgleichDanach(popupOeffnen);
+	} else {
+		popupOeffnen();
+	}
 }
 
 async function createCrossingFeatureAt(latlng) {

@@ -493,8 +493,27 @@ function updateRouteKeepingCurrentMapView() {
 }
 
 function refreshPlannerAfterFeatureChange({ updateRoute = false } = {}) {
+	// 🔴 VERWORFEN WIRD SOFORT, auch im Sammelabgleich: ein Zwischenspeicher, der bis zum Ende stehen
+	// bliebe, liesse einen Abgleich dazwischen mit dem Stand von vor der Aenderung rechnen.
 	graphData = null;
 	locationConnectivityIndex = null;
+	// Idee #86: der Prüfhaken misst nicht die eigene Merkliste, sondern den Gesamtbestand -- eine
+	// gesetzte Kreuzung nimmt hier also auch einen Befund zurück, den nie jemand aufgemacht hat. Erst
+	// den Index verwerfen (hier), dann neu zeichnen (refreshPlannerAfterFeatureChangeJetzt).
+	if (typeof avesmapsInvalidateOpenPathEndCheck === "function") {
+		avesmapsInvalidateOpenPathEndCheck();
+	}
+	// ⭐ Das NEU RECHNEN laeuft im Sammelabgleich (js/map-features/sammelabgleich.js) einmal am Ende --
+	// der Live-Abgleich rief es je eingespieltem Objekt, und mit einer Route im Planer hiess das je
+	// Objekt eine neue Routenanfrage an den Server. `updateRoute` wird dabei ODER-verknuepft.
+	if (typeof avesmapsSammelabgleichVormerken === "function"
+		&& avesmapsSammelabgleichVormerken("planer", refreshPlannerAfterFeatureChangeJetzt, { updateRoute })) {
+		return;
+	}
+	refreshPlannerAfterFeatureChangeJetzt({ updateRoute });
+}
+
+function refreshPlannerAfterFeatureChangeJetzt({ updateRoute = false } = {}) {
 	refreshWaypointAutocompleteSources();
 	syncPlannerStateToUrl();
 	// Discord #43: the central point after ANY feature change, so a way end that was reattached in
@@ -502,11 +521,7 @@ function refreshPlannerAfterFeatureChange({ updateRoute = false } = {}) {
 	if (typeof avesmapsRefreshOpenPathEnds === "function") {
 		avesmapsRefreshOpenPathEnds();
 	}
-	// Idee #86, gleiche Begründung eine Zeile höher, andere Reichweite: der Prüfhaken misst nicht die
-	// eigene Merkliste, sondern den Gesamtbestand -- eine gesetzte Kreuzung nimmt hier also auch einen
-	// Befund zurück, den nie jemand aufgemacht hat. Erst den Index verwerfen, dann neu zeichnen.
-	if (typeof avesmapsInvalidateOpenPathEndCheck === "function") {
-		avesmapsInvalidateOpenPathEndCheck();
+	if (typeof avesmapsSyncOpenPathEndCheck === "function") {
 		avesmapsSyncOpenPathEndCheck();
 	}
 

@@ -587,8 +587,11 @@ function updatePathLayerGeometry(path) {
 	path._pathLines.forEach((line) => line.setLatLngs(latLngCoords));
 	path._pathLabelLine?.setLatLngs(getReadablePathLabelLatLngCoordinates(getPathLabelVisualLatLngCoordinates(path.geometry.coordinates)));
 	path._geomBounds = undefined; // Bbox-Cache (Viewport-Culling) invalidieren -> Geometrie hat sich geändert.
-	// Geometrie geändert -> Pfad-Namen-Canvas neu zeichnen.
-	if (window.AvesmapsPathLabelCanvasOverlay) {
+	// Geometrie geändert -> Pfad-Namen-Canvas neu zeichnen (im Sammelabgleich einmal am Ende,
+	// avesmapsWegnamenNeuZeichnen in map-features-display-mode.js).
+	if (typeof avesmapsWegnamenNeuZeichnen === "function") {
+		avesmapsWegnamenNeuZeichnen();
+	} else if (window.AvesmapsPathLabelCanvasOverlay) {
 		window.AvesmapsPathLabelCanvasOverlay.redraw();
 	}
 }
