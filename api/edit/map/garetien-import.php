@@ -115,7 +115,33 @@ try {
     }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
-    avesmapsGaretienEnsureTables($pdo);
+    // 🔴 DER TABELLEN-ENSURE (23.09.2026): auf den SCHREIBWEGEN je Aufruf, wie im Haus ueblich -- auf den
+    // LESEWEGEN hoechstens einmal je Stunde und Dateistand. Dieselbe Teilung wie am politischen Endpunkt
+    // (AGENTS.md §10: gebunden sind nur die Takt-Pfade, die Schreibwege behalten den Roh-Ensure). Vorher
+    // liefen zwei `CREATE TABLE IF NOT EXISTS` und drei `ALTER TABLE`, die jedes Mal mit „gibt es schon"
+    // scheitern, bei JEDEM Aufruf -- auch bei der Liste, die das Fenster nach jeder Handlung ruft.
+    // 💣 `fetch`, `upload` und `plan` sind die einzigen Schreiber der Import-Tabellen: sie legen sie auch
+    // nach einer eingespielten Sicherung sofort wieder an, statt eine Stunde auf den Marker zu warten
+    // (Befund des Pruefagenten -- hier stand zuerst, die Schreibwege haetten einen eigenen Roh-Ensure;
+    // den gab es nicht). Der Marker traegt die Aenderungszeit der Datei, die die Tabellen definiert: ein
+    // Deploy mit einer neuen Spalte laesst den Ensure sofort wieder laufen (api/_internal/schema-ensure-once.php).
+    if (in_array($action, ['fetch', 'upload', 'plan'], true)) {
+        avesmapsGaretienEnsureTables($pdo);
+    } else {
+        avesmapsSchemaEnsureOnce(
+            // ⚠️ Mit Bindestrichen: der Abbau-Waechter verbietet ausserhalb des Importers jedes `garetien_` + `import`.
+            'garetien-importer-tabellen',
+            (string) (new ReflectionFunction('avesmapsGaretienEnsureTables'))->getFileName(),
+            static function () use ($pdo): void {
+                avesmapsGaretienEnsureTables($pdo);
+            }
+        );
+    }
+    // 🔴 DER ZWISCHENSPEICHER DER ARBEITSLISTE (23.09.2026) -- NUR HIER EINGESCHALTET. Er haelt den festen
+    // Teil der Objekte eines offenen Laufs (garetien-liste-speicher.php); `liste`, `naehe` und
+    // `innerorts_kandidaten` bauen damit nicht mehr bei jedem Klick alle Objekte neu. Die Bibliothek
+    // laeuft ohne ihn (Tests), bis ihn jemand einschaltet.
+    avesmapsGaretienListeSpeicherOrt(sys_get_temp_dir() . '/avesmaps_garetien_liste');
 
     // --- Was liegt im Staging?
     //

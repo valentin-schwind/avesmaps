@@ -22,6 +22,9 @@ require_once __DIR__ . '/../app/settlement-places.php';
 // Fuer avesmapsGaretienVermerkLesen -- „Uebernommen" zeigt einen Verbund als EINE Zeile (Entwurf
 // §7), gespeist aus dem VERMERK, den avesmapsGaretienUebernehmen beim Schreiben hinterlaesst.
 require_once __DIR__ . '/garetien-uebernahme.php';
+// Der Zwischenspeicher des FESTEN Teils (avesmapsGaretienArbeitslisteObjekte). Aus, solange ihn niemand
+// einschaltet -- nur der Endpunkt tut das.
+require_once __DIR__ . '/garetien-liste-speicher.php';
 
 /**
  * So viele Objekte je Antwort -- der Rest blaettert ueber `versatz`.
@@ -793,6 +796,17 @@ function avesmapsGaretienListeObjektPasstFilter(array $objekt, array $filter): b
  * die beide Aufrufer unterschiedlich brauchen (der eine filtert+seitet, der andere sucht im
  * ganzen Lauf nach einem Umkreis).
  *
+ * 💣 ZWEI TEILE SEIT DEM 23.09.2026 -- und nur einer wechselt zwischen zwei Klicks. Live gemessen
+ * (Lauf 22, 9.192 Zeilen): jeder Aufruf baute ALLE rund 11.500 Objekte neu, rund 600 ms Serverzeit, ob
+ * 2.164 Objekte oder 3 (`keys`) gefragt waren -- und das Fenster fragt nach jeder Handlung neu.
+ *   · Der FESTE Teil (avesmapsGaretienListeFestBauen) entsteht aus `after_json`, `before_json` und den
+ *     Staging-Zeilen. Er aendert sich nicht, solange derselbe Lauf offen ist, und liegt deshalb im
+ *     Zwischenspeicher (garetien-liste-speicher.php) -- sofern der Endpunkt ihn eingeschaltet hat.
+ *   · Der WECHSELNDE Teil -- Haekchen, Uebernahme-Stand und -Vermerk, Entscheidungen, Staetten, die
+ *     Verbuende frueherer Laeufe -- wird bei JEDEM Aufruf frisch gelesen und hier eingetragen.
+ * 🔴 Wer ein Feld dazunimmt, das von einer Handlung im Fenster abhaengt, traegt es HIER ein, nie im
+ * festen Bau: dort stuende es im Speicher und bliebe bis zum naechsten Lauf auf dem alten Wert.
+ *
  * @return array{plan_run_id: ?int, objekte: array<string, array>, angehakt: array{new:int, changed:int}}
  *   `plan_run_id` ist `null`, solange kein offener Vorschau-Lauf existiert -- dann ist `objekte`
  *   leer und `angehakt` beide 0, derselbe leere Zustand wie vor dem ersten Rechnen.
@@ -809,26 +823,157 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
     }
     $planRunId = (int) $lauf['id'];
 
-    // 2. ALLE Items des Laufs -- OHNE LIMIT und NICHT ueber avesmapsSyncPlanItems (die deckelt
-    // bei 200 je Gruppe, und genau das soll hier wegfallen).
+    // 2. DER WECHSELNDE TEIL, IMMER FRISCH: je Item genau die Spalten, die eine Handlung im Fenster
+    // aendert. OHNE LIMIT und NICHT ueber avesmapsSyncPlanItems (die deckelt bei 200 je Gruppe).
+    // ⚠️ Ohne after_json/before_json -- die sind fest und machen die Masse der Abfrage aus.
+    $zustandStmt = $pdo->prepare(
+        'SELECT id, entity_key, change_type, selected, apply_state, apply_note'
+        . ' FROM sync_plan_item WHERE run_id = :r ORDER BY id'
+    );
+    $zustandStmt->execute([':r' => $planRunId]);
+    $zustand = [];
+    $signatur = [];
+    foreach ($zustandStmt->fetchAll(PDO::FETCH_ASSOC) as $roh) {
+        $zustand[(int) $roh['id']] = $roh;
+        $signatur[] = avesmapsGaretienListeItemSignaturZeile($roh);
+    }
+    $signatur = sha1(implode("\n", $signatur));
+    // Die Artbezeichnungen der Landschaften (der Platzhalter-Befund am Abschnitt haengt daran). Eine
+    // kleine Abfrage -- und sie steht im Schluessel des Speichers.
+    $artBezeichnungen = avesmapsGaretienArtBezeichnungen($pdo);
+
+    // 3. DER FESTE TEIL: aus dem Speicher, sonst frisch gebaut und abgelegt.
+    // 🔴 ABGELEGT WIRD NUR, WAS ZUM ZUSTAND PASST: dieselbe Signatur (Item-Nummern, Arten, Schluessel)
+    // wie die frische Abfrage darueber. Und gelesen wird nur ein Eintrag mit derselben Signatur -- ein
+    // Item, das ein Speicher nicht kennt, erzwingt den Neubau, statt still zu fehlen.
+    $speicherSchluessel = avesmapsGaretienListeSpeicherSchluessel($lauf, $importRunId, $artBezeichnungen);
+    $fest = avesmapsGaretienListeSpeicherLesen($speicherSchluessel, $signatur);
+    if ($fest === null) {
+        $fest = avesmapsGaretienListeFestBauen($pdo, $importRunId, $planRunId, $artBezeichnungen);
+        if ($fest['signatur'] === $signatur) {
+            avesmapsGaretienListeSpeicherSchreiben($speicherSchluessel, $fest);
+        }
+    }
+    $objekte = $fest['objekte'];
+    unset($fest);
+
+    // 4. Den wechselnden Teil eintragen -- in die Felder, die der feste Bau als Platzhalter an ihrer
+    // endgueltigen Stelle angelegt hat (die Reihenfolge der Schluessel bleibt die der Antwort).
+    $entscheidungen = avesmapsSyncPlanDecisions($pdo, AVESMAPS_GARETIEN_PLAN_KIND);
+    // 🔴 Aufgabe 4 (2026-09-14): die Verbund-Vermerke der FRUEHEREN Laeufe, EINMAL je Listenbau.
+    $fruehereVerbuende = avesmapsGaretienVerbundVermerkeFruehererLaeufe($pdo, $planRunId);
+    // 🔴 EINMAL je Listenbau, nicht je Objekt: die aktiven Staetten als Menge. Faellt ohne Tabelle
+    // (frische Installation) still auf leer -- dann ist nichts innerorts uebernommen, und das stimmt.
+    $staetten = avesmapsSettlementPlacePublicIds($pdo);
+
+    // `angehakt` zaehlt den GANZEN Lauf (fuer Aufgabe 16), nicht die gefilterte Sicht.
+    $angehaktNeu = 0;
+    $angehaktGeaendert = 0;
+    foreach ($zustand as $roh) {
+        if ((int) $roh['selected'] === 1) {
+            if ((string) $roh['change_type'] === 'new') {
+                $angehaktNeu++;
+            } elseif ((string) $roh['change_type'] === 'changed') {
+                $angehaktGeaendert++;
+            }
+        }
+    }
+
+    foreach ($objekte as $key => &$objekt) {
+        if ($objekt['items'] === []) {
+            // 🔴 SEIT 15.09.2026 NICHT MEHR FEST 'offen' (Owner: „die editoren wollen alle objekte in
+            // 'Offen' auch ablehnen dürfen auch wenn sie nicht übernommen werden können und nichts
+            // tragen"). Ohne Item gibt es keine Item-Entscheidung -- die Ablehnung haengt hier am
+            // OBJEKTSCHLUESSEL.
+            $objekt['stand'] = avesmapsGaretienListeObjektStandOhneItem($entscheidungen, (string) $key);
+            continue;
+        }
+        $items = [];
+        foreach ($objekt['items'] as $i => $item) {
+            $roh = $zustand[$item['id']] ?? null;
+            $entscheidung = $roh === null ? [] : ($entscheidungen[avesmapsSyncPlanDecisionKey(
+                (string) $roh['entity_key'],
+                (string) $roh['change_type']
+            )] ?? []);
+            $stand = [
+                'selected' => $roh === null ? 0 : (int) $roh['selected'],
+                'apply_state' => ($roh['apply_state'] ?? null) !== null ? (string) $roh['apply_state'] : null,
+                // Der Vermerk der Uebernahme: die angelegte public_id (avesmapsGaretienItemAbschliessen).
+                // Gelesen fuer „liegt das als Staette?" (avesmapsGaretienListeInnerortsUebernommen) und
+                // den angelegten Verbund (avesmapsGaretienVerbundAngelegt).
+                'apply_note' => (string) ($roh['apply_note'] ?? ''),
+                'declined' => ($entscheidung['declined_at'] ?? null) !== null,
+                // 🔴 Der DAUERHAFTE Uebernahme-Vermerk (avesmapsSyncPlanRecordApplied). Er ist das
+                // Gegenstueck zu `declined` und aus demselben Grund noetig: `apply_state` stirbt mit
+                // dem Lauf, sync_decision nicht.
+                'applied' => ($entscheidung['applied_at'] ?? null) !== null,
+            ];
+            $items[] = $stand;
+            $objekt['items'][$i]['selected'] = $stand['selected'];
+            $objekt['items'][$i]['apply_state'] = $stand['apply_state'];
+            $objekt['items'][$i]['applied'] = $stand['applied'];
+            // 🔴 „QUELLE UND NAMEN ERGAENZEN" (15.09.2026): hat DIESES Item beim Uebernehmen auch einen
+            // Namen geschrieben? Gelesen am Vermerk selbst, nie hergeleitet (Begruendung am Feld im
+            // festen Bau).
+            $objekt['items'][$i]['name_ergaenzt'] = $stand['apply_state'] === 'done'
+                && avesmapsGaretienTraegtNameVermerk($stand['apply_note']);
+        }
+        $objekt['innerorts_uebernommen'] = avesmapsGaretienListeInnerortsUebernommen($items, $staetten);
+        $objekt['stand'] = avesmapsGaretienListeObjektStand($items);
+        // 🔴 LAUFUEBERGREIFEND (Aufgabe 4, 2026-09-14, Fehler 8): ohne uebernommenes Item im
+        // laufenden Lauf gilt der Vermerk des juengsten frueheren Laufs.
+        $objekt['verbund_angelegt'] = avesmapsGaretienVerbundAngelegtLaufuebergreifend(
+            $items,
+            $fruehereVerbuende[$key] ?? ''
+        );
+    }
+    unset($objekt);
+
+    return ['plan_run_id' => $planRunId, 'objekte' => $objekte, 'angehakt' => ['new' => $angehaktNeu, 'changed' => $angehaktGeaendert]];
+}
+
+/**
+ * Eine Zeile der Signatur ueber die Items eines Laufs: Nummer, Art, Schluessel. EINE Formel fuer
+ * beide Seiten -- die frische Abfrage und den festen Bau --, sonst passten sie nie zueinander.
+ *
+ * @param array<string, mixed> $roh
+ */
+function avesmapsGaretienListeItemSignaturZeile(array $roh): string
+{
+    return (int) $roh['id'] . '|' . (string) $roh['change_type'] . '|' . (string) $roh['entity_key'];
+}
+
+/**
+ * Der FESTE Teil der Arbeitsliste -- alle Objekte eines offenen Laufs, OHNE die Felder, die eine
+ * Handlung im Fenster aendert. Die stehen hier als PLATZHALTER an ihrer endgueltigen Stelle
+ * (`selected`, `apply_state`, `applied`, `name_ergaenzt` je Item; `innerorts_uebernommen`, `stand`,
+ * `verbund_angelegt` je Objekt); avesmapsGaretienArbeitslisteObjekte traegt sie ein.
+ *
+ * 🔴 LIEST NIE EINE WECHSELNDE SPALTE: weder `selected`/`apply_state`/`apply_note` noch
+ * Entscheidungen, Staetten oder fruehere Laeufe. Was hier entsteht, liegt im Zwischenspeicher, solange
+ * der Lauf offen ist -- ein wechselnder Wert bliebe dort stehen. Gewacht von
+ * garetien-liste-speicher-test.php.
+ *
+ * @param list<string> $artBezeichnungen
+ * @return array{signatur: string, objekte: array<string, array>}
+ */
+function avesmapsGaretienListeFestBauen(PDO $pdo, int $importRunId, int $planRunId, array $artBezeichnungen): array
+{
+    // 2. ALLE Items des Laufs -- OHNE LIMIT, nur die festen Spalten.
     $itemStmt = $pdo->prepare(
-        'SELECT id, entity_key, change_type, before_json, after_json, selected, apply_state, apply_note'
+        'SELECT id, entity_key, change_type, before_json, after_json'
         . ' FROM sync_plan_item WHERE run_id = :r ORDER BY id'
     );
     $itemStmt->execute([':r' => $planRunId]);
-    $entscheidungen = avesmapsSyncPlanDecisions($pdo, AVESMAPS_GARETIEN_PLAN_KIND);
 
     $gruppen = [];              // Objektschluessel => Liste roher Items
-    // Die Artbezeichnungen der Landschaften -- erst gelesen, wenn eine Landschaft darunter ist (unten).
-    $artBezeichnungen = null;
-    $angehaktNeu = 0;
-    $angehaktGeaendert = 0;
+    $signatur = [];
     foreach ($itemStmt->fetchAll(PDO::FETCH_ASSOC) as $roh) {
         $entityKey = (string) $roh['entity_key'];
         $changeType = (string) $roh['change_type'];
+        $signatur[] = avesmapsGaretienListeItemSignaturZeile($roh);
         $after = json_decode((string) ($roh['after_json'] ?? ''), true);
         $before = json_decode((string) ($roh['before_json'] ?? ''), true);
-        $entscheidungsSchluessel = avesmapsSyncPlanDecisionKey($entityKey, $changeType);
         // 🔴 „QUELLE UND NAMEN ERGAENZEN" (Owner 15.09.2026): TRAEGT DIESER ABSCHNITT EINEN PLATZHALTER?
         // Im LESEPFAD gerechnet, nicht im Planbau: so gilt es auch fuer den Lauf, der schon in der
         // Datenbank steht, und die Artbezeichnungen der Landschaften, die die Regel braucht, liegen hier und
@@ -836,44 +981,22 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
         // (avesmapsGaretienNameIstPlatzhalter) -- der Browser liest nur das Feld und bietet danach die Wahl an.
         // ⚠️ Gemessen am Namen des STICHTAGS (`after.abschnitt.name`). Wurde „Wald-190" seither benannt,
         // bietet die Liste die Wahl noch an, und der Import weist sie ab -- die sichere Richtung.
-        // ⚠️ Der Katalog wird hoechstens EINMAL je Listenbau gelesen, und nur, wenn eine Landschaft darunter ist.
+        // ⚠️ Der Katalog kommt vom Aufrufer, EINMAL je Aufruf gelesen -- er steht im Schluessel des
+        // Zwischenspeichers (avesmapsGaretienArbeitslisteObjekte).
         if ($changeType === 'changed' && is_array($after) && is_array($after['abschnitt'] ?? null)) {
-            $zielDesItems = (string) ($after['ziel'] ?? '');
-            if ($zielDesItems === 'region') {
-                $artBezeichnungen ??= avesmapsGaretienArtBezeichnungen($pdo);
-            }
             $after['abschnitt']['platzhalter'] = avesmapsGaretienNameIstPlatzhalter(
-                $zielDesItems,
+                (string) ($after['ziel'] ?? ''),
                 (string) ($after['abschnitt']['name'] ?? ''),
-                $artBezeichnungen ?? []
+                $artBezeichnungen
             );
         }
 
         $gruppen[avesmapsGaretienObjektSchluessel($entityKey)][] = [
             'id' => (int) $roh['id'],
             'change_type' => $changeType,
-            'selected' => (int) $roh['selected'],
-            'apply_state' => $roh['apply_state'] !== null ? (string) $roh['apply_state'] : null,
-            // Der Vermerk der Uebernahme: die angelegte public_id (avesmapsGaretienItemAbschliessen).
-            // Gelesen nur fuer die Frage „liegt das als Staette?" -- siehe avesmapsGaretienListeInnerortsUebernommen.
-            'apply_note' => (string) ($roh['apply_note'] ?? ''),
-            'declined' => ($entscheidungen[$entscheidungsSchluessel]['declined_at'] ?? null) !== null,
-            // 🔴 Der DAUERHAFTE Uebernahme-Vermerk (avesmapsSyncPlanRecordApplied). Er ist das
-            // Gegenstueck zu `declined` und aus demselben Grund noetig: `apply_state` stirbt mit
-            // dem Lauf, sync_decision nicht.
-            'applied' => ($entscheidungen[$entscheidungsSchluessel]['applied_at'] ?? null) !== null,
             'after' => is_array($after) ? $after : [],
             'before' => is_array($before) ? $before : [],
         ];
-
-        // `angehakt` zaehlt den GANZEN Lauf (fuer Aufgabe 16), nicht die gefilterte Sicht.
-        if ((int) $roh['selected'] === 1) {
-            if ($changeType === 'new') {
-                $angehaktNeu++;
-            } elseif ($changeType === 'changed') {
-                $angehaktGeaendert++;
-            }
-        }
     }
 
     // 3. Die Staging-Zeilen dazuholen. RULING P1 (Aufgabe 6) hat urteil/grund an diese Tabelle
@@ -910,16 +1033,9 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
         $zeilenNachSchluessel[avesmapsGaretienObjektSchluesselAusZeile($zeile)] = $zeile;
     }
 
-    // 🔴 Aufgabe 4 (2026-09-14): die Verbund-Vermerke der FRUEHEREN Laeufe, EINMAL je Listenbau.
-    $fruehereVerbuende = avesmapsGaretienVerbundVermerkeFruehererLaeufe($pdo, $planRunId);
-
     // 4. Objekte MIT Item bauen -- Name/Typ/Wiki/Ebene/Geometrie/Wiki-Link aus dem after des
     // ERSTEN Items, das sie traegt; ihre Staging-Zeile liefert nur urteil/grund UND die Felder,
     // die kein `after` kennt (lodmin/lodmax/extra), nach.
-    // 🔴 EINMAL je Listenbau, nicht je Objekt: die aktiven Staetten als Menge. Faellt ohne Tabelle
-    // (frische Installation) still auf leer -- dann ist nichts innerorts uebernommen, und das stimmt.
-    $staetten = avesmapsSettlementPlacePublicIds($pdo);
-
     $objekte = [];
     foreach ($gruppen as $key => $items) {
         $zeile = $zeilenNachSchluessel[$key] ?? null;
@@ -1070,7 +1186,8 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             // Gefragt wird die Tabelle, nie ein zweiter Vermerk am Item -- derselbe Grund wie bei der Ruecknahme
             // (garetien-uebernahme.php). ⚠️ Ehrlich nur fuer den LAUFENDEN Lauf: ein aus einem alten Lauf
             // uebernommenes Objekt traegt hier `false`, die Ruecknahme findet es trotzdem (sie fragt selbst).
-            'innerorts_uebernommen' => avesmapsGaretienListeInnerortsUebernommen($items, $staetten),
+            // ⚠️ PLATZHALTER -- eingetragen im wechselnden Teil (avesmapsGaretienArbeitslisteObjekte).
+            'innerorts_uebernommen' => false,
             'seite' => $zeile !== null ? avesmapsGaretienSeitenNameAusZeile($zeile) : '',
             // 🔴 Deckungsgrad und Nenner kommen vom SERVER. Der Deckungsgrad IST das Ergebnis des
             // Abgleichs; der Nenner ist die Zahl der wirklich verglichenen Probepunkte, und die ist
@@ -1100,8 +1217,10 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
                     'change_type' => $item['change_type'],
                     'anlass' => $item['after']['anlass'] ?? null,
                     'felder' => $item['after']['felder'] ?? [],
-                    'selected' => $item['selected'],
-                    'apply_state' => $item['apply_state'],
+                    // ⚠️ PLATZHALTER -- `selected`, `apply_state`, `applied` und `name_ergaenzt` traegt der
+                    // wechselnde Teil ein (avesmapsGaretienArbeitslisteObjekte).
+                    'selected' => 0,
+                    'apply_state' => null,
                     // 🔴 UND DER DAUERHAFTE VERMERK MIT. „Uebernommen" hat ZWEI Quellen --
                     // `apply_state = 'done'` gilt nur fuer den GERADE laufenden Lauf, `applied`
                     // ist der Vermerk in `sync_decision`, der ein „Holen & Rechnen" ueberlebt.
@@ -1115,7 +1234,7 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
                     // 31.08.2026 eigens im JS gebaut worden (`item.applied === true`) und lief ins
                     // Leere, weil das Feld die Tuer nie verliess: ein Leser, den nur der Test
                     // erreicht, ist kein Leser.
-                    'applied' => $item['applied'] ?? false,
+                    'applied' => false,
                     'before_name' => $item['before']['name'] ?? null,
                     'after_name' => $item['after']['name'] ?? null,
                     'abschnitt' => $item['after']['abschnitt'] ?? null,
@@ -1124,25 +1243,18 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
                     // waere dort eine Falschaussage. Gelesen am Vermerk selbst, nie hergeleitet.
                     // ⚠️ Nur fuer den LAUFENDEN Lauf ehrlich: nach „Holen & Rechnen" traegt das frische Item
                     // keinen Vermerk. ↩ gibt den Namen trotzdem zurueck (avesmapsGaretienNameVermerkZumItem).
-                    'name_ergaenzt' => ($item['apply_state'] ?? null) === 'done'
-                        && avesmapsGaretienTraegtNameVermerk((string) ($item['apply_note'] ?? '')),
+                    'name_ergaenzt' => false,
                 ];
             }, $items),
-            'stand' => avesmapsGaretienListeObjektStand(array_map(static fn(array $item): array => [
-                'selected' => $item['selected'],
-                'apply_state' => $item['apply_state'],
-                'declined' => $item['declined'],
-                'applied' => $item['applied'] ?? false,
-            ], $items)),
+            // ⚠️ PLATZHALTER -- eingetragen im wechselnden Teil (avesmapsGaretienListeObjektStand).
+            'stand' => '',
             // Entwurf §7: „Uebernommen" zeigt einen Verbund als EINE Zeile. Der ERSTE Vermerk
             // gewinnt -- alle Fragmente eines Verbunds tragen denselben Stamm, und der Reiter
             // braucht nur einen.
             // 🔴 LAUFUEBERGREIFEND (Aufgabe 4, 2026-09-14, Fehler 8): ohne uebernommenes Item im
             // laufenden Lauf gilt der Vermerk des juengsten frueheren Laufs.
-            'verbund_angelegt' => avesmapsGaretienVerbundAngelegtLaufuebergreifend(
-                $items,
-                $fruehereVerbuende[$key] ?? ''
-            ),
+            // ⚠️ PLATZHALTER -- eingetragen im wechselnden Teil (avesmapsGaretienVerbundAngelegtLaufuebergreifend).
+            'verbund_angelegt' => '',
             // 🔴 DURCHGEREICHT, NICHT HERGELEITET: `after.verbund_stamm`/`after.verbund_n`
             // entstehen EINMAL je Planlauf in avesmapsGaretienVerbuende (garetien-plan.php) --
             // eine zweite Gruppierung im Lesepfad liefe ueber alle Zeilen des Laufs. Objekte OHNE
@@ -1215,14 +1327,15 @@ function avesmapsGaretienArbeitslisteObjekte(PDO $pdo, int $importRunId): array
             // 'Offen' auch ablehnen dürfen auch wenn sie nicht übernommen werden können und nichts
             // tragen"). Ohne Item gibt es keine Item-Entscheidung -- die Ablehnung haengt hier am
             // OBJEKTSCHLUESSEL (avesmapsGaretienListeObjektStandOhneItem).
-            'stand' => avesmapsGaretienListeObjektStandOhneItem($entscheidungen, (string) $key),
+            // ⚠️ PLATZHALTER -- eingetragen im wechselnden Teil (avesmapsGaretienListeObjektStandOhneItem).
+            'stand' => '',
             // Ohne Item kein Vermerk, also kein angelegter Verbund -- und das Feld steht trotzdem
             // da (zweiter Erzeuger, siehe innerorts_uebernommen oben).
             'verbund_angelegt' => '',
         ];
     }
 
-    return ['plan_run_id' => $planRunId, 'objekte' => $objekte, 'angehakt' => ['new' => $angehaktNeu, 'changed' => $angehaktGeaendert]];
+    return ['signatur' => sha1(implode("\n", $signatur)), 'objekte' => $objekte];
 }
 
 /**
