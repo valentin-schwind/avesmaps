@@ -135,8 +135,8 @@ function buildLocationCoordinateIndex() {
 
 function addRegularPathToGraph(graph, pathFeature, routeOptions, graphOptions = {}) {
     const { geometry: { coordinates }, properties } = pathFeature;
-    const startNode = getLocationAtPathEndpoint(coordinates[0]);
-    const endNode = getLocationAtPathEndpoint(coordinates[coordinates.length - 1]);
+    const startNode = getLocationAtPathEndpoint(coordinates[0], graphOptions.ortsRaster);
+    const endNode = getLocationAtPathEndpoint(coordinates[coordinates.length - 1], graphOptions.ortsRaster);
     if (!startNode || !endNode) {
         return;
     }
@@ -238,9 +238,15 @@ function createGraph(routeOptions, graphOptions = {}) {
     });
     // Der Koordinaten-Index kostet nur den Konnektivitaets-Graphen etwas; der Routing-Zweig
     // bekommt ihn nicht und bleibt damit Zeile fuer Zeile der alte.
+    // ⭐ Das Ortsraster bekommen BEIDE Zweige: es aendert kein Ergebnis (dieselbe Regel, nur weniger
+    // Kandidaten -- avesmapsOrtsRaster, map-features-location-editing.js), und ohne es fragte jeder
+    // Graphbau ~16.000 Wegenden gegen alle ~6.900 Orte (23.09.2026: rund 2,4 s je Bau, und der
+    // Pruefhaken „Unverbunden" baut nach jedem Teilschritt einer Speicherung neu).
+    // 💣 EIN Raster je Bau, hier gebaut: es ist eine Momentaufnahme von locationData.
+    const ortsRaster = typeof avesmapsOrtsRaster === "function" ? avesmapsOrtsRaster() : null;
     const graphOptionsForPaths = graphOptions.transports === "all"
-        ? { ...graphOptions, locationCoordinateIndex: buildLocationCoordinateIndex() }
-        : graphOptions;
+        ? { ...graphOptions, locationCoordinateIndex: buildLocationCoordinateIndex(), ortsRaster }
+        : { ...graphOptions, ortsRaster };
     pathData.forEach((pathFeature) => {
         addRegularPathToGraph(graph, pathFeature, routeOptions, graphOptionsForPaths);
     });

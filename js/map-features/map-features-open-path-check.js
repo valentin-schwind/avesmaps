@@ -57,6 +57,10 @@
 			return null;
 		}
 
+		// ⭐ EIN Ortsraster je Indexbau (avesmapsOrtsRaster, map-features-location-editing.js): dieselbe
+		// Regel, nur gegen die Nachbarzellen statt gegen alle Orte -- 23.09.2026 gemessen 1.154 ms gegen
+		// 25 ms fuer die ~16.000 Wegenden. Es gilt nur fuer DIESEN Lauf und wird nicht aufgehoben.
+		const ortsRaster = typeof avesmapsOrtsRaster === "function" ? avesmapsOrtsRaster() : null;
 		pathData.forEach((path) => {
 			const koordinaten = path?.geometry?.coordinates;
 			if (!Array.isArray(koordinaten) || koordinaten.length < 2) {
@@ -67,7 +71,7 @@
 				if (!Array.isArray(punkt) || punkt.length < 2) {
 					return;
 				}
-				if (getLocationAtPathEndpoint(punkt)) {
+				if (getLocationAtPathEndpoint(punkt, ortsRaster)) {
 					return;
 				}
 				wege.add(path);
@@ -188,9 +192,11 @@
 			return;
 		}
 
-		// 💣 DER INDEX WIRD NUR BEI EINGESCHALTETEM HAKEN GERECHNET. Er kostet am Livebestand 465 ms
-		// (6.023 Wege × 2 Enden gegen 4.972 Orte, linear -- `getLocationAtPathEndpoint` hat kein
-		// Ortsraster, und eins hier danebenzustellen wäre die zweite Wahrheit). Diese Funktion läuft aber
+		// 💣 DER INDEX WIRD NUR BEI EINGESCHALTETEM HAKEN GERECHNET. Er kostete am Livebestand 465 ms
+		// (6.023 Wege × 2 Enden gegen 4.972 Orte, linear) und am 23.09.2026 schon rund 2,3 s (8.083 Wege
+		// gegen 6.923 Orte). Seither fragt er ueber ein Ortsraster -- es steht NEBEN
+		// getLocationAtPathEndpoint (map-features-location-editing.js), nicht hier, damit es keine zweite
+		// Wahrheit wird -- und kostet rund 25 ms. Der Riegel bleibt trotzdem: diese Funktion läuft aber
 		// bei JEDEM applyDisplayOptions und nach JEDER Feature-Änderung: stünde `holeIndex()` vor der
 		// Abfrage, zahlte jeder Editor die halbe Sekunde dauernd, ohne den Haken je angefasst zu haben.
 		let index = null;

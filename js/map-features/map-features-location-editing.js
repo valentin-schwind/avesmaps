@@ -15,11 +15,14 @@
 // liegen auf einem Ort; die uebrigen haengen allein an ihm, und sein Zusammenfassen haelt Knoten
 // im Netz, zwischen denen kein Weg gezeichnet ist (auf „naechster gewinnt" umzustellen riss
 // gemessen 56 Knoten aus dem Hauptnetz). Server-Zwilling: avesmapsFindClientLocationAtPathEndpoint.
-function getLocationAtPathEndpoint([x, y]) {
+function getLocationAtPathEndpoint([x, y], ortsRaster = null) {
 	let boxHit = null;
 	let exactHit = null;
 	let exactDistance = Infinity;
-	locationData.forEach((location) => {
+	// ⭐ Mit Ortsraster fragt dieselbe Regel nur die Orte der neun Nachbarzellen, in derselben
+	// Array-Reihenfolge -- ohne Raster wie bisher alle. Siehe avesmapsOrtsRaster direkt darunter.
+	const kandidaten = ortsRaster ? avesmapsOrtsRasterKandidaten(ortsRaster, x, y) : locationData;
+	kandidaten.forEach((location) => {
 		const [lat, lng] = location.coordinates;
 		if (Math.abs(lat - y) >= THRESHOLD || Math.abs(lng - x) >= THRESHOLD) {
 			return;
@@ -34,6 +37,83 @@ function getLocationAtPathEndpoint([x, y]) {
 		}
 	});
 	return exactHit || boxHit;
+}
+
+// ⭐ DAS ORTSRASTER (23.09.2026). getLocationAtPathEndpoint geht ohne Raster ALLE Orte durch -- fuer
+// einen einzelnen Wegpunkt gleichgueltig, fuer die zwei Massenaufrufer nicht: den Index des
+// Pruefhakens „Offene Wegenden" (baueIndex, map-features-open-path-check.js) und den Netzaufbau
+// (createGraph, route-graph-routing.js -- er traegt „Unverbunden" und „Kreuzungen mit 2 Wegen").
+// Beide fragen je ~16.000 Wegenden gegen ~6.900 Orte, rund 110 Millionen Vergleiche, und beide
+// laufen nach JEDEM Teilschritt einer Speicherung neu. Gemessen am 23.09.2026 (8.083 Wege,
+// 6.923 Orte, alle drei Pruefhaken an): „Weg teilen" fror den Editor 13-18 s ein, „Ort anbinden"
+// 2,4 s -- mit Raster 0,75 s und 0,13 s. Der Garetien-Import hatte Wege UND Orte um je ein Drittel
+// vermehrt; die Kosten wuchsen mit dem PRODUKT der beiden.
+// 🔴 DIE REGEL BLEIBT DIE EINE. Das Raster liefert nur KANDIDATEN, entschieden wird weiter oben in
+// getLocationAtPathEndpoint, Zeile fuer Zeile wie ohne Raster. Kandidat ist jeder Ort der neun
+// Zellen um den Punkt: ein Ort im Kasten (|dlat| und |dlng| < THRESHOLD) liegt zwingend in einer
+// davon, weil die Zelle groesser ist als THRESHOLD. Um ein Promille groesser, nicht gleich gross:
+// sonst hinge die Garantie an exakter Division -- bei 0,5 gegeben, bei 0,3 schon nicht mehr.
+// 💣 IN ARRAY-REIHENFOLGE. Ohne exakten Treffer entscheidet der Kasten nach der Reihenfolge in
+// locationData (der erste gewinnt, siehe oben). Ein Raster, das nach Zellen geordnet liefert,
+// kippt genau diese Willkuer -- deshalb Indizes und `sort`.
+// 💣 UND NUR FUER DEN BESTAND, AUS DEM ES GEBAUT WURDE. Ein Raster ist eine Momentaufnahme: ein
+// neuer, entfernter oder verschobener Ort macht es falsch, und zwar STILL (der Ort wird nicht
+// gefunden, kein Fehler). Deshalb wird es JE MASSENLAUF gebaut und durchgereicht (rund 2 ms), nie
+// aufgehoben. Ein ausgetauschtes oder gewachsenes locationData faengt der Riegel in
+// avesmapsOrtsRasterKandidaten ab (dann wieder der Durchlauf ueber alle), einen VERSCHOBENEN Ort
+// nicht -- der wird in place umgeschrieben (saveMovedLocationMarker), das sieht kein Riegel.
+// ⚠️ Orte ohne endliche Koordinaten stehen in JEDER Kandidatenliste: der Durchlauf ohne Raster
+// laesst sie durch den Kasten (NaN >= THRESHOLD ist false), also muss das Raster es auch.
+// Test: js/map-features/__tests__/ortsraster.test.js (alt gegen neu, Objekt fuer Objekt).
+function avesmapsOrtsRasterSchluessel(zelleX, zelleY) {
+	return `${zelleX}|${zelleY}`;
+}
+
+function avesmapsOrtsRaster() {
+	const zellenGroesse = THRESHOLD * 1.001;
+	const zellen = new Map();
+	const immer = [];
+	locationData.forEach((location, index) => {
+		const koordinaten = location?.coordinates;
+		const lat = Array.isArray(koordinaten) ? Number(koordinaten[0]) : NaN;
+		const lng = Array.isArray(koordinaten) ? Number(koordinaten[1]) : NaN;
+		if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+			immer.push(index);
+			return;
+		}
+		const schluessel = avesmapsOrtsRasterSchluessel(Math.floor(lng / zellenGroesse), Math.floor(lat / zellenGroesse));
+		const zelle = zellen.get(schluessel);
+		if (zelle) {
+			zelle.push(index);
+		} else {
+			zellen.set(schluessel, [index]);
+		}
+	});
+	return { orte: locationData, anzahl: locationData.length, zellenGroesse, zellen, immer };
+}
+
+function avesmapsOrtsRasterKandidaten(ortsRaster, x, y) {
+	const punktX = Number(x);
+	const punktY = Number(y);
+	if (ortsRaster.orte !== locationData || ortsRaster.anzahl !== locationData.length
+		|| !Number.isFinite(punktX) || !Number.isFinite(punktY)) {
+		return locationData;
+	}
+	const zelleX = Math.floor(punktX / ortsRaster.zellenGroesse);
+	const zelleY = Math.floor(punktY / ortsRaster.zellenGroesse);
+	const indizes = ortsRaster.immer.slice();
+	for (let dx = -1; dx <= 1; dx++) {
+		for (let dy = -1; dy <= 1; dy++) {
+			const zelle = ortsRaster.zellen.get(avesmapsOrtsRasterSchluessel(zelleX + dx, zelleY + dy));
+			if (zelle) {
+				for (let i = 0; i < zelle.length; i++) {
+					indizes.push(zelle[i]);
+				}
+			}
+		}
+	}
+	indizes.sort((a, b) => a - b);
+	return indizes.map((index) => locationData[index]);
 }
 
 function calculatePathCoordinateDistance(coordinates) {

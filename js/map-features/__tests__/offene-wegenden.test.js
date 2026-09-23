@@ -61,8 +61,18 @@ global.getComputedStyle = () => ({ getPropertyValue: () => "#e01b24" });
 // Router auseinander -- genau der Fehler, der den Kreuzungs-Prüfhaken 182 Falschmeldungen kostete.
 let endpunktAufrufe = 0;
 let orte = [];
-global.getLocationAtPathEndpoint = ([x, y]) => {
+// ⭐ Und das Ortsraster (avesmapsOrtsRaster, map-features-location-editing.js) als Marke: gezaehlt
+// wird, wie oft der Index eines BAUT und ob er es an jede Frage REICHT (23.09.2026).
+let rasterBauten = 0;
+const RASTER_MARKE = { marke: "ortsraster" };
+global.avesmapsOrtsRaster = () => {
+	rasterBauten += 1;
+	return RASTER_MARKE;
+};
+const endpunktRaster = [];
+global.getLocationAtPathEndpoint = ([x, y], ortsRaster) => {
 	endpunktAufrufe += 1;
+	endpunktRaster.push(ortsRaster);
 	return orte.find((ort) => Math.abs(ort[0] - x) < 0.5 && Math.abs(ort[1] - y) < 0.5) || null;
 };
 
@@ -108,6 +118,12 @@ assert.ok(endpunktAufrufe >= 6, "getLocationAtPathEndpoint wird je Wegende GERUF
 // Nirgendwo -- wer versehentlich ueber alle Koordinaten laeuft, meldet auch `heil` als kaputt.
 assert.strictEqual(window.avesmapsPathHasOpenEnd(heil), false,
 	"ein innerer Stuetzpunkt ohne Ort ist KEIN offenes Ende");
+
+// ⭐ Gefragt wird mit EINEM Ortsraster je Indexbau. Ohne Raster ging jede Frage alle Orte durch, und
+// der Index kostete am Livebestand vom 23.09.2026 rund 2,3 s -- nach JEDEM Teilschritt einer Speicherung.
+assert.strictEqual(rasterBauten, 1, "der Index baut EIN Ortsraster, nicht eins je Wegende");
+assert.ok(endpunktRaster.length >= 6 && endpunktRaster.every((raster) => raster === RASTER_MARKE),
+	"und reicht es an JEDE Frage durch");
 
 // --- 2. Kein Bestand, kein Urteil ---------------------------------------------------------------
 // 💣 Vor dem Eintreffen der Features faende die Endpunktsuche nirgends einen Ort. Ein Index, der das
