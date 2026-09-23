@@ -329,7 +329,14 @@ assert(str_contains($rumpf($speicher, 'avesmapsGaretienListeSpeicherLesen'), "'a
     '🔴 der Speicher wird ohne Klassen entpackt');
 assert(!str_contains($speicher, 'LOCK_EX') && !str_contains($speicher, 'flock('),
     '💣 keine Dateisperre -- sie hat auf STRATOs NFS den PHP-Pool festgefahren');
-$pruefungen += 4;
+// 💣 Abschnitt L faengt das Fehlen nur mit dem PHP des Tors (8.3, Linux: haelt die Dateizeit nach touch()
+// fest) -- unter Windows bliebe er gruen, und der Fehler kaeme erst im Deploy-Tor. Deshalb auch am Quelltext.
+$leserRumpf = $rumpf($speicher, 'avesmapsGaretienListeSpeicherLesen');
+$statLeeren = strpos($leserRumpf, 'clearstatcache(true, $datei);');
+$istDatei = strpos($leserRumpf, 'is_file($datei)');
+assert($statLeeren !== false && $istDatei !== false && $statLeeren < $istDatei,
+    '💣 der Leser leert den Stat-Zwischenspeicher der Datei, BEVOR er ihre Zeit liest');
+$pruefungen += 5;
 $endpunkt = $ohneKommentare(str_replace("\r\n", "\n", (string) file_get_contents(__DIR__ . '/../../../edit/map/garetien-import.php')));
 $einschalten = strpos($endpunkt, "avesmapsGaretienListeSpeicherOrt(sys_get_temp_dir()");
 $ersteListe = strpos($endpunkt, "\$action === 'liste'");

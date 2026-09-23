@@ -141,6 +141,8 @@ try {
     // Teil der Objekte eines offenen Laufs (garetien-liste-speicher.php); `liste`, `naehe` und
     // `innerorts_kandidaten` bauen damit nicht mehr bei jedem Klick alle Objekte neu. Die Bibliothek
     // laeuft ohne ihn (Tests), bis ihn jemand einschaltet.
+    // ⚠️ Deploy-Vermerk 23.09.2026: der Lauf fuer 568bcd410 fiel bei den Unit-Tests, diese Datei kam nie auf den Server.
+    //    Ein roter Lauf laedt nichts hoch, der naechste rechnet ab dem roten Commit (AGENTS.md §9) -- diese Zeilen holen sie nach.
     avesmapsGaretienListeSpeicherOrt(sys_get_temp_dir() . '/avesmaps_garetien_liste');
 
     // --- Was liegt im Staging?

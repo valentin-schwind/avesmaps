@@ -24,6 +24,8 @@ require_once __DIR__ . '/../app/settlement-places.php';
 require_once __DIR__ . '/garetien-uebernahme.php';
 // Der Zwischenspeicher des FESTEN Teils (avesmapsGaretienArbeitslisteObjekte). Aus, solange ihn niemand
 // einschaltet -- nur der Endpunkt tut das.
+// ⚠️ Deploy-Vermerk 23.09.2026: der Lauf fuer 568bcd410 fiel bei den Unit-Tests, diese Datei kam nie auf den Server.
+//    Ein roter Lauf laedt nichts hoch, der naechste rechnet ab dem roten Commit (AGENTS.md §9) -- diese Zeilen holen sie nach.
 require_once __DIR__ . '/garetien-liste-speicher.php';
 
 /**

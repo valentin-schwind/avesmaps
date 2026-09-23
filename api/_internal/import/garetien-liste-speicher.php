@@ -122,6 +122,11 @@ function avesmapsGaretienListeSpeicherLesen(string $schluessel, string $signatur
         return null;
     }
     $datei = avesmapsGaretienListeSpeicherDatei($schluessel);
+    // 💣 Das PHP des Deploy-Tors (8.3, Linux) haelt die Dateizeit im Stat-Zwischenspeicher, auch nachdem
+    // `touch()` sie geaendert hat -- gemessen 23.09.2026 (nach touch 0 s alt, erst nach clearstatcache
+    // 1000 s; PHP 8.5 unter Windows sofort 1000 s). Ohne die Zeile las der Test die Frist unter Windows
+    // gruen und im Deploy-Tor rot. Dasselbe Muster wie avesmapsSchemaEnsureOnce.
+    clearstatcache(true, $datei);
     if (!is_file($datei)) {
         return null;
     }
