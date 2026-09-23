@@ -5,6 +5,19 @@
 // Territorium erzeugt nie zwei Labels (z. B. wenn Derived + Quelle koexistieren).
 let politicalRegionLabeledTerritoryKeys = new Set();
 
+// 💣 GEBIETSNAMEN NUR IN "political" (23.09.2026). Die Ebene laedt auch in "Standard" und
+// "Landschaften" (TERRITORY_BOUNDARY_MODES im Loader, fuer die Grenzlinien), und jeder Aufbau
+// rasterte fuer JEDES Gebiet sofort den Namen (createRegionLabelMarkup -> renderMapLabelToImage ->
+// toDataURL) -- gezeigt werden Namen aber nur in "political". Gemessen bei Zoom 4: 853 Namen gebaut,
+// 0 auf der Karte, ~1,1 s toDataURL je neuer Zoomstufe. Seither baut der Loader keinen Namen mehr
+// selbst: er merkt sich hier je Gebiet, womit er ihn gebaut HAETTE, in Aufbau-Reihenfolge, und
+// syncRegionVisibility baut die vorgemerkten (addPendingRegionLabels), sobald "political" angezeigt
+// wird -- direkt nach jedem Aufbau und beim Wechsel der Ansicht. EIN Weg, keine zwei.
+// 🔴 Die Reihenfolge ist tragend: politicalRegionLabeledTerritoryKeys gibt den Namen eines
+// Territoriums dem ERSTEN Stueck, das ihn bekommen darf -- in anderer Reihenfolge nachgetragen,
+// stuende er an einem anderen Stueck.
+let pendingRegionLabels = [];
+
 // Wappen-Blink-Fix (gleiche Wurzel wie Perf-Hebel #1 "political full teardown+rebuild per moveend"):
 // im political-Modus wird der Layer bei JEDEM moveend neu geladen, ein Same-Zoom-Pan liefert aber
 // IDENTISCHE Daten. Statt jedes Regionen-Label (mit frischem coat-<img>) zu zerstoeren und neu zu
@@ -157,6 +170,7 @@ function clearRenderedRegionLayers() {
 	regionLabels = [];
 	regionData = [];
 	politicalRegionLabeledTerritoryKeys = new Set();
+	pendingRegionLabels = [];
 	politicalRegionDerivedByTerritory = null;
 	politicalRegionFillSuppressedByDisplayingChild = null;
 	clearRegionGeometryEdit();
@@ -385,8 +399,102 @@ function readDerivedBoundarySourceGeometryIds(properties) {
 	return ids;
 }
 
-function addRegionFeatureToMap(region, regionEntry) {
+// Der Name EINES Gebiets an seinem ersten Polygon: Anker, Umbruchbreite, Namensbild, Tooltip.
+// Herausgeloest aus addRegionFeatureToMap (23.09.2026), damit ein Aufbau ohne Namen ihn spaeter
+// nachtragen kann -- mit DENSELBEN Argumenten und in derselben Reihenfolge (pendingRegionLabels).
+function addRegionLabelForPolygon(region, regionEntry, polygon, visuallyHidden) {
 	const name = regionEntry.name;
+	const territoryLabelKey = String(regionEntry.territoryPublicId || "").trim();
+	const territoryAlreadyLabeled = territoryLabelKey !== "" && politicalRegionLabeledTerritoryKeys.has(territoryLabelKey);
+	// Wenn das Gebiet eine Derived (volle Hülle) hat, soll NUR die das Label tragen
+	// (zentraler polylabel-Punkt) — Quell-Fragmente weichen aus, auch wenn sie früher kommen.
+	const derivedKeys = politicalRegionDerivedByTerritory || indexPoliticalRegionDerivedByTerritory();
+	const derivedInfo = derivedKeys.get(territoryLabelKey) || null;
+	const deferLabelToDerived = !regionEntry.isDerivedGeometry && territoryLabelKey !== "" && derivedInfo !== null && derivedInfo.labelable === true;
+	if (regionEntry.showRegionLabel !== false && !visuallyHidden && !territoryAlreadyLabeled && !deferLabelToDerived) {
+		if (territoryLabelKey !== "") politicalRegionLabeledTerritoryKeys.add(territoryLabelKey);
+		// Label-Anker = Pole of Inaccessibility (polylabel) der Feature-Geometrie: liegt in
+		// der "dicksten" Stelle (bei MultiPolygon im größten Teil), auch bei konkaven Formen
+		// sicher INNEN. Fallback: gespeicherter Wert, dann BBox-Mitte.
+		const labelPoi = typeof avesmapsComputeLabelPoint === "function"
+			? avesmapsComputeLabelPoint((derivedInfo && derivedInfo.geometry) ? derivedInfo.geometry : region.geometry)
+			: null;
+		const labelLatLng = labelPoi
+			? L.latLng(labelPoi.y, labelPoi.x)
+			: (regionEntry.labelLat !== null && regionEntry.labelLng !== null
+				? L.latLng(regionEntry.labelLat, regionEntry.labelLng)
+				: polygon.getBounds().getCenter());
+		const labelMaxWidthPx = computeRegionLabelMaxWidthPx(labelLatLng, labelPoi);
+		const labelMarkup = createRegionLabelMarkup(regionEntry, name, labelMaxWidthPx, Math.round(Number(map.getZoom())));
+		const reuseKey = territoryLabelKey || "";
+		const pooledLabel = reuseKey !== "" ? reusableRegionLabelsByKey.get(reuseKey) : null;
+		let label;
+		if (pooledLabel) {
+			// Wiederverwenden: das bereits geladene coat-<img> erhalten. Position nur bei Aenderung
+			// setzen; setContent (zerstoert das <img> -> Blinken) NUR wenn sich das Markup wirklich
+			// geaendert hat (Wappen/Name/Zoom-Band) -> reiner Pan blinkt nicht mehr.
+			reusableRegionLabelsByKey.delete(reuseKey);
+			label = pooledLabel;
+			const currentLatLng = label.getLatLng();
+			if (!currentLatLng || currentLatLng.lat !== labelLatLng.lat || currentLatLng.lng !== labelLatLng.lng) {
+				label.setLatLng(labelLatLng);
+			}
+			if (label._regionLabelMarkup !== labelMarkup) {
+				label.setContent(labelMarkup);
+				label._regionLabelMarkup = labelMarkup;
+			}
+		} else {
+			label = L.tooltip({
+				permanent: true,
+				direction: "center",
+				offset: [0, 0],
+				opacity: 1,
+				className: "region-label",
+				pane: "regionLabelsPane"
+			})
+				.setLatLng(labelLatLng)
+				.setContent(labelMarkup);
+			label._regionLabelMarkup = labelMarkup;
+		}
+		label._territoryKey = reuseKey;
+
+		regionEntry.label = label;
+		label._regionLabelPriority = labelPoi ? labelPoi.distance : 0; regionLabels.push(label);
+	}
+}
+
+// Baut die Namen, die der Loader vorgemerkt hat. Gerufen von syncRegionVisibility, sobald "political"
+// angezeigt wird (direkt nach jedem Aufbau und beim Wechsel der Ansicht) -- vor der Flaechen- und der
+// Label-Schleife, damit sie in demselben Durchgang auf die Karte kommen. Nach einem Aufbau steht der Wiederverwendungs-Pool
+// noch (geleert wird er erst im finally des Loaders) -- ein Name ueberlebt den Pan also weiterhin ohne
+// Blinken. Ein Stueck, das inzwischen nicht mehr gezeichnet wird (geloescht, herausgeloest), bekommt
+// keinen Namen mehr, und ein Eintrag, der schon einen hat, keinen zweiten. Gibt die Zahl der gebauten
+// Namen zurueck.
+function addPendingRegionLabels() {
+	if (pendingRegionLabels.length === 0) {
+		return 0;
+	}
+	const pending = pendingRegionLabels;
+	pendingRegionLabels = [];
+	const rendered = new Set(regionPolygons);
+	const before = regionLabels.length;
+	pending.forEach(({ region, regionEntry, polygon, visuallyHidden }) => {
+		if (!rendered.has(polygon) || regionEntry.label) {
+			return;
+		}
+		addRegionLabelForPolygon(region, regionEntry, polygon, visuallyHidden);
+	});
+	const created = regionLabels.length - before;
+	// Wie nach einem Aufbau mit Namen im Loader: die Abstossung erst, wenn die Namen da sind.
+	if (created > 0 && typeof scheduleLabelCollisionResolution === "function") {
+		scheduleLabelCollisionResolution();
+	}
+	return created;
+}
+
+// withLabels = false: der Name wird nicht gebaut, sondern vorgemerkt (pendingRegionLabels). Das setzt
+// nur der Loader; alle anderen Aufrufer (Anlegen im Editor, Live-Abgleich) bauen wie bisher sofort.
+function addRegionFeatureToMap(region, regionEntry, { withLabels = true } = {}) {
 	const visuallyHidden = shouldHideRegionForDerivedBoundary(region, regionEntry);
 	const polygonStyle = buildRegionPolygonStyle(regionEntry, region);
 	// Frontend "Politisch": nur die Aussengrenze (Derived-Huelle) eines Aggregats ist interaktiv.
@@ -471,62 +579,12 @@ function addRegionFeatureToMap(region, regionEntry) {
 			polygon.bringToBack();
 		}
 		regionPolygons.push(polygon);
-		const territoryLabelKey = String(regionEntry.territoryPublicId || "").trim();
-		const territoryAlreadyLabeled = territoryLabelKey !== "" && politicalRegionLabeledTerritoryKeys.has(territoryLabelKey);
-		// Wenn das Gebiet eine Derived (volle Hülle) hat, soll NUR die das Label tragen
-		// (zentraler polylabel-Punkt) — Quell-Fragmente weichen aus, auch wenn sie früher kommen.
-		const derivedKeys = politicalRegionDerivedByTerritory || indexPoliticalRegionDerivedByTerritory();
-		const derivedInfo = derivedKeys.get(territoryLabelKey) || null;
-		const deferLabelToDerived = !regionEntry.isDerivedGeometry && territoryLabelKey !== "" && derivedInfo !== null && derivedInfo.labelable === true;
-		if (index === 0 && regionEntry.showRegionLabel !== false && !visuallyHidden && !territoryAlreadyLabeled && !deferLabelToDerived) {
-			if (territoryLabelKey !== "") politicalRegionLabeledTerritoryKeys.add(territoryLabelKey);
-			// Label-Anker = Pole of Inaccessibility (polylabel) der Feature-Geometrie: liegt in
-			// der "dicksten" Stelle (bei MultiPolygon im größten Teil), auch bei konkaven Formen
-			// sicher INNEN. Fallback: gespeicherter Wert, dann BBox-Mitte.
-			const labelPoi = typeof avesmapsComputeLabelPoint === "function"
-				? avesmapsComputeLabelPoint((derivedInfo && derivedInfo.geometry) ? derivedInfo.geometry : region.geometry)
-				: null;
-			const labelLatLng = labelPoi
-				? L.latLng(labelPoi.y, labelPoi.x)
-				: (regionEntry.labelLat !== null && regionEntry.labelLng !== null
-					? L.latLng(regionEntry.labelLat, regionEntry.labelLng)
-					: polygon.getBounds().getCenter());
-			const labelMaxWidthPx = computeRegionLabelMaxWidthPx(labelLatLng, labelPoi);
-			const labelMarkup = createRegionLabelMarkup(regionEntry, name, labelMaxWidthPx, Math.round(Number(map.getZoom())));
-			const reuseKey = territoryLabelKey || "";
-			const pooledLabel = reuseKey !== "" ? reusableRegionLabelsByKey.get(reuseKey) : null;
-			let label;
-			if (pooledLabel) {
-				// Wiederverwenden: das bereits geladene coat-<img> erhalten. Position nur bei Aenderung
-				// setzen; setContent (zerstoert das <img> -> Blinken) NUR wenn sich das Markup wirklich
-				// geaendert hat (Wappen/Name/Zoom-Band) -> reiner Pan blinkt nicht mehr.
-				reusableRegionLabelsByKey.delete(reuseKey);
-				label = pooledLabel;
-				const currentLatLng = label.getLatLng();
-				if (!currentLatLng || currentLatLng.lat !== labelLatLng.lat || currentLatLng.lng !== labelLatLng.lng) {
-					label.setLatLng(labelLatLng);
-				}
-				if (label._regionLabelMarkup !== labelMarkup) {
-					label.setContent(labelMarkup);
-					label._regionLabelMarkup = labelMarkup;
-				}
+		if (index === 0) {
+			if (withLabels) {
+				addRegionLabelForPolygon(region, regionEntry, polygon, visuallyHidden);
 			} else {
-				label = L.tooltip({
-					permanent: true,
-					direction: "center",
-					offset: [0, 0],
-					opacity: 1,
-					className: "region-label",
-					pane: "regionLabelsPane"
-				})
-					.setLatLng(labelLatLng)
-					.setContent(labelMarkup);
-				label._regionLabelMarkup = labelMarkup;
+				pendingRegionLabels.push({ region, regionEntry, polygon, visuallyHidden });
 			}
-			label._territoryKey = reuseKey;
-
-			regionEntry.label = label;
-			label._regionLabelPriority = labelPoi ? labelPoi.distance : 0; regionLabels.push(label);
 		}
 		bindRegionCompactTooltip(polygon, regionEntry);
 		bindRegionHoverTooltip(polygon, regionEntry);

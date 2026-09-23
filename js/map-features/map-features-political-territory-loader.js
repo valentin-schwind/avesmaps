@@ -526,6 +526,15 @@ function installPoliticalRegionVisibilityBehavior() {
 			window.AvesmapsBoundaryCanvasOverlay?.redraw?.();
 		}
 
+		// Die Namen, die der Loader vorgemerkt hat, JETZT bauen -- nur hier und nur in "political"
+		// (pendingRegionLabels, map-features-region-rendering.js). Ohne Vorgemerktes kostet das nichts.
+		// 🔴 VOR der Flaechen-Schleife, nicht danach: so entstehen die Namen, solange die Flaechen noch
+		// nicht auf der Karte stehen -- derselbe Zustand, in dem sie frueher der Aufbau baute. Danach
+		// gemessen (23.09.2026, je zwei Laeufe): rund 0,3 s mehr Rechenzeit je Zoomschritt in "political".
+		if (showRegions) {
+			addPendingRegionLabels();
+		}
+
 		regionPolygons.forEach((layer) => {
 			// Zoom-Band-Filter (wie im Original syncRegionVisibility): der Fan-out-Merge spielt
 			// Nachbarzoom-Geometrien (z. B. Baronien, Band 4-6) in regionData ein – die duerfen bei
@@ -767,8 +776,12 @@ async function loadPoliticalTerritoryLayer() {
 			applyPoliticalTerritoryPendingStyleOverrides(region);
 		});
 		applyPoliticalTerritoryDerivedBoundaryVisibility(regionData);
+		// 💣 Namen baut der Loader NIE selbst: er merkt sie vor (pendingRegionLabels,
+		// map-features-region-rendering.js), und syncRegionVisibility direkt darunter baut sie -- aber nur
+		// in "political". In "Standard" und "Landschaften" kostete jeder Aufbau sonst ~1 s fuer Namen, die
+		// dort nie erscheinen; beim Wechsel nach "political" baut sie dieselbe Stelle nach.
 		regionData.forEach((region) => {
-			addRegionFeatureToMap(region, normalizeRegionFeature(region));
+			addRegionFeatureToMap(region, normalizeRegionFeature(region), { withLabels: false });
 		});
 		politicalTerritoryLayerLoadedZoom = requestedZoom; // zoom captured before the await (no TOCTOU)
 		politicalTerritoryLayerLoadedKey = parsedCacheKey;

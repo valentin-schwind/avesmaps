@@ -14,6 +14,11 @@ function syncRegionVisibility() {
 		window.AvesmapsContestedHatchOverlay?.redraw?.();
 	}
 
+	// Wie in der aktiven Fassung im Loader: vorgemerkte Gebietsnamen bauen, VOR der Flaechen-Schleife.
+	if (showRegions) {
+		addPendingRegionLabels();
+	}
+
 	regionPolygons.forEach((layer) => {
 		const regionEntry = layer?._regionEntry || null;
 		const minZoom = readOptionalRegionZoom(regionEntry?.minZoom);
