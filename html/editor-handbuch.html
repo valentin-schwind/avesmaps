@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 24.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 25.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -1947,7 +1947,7 @@
 					<img src="screenshots/21-quellen-editor.png" width="460" alt="Der Bereich Quellen: oben die bestehende Quelle mit Typ-Schild und Namensnennung, darunter die aufgeklappte Eingabezeile mit den drei Bloecken Gilt fuer alle Objekte, Gilt fuer den ganzen Korpus und Nur an diesem Objekt" />
 					<figcaption>Der Bereich <strong>„Quellen"</strong>: oben die bestehende Quelle mit <em>Typ</em> und Namensnennung, darunter die aufgeklappte Eingabezeile — sie ist nach den <strong>drei Reichweiten</strong> geordnet.</figcaption>
 				</figure>
-				<p>Eine neue Quelle trägst du unter der zugeklappten Falte <strong>„Neue Quelle einfügen"</strong> ein. Die Eingabezeile hat dieselben drei Stufen wie das ✎ darunter, von weit nach eng:</p>
+				<p>Eine neue Quelle trägst du unter der zugeklappten Falte <strong>„Neue Quelle einfügen"</strong> ein. Die Eingabezeile hat dieselben drei Stufen wie das ✎ darunter:</p>
 				<ol class="hb-steps">
 					<li><strong>Adresse</strong> einfügen — die Seite über <em>dieses</em> Objekt, nicht die Startseite. Der Knopf <strong>⟳</strong> prüft sie und holt den <strong>Titel</strong>. In den Titel gehört der <em>Veröffentlichungstitel</em>, keine Umschreibung.</li>
 					<li><strong>„Gilt für den ganzen Korpus"</strong> — Name des Korpus, Art, Lizenz, Namensnennung und offiziell.</li>
@@ -1960,11 +1960,11 @@
 				<p>Es klappt ein Feld auf, das in <strong>drei Stufen</strong> geteilt ist. Jede Stufe sagt in ihrer Überschrift, wie weit sie reicht.</p>
 				<table class="hb-table">
 					<tr><th>Stufe</th><th>Felder</th><th>Reichweite</th></tr>
-					<tr><td><strong>Nur an diesem Objekt</strong></td><td>Seite(n), Abdeckung</td><td>nur hier</td></tr>
-					<tr><td><strong>Gilt für alle Objekte, die diese Quelle zitieren</strong></td><td>Adresse, Titel</td><td>die Überschrift nennt die Zahl</td></tr>
+					<tr><td><strong>Gilt für alle Objekte, die diese Quelle zitieren</strong></td><td>Adresse, Titel, „Kein Korpus verwenden"</td><td>die Überschrift nennt die Zahl</td></tr>
 					<tr><td><strong>Gilt für den ganzen Korpus</strong></td><td>Form, Quellenart, Lizenz, Namensnennung, offiziell</td><td>alle Quellen desselben Wirts</td></tr>
+					<tr><td><strong>Nur an diesem Objekt</strong></td><td>Seite(n), Abdeckung; darunter eine abweichende Quellenart, Lizenz und Namensnennung</td><td>Seiten und Abdeckung nur hier</td></tr>
 				</table>
-				<div class="hb-note hb-warn"><strong>Die dritte Stufe ändert nicht eine Quelle, sondern einen ganzen Wirt.</strong> Ein <em>Korpus</em> ist alles von einer Adresse, etwa <em>garetien.de</em>; die Überschrift nennt seinen Namen und wie viele Quellen und Objekte daran hängen. Soll ein Wert nur für <em>diese</em> Quelle gelten, hak daneben <strong>„nur diese Quelle"</strong> an.</div>
+				<div class="hb-note hb-warn"><strong>Die Korpus-Stufe ändert nicht eine Quelle, sondern einen ganzen Wirt.</strong> Ein <em>Korpus</em> ist alles von einer Adresse, etwa <em>garetien.de</em>; die Überschrift nennt seinen Namen und wie viele Quellen und Objekte daran hängen. Soll Quellenart, Lizenz oder Namensnennung nur für <em>diese</em> Quelle gelten, stell sie unter <strong>„Nur an diesem Objekt"</strong> um; dort steht jedes Feld auf <em>„wie Korpus"</em>. Die Abweichung gilt an allen Objekten, die diese Quelle zitieren.</div>
 				<div class="hb-note hb-warn"><strong>Bei einer Wiki-Publikation sind Adresse, Titel und „offiziell" gesperrt.</strong> Sie gehören dem Abgleich — von Hand geändert stünde beim nächsten Lauf wieder sein Wert da. Seiten, Abdeckung, Lizenz und Namensnennung kannst du trotzdem setzen.</div>
 				<div class="hb-note hb-tip"><strong>Beim Anlegen trägst du Quellen sofort mit ein.</strong> Ein Ort, den du gerade erst anlegst, hat noch keine Kennung, an der eine Quelle hängen könnte. Der Block sammelt sie deshalb unter <em>„Wird beim Anlegen übernommen"</em> und hängt sie an, sobald du gespeichert hast — Autocomplete und ✕ funktionieren dabei wie gewohnt.</div>
 
