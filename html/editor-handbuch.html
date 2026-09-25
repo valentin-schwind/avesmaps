@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 25.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 26.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -589,6 +589,7 @@
 					<li>Knoten <strong>ziehen</strong> verschiebt sie.</li>
 					<li><strong>Doppelklick auf die Linie</strong> fügt einen Knoten hinzu, <strong>Doppelklick auf einen Knoten</strong> löscht ihn.</li>
 					<li><strong>Rechtsklick auf einen Zwischenknoten → „Neue Kreuzung und Weg teilen"</strong> — der Ein-Klick-Befehl für Regel 1 weiter unten. Beide Hälften behalten Name, Bach, Strömung und Quellen.</li>
+					<li>Daneben steht <strong>„Weg teilen (ohne Kreuzung)"</strong>. Er teilt nur. An der Teilstelle liegt dann keine Kreuzung, und „Offene Wegenden" meldet sie als losen Stoß.</li>
 				</ul>
 				<figure class="hb-shot">
 					<img src="screenshots/04-verlaufeditieren.png" alt="Ausgewaehlter Weg Reichsstrasse 1 mit sichtbaren Knotenpunkten und dem Popup mit Bearbeiten, Verlauf bearbeiten, Weg loeschen" />
@@ -1040,6 +1041,7 @@
 					<li><strong>Rechtsklick auf die leere Karte</strong> → „Hier hinzufügen" → <strong>„Neue Vegetation"</strong>, <strong>„Neue Topographie"</strong> oder <strong>„Neue Derographische Region"</strong>. Der Eintrag schaltet zugleich auf die passende Ebene.</li>
 					<li><strong>Klicken setzt Punkt für Punkt</strong> den Umriss; eine Linie läuft mit dem Zeiger mit und zeigt ab dem zweiten Punkt auch schon den Schluss zurück zum Anfang.</li>
 					<li><strong>Doppelklick oder <kbd>Enter</kbd></strong> schließt die Fläche ab, <strong><kbd>Esc</kbd></strong> bricht ab.</li>
+					<li><strong><kbd>Leertaste</kbd> halten</strong> zählt jeden Klick als eigenen Punkt: Kein Doppelklick schließt ab, die Karte verschiebt sich nicht. Gut für eng gesetzte Ecken.</li>
 					<li>Erst beim Abschließen entsteht etwas — danach geht das <a href="#landschaften">Bearbeiten-Fenster</a> auf. Es heißt nach seiner Ebene: <em>„Vegetation bearbeiten"</em>, <em>„Topographie bearbeiten"</em> oder <em>„Derographie bearbeiten"</em>.</li>
 				</ol>
 				<div class="hb-note hb-tip"><strong>Vor dem Abschluss ist nichts geschrieben.</strong> Ein Abbruch mit <kbd>Esc</kbd> kostet also gar nichts und hinterlässt keine halbe Fläche. Mit dem Schließen des Umrisses bekommt die Fläche <em>ihre eigene</em> Region.</div>
@@ -2094,12 +2096,12 @@
 					<li><strong>Hier hinzufügen</strong> (nur im Bearbeiten-Modus, unter der Überschrift <em>„Anlegen — nur Editoren"</em>): <strong>was hier steht, hängt an der Ansicht</strong> — siehe die Tabelle unten.</li>
 					<li><strong>Immer:</strong> Was ist hier? · Hierher reisen · Hier etwas melden · Nächsten Ort finden · Auf Karte suchen · Entfernung messen</li>
 				</ul>
-				<p>Ein Eintrag erscheint nur situativ: <strong>„Neue Kreuzung und Weg teilen"</strong> beim Rechtsklick auf einen Zwischenknoten während „Verlauf bearbeiten".</p>
+				<p>Zwei Einträge erscheinen nur situativ: <strong>„Neue Kreuzung und Weg teilen"</strong> und <strong>„Weg teilen (ohne Kreuzung)"</strong> beim Rechtsklick auf einen Zwischenknoten während „Verlauf bearbeiten".</p>
 				<div class="hb-note hb-tip"><strong>„Was ist hier?" setzt die Markierung und sagt dir, was an der Stelle liegt</strong> — Herrschaftskette mit Wappen, die Landschaftsebenen, die Klimazone, Natur &amp; Waren und die nächsten Orte und Wege mit Entfernung. Den Teil-Link auf den Punkt holst du dort über die Kachel <strong>„Link teilen"</strong>. Es gibt genau <em>eine</em> Markierung: Ein Klick auf sie öffnet das Panel wieder, ein geteilter Link bringt die Auskunft mit.</div>
 				<p><strong>„Hier hinzufügen" bietet an, was zur eingestellten Ansicht passt.</strong> Du legst an, was du siehst.</p>
 				<table class="hb-table">
 					<tr><th>Ansicht</th><th>Was „Hier hinzufügen" anbietet</th></tr>
-					<tr><td><strong>Standard</strong></td><td>Neuer Ort · Neue Kreuzung · Neuer Weg · Neues freies Label (dazu situativ „Neue Kreuzung und Weg teilen")</td></tr>
+					<tr><td><strong>Standard</strong></td><td>Neuer Ort · Neue Kreuzung · Neuer Weg · Neues freies Label (dazu situativ die zwei „Weg teilen"-Einträge)</td></tr>
 					<tr><td><strong>Politisch</strong></td><td>Neues Herrschaftsgebiet — und <em>nur</em> das</td></tr>
 					<tr><td><strong>Landschaften</strong></td><td><em>Alles aus der Standardansicht</em>, dazu Neue Derographische Region · Neue Vegetation · Neue Topographie · Höhenpunkt setzen · Grenzen aus Territorien importieren</td></tr>
 					<tr><td><strong>Kraftlinien</strong></td><td>Neuer Ort · Neue Kreuzung · Neues freies Label</td></tr>
