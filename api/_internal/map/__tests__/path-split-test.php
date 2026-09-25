@@ -91,6 +91,20 @@ foreach (['Flussweg', 'Straße'] as $subtype) {
     assert((int) $pdo->query("SELECT COUNT(*) FROM feature_sources WHERE entity_public_id = '" . $payload['public_id'] . "'")->fetchColumn() === 3);
 }
 
+// Fall #<neu>: "Weg teilen (ohne Kreuzung)" -- create_crossing:false legt keine dritte Zeile an.
+[$pdo, $payload, $properties, $geometry] = splitFixture('Straße');
+$payload['create_crossing'] = false;
+$result = avesmapsSplitPathFeature($pdo, $payload, $user);
+assert($result['crossing'] === null, 'Keine Kreuzung in der Antwort.');
+assert(count($result['paths']) === 2);
+assert((int) $pdo->query('SELECT COUNT(*) FROM map_features')->fetchColumn() === 3, 'Original (deaktiviert) plus zwei Wegteile, keine Kreuzung.');
+assert((int) $pdo->query("SELECT COUNT(*) FROM map_features WHERE feature_type = 'junction'")->fetchColumn() === 0);
+assert((int) $pdo->query('SELECT COUNT(*) FROM map_audit_log')->fetchColumn() === 3, 'Zwei Wegteile plus die Deaktivierung, keine Kreuzungs-Zeile.');
+foreach ($result['paths'] as $path) {
+    $row = $pdo->query("SELECT * FROM map_features WHERE public_id = '" . $path['id'] . "'")->fetch();
+    assert(json_decode($row['properties_json'], true) === $properties, 'Eigenschaften bleiben auch ohne Kreuzung erhalten.');
+}
+
 foreach (['stale', 'endpoint', 'fraction', 'missing_revision', 'empty_revision', 'unsaved', 'closed_half', 'wrong_type', 'locked', 'source_failure'] as $case) {
     [$pdo, $payload] = splitFixture();
     if ($case === 'stale') { $payload['expected_revision'] = 6; }

@@ -71,4 +71,59 @@ async function run() {
     console.log("OK: Teilungsablauf, Bach, sofortige Quellen/Kanon-Anzeige, Fehler und Revision");
 }
 
-run().catch((error) => { console.error(error); process.exitCode = 1; });
+// „Weg teilen (ohne Kreuzung)": create_crossing:false reist mit, und ohne Kreuzung in der Antwort
+// wird kein Kreuzungsmarker angelegt.
+async function runPlainSplit() {
+    const original = { id: "original", geometry: { coordinates: [[10, 20], [15, 27], [30, 40]] }, properties: { revision: 7 } };
+    const requests = [];
+    const effects = [];
+    const messages = [];
+    const response = { feature: { revision: 8, crossing: null, paths: [
+        { id: "first", properties: {} }, { id: "second", properties: {} },
+    ] } };
+    const context = vm.createContext({
+        console: { error() {} },
+        window: { __featureSourceRefs: {}, __sourceCatalog: {}, __featureKanon: { abweichungen: {} } },
+        L: { latLng: (lat, lng) => typeof lat === "object" ? lat : { lat, lng } },
+        pathData: [original], activePathGeometryEdit: null,
+        getPathPublicId: (item) => item.id,
+        findLocationMarkerByPublicId: () => null,
+        findPathByPublicId: (id) => id === "original" ? original : null,
+        mapDataSourceStatus: { revision: 7 },
+        updateMapDataStatus: () => {},
+        showFeedbackToast: (message, type) => { effects.push(type); messages.push(message); },
+        removePathFeature: () => effects.push("remove"),
+        addCreatedCrossingMarker: () => effects.push("crossing"),
+        ensureCrossingsEnabled: () => effects.push("enable"),
+        addCreatedPathFeature: (feature) => effects.push(feature.id),
+    });
+    vm.runInContext(stateSource, context);
+    vm.runInContext(popupSource, context);
+    vm.runInContext(source, context);
+    context.submitMapFeatureEdit = async (payload) => {
+        requests.push(context.withExpectedRevision(payload));
+        return response;
+    };
+    await context.splitPathAtNode({ path: original, nodeIndex: 1 }, { createCrossing: false });
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].create_crossing, false, "create_crossing:false reist im Rumpf mit");
+    assert.deepEqual(effects, ["remove", "first", "second", "success"], "kein Kreuzungsmarker und keine Kreuzungs-Sichtbarkeit ohne Kreuzung in der Antwort");
+    assert.equal(messages[0], "Weg geteilt.", "eigener Erfolgstext ohne Kreuzungs-Erwaehnung");
+
+    // Ohne den Aufrufparameter bleibt das bisherige Verhalten Zeile fuer Zeile erhalten (Default true).
+    const requestsDefault = [];
+    const responseWithCrossing = { feature: { revision: 8, crossing: { public_id: "crossing" }, paths: [
+        { id: "third", properties: {} }, { id: "fourth", properties: {} },
+    ] } };
+    context.submitMapFeatureEdit = async (payload) => {
+        requestsDefault.push(context.withExpectedRevision(payload));
+        return responseWithCrossing;
+    };
+    original.geometry.coordinates = [[10, 20], [15, 27], [30, 40]];
+    await context.splitPathAtNode({ path: original, nodeIndex: 1 });
+    assert.equal(requestsDefault[0].create_crossing, undefined, "ohne Aufrufparameter wird create_crossing nicht mitgeschickt");
+
+    console.log("OK: Weg teilen ohne Kreuzung -- Payload, kein Marker, eigener Erfolgstext, Default unveraendert");
+}
+
+run().then(runPlainSplit).catch((error) => { console.error(error); process.exitCode = 1; });

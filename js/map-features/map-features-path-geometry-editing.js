@@ -120,7 +120,7 @@ function getPathSplitCoordinateGroups(path, nodeIndex) {
 	};
 }
 
-async function splitPathAtNode(splitState) {
+async function splitPathAtNode(splitState, { createCrossing } = {}) {
 	const path = splitState?.path;
 	if (!path || !pathData.includes(path)) {
 		showFeedbackToast("Weg konnte nicht gefunden werden.", "warning");
@@ -134,12 +134,18 @@ async function splitPathAtNode(splitState) {
 	}
 
 	try {
-		const result = await submitMapFeatureEdit({
+		const request = {
 			action: "split_path",
 			public_id: getPathPublicId(path),
 			node_index: splitState.nodeIndex,
 			expected_coordinates: path.geometry.coordinates,
-		});
+		};
+		// createCrossing bleibt unspezifiziert (Server-Vorgabe: Kreuzung anlegen), ausser jemand
+		// nennt „ohne Kreuzung" ausdruecklich -- so bleibt der bestehende Aufruf Zeile fuer Zeile gleich.
+		if (createCrossing === false) {
+			request.create_crossing = false;
+		}
+		const result = await submitMapFeatureEdit(request);
 		const split = result.feature;
 		// Quellen werden synchron aus dem Kartenbestand gelesen, auch direkt nach dem Teilen.
 		const originalKey = `path:${getPathPublicId(path)}`;
@@ -158,8 +164,10 @@ async function splitPathAtNode(splitState) {
 		// (js/map-features/sammelabgleich.js). Vorher waren es fuenf volle Kartenabgleiche.
 		const einspielen = () => {
 			removePathFeature(path);
-			addCreatedCrossingMarker(split.crossing);
-			ensureCrossingsEnabled();
+			if (split.crossing) {
+				addCreatedCrossingMarker(split.crossing);
+				ensureCrossingsEnabled();
+			}
 			for (const feature of split.paths) {
 				addCreatedPathFeature(feature);
 			}
@@ -170,7 +178,7 @@ async function splitPathAtNode(splitState) {
 			einspielen();
 		}
 		updateRevisionFromEditResponse(result);
-		showFeedbackToast("Weg geteilt und Kreuzung erstellt.", "success");
+		showFeedbackToast(split.crossing ? "Weg geteilt und Kreuzung erstellt." : "Weg geteilt.", "success");
 	} catch (error) {
 		console.error("Weg konnte nicht geteilt werden:", error);
 		showFeedbackToast(error.message || "Weg konnte nicht geteilt werden.", "warning");

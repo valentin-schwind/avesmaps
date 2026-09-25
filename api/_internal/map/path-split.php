@@ -38,10 +38,17 @@ function avesmapsSplitPathFeature(PDO $pdo, array $payload, array $user): array 
         // Technische Identitaet darf nicht aus einem alten Import mitkopiert werden.
         unset($properties['public_id'], $properties['revision']);
         $revision = avesmapsNextMapRevision($pdo);
-        $crossingGeometry = ['type' => 'Point', 'coordinates' => $coordinates[$nodeIndex]];
-        $crossingProperties = ['name' => 'Kreuzung', 'feature_type' => 'junction', 'feature_subtype' => 'crossing'];
-        $crossingId = avesmapsInsertSplitFeature($pdo, 'junction', 'crossing', 'Kreuzung', $crossingGeometry,
-            $crossingProperties, null, $revision, (int) $user['id'], 'create_crossing');
+        // „Weg teilen (ohne Kreuzung)": der Editor verzichtet bewusst auf den Verbindungsknoten. Der
+        // koordinatenbasierte Server-Routing-Graph (graph.php) bleibt davon unberuehrt; Browser- und
+        // client-kompatible Graph sehen an dieser Stelle eine Luecke -- Owner-Entscheid, in Kauf genommen.
+        $createCrossing = ($payload['create_crossing'] ?? true) !== false;
+        $crossingId = null;
+        if ($createCrossing) {
+            $crossingGeometry = ['type' => 'Point', 'coordinates' => $coordinates[$nodeIndex]];
+            $crossingProperties = ['name' => 'Kreuzung', 'feature_type' => 'junction', 'feature_subtype' => 'crossing'];
+            $crossingId = avesmapsInsertSplitFeature($pdo, 'junction', 'crossing', 'Kreuzung', $crossingGeometry,
+                $crossingProperties, null, $revision, (int) $user['id'], 'create_crossing');
+        }
 
         $copySources = $pdo->prepare(
             "INSERT INTO feature_sources (entity_type, entity_public_id, source_id, status, origin,
@@ -67,8 +74,8 @@ function avesmapsSplitPathFeature(PDO $pdo, array $payload, array $user): array 
             avesmapsEncodeAuditJson($original), avesmapsEncodeAuditJson([
                 'public_id' => $publicId, 'is_active' => 0, 'revision' => $revision,
             ]));
-        $crossing = avesmapsBuildPointFeatureResponse($crossingId, 'Kreuzung', 'crossing',
-            (float) $coordinates[$nodeIndex][1], (float) $coordinates[$nodeIndex][0], $crossingProperties, $revision);
+        $crossing = $createCrossing ? avesmapsBuildPointFeatureResponse($crossingId, 'Kreuzung', 'crossing',
+            (float) $coordinates[$nodeIndex][1], (float) $coordinates[$nodeIndex][0], $crossingProperties, $revision) : null;
         $pdo->commit();
 
         return ['revision' => $revision, 'paths' => $paths, 'crossing' => $crossing];

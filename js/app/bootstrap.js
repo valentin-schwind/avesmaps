@@ -1066,11 +1066,13 @@ function closeMapContextMenu() {
 
 function syncPathSplitContextMenuAction() {
     const splitActionElement = document.querySelector('[data-context-action="split-path-at-node"]');
-    if (!splitActionElement) {
-        return;
+    const splitPlainActionElement = document.querySelector('[data-context-action="split-path-plain"]');
+    if (splitActionElement) {
+        splitActionElement.hidden = !pendingPathSplit;
     }
-
-    splitActionElement.hidden = !pendingPathSplit;
+    if (splitPlainActionElement) {
+        splitPlainActionElement.hidden = !pendingPathSplit;
+    }
 }
 
 function openMapContextMenu(latlng, clientX, clientY) {

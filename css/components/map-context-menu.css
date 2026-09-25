@@ -109,7 +109,8 @@
 	content: "\271A";
 }
 
-.map-context-menu__item[data-context-action="split-path-at-node"]::before {
+.map-context-menu__item[data-context-action="split-path-at-node"]::before,
+.map-context-menu__item[data-context-action="split-path-plain"]::before {
 	content: "\2702";
 }
 

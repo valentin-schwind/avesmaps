@@ -892,6 +892,13 @@ $(document).on("click", ".map-context-menu__item", function (event) {
 		return;
 	}
 
+	if (action === "split-path-plain") {
+		const splitState = pendingPathSplit;
+		closeMapContextMenu();
+		void splitPathAtNode(splitState, { createCrossing: false });
+		return;
+	}
+
 	if (action === "create-path" && contextMenuLatLng) {
 		closeMapContextMenu();
 		startPathCreationAt(contextMenuLatLng);

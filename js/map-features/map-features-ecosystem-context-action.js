@@ -407,12 +407,14 @@
 		setzen("create-label", visibility.createLabel);
 		setzen("create-region", visibility.createRegion);
 
-		// 💣 „Neue Kreuzung und Weg teilen" hat einen ZWEITEN Riegel: syncPathSplitContextMenuAction
-		// (js/app/bootstrap.js) zeigt ihn nur, wenn der Rechtsklick wirklich einen Wegknoten getroffen
-		// hat. Die Ansicht darf ihn deshalb nur WEGNEHMEN, nie zeigen -- sonst stuende er in der
-		// Standardansicht auch ueber freier Karte, wo es nichts zu teilen gibt.
+		// 💣 „Neue Kreuzung und Weg teilen" und „Weg teilen (ohne Kreuzung)" haben einen ZWEITEN
+		// Riegel: syncPathSplitContextMenuAction (js/app/bootstrap.js) zeigt sie nur, wenn der
+		// Rechtsklick wirklich einen Wegknoten getroffen hat. Die Ansicht darf sie deshalb nur
+		// WEGNEHMEN, nie zeigen -- sonst stuenden sie in der Standardansicht auch ueber freier
+		// Karte, wo es nichts zu teilen gibt.
 		if (!visibility.splitPathAtNode) {
 			setzen("split-path-at-node", false);
+			setzen("split-path-plain", false);
 		}
 
 		// Erlaubt die Ansicht gar nichts, faellt die ganze Gruppe weg -- samt Ueberschrift, die per
