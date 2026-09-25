@@ -38,6 +38,7 @@ let ecosystemDrawRubberBand = null;
 let ecosystemDrawVertices = null;
 let ecosystemDrawLastClick = null;
 let ecosystemDrawSaving = false;
+let ecosystemDrawLockActive = false;
 
 function isEcosystemDrawing() {
 	return ecosystemDrawActive;
@@ -144,7 +145,15 @@ function ecosystemDrawSnapTarget(latLng, event) {
 }
 
 function handleEcosystemDrawClick(event) {
-	if (!ecosystemDrawActive || isEcosystemDrawEchoClick(event)) {
+	if (!ecosystemDrawActive) {
+		return;
+	}
+	// 🔒 Bei gehaltener Leertaste zählt JEDER Klick als eigener Punkt -- die Doppelklick-Schnellprüfung
+	// (Zeit/Pixel) würde sonst genau die eng aufeinanderfolgenden Ecken schlucken, die die Sperre erst
+	// ermöglicht. Trotzdem aufgerufen statt übersprungen, damit ecosystemDrawLastClick weiterläuft und
+	// nach dem Loslassen nicht auf einem veralteten Stand steht.
+	const echo = isEcosystemDrawEchoClick(event);
+	if (echo && !ecosystemDrawLockActive) {
 		return;
 	}
 	// 🔴 Die EINGERASTETE Stelle wird gesetzt, nicht die geklickte -- sonst läge die Ecke ein Pixel
@@ -175,7 +184,47 @@ function handleEcosystemDrawDoubleClick(event) {
 	if (event?.originalEvent) {
 		L.DomEvent.stop(event);
 	}
+	// 🔒 Bei gehaltener Leertaste schliesst ein Doppelklick die Fläche NICHT ab -- die zwei Klicks haben
+	// (siehe handleEcosystemDrawClick) schon je einen eigenen Punkt gesetzt, das war's.
+	if (ecosystemDrawLockActive) {
+		return;
+	}
 	void finishEcosystemAreaDrawing();
+}
+
+// ---- Leertaste: Doppelklick und Verschieben sperren -------------------------------------------------
+// Owner-Wunsch (Discord, 2026-09-25): schnelles Klicken der Eckpunkte wird gelegentlich als
+// Kartenverschieben gewertet oder von einem ungewollten Doppelklick vorzeitig abgeschlossen. Gehaltene
+// Leertaste sperrt beides, solange gezeichnet wird -- NICHT im Eckeneditor ("Zupfen"), der bleibt
+// unangetastet.
+// 🔴 Andere Bedeutung als beim Pinsel (map-features-ecosystem-brush.js): dort GIBT die Leertaste das
+// Verschieben waehrend des Haltens frei, weil der Pinsel es sonst fuer sich beansprucht. Hier ist es
+// umgekehrt -- das Zeichnen laesst Verschieben ohnehin zu, die Leertaste NIMMT es waehrend des Haltens weg.
+function isEcosystemDrawTypingTarget(target) {
+	const tag = target && target.tagName ? String(target.tagName).toUpperCase() : "";
+	return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable === true;
+}
+
+function isEcosystemDrawSpaceKey(event) {
+	return event?.code === "Space" || event?.key === " ";
+}
+
+function beginEcosystemDrawLock() {
+	if (ecosystemDrawLockActive || !ecosystemDrawActive || typeof map === "undefined" || !map) {
+		return;
+	}
+	ecosystemDrawLockActive = true;
+	map.dragging.disable();
+}
+
+function endEcosystemDrawLock() {
+	if (!ecosystemDrawLockActive) {
+		return;
+	}
+	ecosystemDrawLockActive = false;
+	if (typeof map !== "undefined" && map) {
+		map.dragging.enable();
+	}
 }
 
 function handleEcosystemDrawKeydown(event) {
@@ -191,6 +240,25 @@ function handleEcosystemDrawKeydown(event) {
 		event.preventDefault();
 		event.stopPropagation();
 		void finishEcosystemAreaDrawing();
+		return;
+	}
+	if (isEcosystemDrawSpaceKey(event)) {
+		// Ein offener Eigenschaften-Dialog traegt sein eigenes Textfeld -- dessen Leerzeichen bleibt
+		// unangetastet (derselbe Riegel wie beim Pinsel).
+		if (isEcosystemDrawTypingTarget(event.target)) {
+			return;
+		}
+		event.preventDefault();
+		event.stopPropagation();
+		beginEcosystemDrawLock();
+	}
+}
+
+function handleEcosystemDrawKeyup(event) {
+	// Kein Tippfeld-Riegel auf dem Rückweg: eine nie begonnene Sperre löst ohnehin nichts aus, und ein
+	// übersprungenes keyup liesse eine echte Sperre für immer stehen.
+	if (isEcosystemDrawSpaceKey(event)) {
+		endEcosystemDrawLock();
 	}
 }
 
@@ -213,6 +281,7 @@ function startEcosystemAreaDrawing({ startLatLng = null } = {}) {
 	ecosystemDrawActive = true;
 	ecosystemDrawPoints = [];
 	ecosystemDrawLastClick = null;
+	ecosystemDrawLockActive = false;
 	map.doubleClickZoom.disable();
 	// Ein verwackelter Klick soll den Punkt setzen, nicht die Karte schieben -- fuer die Dauer des
 	// Zeichnens gilt die groessere Klick-Toleranz (avesmapsWerkzeugKlickToleranzAnheben,
@@ -229,6 +298,12 @@ function startEcosystemAreaDrawing({ startLatLng = null } = {}) {
 	map.on("mousemove", handleEcosystemDrawMouseMove);
 	map.on("dblclick", handleEcosystemDrawDoubleClick);
 	document.addEventListener("keydown", handleEcosystemDrawKeydown, true);
+	document.addEventListener("keyup", handleEcosystemDrawKeyup, true);
+	// 🪤 Alt-Tab mit gehaltener Leertaste liefert kein keyup -- ohne das bliebe Verschieben gesperrt,
+	// und es gäbe keine Taste mehr, die das aufhebt (gleiches Muster wie beim Pinsel).
+	if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+		window.addEventListener("blur", endEcosystemDrawLock);
+	}
 	syncEcosystemDrawButton();
 	// The seeded corner is set AFTER the handlers are live, so the preview is drawn by the same code path
 	// a clicked corner uses -- and it is not run through the echo-click filter, because it is not a click:
@@ -237,13 +312,15 @@ function startEcosystemAreaDrawing({ startLatLng = null } = {}) {
 		ecosystemDrawPoints.push(L.latLng(startLatLng));
 		updateEcosystemDrawPreview(null);
 	}
-	showFeedbackToast?.("Klicken setzt Punkte. Doppelklick oder Enter schließt ab, Escape bricht ab.");
+	showFeedbackToast?.("Klicken setzt Punkte. Doppelklick oder Enter schließt ab, Escape bricht ab. Leertaste gehalten sperrt Verschieben und Doppelklick.");
 }
 
 function stopEcosystemAreaDrawing() {
 	ecosystemDrawActive = false;
 	ecosystemDrawPoints = [];
 	ecosystemDrawLastClick = null;
+	// Eine noch gehaltene Leertaste darf das Verschieben nicht für immer gesperrt lassen.
+	endEcosystemDrawLock();
 	clearEcosystemDrawPreview();
 	// Der Schnapp-Ring hängt am Zeiger, nicht am Entwurf -- er muss mit dem Werkzeug verschwinden.
 	clearEcosystemEditSnapPreview?.();
@@ -263,6 +340,10 @@ function stopEcosystemAreaDrawing() {
 		map.off("dblclick", handleEcosystemDrawDoubleClick);
 	}
 	document.removeEventListener("keydown", handleEcosystemDrawKeydown, true);
+	document.removeEventListener("keyup", handleEcosystemDrawKeyup, true);
+	if (typeof window !== "undefined" && typeof window.removeEventListener === "function") {
+		window.removeEventListener("blur", endEcosystemDrawLock);
+	}
 	syncEcosystemDrawButton();
 }
 
