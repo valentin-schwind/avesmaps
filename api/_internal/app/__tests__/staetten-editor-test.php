@@ -21,7 +21,7 @@ $pruefungen = 0;
  * unter SQLite nicht -- es wird GESCHLUCKT, nicht uebersetzt: die Tabelle steht unten von Hand,
  * wie in settlement-places-test.php.
  */
-final class AvesmapsStaettenEditorTestPdo extends PDO
+class AvesmapsStaettenEditorTestPdo extends PDO
 {
     public function exec(string $statement): int|false
     {
@@ -322,6 +322,65 @@ $unveraendert3->execute(['pid' => $idKollisionGeloescht]);
 assert($unveraendert3->fetchColumn() === 'ort-start', 'bei name_taken_deleted bleibt die Zeile unveraendert');
 $pruefungen += 2;
 
+// === 6b) M3: Wettlauf beim Umhaengen -- die UNIQUE-Verletzung faellt erst beim UPDATE an =======
+// Zwischen der Kollisionspruefung (SELECT) und dem UPDATE in avesmapsSettlementPlaceMove liegt
+// keine Sperre -- ein "echter" Wettlauf legt genau DORT eine gleichnamige Staette am Ziel an.
+// Simuliert per PDO-Unterklasse, die genau am UPDATE-Statement (erkannt am Anfang seines Textes)
+// die Kollisionszeile einschiebt, BEVOR execute() laeuft -- das ist keine nachgebaute
+// Fehlermeldung, sondern eine echte SQLite-UNIQUE-Verletzung.
+final class AvesmapsStaettenRennenTestPdo extends AvesmapsStaettenEditorTestPdo
+{
+    public bool $rennenSimulieren = false;
+
+    public function prepare(string $query, array $options = []): PDOStatement|false
+    {
+        if ($this->rennenSimulieren && str_starts_with(trim($query), 'UPDATE settlement_place SET settlement_public_id')) {
+            $this->rennenSimulieren = false; // nur einmal ausloesen
+            $this->exec(
+                "INSERT INTO settlement_place
+                    (public_id, name, place_type, settlement_public_id, settlement_name, wiki_url, origin, is_active)
+                 VALUES ('sp-rennen', 'Rennstaette', NULL, 'ort-rennen-ziel', 'Rennziel', NULL, 'manual', 1)"
+            );
+        }
+
+        return parent::prepare($query, $options);
+    }
+}
+
+function avesmapsStaettenRennenTestPdo(): AvesmapsStaettenRennenTestPdo
+{
+    $pdo = new AvesmapsStaettenRennenTestPdo('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    $pdo->exec('CREATE TABLE map_features (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, feature_type TEXT, feature_subtype TEXT,
+        name TEXT, properties_json TEXT, min_x REAL, min_y REAL, is_active INTEGER DEFAULT 1)');
+    $pdo->exec('CREATE TABLE settlement_place (id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT NOT NULL,
+        name TEXT NOT NULL, place_type TEXT, settlement_public_id TEXT NOT NULL, settlement_name TEXT NOT NULL,
+        wiki_url TEXT, origin TEXT NOT NULL, is_active INTEGER NOT NULL DEFAULT 1, created_by INTEGER,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (settlement_public_id, name))');
+
+    return $pdo;
+}
+
+$pdoRennen = avesmapsStaettenRennenTestPdo();
+avesmapsStaettenTestOrtEinfuegen($pdoRennen, 'ort-rennen-start', 'Rennstart', 'stadt', 0.0, 0.0);
+avesmapsStaettenTestOrtEinfuegen($pdoRennen, 'ort-rennen-ziel', 'Rennziel', 'kleinstadt', 10.0, 10.0);
+$idRennen = avesmapsSettlementPlaceAdd($pdoRennen, ['name' => 'Rennstaette', 'settlement_public_id' => 'ort-rennen-start',
+    'settlement_name' => 'Rennstart', 'origin' => 'manual'], 1);
+// Zur Zeit der Kollisionspruefung gibt es noch KEINE gleichnamige Staette am Ziel -- die legt
+// erst prepare() des UPDATE-Statements an, als stuende gerade ein zweiter Editor mittendrin.
+$pdoRennen->rennenSimulieren = true;
+$ergRennen = avesmapsSettlementPlaceMove($pdoRennen, $idRennen, 'ort-rennen-ziel', 1);
+assert(
+    ($ergRennen['ok'] ?? true) === false && $ergRennen['code'] === 'name_taken',
+    'M3: ein echter Wettlauf (UNIQUE-Verletzung erst beim UPDATE) wird als name_taken gemeldet, nicht als Ausnahme: ' . json_encode($ergRennen)
+);
+$unveraendertRennen = $pdoRennen->prepare('SELECT settlement_public_id FROM settlement_place WHERE public_id = :pid');
+$unveraendertRennen->execute(['pid' => $idRennen]);
+assert($unveraendertRennen->fetchColumn() === 'ort-rennen-start', 'M3: die eigene Zeile bleibt bei einem Wettlauf unveraendert');
+assert($pdoRennen->inTransaction() === false, 'M3: die Transaktion wurde bei der UNIQUE-Verletzung zurueckgerollt');
+$pruefungen += 3;
+
 // === 7) Deactivate setzt jetzt auch updated_at ===============================================
 $idDeact = avesmapsSettlementPlaceAdd($pdo6, ['name' => 'Wird gleich weich geloescht', 'settlement_public_id' => 'ort-start',
     'settlement_name' => 'Startstadt', 'origin' => 'manual'], 1);
@@ -330,6 +389,53 @@ usleep(2000);
 avesmapsSettlementPlaceDeactivate($pdo6, $idDeact, 1);
 $nachDeact = $pdo6->query("SELECT updated_at FROM settlement_place WHERE public_id = '{$idDeact}'")->fetchColumn();
 assert($nachDeact !== $vorDeact, 'Deactivate aktualisiert updated_at: ' . $vorDeact . ' -> ' . $nachDeact);
+$pruefungen += 1;
+
+// === 7b) M1: der Zeitstempel ist GARANTIERT groesser, auch bei Uhrenversatz PHP <-> DB ========
+// avesmapsSettlementPlaceReadStamp haengt am MAX(updated_at) -- laeuft die DB-Uhr auch nur eine
+// Millisekunde VOR der PHP-Uhr, muesste ein naiver `(new DateTimeImmutable())->format(...)` einen
+// KLEINEREN oder gleichen Wert schreiben, und der Stempel bliebe stumm. Simuliert, indem eine
+// bestehende Zeile eine Minute in die ZUKUNFT gesetzt wird, als stuende die DB-Uhr eine Minute vor.
+$pdo7m = avesmapsStaettenEditorTestPdo();
+avesmapsSettlementPlaceEnsureSchema($pdo7m);
+avesmapsStaettenTestOrtEinfuegen($pdo7m, 'ort-m1-start', 'M1-Start', 'stadt', 0.0, 0.0);
+avesmapsStaettenTestOrtEinfuegen($pdo7m, 'ort-m1-ziel', 'M1-Ziel', 'kleinstadt', 10.0, 10.0);
+$idM1 = avesmapsSettlementPlaceAdd($pdo7m, ['name' => 'Zukunftszeile', 'settlement_public_id' => 'ort-m1-start',
+    'settlement_name' => 'M1-Start', 'origin' => 'manual'], 1);
+$zukunft = (new DateTimeImmutable('+1 minute'))->format('Y-m-d H:i:s.v');
+$pdo7m->prepare('UPDATE settlement_place SET updated_at = :t WHERE public_id = :pid')
+    ->execute(['t' => $zukunft, 'pid' => $idM1]);
+
+$naechsterStempel = avesmapsSettlementPlaceNaechsterZeitstempel($pdo7m);
+assert(
+    $naechsterStempel > $zukunft,
+    'M1: avesmapsSettlementPlaceNaechsterZeitstempel liegt SELBST bei Uhrenversatz nach dem bisherigen Hoechststand: '
+    . $zukunft . ' -> ' . $naechsterStempel
+);
+$pruefungen += 1;
+
+// Am echten Schreibweg (Umhaengen): der ETag-Stempel aendert sich, obwohl PHP-"jetzt" HINTER dem
+// gespeicherten updated_at liegt -- eine Zeile bleibt aktiv (die Zaehlung von readStamp aendert
+// sich also NICHT von selbst), nur der Zeitwert entscheidet.
+$vorStempelM1 = avesmapsSettlementPlaceReadStamp($pdo7m);
+$ergM1 = avesmapsSettlementPlaceMove($pdo7m, $idM1, 'ort-m1-ziel', 1);
+assert(($ergM1['ok'] ?? false) === true, 'M1: das Umhaengen selbst gelingt trotz Uhrenversatz: ' . json_encode($ergM1));
+$zeileNachM1 = $pdo7m->query("SELECT updated_at FROM settlement_place WHERE public_id = '{$idM1}'")->fetchColumn();
+assert($zeileNachM1 > $zukunft, 'M1 (Move): der neue updated_at-Wert liegt trotz Uhrenversatz NACH dem bisherigen Hoechststand: ' . $zukunft . ' -> ' . $zeileNachM1);
+$nachStempelM1 = avesmapsSettlementPlaceReadStamp($pdo7m);
+assert($nachStempelM1 !== $vorStempelM1, 'M1 (Move): der ETag-Stempel aendert sich trotz Uhrenversatz: ' . $vorStempelM1 . ' -> ' . $nachStempelM1);
+$pruefungen += 2;
+
+// Und am Deaktivieren: derselbe Helfer, derselbe Beleg -- die gespeicherte Zeile bekommt trotz
+// Uhrenversatz einen updated_at-Wert NACH dem bisherigen Hoechststand.
+$idM1Deact = avesmapsSettlementPlaceAdd($pdo7m, ['name' => 'Noch eine Zukunftszeile', 'settlement_public_id' => 'ort-m1-start',
+    'settlement_name' => 'M1-Start', 'origin' => 'manual'], 1);
+$zukunft2 = (new DateTimeImmutable('+2 minutes'))->format('Y-m-d H:i:s.v');
+$pdo7m->prepare('UPDATE settlement_place SET updated_at = :t WHERE public_id = :pid')
+    ->execute(['t' => $zukunft2, 'pid' => $idM1Deact]);
+avesmapsSettlementPlaceDeactivate($pdo7m, $idM1Deact, 1);
+$zeileNachDeactM1 = $pdo7m->query("SELECT updated_at FROM settlement_place WHERE public_id = '{$idM1Deact}'")->fetchColumn();
+assert($zeileNachDeactM1 > $zukunft2, 'M1 (Deactivate): der neue updated_at-Wert liegt trotz Uhrenversatz NACH dem bisherigen Hoechststand: ' . $zukunft2 . ' -> ' . $zeileNachDeactM1);
 $pruefungen += 1;
 
 // === 8) OrteSuchen ===========================================================================
@@ -373,6 +479,29 @@ $trefferUnterstrich = avesmapsSettlementPlaceOrteSuchen($pdo8, 'gar_str');
 assert(in_array('Gar_Strich', array_column($trefferUnterstrich, 'name'), true)
     && !in_array('Gareth', array_column($trefferUnterstrich, 'name'), true),
     '_ im Suchwort wird woertlich gesucht, kein Platzhalter: ' . json_encode(array_column($trefferUnterstrich, 'name')));
+$pruefungen += 2;
+
+// === 8b) M2: ein Praefixtreffer geht bei > 60 Innentreffern nicht verloren ====================
+// 65 reine "enthaelt"-Treffer (keine Praefixtreffer), DANACH -- also mit der jeweils hoechsten
+// rowid -- GENAU EIN Praefixtreffer. Eine Abfrage ohne die `ORDER BY (name LIKE :p) DESC`
+// aus M2 liefert ohne eigene Sortierung in Einfuegereihenfolge (SQLite-Tabellenscan) und liesse
+// den Praefixtreffer bei einem blossen `LIMIT 60` aussen vor -- er waere die 66. Zeile.
+$pdo8b = avesmapsStaettenEditorTestPdo();
+for ($i = 1; $i <= 65; $i++) {
+    avesmapsStaettenTestOrtEinfuegen($pdo8b, 'kern-innen-' . $i, 'Vorkernstadt ' . $i, 'dorf', (float) $i, (float) $i);
+}
+avesmapsStaettenTestOrtEinfuegen($pdo8b, 'kern-praefix', 'Kernburg', 'stadt', 0.0, 0.0);
+$trefferKern = avesmapsSettlementPlaceOrteSuchen($pdo8b, 'kern');
+assert(
+    in_array('Kernburg', array_column($trefferKern, 'name'), true),
+    'M2: der Praefixtreffer "Kernburg" kommt trotz 65 vorangehender Innentreffer durch: '
+    . json_encode(array_column($trefferKern, 'name'))
+);
+assert(
+    $trefferKern[0]['name'] === 'Kernburg',
+    'M2: er steht an ERSTER Stelle -- die ORDER BY greift VOR dem LIMIT 60: '
+    . json_encode(array_column($trefferKern, 'name'))
+);
 $pruefungen += 2;
 
 // === 9) Namensnachbarn =======================================================================

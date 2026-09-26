@@ -7,8 +7,9 @@
 // mountStaettenKasten(host, opts) kennt keine Montagestelle -- sie wird zweimal montiert (Dialog
 // "Ort bearbeiten" und das Detailfeld des Ortseditors), jeweils direkt vor "Quellen" (Quellen
 // bleiben immer ganz unten, Owner 03.09.2026). Nur die GESPEICHERTEN Stätten sind hier
-// bearbeitbar; die aus dem Wiki abgeleiteten (siehe AGENTS.md §11 "Teil 2 -- innerorts als
-// Praedikat", offen) zaehlt nur die graue Zeile.
+// bearbeitbar; die aus dem Wiki abgeleiteten (siehe AGENTS.md §11 "Staetten loeschen und
+// umhaengen -- und der offene Folgeauftrag 'innerorts als eigenes Praedikat'", offen) zaehlt nur
+// die graue Zeile.
 //
 // 🔴 DIE fs-KLASSEN DES QUELLENKASTENS WERDEN MITBENUTZT (`.fs-row__edit`/`.fs-row__remove` fuer
 // die Knoepfe, `.fs-row--open` fuer die offene Zeile, `.fs-actions`/`__prim`/`__sek`,
@@ -28,10 +29,18 @@
 // SOURCE_AUTOCOMPLETE_API_URL in source-autocomplete.js.
 var STAETTEN_KASTEN_API_URL = "/api/edit/map/settlement-places.php";
 
+// I2: die EINZIGE Maskierung, die dieses Bauteil benutzt -- vollstaendig (& < > " '), weil
+// escape()-Ergebnisse hier auch in ATTRIBUTEN landen (href, data-st-id, title, aria-label,
+// value), nicht nur in Textknoten. `opts.escape` wird deshalb absichtlich NICHT mehr gereicht
+// (siehe mountStaettenKasten): der Ortseditor uebergibt `settlementEscape`
+// (html/wiki-sync-settlement-editor.html), das nur `textContent` -> `innerHTML` maskiert und
+// damit `"` NICHT abdeckt -- ein Name oder eine Wiki-Adresse mit `"` haette ein Attribut
+// aufgebrochen.
 function staettenKastenDefaultEscape(value) {
   return String(value === null || value === undefined ? "" : value)
     .replace(/&/g, "&amp;")
     .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }
@@ -141,6 +150,11 @@ function staettenKastenHervorhebung(text, suchwort, escape) {
 function staettenKastenZeileMarkup(staette, offenId, offenArt, escape, tr) {
   var id = String(staette.public_id);
   var offenFuerDiese = offenId !== null && offenId === id;
+  // B1: `.fs-row--open` hebt nur das ⇄ hervor (`.fs-row--open .fs-row__edit`,
+  // feature-sources.css) -- bei offener LOESCHEN-Rueckfrage waere das falsch benannt: es gibt
+  // dort nichts zum Umhaengen zu betonen. `aria-expanded` bleibt unabhaengig davon am jeweils
+  // oeffnenden Knopf stehen.
+  var alsUmhaengenHervorgehoben = offenFuerDiese && offenArt === "umhaengen";
   var wikiUrl = String(staette.wiki_url || "");
   var wirtText = staettenKastenWirt(wikiUrl);
   // 🔴 NUR http/https wird zu einem <a href> -- alles andere (nicht parsebar, ohne Host, oder ein
@@ -165,7 +179,7 @@ function staettenKastenZeileMarkup(staette, offenId, offenArt, escape, tr) {
   var ariaUmhaengen = offenFuerDiese && offenArt === "umhaengen" ? ' aria-expanded="true"' : "";
   var ariaLoeschen = offenFuerDiese && offenArt === "loeschen" ? ' aria-expanded="true"' : "";
   return (
-    '<div class="avm-row' + (offenFuerDiese ? " fs-row--open" : "") + '" data-st-id="' + escape(id) + '">'
+    '<div class="avm-row' + (alsUmhaengenHervorgehoben ? " fs-row--open" : "") + '" data-st-id="' + escape(id) + '">'
     + '<div class="avm-row__text">'
     + '<div class="avm-row__l1"><span class="avm-row__name">' + escape(staette.name) + "</span>"
     + '<span class="avm-row__kind">' + escape(staette.place_type) + "</span></div>"
@@ -189,7 +203,9 @@ function staettenKastenFalteUmhaengenMarkup(staette, suchtext, ziel, falteFehler
   var satz = "";
   if (ziel) {
     var vorlage = tr("staetten.move.confirm", "„{name}“ nach {ziel} umhängen?");
-    satz = "<div>" + vorlage
+    // B3: eine eigene Klasse am Satz -- der Input-Zuhoerer (siehe onHostInput) entfernt genau
+    // diesen Knoten direkt aus dem DOM, ohne die Falte neu zu zeichnen (Fokus bleibt im Feld).
+    satz = '<div class="st-falte__satz">' + vorlage
       .replace("{name}", escape(staette.name))
       .replace("{ziel}", "<b>" + escape(ziel.name) + "</b>") + "</div>";
   }
@@ -198,7 +214,10 @@ function staettenKastenFalteUmhaengenMarkup(staette, suchtext, ziel, falteFehler
     : "";
   return (
     '<div class="st-falte">'
-    + '<input class="st-falte__suche" type="search"'
+    // B2: `type="text"`, nicht `type="search"` -- die geteilte Ortssuche (attachTypeahead)
+    // braucht keinen bestimmten Feldtyp, und Chromes natives Loeschkreuz in einem `type="search"`
+    // waere der einzige blaue/native Bedienteil im Kasten (AGENTS.md §12, kein Blau im Chrome).
+    + '<input class="st-falte__suche" type="text"'
     + ' aria-label="' + escape(tr("staetten.move.searchLabel", "Neuer Ort")) + '"'
     + ' placeholder="' + escape(tr("staetten.move.searchPlaceholder", "Neuer Ort …")) + '"'
     + ' value="' + escape(suchtext || "") + '">'
@@ -460,7 +479,15 @@ function mountStaettenKasten(host, opts) {
     return Promise.resolve();
   }
   var options = opts || {};
-  var escape = options.escape || staettenKastenDefaultEscape;
+  // I1: der CSS-Vertrag (css/components/staetten-kasten.css) haengt an `.st-kasten` -- ohne die
+  // Klasse am Host greifen weder das Zeilenraster (`gap`) noch der abgeschaltete Zeiger/Hover
+  // noch die Link-Farbe der Zeile 2 (sonst blau statt `--color-link`).
+  host.classList.add("st-kasten");
+  // I2: `opts.escape` wird ABSICHTLICH IGNORIERT -- siehe der Kommentar an
+  // staettenKastenDefaultEscape. Die Option bleibt im Vertrag stehen (fuer einen Aufrufer, der
+  // sie irgendwann fuer reinen Text ausserhalb dieses Bauteils braucht), wird aber nicht mehr an
+  // die eigene Maskierung gereicht.
+  var escape = staettenKastenDefaultEscape;
   var trFn = function (key, fallback) { return staettenKastenTr(options, key, fallback); };
   var fetchImpl = options.fetchImpl || (typeof fetch === "function" ? fetch : null);
   var win = options.win || (typeof window !== "undefined" ? window : null);
@@ -496,6 +523,11 @@ function mountStaettenKasten(host, opts) {
   };
 
   var detachTypeahead = null;
+  // M4: nach host.__staettenAbbau() darf KEINE spaeter eintreffende Antwort mehr zeichnen -- eine
+  // Wiedermontage auf demselben host (Reiterwechsel im Ortseditor) ruft __staettenAbbau() der
+  // ALTEN Montage ganz oben in mountStaettenKasten. Ohne diese Sperre schriebe eine haengende
+  // `list`-Antwort der alten Montage nachtraeglich ueber den Inhalt der neuen.
+  var abgebaut = false;
 
   function detachAlleZuhoerer() {
     if (detachTypeahead) {
@@ -545,6 +577,9 @@ function mountStaettenKasten(host, opts) {
   }
 
   function render() {
+    if (abgebaut) {
+      return; // M4: die Montage, zu der dieser Aufruf gehoert, ist laengst abgebaut
+    }
     detachAlleZuhoerer();
     setzeSichtbarkeit();
     host.innerHTML = staettenKastenKastenHtml(state, ortName, escape, trFn);
@@ -738,9 +773,41 @@ function mountStaettenKasten(host, opts) {
   }
   host.addEventListener("click", onHostClick);
 
+  // B3: aendert der Editor den Suchtext NACH einer Wahl, verwirft das die Wahl -- Ruecksatz weg,
+  // Primaerknopf deaktiviert. Direkte DOM-Aenderung statt render(): ein Neuzeichnen ersetzte das
+  // fokussierte Eingabefeld durch ein neues und der Fokus (samt Cursorposition) ginge verloren,
+  // mitten im Tippen.
+  function onHostInput(event) {
+    var target = event && event.target;
+    if (!target || !target.classList || !target.classList.contains("st-falte__suche")) {
+      return;
+    }
+    state.suchtext = target.value;
+    if (!state.ziel || target.value === state.ziel.name) {
+      return;
+    }
+    state.ziel = null;
+    state.falteFehler = null;
+    var falte = typeof target.closest === "function" ? target.closest(".st-falte") : null;
+    if (!falte) {
+      return;
+    }
+    var satz = falte.querySelector(".st-falte__satz");
+    if (satz && satz.parentNode) {
+      satz.parentNode.removeChild(satz);
+    }
+    var prim = falte.querySelector(".fs-actions__prim");
+    if (prim) {
+      prim.disabled = true;
+    }
+  }
+  host.addEventListener("input", onHostInput);
+
   host.__staettenAbbau = function () {
+    abgebaut = true;
     detachAlleZuhoerer();
     host.removeEventListener("click", onHostClick);
+    host.removeEventListener("input", onHostInput);
   };
 
   render(); // Ladeplatzhalter, damit die Sektion sofort sichtbar ist, waehrend list laeuft

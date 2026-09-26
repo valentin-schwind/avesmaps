@@ -174,6 +174,40 @@ function avesmapsSettlementPlaceExists(PDO $pdo, string $publicId): bool
 }
 
 /**
+ * Ein `updated_at`-Zeitstempel, der GARANTIERT groesser ist als der bisher groesste in der
+ * Tabelle: max(PHP-„jetzt", groesster vorhandener `updated_at` + 1 ms).
+ *
+ * 💣 M1: PHP-„jetzt" allein reicht nicht. `avesmapsSettlementPlaceReadStamp` haengt am
+ * `MAX(updated_at)` der Tabelle -- laeuft die PHP-Uhr auch nur eine Millisekunde HINTER der
+ * DB-Uhr zurueck (Uhrenversatz zwischen Webserver und Datenbankserver, oder zwei Schreibvorgaenge
+ * binnen derselben Millisekunde), schreibt ein echter Schreibvorgang denselben oder einen
+ * KLEINEREN Wert -- der Stempel aendert sich nicht, das ETag der Kartennutzlast bleibt stehen,
+ * und niemand sieht die Aenderung. Dieselbe Klasse Fehler wie beim Wappen-Notaus und den
+ * Klimazonen (AGENTS.md §10).
+ */
+function avesmapsSettlementPlaceNaechsterZeitstempel(PDO $pdo): string
+{
+    $jetzt = new DateTimeImmutable();
+    try {
+        $groesster = $pdo->query('SELECT MAX(updated_at) AS t FROM settlement_place')->fetchColumn();
+    } catch (PDOException) {
+        $groesster = null;
+    }
+    if (is_string($groesster) && trim($groesster) !== '') {
+        try {
+            $vorheriger = (new DateTimeImmutable($groesster))->modify('+1 millisecond');
+            if ($vorheriger > $jetzt) {
+                return $vorheriger->format('Y-m-d H:i:s.v');
+            }
+        } catch (Exception) {
+            // kaputter Zeitwert in der Tabelle -> PHP-"jetzt" bleibt die Antwort
+        }
+    }
+
+    return $jetzt->format('Y-m-d H:i:s.v');
+}
+
+/**
  * Eine Staette zuruecknehmen -- weich, wie ueberall im Haus.
  *
  * @return bool ob wirklich eine Zeile betroffen war
@@ -192,8 +226,9 @@ function avesmapsSettlementPlaceDeactivate(PDO $pdo, string $publicId, int $user
             'pid' => $publicId,
             // ⚠️ Gleiches Format wie beim Umhaengen (Y-m-d H:i:s.v, Millisekunden fuer DATETIME(3))
             // -- sonst wuerde ein Umhaengen kurz nach einem Loeschen denselben Wert schreiben und
-            // die Messung "hat sich das geaendert?" liefe leer.
-            't' => (new DateTimeImmutable())->format('Y-m-d H:i:s.v'),
+            // die Messung "hat sich das geaendert?" liefe leer. M1: garantiert groesser als der
+            // bisherige Tabellenhoechststand, auch bei Uhrenversatz PHP <-> DB.
+            't' => avesmapsSettlementPlaceNaechsterZeitstempel($pdo),
         ]);
 
         return $statement->rowCount() > 0;
@@ -573,7 +608,8 @@ function avesmapsSettlementPlaceMove(PDO $pdo, string $publicId, string $zielId,
     }
 
     $alterOrt = (string) $staette['settlement_public_id'];
-    $jetzt = (new DateTimeImmutable())->format('Y-m-d H:i:s.v');
+    // M1: garantiert groesser als der bisherige Tabellenhoechststand, auch bei Uhrenversatz.
+    $jetzt = avesmapsSettlementPlaceNaechsterZeitstempel($pdo);
 
     try {
         $pdo->beginTransaction();
@@ -582,6 +618,24 @@ function avesmapsSettlementPlaceMove(PDO $pdo, string $publicId, string $zielId,
               WHERE public_id = :pid'
         )->execute(['ziel' => $zielId, 'zielname' => $zielName, 't' => $jetzt, 'pid' => $publicId]);
         $pdo->commit();
+    } catch (PDOException $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        // 💣 M3: ein WETTLAUF zwischen der Kollisionspruefung oben und diesem UPDATE -- ein
+        // anderer Editor legt im selben Moment eine gleichnamige Staette am Ziel an -- verletzt
+        // den UNIQUE-Schluessel (settlement_public_id, name) erst HIER. Das ist derselbe Fall wie
+        // die Pruefung weiter oben, nur eine Anfrage zu spaet erkannt, und wird darum GENAUSO
+        // gemeldet: `name_taken`, nie eine durchgereichte Ausnahme (die der Aufrufer als
+        // `server_error` mit generischem Text saehe, ohne zu wissen, dass nichts geschrieben
+        // wurde und die Ursache eine ganz gewoehnliche Namenskollision war).
+        if (avesmapsSettlementPlaceIstUniqueVerletzung($e)) {
+            return avesmapsSettlementPlaceMoveFehler(
+                'name_taken',
+                sprintf('In %s gibt es schon eine Stätte „%s". Nichts wurde geändert.', $zielName, $eigenerName)
+            );
+        }
+        throw $e;
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
@@ -593,11 +647,29 @@ function avesmapsSettlementPlaceMove(PDO $pdo, string $publicId, string $zielId,
 }
 
 /**
+ * Ist diese Ausnahme eine UNIQUE-Verletzung? Portabel zwischen MySQL/MariaDB (live) und SQLite
+ * (Tests) -- beide melden eine Verletzung des Schluessels ueber SQLSTATE 23000, solange
+ * `PDO::ATTR_ERRMODE = ERRMODE_EXCEPTION` gesetzt ist (AGENTS.md: `avesmapsCreatePdo` setzt das).
+ */
+function avesmapsSettlementPlaceIstUniqueVerletzung(PDOException $e): bool
+{
+    return $e->getCode() === '23000';
+}
+
+/**
  * Orte auf der Karte suchen -- fuer den Umhaengen-Dialog (Typeahead).
  *
  * ⚠️ `< 2` Zeichen liefert `[]`, wie jede andere Typeahead-Suche im Haus. `%`/`_` im Suchwort
  * werden woertlich gesucht (ESCAPE '!'), sonst koennte ein Editor mit „gar_strich" versehentlich
  * jeden Namen treffen, der ein beliebiges Zeichen an der Stelle traegt.
+ *
+ * 💣 M2: `ORDER BY (name LIKE :p ESCAPE '!') DESC, name` steht VOR dem `LIMIT 60` -- ein
+ * eigener, ZWEITER Platzhalter `:p` (das Praefixmuster `<suchwort>%`), NIE derselbe Platzhalter
+ * wie `:m` zweimal (AGENTS.md §9: `ATTR_EMULATE_PREPARES = false`, ein doppelt verwendeter
+ * Platzhalter im selben Statement ist auf MySQL `HY093`). Ohne die Sortierung IN der Abfrage
+ * kann ein Praefixtreffer bei mehr als 60 „enthaelt"-Treffern aus den 60 Zeilen herausfallen, die
+ * die Datenbank liefert -- die anschliessende PHP-seitige Praefix/Innen-Sortierung sieht ihn dann
+ * nie, weil er gar nicht erst ankam.
  *
  * @return list<array{public_id:string, name:string, subtype:string, lage:string}>
  */
@@ -610,7 +682,7 @@ function avesmapsSettlementPlaceOrteSuchen(PDO $pdo, string $q, int $limit = 12)
 
     $maskiert = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $q);
     $platzhalter = [];
-    $werte = ['m' => '%' . $maskiert . '%'];
+    $werte = ['m' => '%' . $maskiert . '%', 'p' => $maskiert . '%'];
     foreach (AVESMAPS_PLACE_SCOPE_SETTLEMENT_SUBTYPES as $index => $subtype) {
         $schluessel = 'sub' . $index;
         $platzhalter[] = ':' . $schluessel;
@@ -623,6 +695,7 @@ function avesmapsSettlementPlaceOrteSuchen(PDO $pdo, string $q, int $limit = 12)
               WHERE feature_type = 'location' AND is_active = 1
                 AND feature_subtype IN (" . implode(', ', $platzhalter) . ")
                 AND name LIKE :m ESCAPE '!'
+              ORDER BY (name LIKE :p ESCAPE '!') DESC, name
               LIMIT 60"
         );
         $statement->execute($werte);

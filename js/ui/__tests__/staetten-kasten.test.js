@@ -317,6 +317,11 @@ async function testRuhezustand() {
 	assert.strictEqual(aufrufe.length, 1, "genau eine Anfrage (list)");
 	assert.deepStrictEqual(aufrufe[0], { action: "list", settlement_public_id: "ort-1" });
 
+	// I1: der CSS-Vertrag (css/components/staetten-kasten.css) haengt an `.st-kasten` -- ohne die
+	// Klasse am Host greifen weder das Zeilenraster noch der abgeschaltete Zeiger/Hover noch die
+	// Link-Farbe der Zeile 2.
+	assert.ok(host.classList.contains("st-kasten"), "I1: das Bauteil setzt .st-kasten am Host");
+
 	assert.strictEqual(sektion.hidden, false, "Sektion ist sichtbar (3 gespeicherte Stätten)");
 
 	const zeilen = host.querySelectorAll(".avm-row");
@@ -408,7 +413,10 @@ async function testFalteUmhaengen() {
 	assert.ok(falte, "die Falte steht direkt nach der Zeile (Kasten enthält genau eine)");
 	const suchfeld = falte.querySelector(".st-falte__suche");
 	assert.ok(suchfeld, "Suchfeld vorhanden");
-	assert.strictEqual(suchfeld.getAttribute("type"), "search");
+	// B2: type="text", nicht type="search" -- kein natives, blaues Loeschkreuz im Kasten
+	// (AGENTS.md §12, kein Blau in der Oberflaeche); die Typeahead-Mechanik braucht keinen
+	// bestimmten Feldtyp.
+	assert.strictEqual(suchfeld.getAttribute("type"), "text");
 	assert.strictEqual(suchfeld.getAttribute("placeholder"), "Neuer Ort …");
 
 	const primVorWahl = falte.querySelector(".fs-actions__prim");
@@ -472,6 +480,62 @@ async function testFalteUmhaengen() {
 	console.log("2. Falte Umhängen: OK");
 }
 
+// ══ 2b. B3: geänderter Suchtext verwirft die Wahl, ohne die Falte neu zu zeichnen ═══════════════
+async function testSuchtextGeaendertNachWahl() {
+	const aufrufe = [];
+	const win = winFixtur();
+	const host = neu("div");
+	const sektion = neu("div");
+	let letzteConfig = null;
+	const attachTypeaheadImpl = (inputEl, config) => {
+		letzteConfig = config;
+		return function detach() { letzteConfig = null; };
+	};
+	const fetchImpl = baueFetch({
+		list: () => ({ ok: true, staetten: staettenFixtur() }),
+		orte: () => ({ ok: true, orte: ORTE_TREFFER }),
+	}, aufrufe);
+
+	await modul.mountStaettenKasten(host, {
+		ortPublicId: "ort-1", ortName: "Alriksburg", sektion, fetchImpl, win, attachTypeaheadImpl,
+	});
+	klicke(host.querySelectorAll(".avm-row")[2].querySelector(".fs-row__edit"));
+	letzteConfig.onPick(ORTE_TREFFER[0]); // "Weißenstein (Serrinmoor)"
+
+	const falteVorher = host.querySelector(".st-falte");
+	assert.ok(falteVorher.querySelector(".st-falte__satz"), "der Rückfragesatz steht nach der Wahl");
+	assert.strictEqual(falteVorher.querySelector(".fs-actions__prim").disabled, false, "Primärknopf ist nach der Wahl aktiv");
+	const satzKnotenVorher = falteVorher.querySelector(".st-falte__satz");
+	const suchfeld = falteVorher.querySelector(".st-falte__suche");
+
+	// Der Editor tippt weiter -- der Wert weicht jetzt vom gewählten Ziel ("Weißenstein (Serrinmoor)") ab.
+	suchfeld.value = "Weißenstein (Serr";
+	suchfeld.dispatchEvent({ type: "input", target: suchfeld });
+
+	// Ohne Neuzeichnen: dasselbe Suchfeld-Element steht noch im DOM (Fokus/Cursor blieben erhalten).
+	const falteNachher = host.querySelector(".st-falte");
+	assert.strictEqual(falteNachher, falteVorher, "B3: keine Neuzeichnung der Falte -- dasselbe Element");
+	assert.strictEqual(host.querySelector(".st-falte__suche"), suchfeld, "B3: dasselbe Eingabefeld -- Fokus bliebe erhalten");
+	assert.strictEqual(falteNachher.querySelector(".st-falte__satz"), null, "B3: der Rückfragesatz ist weg");
+	assert.strictEqual(satzKnotenVorher.parentNode, null, "B3: der alte Satzknoten wurde aus dem DOM entfernt");
+	assert.strictEqual(falteNachher.querySelector(".fs-actions__prim").disabled, true, "B3: der Primärknopf ist wieder deaktiviert");
+
+	// Ein Absenden jetzt darf nicht das VERWORFENE Ziel schicken -- bestaetigeAktion() verlangt
+	// state.ziel für "umhaengen" und tut ohne Ziel nichts.
+	klicke(falteNachher.querySelector(".fs-actions__prim"));
+	await tick();
+	assert.strictEqual(aufrufe.some((a) => a.action === "move"), false, "B3: kein move ohne (verworfenes) Ziel");
+
+	// Tippt der Editor den Namen des Ziels wieder EXAKT ein, bleibt das Ziel wirkungslos -- die Wahl
+	// wird nur durch einen erneuten onPick zurückgewonnen, nicht durch reines Zurücktippen (Spec: nur
+	// "anderer Wert als der Name des gewählten Ziels" verwirft; ein exakt gleicher Wert löst NICHTS aus).
+	suchfeld.value = "Weißenstein (Serr"; // unverändert -> kein zweiter Verwurf, keine Ausnahme
+	suchfeld.dispatchEvent({ type: "input", target: suchfeld });
+	assert.strictEqual(host.querySelector(".st-falte"), falteNachher, "wiederholtes input ohne Zieländerung tut nichts weiter");
+
+	console.log("2b. Suchtext nach Wahl geändert (B3): OK");
+}
+
 // ══ 3. LÖSCHEN: Rückfrage, delete ═════════════════════════════════════════════════════════════════
 async function testLoeschen() {
 	const aufrufe = [];
@@ -491,7 +555,11 @@ async function testLoeschen() {
 	klicke(zweitesRemove);
 
 	const zeilenOffen = host.querySelectorAll(".avm-row");
-	assert.ok(zeilenOffen[1].classList.contains("fs-row--open"));
+	// B1: `fs-row--open` gehoert NUR der Umhaengen-Falte (es hebt ausschliesslich das ⇄ hervor,
+	// `.fs-row--open .fs-row__edit` in feature-sources.css) -- bei einer offenen
+	// LOESCHEN-Rueckfrage bleibt die Klasse weg.
+	assert.ok(!zeilenOffen[1].classList.contains("fs-row--open"),
+		"B1: fs-row--open gehoert der Umhaengen-Falte, nicht der Loeschen-Rueckfrage");
 	assert.strictEqual(zeilenOffen[1].querySelector(".fs-row__remove").getAttribute("aria-expanded"), "true");
 
 	const falte = host.querySelector(".st-falte");
@@ -730,6 +798,46 @@ async function testEscape() {
 	console.log("8. Escape: OK");
 }
 
+// ══ 8b. I2: opts.escape (schwach, maskiert " nicht) wird IGNORIERT -- kein Attributbruch ═══════
+async function testSchwacherEscape() {
+	const aufrufe = [];
+	const host = neu("div");
+	const sektion = neu("div");
+	// Wie `settlementEscape` im Ortseditor: nur textContent -> innerHTML, maskiert also NICHT das
+	// doppelte Anfuehrungszeichen, das dieses Bauteil in Attribute setzt (href, data-st-id,
+	// title, aria-label, value).
+	const schwacherEscape = (value) => String(value === null || value === undefined ? "" : value)
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;");
+	const staetten = [
+		{ public_id: 'sp-"quote"', name: 'Burg "Anführungszeichen"', place_type: "Burg",
+			wiki_url: 'https://garetien.de/wiki/x"y', origin: "manual", gleichnamig_auf_der_karte: false },
+	];
+	const fetchImpl = baueFetch({ list: () => ({ ok: true, staetten }) }, aufrufe);
+	await modul.mountStaettenKasten(host, {
+		ortPublicId: "ort-1", ortName: "Alriksburg", sektion, fetchImpl, win: {}, escape: schwacherEscape,
+	});
+
+	// Der Name UND die Adresse tragen ein rohes `"` -- mit dem schwachen escape durchgereicht
+	// bräche das jedes Attribut, in dem der Wert steht (href, data-st-id). Das Bauteil ignoriert
+	// opts.escape deshalb vollständig (I2) und benutzt intern immer seine eigene, vollständige
+	// Maskierung.
+	const html = host.innerHTML;
+	const hrefMatch = html.match(/href="([^"]*)"/);
+	assert.ok(hrefMatch, "ein href-Attribut steht im Markup");
+	assert.ok(!hrefMatch[1].includes('"'), 'I2: kein rohes " im href-Attribut: ' + hrefMatch[1]);
+	const idMatch = html.match(/data-st-id="([^"]*)"/);
+	assert.ok(idMatch, "ein data-st-id-Attribut steht im Markup");
+	assert.ok(!idMatch[1].includes('"'), 'I2: kein rohes " in data-st-id: ' + idMatch[1]);
+
+	// Und der Name kommt trotzdem unversehrt als TEXT an (nur maskiert, nicht verstümmelt).
+	const nameSpan = host.querySelector(".avm-row__name");
+	assert.strictEqual(nameSpan.textContent, 'Burg "Anführungszeichen"');
+
+	console.log("8b. Schwacher escape (I2): OK");
+}
+
 // ══ 9. WÄHREND list LÄDT: Sektion sichtbar mit Ladehinweis ═══════════════════════════════════════
 async function testLadeplatzhalter() {
 	const host = neu("div");
@@ -798,6 +906,50 @@ async function testWiedermontage() {
 	assert.strictEqual(host.querySelectorAll(".st-falte").length, 1, "ein Klick, eine offene Falte -- kein doppelter Zuhörer");
 
 	console.log("11. Wiedermontage: OK");
+}
+
+// ══ 11b. M4: eine HÄNGENDE Antwort der ALTEN Montage darf nach der Wiedermontage nicht mehr
+// zeichnen ═══════════════════════════════════════════════════════════════════════════════════
+async function testSpaeteAntwortNachAbbau() {
+	const host = neu("div");
+	const sektion = neu("div");
+
+	// Erste Montage: die `list`-Antwort HÄNGT, bis der Test sie freigibt -- so lässt sich eine
+	// Wiedermontage auslösen, bevor sie eintrifft.
+	let ersteFreigeben;
+	const ersteWartend = new Promise((resolve) => { ersteFreigeben = resolve; });
+	const fetchImpl1 = async () => {
+		await ersteWartend;
+		return { ok: true, json: async () => ({ ok: true, staetten: [staettenFixtur()[0]] }) };
+	};
+	const ersteMontage = modul.mountStaettenKasten(host, {
+		ortPublicId: "ort-1", ortName: "Alriksburg", sektion, fetchImpl: fetchImpl1, win: winFixtur(),
+	});
+
+	// Bevor die erste Antwort eintrifft: Wiedermontage auf demselben host (z. B. ein rascher
+	// Reiterwechsel im Ortseditor) -- ihre Antwort kommt SOFORT.
+	const fetchImpl2 = async () => ({ ok: true, json: async () => ({ ok: true, staetten: staettenFixtur() }) });
+	await modul.mountStaettenKasten(host, {
+		ortPublicId: "ort-2", ortName: "Anderswo", sektion, fetchImpl: fetchImpl2, win: winFixtur(),
+	});
+	assert.strictEqual(host.querySelectorAll(".avm-row").length, 3, "die zweite (neue) Montage steht bereits");
+
+	// Jetzt erst die hängende Antwort der ERSTEN (längst abgebauten) Montage freigeben.
+	ersteFreigeben();
+	await ersteMontage;
+	await tick();
+
+	// M4: die alte Antwort hat NICHTS überschrieben -- der Host zeigt weiterhin nur den neuen Ort.
+	assert.strictEqual(host.querySelectorAll(".avm-row").length, 3,
+		"M4: die späte Antwort der alten Montage zeichnet nicht mehr -- weiterhin die Liste der neuen Montage");
+	const namen = host.querySelectorAll(".avm-row__name").map((n) => n.textContent);
+	assert.deepStrictEqual(namen, [
+		"Hesinde-Tempel zu Ehren der Heiligen Niobara",
+		"Ingerimm-Tempel Lodernde Flamme",
+		"Burg Weißenstein",
+	], "M4: exakt die Liste der neuen (zweiten) Montage");
+
+	console.log("11b. Späte Antwort nach Abbau (M4): OK");
 }
 
 // ══ 12. DOPPELTES ABSENDEN: zwei rasche Klicks vor der Antwort -> genau EINE Anfrage ═══════════
@@ -933,15 +1085,18 @@ async function testNichtParsebareAdresse() {
 (async () => {
 	await testRuhezustand();
 	await testFalteUmhaengen();
+	await testSuchtextGeaendertNachWahl();
 	await testLoeschen();
 	await testAbbrechen();
 	await testFehlerBeimSchreiben();
 	await testSichtbarkeit();
 	await testIframeFall();
 	await testEscape();
+	await testSchwacherEscape();
 	await testLadeplatzhalter();
 	await testListeFehlgeschlagen();
 	await testWiedermontage();
+	await testSpaeteAntwortNachAbbau();
 	await testDoppeltesAbsenden();
 	await testLinkProtokoll();
 	await testNichtParsebareAdresse();
