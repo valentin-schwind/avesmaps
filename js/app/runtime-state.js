@@ -115,6 +115,10 @@ let locationData = [],
 	activeRoutePlanEntryIndex = null,
 	graphData = null,
 	locationConnectivityIndex = null,
+	// Seehafen (Owner 26.09.2026): die Kennungen der Knoten an einem Seeweg (avesmapsOrtHatSeewegAnbindung).
+	// Eigener Speicher neben dem Anbindungs-Index, damit „Ort bearbeiten" nicht den ganzen Pruefhaken-Graphen
+	// baut; verworfen an derselben Stelle wie er (refreshPlannerAfterFeatureChange).
+	seewegAnbindungsIndex = null,
 	invalidLocationInputs = [],
 	selectedLocations = [],
 	waypointCounter = 0,

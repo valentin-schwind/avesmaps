@@ -595,7 +595,15 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	activeReviewReportSourceQueue = Array.isArray(meldungQuellen) ? meldungQuellen.slice() : [];
 	mountLocationEditFeatureSources();
 	mountLocationEditNameAutocomplete();
-	document.getElementById("location-edit-is-seaport").checked = Boolean(location.isSeaport);
+	// Seehafen (Owner 26.09.2026): mit Seeweg-Anbindung automatisch gesetzt und gesperrt, sonst setzt
+	// der Editor es von Hand. Die Anbindung rechnet der Anbindungs-Index der Pruefhaken
+	// (avesmapsOrtHatSeewegAnbindung, js/routing/route-graph-routing.js).
+	const seewegAnbindung = typeof avesmapsOrtHatSeewegAnbindung === "function"
+		&& avesmapsOrtHatSeewegAnbindung(markerEntry?.publicId || location.publicId);
+	const seehafenHaken = document.getElementById("location-edit-is-seaport");
+	seehafenHaken.checked = seewegAnbindung || Boolean(location.isSeaport);
+	seehafenHaken.disabled = seewegAnbindung;
+	document.getElementById("location-edit-seaport-auto").hidden = !seewegAnbindung;
 	document.getElementById("location-edit-is-nodix").checked = presetIsNodix === null
 		? (isCrossingConversion ? pendingCrossingConversionIsNodix : Boolean(location.isNodix))
 		: Boolean(presetIsNodix);
@@ -819,7 +827,9 @@ function buildLocationEditPayload(formElement) {
 		// {url,label} pair on every save would clobber whatever the takeover just consolidated.
 		wiki_url: String(formData.get("wiki_url") || "").trim(),
 		// Seehafen (Owner 26.09.2026): wird bisher nur gespeichert, wirkt noch nirgends.
-		is_seaport: formData.get("is_seaport") === "on",
+		// 💣 Am ELEMENT gelesen, nicht aus formData: mit Seeweg-Anbindung ist der Haken gesperrt, und ein
+		// gesperrtes Feld fehlt in FormData -- der automatisch gesetzte Hafen kaeme sonst als false an.
+		is_seaport: Boolean(formElement.elements?.namedItem?.("is_seaport")?.checked),
 		is_nodix: formData.get("is_nodix") === "on",
 		is_ruined: formData.get("is_ruined") === "on",
 		// 💣 IMMER MITSENDEN. avesmapsUpdatePointFeatureDetails liest `$payload['is_hidden'] ?? false`

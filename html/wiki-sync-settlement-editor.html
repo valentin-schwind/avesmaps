@@ -1928,6 +1928,20 @@ function buildSettlementTypeSelectHtml(detail) {
 // 🔴 Einwohner/Lage/Herrscher sind seit dem 16.08.2026 BEARBEITBAR (Owner-Entscheid) -- hier stand,
 // sie seien schreibgeschützte wiki_settlement-Zeilen ohne Schreibplatz. Sie haben jetzt ein eigenes
 // Kartenfeld gleichen Namens, und der Knopf „Sync" im Zuweisungskasten füllt sie auf Anhaken.
+// Hat der Ort eine Seeweg-Anbindung? Gefragt wird der Anbindungs-Index der Karte
+// (avesmapsOrtHatSeewegAnbindung, js/routing/route-graph-routing.js) -- dieses Fenster laeuft als
+// iframe in ihr und hat selbst keine Wege. Allein geoeffnet (window.parent === window) gibt es keine
+// Antwort, und der Haken bleibt von Hand setzbar: die sichere Richtung, gespeichert wird ohnehin,
+// was dasteht.
+function dtSeewegAnbindung(publicId) {
+	try {
+		const frage = window.parent && window.parent !== window ? window.parent.avesmapsOrtHatSeewegAnbindung : null;
+		return typeof frage === "function" && frage(publicId) === true;
+	} catch (_) {
+		return false;
+	}
+}
+
 function buildSettlementEditFormHtml(detail) {
 	const props = detail.properties || {};
 	// Der Wiki-Override: was weicht ab, und wer hat es gesetzt (Entwurf
@@ -2014,9 +2028,12 @@ function buildSettlementEditFormHtml(detail) {
 	// stehen bei ALLEN Editorfenstern zwischen Wiki-Zuweisung und Speicherleiste). Der Behaelter
 	// behaelt seine Kennung -- renderSettlementDetail montiert unveraendert dorthin.
 	const otherSourceRow = `<div class="dt-grp">Quellen</div><div id="dtFeatureSources"></div>`;
-	// Seehafen (Owner 26.09.2026): wird bisher nur gespeichert, wirkt noch nirgends.
+	// Seehafen (Owner 26.09.2026): wird bisher nur gespeichert, wirkt noch nirgends. Mit Seeweg-Anbindung
+	// automatisch gesetzt und gesperrt, sonst setzt der Editor es von Hand -- dieselbe Regel wie „Ort
+	// bearbeiten" auf der Karte (dtSeewegAnbindung fragt deren Index).
+	const seewegAnbindung = dtSeewegAnbindung(selectedPublicId || detail.public_id);
 	const seaportRow =
-		`<div class="k"></div><div><label class="dt-edit-checkrow"><input type="checkbox" id="dtEditIsSeaport"${props.is_seaport ? " checked" : ""}> Seehafen</label></div>`;
+		`<div class="k"></div><div><label class="dt-edit-checkrow"><input type="checkbox" id="dtEditIsSeaport"${seewegAnbindung || props.is_seaport ? " checked" : ""}${seewegAnbindung ? " disabled" : ""}> Seehafen${seewegAnbindung ? ` <span class="dt-sub">— automatisch, der Ort liegt an einem Seeweg</span>` : ""}</label></div>`;
 	const nodixRow =
 		`<div class="k"></div><div><label class="dt-edit-checkrow"><input type="checkbox" id="dtEditIsNodix"${props.is_nodix ? " checked" : ""}> Ort ist ein Nodix</label></div>`;
 	const ruinedRow =

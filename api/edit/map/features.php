@@ -81,6 +81,15 @@ try {
 
             return avesmapsRepairCrossingFeatureType($pdo, $user, !$scharf, $limit > 0 ? $limit : 500);
         })(),
+        // Seehafen aus Seewegen (Owner 26.09.2026): jeden Ort anhaekeln, den ein Seeweg beruehrt
+        // (avesmapsSeehafenAusSeewegen). NUR Admins; Trockenlauf ist die Vorgabe, scharf nur mit `apply: true`.
+        'seehafen_aus_seewegen' => (static function () use ($pdo, $payload, $user): array {
+            if (!avesmapsUserCan($user, 'admin')) {
+                avesmapsErrorResponse(403, 'forbidden', 'Das Anhaekeln der Seehaefen ist Admins vorbehalten.');
+            }
+
+            return avesmapsSeehafenAusSeewegen($pdo, ($payload['apply'] ?? false) !== true);
+        })(),
         // 🔴 Hier stand `wegname_anzeigen_bestand` -- einmal gefahren am 15.09.2026, danach zurueckgebaut (Review I2; Begruendung und
         // Waechter: api/_internal/map/__tests__/wegname-bestandslauf-zurueckgebaut-test.php). Eine alte Seite, die ihn ruft, faellt in
         // den default-Zweig und bekommt eine klare Absage.

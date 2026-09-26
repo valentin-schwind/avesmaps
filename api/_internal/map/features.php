@@ -1949,6 +1949,149 @@ function avesmapsRepairCrossingFeatureType(PDO $pdo, array $user, bool $trockenl
     ];
 }
 
+// ===== Seehafen aus Seewegen (Owner 26.09.2026) ==================================================
+// „kannst du jetzt alle orte automatisch anhaekeln, die derzeit eine seewege anbindung haben? wenn
+// das gelingt, kann das feld nicht mehr editiert werden". Admin-Aktion `seehafen_aus_seewegen`.
+//
+// 🔴 DIE ANBINDUNG IST DIE DES ROUTERS, KEIN NACHBAU: avesmapsCollectClientSeaBoundLocations
+// (api/_internal/routing/client-graph.php) -- ein Seeweg beruehrt einen Ort an einem ENDE (Toleranz
+// des Graphbaus) oder mit einem INNEREN Stuetzpunkt (round-5). Gelesen wird der aktive Bestand ueber
+// denselben Leser wie jede Route (avesmapsFetchRouteMapFeatures).
+// 🔴 NUR ORTE: `feature_type = 'location'`; Kreuzungen (junction/crossing) tragen keinen Seehafen.
+// 🔴 NUR ANHAEKELN, NIE ABHAEKELN: ein Ort, den heute kein Seeweg mehr beruehrt, behaelt sein Haekchen.
+// Die sichere Richtung -- der Lauf ist wiederholbar, und ein neuer Seeweg wird beim naechsten Lauf
+// nachgezogen; ein verschwundener nicht.
+// 💣 Dieselben zwei Riegel wie beim frueheren Bestandslauf „Wegname anzeigen" (Commit 81f25352d):
+// der scharfe Lauf liest IN seiner Transaktion mit `FOR UPDATE`, und das UPDATE traegt den
+// Revisionsriegel -- sonst ueberschriebe er ein gleichzeitiges Speichern mit dem alten Nest.
+// 💣 KEIN Protokolleintrag je Ort: die Kappung des Aenderungsprotokolls je Person loeschte sonst die
+// echte Geschichte. `updated_at` und `updated_by` bleiben stehen; die Kartenrevision wird EINMAL
+// gehoben (sonst behielte jeder warme Browser sein 304), und nur, wenn wirklich geschrieben wurde.
+
+/**
+ * REIN: die public_ids aller Orte, die ein Seeweg beruehrt -- aus Kartenobjekten in der Form von
+ * avesmapsFetchRouteMapFeatures. Kreuzungen fallen heraus.
+ * @return array<string, array{public_id:string,name:string,subtype:string}>
+ */
+function avesmapsSeehafenOrteAusKarte(array $features): array {
+    $netz = avesmapsBuildRouteNetworkData(['features' => $features]);
+    $orte = [];
+    foreach (is_array($netz['locations'] ?? null) ? $netz['locations'] : [] as $ort) {
+        $ort = avesmapsClientRouteLocationWithCoordinates($ort);
+        if ($ort !== null) $orte[] = $ort;
+    }
+    $treffer = avesmapsCollectClientSeaBoundLocations(
+        $netz,
+        $orte,
+        avesmapsBuildClientLocationCoordinateIndex($orte),
+        avesmapsBuildClientLocationCellIndex($orte)
+    );
+
+    $haefen = [];
+    foreach ($treffer as $ort) {
+        $publicId = (string) ($ort['public_id'] ?? '');
+        if ($publicId === '' || (string) ($ort['feature_type'] ?? '') !== 'location') continue;
+        if ((string) ($ort['subtype'] ?? '') === 'crossing') continue;
+        $haefen[$publicId] = [
+            'public_id' => $publicId,
+            'name' => (string) ($ort['name'] ?? ''),
+            'subtype' => (string) ($ort['subtype'] ?? ''),
+        ];
+    }
+    return $haefen;
+}
+
+/** Die Orte, deren Haekchen fehlt. Mit `$sperren` (nur scharf, IN der Transaktion) mit `FOR UPDATE`. */
+function avesmapsSeehafenZieleLesen(PDO $pdo, array $haefen, bool $sperren): array {
+    $lesen = $pdo->prepare(
+        "SELECT id, public_id, name, properties_json, revision
+        FROM map_features
+        WHERE feature_type = 'location' AND is_active = 1
+        ORDER BY id ASC" . ($sperren ? "
+        FOR UPDATE" : '')
+    );
+    $lesen->execute();
+    $ziele = [];
+    foreach ($lesen->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
+        if (!isset($haefen[(string) $zeile['public_id']])) continue;
+        $nest = avesmapsDecodeJsonColumnForEdit($zeile['properties_json'] ?? null);
+        if (($nest['is_seaport'] ?? null) === true) continue;
+        $zeile['nest'] = $nest;
+        $ziele[] = $zeile;
+    }
+    return $ziele;
+}
+
+function avesmapsSeehafenAusSeewegen(PDO $pdo, bool $trockenlauf = true): array {
+    // Im Rumpf, nicht am Dateikopf: diese Bibliothek laedt jeder Kartenschreibweg, die Routing-Kette
+    // braucht nur dieser eine Lauf.
+    require_once __DIR__ . '/../routing/map-data.php';
+    require_once __DIR__ . '/../routing/network-data.php';
+    require_once __DIR__ . '/../routing/client-graph.php';
+
+    $haefen = avesmapsSeehafenOrteAusKarte(avesmapsFetchRouteMapFeatures($pdo));
+
+    $gesetzt = 0;
+    $revision = 0;
+    $uebersprungen = [];
+    if ($trockenlauf) {
+        $ziele = avesmapsSeehafenZieleLesen($pdo, $haefen, false);
+    } else {
+        $pdo->beginTransaction();
+        try {
+            $ziele = avesmapsSeehafenZieleLesen($pdo, $haefen, true);
+            if ($ziele !== []) {
+                $revision = avesmapsNextMapRevision($pdo);
+                $schreiben = $pdo->prepare(
+                    'UPDATE map_features
+                    SET properties_json = :properties_json,
+                        revision = :revision,
+                        updated_at = updated_at
+                    WHERE id = :id AND revision = :gelesen'
+                );
+                foreach ($ziele as $zeile) {
+                    $nest = $zeile['nest'];
+                    $nest['is_seaport'] = true;
+                    $schreiben->execute([
+                        'id' => (int) $zeile['id'],
+                        'properties_json' => avesmapsEncodeJson($nest),
+                        'revision' => $revision,
+                        'gelesen' => (int) $zeile['revision'],
+                    ]);
+                    if ($schreiben->rowCount() === 1) {
+                        $gesetzt++;
+                    } else {
+                        $uebersprungen[] = (string) $zeile['public_id'];
+                    }
+                }
+            }
+            if ($gesetzt === 0) {
+                $pdo->rollBack();
+                $revision = 0;
+            } else {
+                $pdo->commit();
+            }
+        } catch (Throwable $exception) {
+            avesmapsRollbackAndRethrow($pdo, $exception);
+        }
+    }
+
+    $namen = array_map(static fn (array $zeile): string => (string) ($zeile['name'] ?? ''), $ziele);
+    sort($namen, SORT_STRING | SORT_FLAG_CASE);
+
+    return [
+        'ok' => true,
+        'dry_run' => $trockenlauf,
+        // Alle Orte, die ein Seeweg beruehrt -- auch die, die das Haekchen schon tragen.
+        'seehaefen' => count($haefen),
+        'neu' => count($ziele),
+        'gesetzt' => $gesetzt,
+        'uebersprungen' => $uebersprungen,
+        'revision' => $revision,
+        'orte' => $namen,
+    ];
+}
+
 // 🔴 HIER STAND DER BESTANDSLAUF „WEGNAME ANZEIGEN" (`avesmapsWegnameAnzeigenBestand`, Admin-Aktion `wegname_anzeigen_bestand`).
 // Er hakte `show_label` an allen aktiven Wiki-Abschnitten EINMAL an -- gefahren am 15.09.2026, bevor die Karte das Haekchen auch an
 // Wiki-Wegen fragte (Owner-Entscheid „Bestand bleibt"). Danach zurueckgebaut (Review I2): nach dem Tor heisst „ohne Haekchen"

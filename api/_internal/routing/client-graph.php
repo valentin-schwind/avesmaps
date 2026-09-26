@@ -153,16 +153,9 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
     $candidateLocations = [];
     $waypointNames = avesmapsCollectRouteRequestWaypointNames($request);
     foreach (is_array($networkData['locations'] ?? null) ? $networkData['locations'] : [] as $location) {
-        if (!is_array($location)) continue;
-        $name = trim((string) ($location['name'] ?? ''));
-        if ($name === '') continue;
-        $coords = $location['geometry']['coordinates'] ?? null;
-        if (!is_array($coords) || count($coords) < 2) continue;
-        $x = filter_var($coords[0], FILTER_VALIDATE_FLOAT);
-        $y = filter_var($coords[1], FILTER_VALIDATE_FLOAT);
-        if ($x === false || $y === false) continue;
-        $location['route_x'] = (float) $x;
-        $location['route_y'] = (float) $y;
+        $location = avesmapsClientRouteLocationWithCoordinates($location);
+        if ($location === null) continue;
+        $name = trim((string) $location['name']);
         $locations[] = $location;
         if (empty($location['is_hidden']) || isset($waypointNames[$name])) {
             $candidateLocations[] = $location;
@@ -172,13 +165,7 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
 
     // Index location coordinates (round-5) -> location, so paths can be split at on-route
     // crossings/settlements (interior vertices, not just endpoints) and connect there.
-    $locationCoordinateIndex = [];
-    foreach ($locations as $indexedLocation) {
-        $coordinateKey = sprintf('%.5f:%.5f', (float) $indexedLocation['route_x'], (float) $indexedLocation['route_y']);
-        if (!isset($locationCoordinateIndex[$coordinateKey])) {
-            $locationCoordinateIndex[$coordinateKey] = $indexedLocation;
-        }
-    }
+    $locationCoordinateIndex = avesmapsBuildClientLocationCoordinateIndex($locations);
 
     // Separate from the exact round-5 index above and in addition to it: that one answers "is a
     // location exactly on this interior vertex", this one answers "is a location within the
@@ -935,6 +922,22 @@ function avesmapsFilterOutClientWaterLockedNodes(array $graph, array $nodeNames,
 // all. Mirrors the graph's node matching: endpoint tolerance for the two ends, round-5 index interior.
 function avesmapsCollectClientSeaBoundLocationNames(array $networkData, array $locations, array $locationCoordinateIndex, array $locationCellIndex): array {
     $seaBound = [];
+    foreach (avesmapsCollectClientSeaBoundLocations($networkData, $locations, $locationCoordinateIndex, $locationCellIndex) as $location) {
+        $seaBound[(string) $location['name']] = true;
+    }
+    return $seaBound;
+}
+
+// Dieselbe Regel, aber die ORTE statt ihrer Namen -- geschluesselt nach `public_id` (Rueckfall: der
+// Name), denn zwei Orte koennen gleich heissen. Zweiter Leser neben dem Router: der Lauf „Seehafen aus
+// Seewegen" (avesmapsSeehafenAusSeewegen, api/_internal/map/features.php). 🔴 EINE Regel fuer beide --
+// wer die Erkennung aendert, aendert sie hier, und beide folgen.
+function avesmapsCollectClientSeaBoundLocations(array $networkData, array $locations, array $locationCoordinateIndex, array $locationCellIndex): array {
+    $seaBound = [];
+    $merke = static function (array $location) use (&$seaBound): void {
+        $publicId = (string) ($location['public_id'] ?? '');
+        $seaBound[$publicId !== '' ? $publicId : 'name:' . (string) $location['name']] = $location;
+    };
     foreach (is_array($networkData['paths'] ?? null) ? $networkData['paths'] : [] as $path) {
         if (!is_array($path)) continue;
         $routeType = avesmapsNormalizeClientRouteSubtype((string) ($path['subtype'] ?? $path['name'] ?? ''));
@@ -944,7 +947,7 @@ function avesmapsCollectClientSeaBoundLocationNames(array $networkData, array $l
         if ($count < 2) continue;
         foreach ([$coordinates[0], $coordinates[$count - 1]] as $endpoint) {
             $location = avesmapsFindClientLocationAtPathEndpoint($locations, $locationCellIndex, $endpoint);
-            if (is_array($location)) $seaBound[(string) $location['name']] = true;
+            if (is_array($location)) $merke($location);
         }
         for ($i = 1; $i < $count - 1; $i++) {
             $vertexX = filter_var($coordinates[$i][0] ?? null, FILTER_VALIDATE_FLOAT);
@@ -952,7 +955,7 @@ function avesmapsCollectClientSeaBoundLocationNames(array $networkData, array $l
             if ($vertexX === false || $vertexY === false) continue;
             $coordinateKey = sprintf('%.5f:%.5f', (float) $vertexX, (float) $vertexY);
             if (isset($locationCoordinateIndex[$coordinateKey])) {
-                $seaBound[(string) $locationCoordinateIndex[$coordinateKey]['name']] = true;
+                $merke($locationCoordinateIndex[$coordinateKey]);
             }
         }
     }
@@ -1592,6 +1595,35 @@ function avesmapsRemoveClientRouteConnection(array &$graph, string $fromNode, st
 // location sets themselves), because the lookup has to reproduce the linear scan's order.
 // The assertion is not decoration: should the tolerance ever grow past the cell width, 3x3 cells
 // would no longer cover it and the search would start losing hits silently.
+// Ein Ort aus den Netzdaten, bereit fuer die Ortsindizes: mit Namen und lesbarer Punktkoordinate,
+// ergaenzt um route_x/route_y. Sonst null. Der Graphbau und der Lauf „Seehafen aus Seewegen" lesen
+// ihre Orte durch DIESE Funktion -- sonst saehen beide verschiedene Ortsmengen.
+function avesmapsClientRouteLocationWithCoordinates(mixed $location): ?array {
+    if (!is_array($location)) return null;
+    if (trim((string) ($location['name'] ?? '')) === '') return null;
+    $coords = $location['geometry']['coordinates'] ?? null;
+    if (!is_array($coords) || count($coords) < 2) return null;
+    $x = filter_var($coords[0], FILTER_VALIDATE_FLOAT);
+    $y = filter_var($coords[1], FILTER_VALIDATE_FLOAT);
+    if ($x === false || $y === false) return null;
+    $location['route_x'] = (float) $x;
+    $location['route_y'] = (float) $y;
+    return $location;
+}
+
+// Der exakte Index (round-5) -- „liegt ein Ort genau auf diesem inneren Stuetzpunkt?". Der erste Ort
+// je Koordinate gewinnt. Graphbau und Seehafen-Lauf teilen ihn.
+function avesmapsBuildClientLocationCoordinateIndex(array $locations): array {
+    $index = [];
+    foreach ($locations as $location) {
+        $coordinateKey = sprintf('%.5f:%.5f', (float) $location['route_x'], (float) $location['route_y']);
+        if (!isset($index[$coordinateKey])) {
+            $index[$coordinateKey] = $location;
+        }
+    }
+    return $index;
+}
+
 function avesmapsBuildClientLocationCellIndex(array $locations): array {
     assert(AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD <= AVESMAPS_ROUTE_CLIENT_CELL_SIZE,
         'Endpoint tolerance larger than the cell width -- 3x3 cells no longer suffice.');

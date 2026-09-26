@@ -497,6 +497,7 @@ function refreshPlannerAfterFeatureChange({ updateRoute = false } = {}) {
 	// bliebe, liesse einen Abgleich dazwischen mit dem Stand von vor der Aenderung rechnen.
 	graphData = null;
 	locationConnectivityIndex = null;
+	seewegAnbindungsIndex = null;
 	// Idee #86: der Prüfhaken misst nicht die eigene Merkliste, sondern den Gesamtbestand -- eine
 	// gesetzte Kreuzung nimmt hier also auch einen Befund zurück, den nie jemand aufgemacht hat. Erst
 	// den Index verwerfen (hier), dann neu zeichnen (refreshPlannerAfterFeatureChangeJetzt).

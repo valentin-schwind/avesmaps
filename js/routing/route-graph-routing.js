@@ -427,6 +427,54 @@ function getSparseCrossingPublicIds() {
     return getLocationConnectivityIndex().sparseCrossings;
 }
 
+// Seehafen (Owner 26.09.2026): die Kennungen aller Knoten, die ein Seeweg beruehrt -- an einem ENDE
+// (getLocationAtPathEndpoint, dieselbe Toleranz wie der Graphbau) oder mit einem INNEREN Stuetzpunkt
+// (round-5). Zwilling von avesmapsCollectClientSeaBoundLocations (api/_internal/routing/client-graph.php).
+// 💣 BEWUSST NICHT ueber die Arme des Graphen: der nimmt einen Weg nur auf, wenn BEIDE Enden an einem
+// Ort liegen -- ein Seeweg, der ins offene Meer ausläuft, fehlte dort, und Browser und Server sagten
+// ueber denselben Ort Verschiedenes. Kreuzungen stehen mit drin, wie beim Router; ob ein Ort gemeint
+// ist, fragt der Leser. ⚠️ Bei round-5-Kollision gewinnt hier der letzte Ort (buildLocationCoordinateIndex),
+// beim Server der erste -- betrifft nur exakt uebereinanderliegende Knoten.
+function sammleSeewegAngebundenePublicIds() {
+    const angebunden = new Set();
+    const ortsRaster = typeof avesmapsOrtsRaster === "function" ? avesmapsOrtsRaster() : null;
+    const koordinatenIndex = buildLocationCoordinateIndex();
+    const merke = (location) => {
+        if (location?.publicId) {
+            angebunden.add(String(location.publicId));
+        }
+    };
+    pathData.forEach((pathFeature) => {
+        const properties = pathFeature?.properties;
+        if (normalizePathSubtype(properties?.feature_subtype || properties?.name) !== "Seeweg") {
+            return;
+        }
+        const coordinates = pathFeature?.geometry?.coordinates;
+        if (!Array.isArray(coordinates) || coordinates.length < 2) {
+            return;
+        }
+        merke(getLocationAtPathEndpoint(coordinates[0], ortsRaster));
+        merke(getLocationAtPathEndpoint(coordinates[coordinates.length - 1], ortsRaster));
+        for (let index = 1; index < coordinates.length - 1; index++) {
+            merke(koordinatenIndex.get(buildConnectivityCoordinateKey(coordinates[index])));
+        }
+    });
+    return angebunden;
+}
+
+// Hat dieser Ort eine Seeweg-Anbindung? Dann ist sein Haekchen „Seehafen" automatisch gesetzt und
+// nicht editierbar; ohne Anbindung setzen Editoren es von Hand (Owner 26.09.2026). Gefragt von „Ort
+// bearbeiten" und -- ueber window.parent -- vom Ortseditor. Ohne Kennung (neuer Ort) immer nein.
+function avesmapsOrtHatSeewegAnbindung(publicId) {
+    if (!publicId) {
+        return false;
+    }
+    if (!seewegAnbindungsIndex) {
+        seewegAnbindungsIndex = sammleSeewegAngebundenePublicIds();
+    }
+    return seewegAnbindungsIndex.has(String(publicId));
+}
+
 // Die Wegart einer markierten Kreuzung, oder "" (nicht markiert / unbekannte publicId). Folgt der
 // Form der Nachbarn oben (geht ueber getLocationConnectivityIndex(), baut den Index bei Bedarf also
 // lazy) -- anders als der Melde-Knopf in map-features-share-pin.js, der bewusst NICHT hierueber geht:
