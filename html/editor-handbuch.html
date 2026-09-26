@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 26.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 27.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -246,7 +246,6 @@
 				<li><a href="#aufgaben" data-keywords="posteingang arbeit community">Aufgaben</a>
 					<ul>
 						<li><a href="#konflikte" data-keywords="konflikt konflikte wiki artikel doppelt verknüpfung trennen genehmigt kein wiki-eintrag artikel übernehmen reichweite segmente ganze linie widerspruch dump-lauf dump-bericht bericht auffällig">Konflikte</a></li>
-						<li><a href="#garetien-importer" data-keywords="garetien koschwiki volkov import importer importieren fremde karte uebernehmen anhaken ablehnen zuruecknehmen offen anzeigen abgelehnt uebernommen angezeigte zeilen holen rechnen ebenen lizenz cc by-nc-sa">Garetien Importer</a></li>
 						<li><a href="#bug-system" data-keywords="discord fehler bug idee frage offen erledigt bot">Das automatische Bug-System</a></li>
 						<li><a href="#meldungen" data-keywords="community änderung vorschlagen position melden report bearbeitet erledigt offen alle filter wiederfinden angenommen verworfen begründung änderungswunsch beschreibung">Meldungen</a></li>
 						<li><a href="#bewertungen" data-keywords="sterne rating community spam verbergen einblenden löschen moderation">Bewertungen</a></li>
@@ -263,7 +262,7 @@
 				</li>
 				<li><a href="#verstehen" data-keywords="konzepte hintergrund warum">Verstehen</a>
 					<ul>
-						<li><a href="#v-karte" data-keywords="originalkarte karte lage position datengrundlage verschieben meilen garetien importer punkt aufgelöst markt burg kloster konflikt">Die Originalkarte ist unsere Datengrundlage</a></li>
+						<li><a href="#v-karte" data-keywords="originalkarte karte lage position datengrundlage verschieben meilen garetien fremde quelle punkt aufgelöst markt burg kloster konflikt">Die Originalkarte ist unsere Datengrundlage</a></li>
 						<li><a href="#v-wiki" data-keywords="aventurica verknüpfen zuweisen datengrundlage zuweisungskasten artikel suchen sync entfernen ändern kein wiki-artikel vorhanden">Das Wiki als Datengrundlage</a></li>
 						<li><a href="#v-live" data-keywords="speichern entwurf veröffentlichen sofort">Alles ist sofort live</a></li>
 						<li><a href="#v-graph" data-keywords="kreuzung unverbunden querfeldein routing knoten wegzeichnung">Das Wegenetz ist ein Graph</a></li>
@@ -809,8 +808,9 @@
 					<li><strong>Position</strong> — die Koordinaten, nur zur Anzeige. Verschieben tust du den Ort, indem du ihn auf der Karte ziehst.</li>
 					<li><strong>Identität</strong> — <em>Ortsname</em>, <em>Ortsgröße</em>, <em>Art</em> und die drei Wiki-Angaben <em>Einwohner</em>, <em>Lage</em> und <em>Herrscher</em>; die drei darfst du auch von Hand überschreiben. Wiki-Werte holt <strong>„Sync"</strong> im <a href="#v-wiki">Zuweisungskasten</a>, mit Vorschau.</li>
 					<li><strong>Beschreibung</strong> — ein Textfeld, beschriftet <em>„Beschreibung — öffentlich sichtbar"</em>. Was hier steht, erscheint in der Infobox; bis 1.200 Zeichen.</li>
-					<li><strong>Optionen</strong> — „Ort ist ein Nodix", „Ruine/zerstört", „Verborgen".</li>
+					<li><strong>Optionen</strong> — „Seehafen", „Ort ist ein Nodix", „Ruine/zerstört", „Verborgen". Liegt der Ort an einem Seeweg, ist „Seehafen" automatisch gesetzt und gesperrt; sonst setzt du es von Hand. Auf der Karte wirkt es noch nicht.</li>
 					<li><strong>Wiki-Ort</strong> — der <a href="#v-wiki">Zuweisungskasten</a>.</li>
+					<li><strong>Stätten</strong> — Bauwerke ohne eigenen Punkt, die in der Infobox des Ortes stehen. Der Block erscheint nur, wenn der Ort welche hat. Siehe <a href="#siedlungen-staetten">Stätten</a>.</li>
 					<li><strong>Quellen</strong> — womit dieser Ort belegt ist. Mehrere Einträge sind normal; siehe <a href="#v-quellen">Quellen</a>.</li>
 					<li><strong>Wappen</strong> — <strong>„Ersetzen / hochladen"</strong> (Datei oder Bild-Adresse, bis 5&nbsp;MB, SVG erlaubt) und <strong>„Entfernen"</strong>; ein Klick auf das Bild selbst tut dasselbe wie der erste. Daneben steht, woher das gezeigte Wappen stammt. Erscheint erst, <em>nachdem</em> der Ort einmal gespeichert wurde. Beim Hochladen fragt der Dialog <em>Lizenz</em>, <em>Urheber</em> und <em>Kommentar</em> — siehe <a href="#v-lizenzen">Bilder &amp; Lizenzen</a>.</li>
 				</ul>
@@ -818,6 +818,14 @@
 				<div class="hb-note hb-tip"><strong>„Art" ist grau? Dann steht die Ortsgröße nicht auf „Besondere Bauwerke/Stätten".</strong> Nur dort ist das Feld freigeschaltet — ein Dorf ist eben ein Dorf, da gibt es keine zweite Art. Stellst du die Ortsgröße wieder auf eine Siedlungsstufe zurück, wird die Art <em>geleert</em>, nicht bloß gesperrt: Gespeichert würde sie ohnehin nicht mehr, und ein stehengebliebener Text behauptete etwas Falsches.</div>
 				<div class="hb-note hb-warn"><strong>Ein Wappen ohne freie Lizenz bleibt unsichtbar</strong> — kein Fehler, sondern Absicht. Welche der sieben Einstufungen öffentlich erscheinen, steht unter <a href="#v-lizenzen">Bilder &amp; Lizenzen</a>.</div>
 				<div class="hb-note hb-warn"><strong>Die Karte holt kein Bild vom Wiki.</strong> Gezeigt wird nur, was auf unserem Server liegt — sonst bleibt das Feld leer, auch wenn der Editor daneben <em>„Wiki-Wappen vorhanden, aber nicht übernommen"</em> schreibt. Brauchst du das Wappen, lade es über <strong>„Ersetzen / hochladen"</strong> als Bild-Adresse hoch.</div>
+				<h4 id="siedlungen-staetten">Stätten eines Ortes</h4>
+				<p>Eine Stätte ist ein Bauwerk, das zu einem Ort gehört, aber keinen Punkt auf der Karte hat. Du findest sie im Dialog „Ort bearbeiten" und im Ortseditor, direkt über den Quellen.</p>
+				<table class="hb-table">
+					<tr><th>Knopf</th><th>Was er tut</th></tr>
+					<tr><td><strong>Umhängen</strong></td><td>Hängt die Stätte an einen anderen Ort. Du suchst den Ort im Feld <em>„Neuer Ort …"</em> und bestätigst.</td></tr>
+					<tr><td><strong>Löschen</strong></td><td>Entfernt die Stätte aus der Infobox des Ortes. Ihre Quellen bleiben an ihr hängen. Fragt vorher nach.</td></tr>
+				</table>
+				<div class="hb-note hb-tip"><strong>„gleichnamiger Punkt auf der Karte" heißt: das Bauwerk steht wohl doppelt da.</strong> Stätten aus dem Wiki zählt der Block nur mit; bearbeiten kannst du sie hier nicht.</div>
 				<h4>„Verborgen" — ein Ort ohne Punkt auf der Karte</h4>
 				<ul class="hb-steps">
 					<li>Er bekommt <strong>weder Markierung noch Namen</strong>.</li>
@@ -888,7 +896,7 @@
 				<div class="hb-note hb-tip"><strong>Auch die Variante fürs einzelne Gebiet ordnet in die Tiefe zu.</strong> Klickst du eine Grafschaft an, können ihre Orte trotzdem bei den darunterliegenden Baronien landen — die Regel „tiefste Ebene gewinnt" gilt weiter. Ausgewählt wird nur, <em>welche</em> Orte geprüft werden, nicht, wohin sie kommen.</div>
 
 				<h4>Die rechte Spalte</h4>
-				<p>Sie ist geordnet wie jedes Editorfenster: <strong>„Identität"</strong> (Name, Typ, Einwohner, Lage, Herrscher, Beschreibung), <strong>„Eigenschaften"</strong> (die Häkchen „Ort ist ein Nodix", „Ruine / zerstört", „Verborgen"), der <a href="#v-wiki">Zuweisungskasten</a>, die <strong>Quellen</strong> — dann die Speicherleiste. <em>Region</em> und <em>Staat</em> zeigt der Zuweisungskasten.</p>
+				<p>Sie ist geordnet wie jedes Editorfenster: <strong>„Identität"</strong> (Name, Typ, Einwohner, Lage, Herrscher, Beschreibung), <strong>„Eigenschaften"</strong> (die Häkchen „Seehafen", „Ort ist ein Nodix", „Ruine / zerstört", „Verborgen"), der <a href="#v-wiki">Zuweisungskasten</a>, die <a href="#siedlungen-staetten">Stätten</a>, die <strong>Quellen</strong> — dann die Speicherleiste. <em>Region</em> und <em>Staat</em> zeigt der Zuweisungskasten.</p>
 				<p>Unter <strong>„Lage &amp; Zugehörigkeit"</strong> — als einzigem Abschnitt <em>unterhalb</em> der Speicherleiste — sitzt das einzige echte Override: das <strong>Territorium</strong>. Daneben steht, woher es stammt — <em>„manuell"</em> oder <em>„Ray-Cast · tiefste Ebene"</em>. Mit <strong>„ändern"</strong> setzt du es selbst; ab dann ist es manuell und kein Massenlauf fasst es mehr an.</p>
 				<div class="hb-note hb-tip"><strong>Zeilen aus dem Reiter „Fehlt" kannst du hier nicht bearbeiten.</strong> Sie stehen nur im Wiki und haben noch keinen Punkt auf der Karte, also auch nichts zu bearbeiten. Der Editor sagt es selbst: „Zum Bearbeiten zuerst auf der Karte platzieren."</div>
 
@@ -1510,104 +1518,6 @@
 				</table>
 				<div class="hb-note hb-tip"><strong>Die zweite Zeile lohnt einen zweiten Blick.</strong> Wenn ein Ort verknüpft ist, sein Name im Wiki aber nirgends vorkommt, kann der Link nicht aus dem Namensabgleich stammen. Dann hat ihn entweder jemand von Hand gesetzt, er kommt aus einer Wiki-Zuordnung — oder der Artikel wurde nachträglich umbenannt oder gelöscht. <strong>Ein toter Link fällt genau hier auf und in keiner anderen Gruppe.</strong></div>
 
-				<h3 id="garetien-importer" class="hb-sub">Garetien Importer</h3>
-				<p>Der Knopf <strong>„🗺 Garetien Importer"</strong> steht im Reiter <strong>Editor → WikiSync</strong>, neben <em>„⚖️ Konflikte"</em>. Er öffnet ein verschiebbares Fenster mit Kartenobjekten aus <strong>garetien.de</strong> und <strong>koschwiki.de</strong> — Gewässer, Wege, Wälder, Berge, Ortschaften und Herrschaftsgebiete. Du gehst sie durch und entscheidest Objekt für Objekt.</p>
-				<div class="hb-note hb-tip"><strong>Beim Öffnen stellt sich die Karte um.</strong> Ansicht <em>Landschaften</em>, Ebene <em>Alle</em>, dazu Wege, Beschriftungen, Grenzen, Flüsse und Seen, Kreuzungen und alle Ortsklassen sichtbar — du sollst sehen, was schon daliegt. Routenplaner und Editorpanel klappen zur Seite und bleiben es; hol sie über ihre Laschen zurück.</div>
-				<h4>So gehst du vor</h4>
-				<p>Der Weg ist immer derselbe: <strong>Offen → Stage → „Stage importieren" → Übernommen</strong>.</p>
-				<ul class="hb-steps">
-					<li>Reiter <strong>Offen</strong> wählen. Links die Liste, rechts das ausgewählte Objekt.</li>
-					<li>Ein Objekt anklicken und rechts prüfen: Name, Art, Geometrie, Quelle.</li>
-					<li>Passt es, <strong>„Auf die Stage"</strong> drücken. Es liegt dann zur Ansicht auf der Karte — geschrieben ist noch nichts.</li>
-					<li>Passt es nicht, <strong>„Ablehnen"</strong>. Das geht auch bei Objekten ohne Vorschlag.</li>
-					<li>Auf der Stage wählst du je Objekt das <a href="#garetien-ziel">Ziel</a>: neu auf die Karte, nur die Quelle ergänzen oder nichts.</li>
-					<li>Ist die Stage voll, unten rechts <strong>„Stage importieren"</strong> drücken. Es kommt erst die Übernahme-Vorschau — geschrieben wird nur, was dort angehakt bleibt.</li>
-					<li>Die <strong>Statuszeile</strong> meldet danach, was angelegt wurde.</li>
-				</ul>
-				<h4>Die vier Reiter</h4>
-				<table class="hb-table">
-					<tr><th>Reiter</th><th>Was darin steht</th></tr>
-					<tr><td><strong>Offen</strong></td><td>Noch nicht entschieden.</td></tr>
-					<tr><td><strong>Stage</strong></td><td>Was auf der Karte liegt und beim Importieren geschrieben wird. Diese Menge lebt nur in deinem Browser.</td></tr>
-					<tr><td><strong>Abgelehnt</strong></td><td>Von dir verworfen. Wird nicht wieder vorgeschlagen.</td></tr>
-					<tr><td><strong>Übernommen</strong></td><td>Steht auf der Karte.</td></tr>
-				</table>
-				<h4>Die Einzelansicht</h4>
-				<p>Rechts steht das gewählte Objekt, gegliedert in Blöcke. Was das gewählte Ziel nicht braucht, steht grau da.</p>
-				<table class="hb-table">
-					<tr><th>Block</th><th>Was darin steht</th></tr>
-					<tr><td><strong>A · Auf der Karte</strong></td><td>Unsere Abschnitte an dieser Stelle und der Grund des Vorschlags.</td></tr>
-					<tr><td><strong>B · Verbund</strong></td><td>Nur bei Fragmenten, siehe <a href="#garetien-verbund">Verbünde</a>.</td></tr>
-					<tr><td><strong>C · Ziel &amp; Identität</strong></td><td>Ziel, Name, Form und Art. Auf <em>Offen</em> nur als Text.</td></tr>
-					<tr><td><strong>D · Darstellung</strong></td><td>Nur auf der Stage.</td></tr>
-					<tr><td><strong>E · Wiki &amp; Quellen</strong></td><td>Nur auf der Stage.</td></tr>
-					<tr><td><strong>F · Handlung</strong></td><td>Die Knöpfe für dieses Objekt.</td></tr>
-					<tr><td><strong>G · Weiter importieren</strong></td><td>„Imports in der Nähe wählen", siehe unten.</td></tr>
-				</table>
-				<p>Ein übernommenes Objekt zeigt nur A und F. Block A sagt dann, wo es liegt und ob es zurückgeht.</p>
-				<h4>Die Knöpfe in Block F</h4>
-				<table class="hb-table">
-					<tr><th>Knopf</th><th>Was er tut</th></tr>
-					<tr><td><strong>Auf die Stage</strong></td><td>Legt das Objekt zur Ansicht auf die Karte. Schreibt nichts. An einem Fragment kommen die übrigen Fragmente mit.</td></tr>
-					<tr><td><strong>Von der Stage nehmen</strong></td><td>Nimmt es wieder herunter.</td></tr>
-					<tr><td><strong>Ablehnen</strong></td><td>Verwirft das Objekt, auch eines ohne Vorschlag. Der Knopf ist rot.</td></tr>
-					<tr><td><strong>Wieder vorschlagen</strong></td><td>Holt ein abgelehntes Objekt zurück nach <em>Offen</em>.</td></tr>
-				</table>
-				<p>Ein <strong>übernommenes</strong> Objekt zeigt andere Knöpfe: <strong>„Zurücknehmen"</strong> holt es von der Karte zurück, <strong>„Ganzen Verbund zurücknehmen"</strong> alle seine Fragmente. <strong>„Ablehnen"</strong> nimmt es zurück <em>und</em> legt es nach <em>Abgelehnt</em>. <strong>„Zurück nach Offen"</strong> stellt es wieder zur Entscheidung.</p>
-				<h4 id="garetien-ziel">Das Ziel: was beim Import passiert</h4>
-				<p>Liegt ein Objekt auf der Stage, wählst du in Block C <strong>ein</strong> Ziel. Es stehen nur die Ziele da, die für dieses Objekt gehen.</p>
-				<table class="hb-table">
-					<tr><th>Ziel</th><th>Was beim Import passiert</th></tr>
-					<tr><td><strong>Auf die Karte</strong></td><td>Ein neues Objekt der gewählten Form.</td></tr>
-					<tr><td><strong>Stätte in „X"</strong></td><td>Ein Bauwerk als Stätte im Ort X — ohne Kartenpunkt, gelistet in der Infobox des Ortes.</td></tr>
-					<tr><td><strong>Nur Quelle + Artikel an „X"</strong></td><td>Kein Objekt. Quelle und Artikel kommen an den Ort X.</td></tr>
-					<tr><td><strong>Quelle an „X" ergänzen</strong></td><td>Die Quelle kommt an unser bestehendes Objekt. Sonst bleibt es, wie es ist.</td></tr>
-					<tr><td><strong>Quelle und Namen an „X" ergänzen</strong></td><td>Dasselbe, und der Platzhalter (etwa „Wald-190") bekommt den Namen aus dem Namensfeld. Nur bei Platzhalternamen.</td></tr>
-					<tr><td><strong>Auf die Karte — zusätzlich zu „X"</strong></td><td>Beides: neues Objekt <em>und</em> Quelle an X. Fragt vor dem Import nach.</td></tr>
-					<tr><td><strong>Nichts — nur ansehen</strong></td><td>Bleibt auf der Stage, wird nicht importiert.</td></tr>
-				</table>
-				<p>Vorgewählt ist „Quelle an X ergänzen", wenn sich das Objekt mit unserem deckt, sonst „Auf die Karte". Weichen Name, Form oder Art vom Import ab, steht der Importwert durchgestrichen darüber; <strong>↺</strong> holt ihn zurück. Deine Einstellungen bleiben am Objekt, auch wenn du es herunter- und wieder auflegst. „Stage leeren" vergisst sie.</p>
-				<div class="hb-note hb-warn"><strong>Bei der Lage gewinnt die Karte.</strong> Steht der Ort schon auf ihr, verschieb ihn nicht — auch wenn die Quelle ihn zehn Meilen weiter setzt. Warum, und die eine Ausnahme: <a href="#v-karte">Die Originalkarte ist unsere Datengrundlage</a>.</div>
-				<h4>Stätte in einem Ort</h4>
-				<p>Bei einem Bauwerk stehen unter der Zielwahl die Felder <strong>Siedlung</strong> und <strong>Umkreis</strong>. Die Siedlung nennt die Orte in Reichweite, nach Entfernung sortiert; bedienbar ist sie bei „Stätte in X" und „Nur Quelle + Artikel an X". Der Umkreis reicht von <strong>0 bis 20 Meilen</strong>, Vorgabe 5. Findet er nichts, dreh ihn hoch.</p>
-				<div class="hb-note hb-warn"><strong>Eine gefundene Siedlung wählt nichts vor.</strong> Das Ziel bleibt „Auf die Karte", bis du „Stätte in X" wählst. Sonst legte ein Import für hunderte Objekte still Stätten an.</div>
-				<h4 id="garetien-verbund">Verbünde</h4>
-				<p>Manche Objekte liegen in der Quelle in Stücken vor, etwa „Silker Hain 1" bis „4". Der Importer erkennt sie als <strong>Verbund</strong>; die Zeile trägt „⧉ 4 Fragmente". Der Filter <em>„Nur zeigen → nur Verbünde"</em> listet sie.</p>
-				<ul class="hb-steps">
-					<li>„Auf die Stage" an einem Fragment nimmt die übrigen mit.</li>
-					<li>Liegen zwei Fragmente auf der Stage, steht in Block B <strong>„Zusammenlegen"</strong>. Daraus wird <em>ein</em> Objekt mit dem Namen des Stamms.</li>
-					<li><strong>„Verbund auflösen"</strong> macht wieder einzelne Objekte daraus.</li>
-					<li>Der Fußknopf zählt, was entsteht: „Stage importieren · 1 Objekt aus 4 Zeilen".</li>
-				</ul>
-				<h4>Mehrere auf einmal: die Auswahlleiste</h4>
-				<p>Sobald du eine Zeile ankreuzt, erscheint unter der Liste eine Leiste. Jeder ihrer Knöpfe trägt das Wort <strong>Auswahl</strong> und wirkt auf die Häkchen — nie auf das Objekt rechts. Welche Knöpfe kommen, hängt vom Reiter ab:</p>
-				<table class="hb-table">
-					<tr><th>Reiter</th><th>Knöpfe der Leiste</th></tr>
-					<tr><td><strong>Offen</strong></td><td>Auswahl auf die Stage · Auswahl ablehnen · Auswahl aufheben</td></tr>
-					<tr><td><strong>Stage</strong></td><td>Auswahl von der Stage nehmen · Auswahl ablehnen · Auswahl aufheben</td></tr>
-					<tr><td><strong>Übernommen</strong></td><td>Auswahl aus der Karte zurücknehmen · Auswahl zurück nach Offen · Auswahl aufheben</td></tr>
-					<tr><td><strong>Abgelehnt</strong></td><td>Auswahl wieder vorschlagen · Auswahl aufheben</td></tr>
-				</table>
-				<div class="hb-note hb-warn"><strong>„Auswahl aufheben" und „Auswahl aus der Karte zurücknehmen" stehen nebeneinander und tun völlig Verschiedenes.</strong> Der eine räumt nur Häkchen ab, der andere nimmt einen ausgeführten Import von der Karte zurück.</div>
-				<div class="hb-note hb-tip"><strong>Die Zahl im Knopf zählt, was er wirklich bewegen kann</strong> — nicht, wie viel du angehakt hast. Kann er nichts ausrichten, ist er grau und nennt den Grund. <strong>Ein Reiterwechsel räumt die Häkchen ab:</strong> die Auswahl gehört der Ansicht, in der du sie gesetzt hast.</div>
-				<h4>Listenkopf und Fußleiste</h4>
-				<ul>
-					<li>Das Häkchen <strong>„alle n"</strong> über der Liste kreuzt jede angezeigte Zeile an. Ein zweiter Klick löst sie wieder. Daneben steht „n von m", auf der Stage „n auf der Stage · k Objekte".</li>
-					<li><strong>Stage leeren</strong> nimmt alles wieder von der Karte herunter.</li>
-					<li><strong>Alle zentrieren</strong> zoomt auf alles, was gerade angezeigt ist.</li>
-					<li><strong>Stage importieren</strong> ist die Haupthandlung des Fensters — der einzige gefüllte Knopf.</li>
-				</ul>
-				<p>Suche und Filter wirken auf jedem Reiter, auch auf der Stage. Der Filtertrichter zählt je Reiter: „Grenzen 0/3052" heißt 0 in dieser Liste, 3052 im ganzen Lauf.</p>
-				<h4>Nachbarn mitnehmen</h4>
-				<p>In Block G steht <strong>„Imports in der Nähe wählen"</strong>. Er wechselt auf <em>Offen</em>, zeigt die offenen Treffer samt Ausgangsobjekt und kreuzt sie an. Auf die Stage kommen sie über „Auswahl auf die Stage". Das Feld daneben grenzt ein: <em>gleicher Typ</em> (Vorgabe), ein einzelner Typ oder <em>alle Typen</em>. <strong>„Umkreis +"</strong> stellt die Weite, <strong>0 bis 20 Meilen</strong>, Vorgabe 3. Das ✕ am Hinweis „In der Nähe von …" führt zur normalen Liste zurück.</p>
-				<div class="hb-note hb-tip"><strong>„Umkreis +" ist ein Zuschlag, kein Radius.</strong> Gemessen wird ab dem <em>Rand</em> des gewählten Objekts. Eine große Waldfläche ist sonst breiter als ihr eigener Suchkreis und fände nichts.</div>
-				<h4>Die Statuszeile</h4>
-				<p>Unter dem Menüband läuft eine Zeile mit, die jede Rückmeldung des Fensters trägt. In Ruhe steht dort die Bilanz des Laufs samt Fortschritt: <em>„Lauf … · 4312 Objekte · 900 mit Vorschlag · 12 auf der Stage · Noch 3906 von 4312 Objekten (90,6%) offen"</em>. Nach einem Import steht dort, was entstanden ist — <em>„✓ 4 Objekte importiert — 3 Wege (2 Bäche), 1 Fläche"</em> — und daneben ein <strong>„Rückgängig"</strong>-Link, der die eben angelegten Objekte wieder entfernt.</p>
-				<div class="hb-note hb-tip"><strong>Ging etwas schief, wird die Zeile rot und nennt den Grund des Servers</strong> — <em>„✕ 1 von 4 nicht importiert: …"</em>. Die Liste bleibt dabei stehen, wie sie war; du verlierst deine Auswahl nicht.</div>
-				<h4>Das Menüband</h4>
-				<p>Drei Kacheln. <strong>„Holen &amp; Rechnen"</strong> und <strong>„Ebenen"</strong> gehören dem Betreiber — sie rufen die fremden Server ab und rechnen den Abgleich neu. <strong>„Angezeigte Zeilen"</strong> stellst du selbst: 1000, 2000, 4000 oder alle. Die Vorgabe ist 1000, weil ein paar tausend Zeilen langsame Rechner ausbremsen.</p>
-				<div class="hb-note hb-warn"><strong>Diese Daten tragen eine Lizenz.</strong> Sie stammen von Volker Strunk (VolkoV) und stehen unter CC BY-NC-SA 3.0. Die Namensnennung reist als Quelle mit, dazu der Link auf den zugehörigen Artikel. Lösch beides nicht aus der Infobox.</div>
-
 				<h3 id="bug-system" class="hb-sub">Das automatische Bug-System</h3>
 				<p class="hb-path"><strong>Auf unserem Discord</strong></p>
 				<p>Fehler in der <em>Software</em> — etwas lädt nicht, ein Knopf reagiert nicht, eine Anzeige stimmt nicht — gehören nicht in die Karten-Meldungen, sondern auf den Discord. Dort nimmt ein Bot sie entgegen, legt sie als nummerierten Fall ab, und eine tägliche Routine arbeitet sie ab.</p>
@@ -1793,7 +1703,7 @@
 
 				<h3 id="v-karte" class="hb-sub">Die Originalkarte ist unsere Datengrundlage</h3>
 				<p>Für die <strong>Lage</strong> eines Objekts gilt die Originalkarte — nicht das Wiki und keine fremde Quelle. Sie ist der Untergrund, auf dem alles andere liegt.</p>
-				<p>Am häufigsten begegnet dir das im <a href="#garetien-importer">Garetien Importer</a>: eine fremde Quelle setzt denselben Ort zehn Meilen weiter. Die Entscheidung ist im Einzelfall schwer, die Regel ist kurz.</p>
+				<p>Am häufigsten begegnet dir das bei fremden Quellen wie <em>garetien.de</em>: sie setzen denselben Ort zehn Meilen weiter. Die Entscheidung ist im Einzelfall schwer, die Regel ist kurz.</p>
 				<table class="hb-table">
 					<tr><th>Lage</th><th>Was gilt</th></tr>
 					<tr><td><strong>Der Punkt steht schon auf der Karte</strong></td><td><strong>Die Karte gewinnt.</strong> Verschieb ihn nicht.</td></tr>
@@ -1957,6 +1867,7 @@
 					<li><strong>„Speichern"</strong> trägt die Quelle ein, <strong>„Abbrechen"</strong> leert die Zeile.</li>
 				</ol>
 				<p><strong>Lizenz</strong> und <strong>Namensnennung</strong> sind zwei getrennte Angaben: was gilt, und wen man nennen muss. Zur Auswahl stehen CC BY-SA 3.0, CC BY-NC-SA 3.0, CC BY 4.0, CC BY-SA 4.0, CC0 1.0, <em>Gemeinfrei</em> und <em>Keine freie Lizenz</em>. In die Namensnennung kommt, wen die Lizenz zu nennen verlangt — etwa <em>VolkoV / garetien.de</em>. Beide stehen beim Leser an der Quelle in der Infobox.</p>
+				<div class="hb-note hb-warn"><strong>Daten aus garetien.de und koschwiki.de tragen eine Lizenz.</strong> Sie stehen unter CC BY-NC-SA 3.0. Lösch an solchen Objekten weder die Quelle noch die Namensnennung.</div>
 				<div class="hb-note hb-tip"><strong>Leer heißt „nicht erfasst", nicht „keine Lizenz".</strong> <em>Art</em> und <em>Lizenz</em> stehen anfangs auf keinem Wert, und ein leeres Feld behauptet nichts. Wer sagen will, dass eine Quelle unfrei ist, wählt <em>Keine freie Lizenz</em>.</div>
 				<h4>Korrigieren: das <span aria-hidden="true">✎</span> in der Quellenzeile</h4>
 				<p>Es klappt ein Feld auf, das in <strong>drei Stufen</strong> geteilt ist. Jede Stufe sagt in ihrer Überschrift, wie weit sie reicht.</p>
