@@ -439,7 +439,7 @@ async function testFalteUmhaengen() {
 	// Wahl: onPick merkt das Ziel und zeigt den Satz; Primärknopf wird aktiv
 	letzteConfig.onPick(treffer[0]);
 	const falteNachWahl = host.querySelector(".st-falte");
-	assert.ok(falteNachWahl.textContent.includes("„Burg Weißenstein\" nach Weißenstein (Serrinmoor) umhängen?"),
+	assert.ok(falteNachWahl.textContent.includes("„Burg Weißenstein“ nach Weißenstein (Serrinmoor) umhängen?"),
 		"Satz mit Name und Ziel (Ziel als <b> im Markup, Text ohne Formatierung gleich)");
 	const bFett = falteNachWahl.querySelector("b");
 	assert.strictEqual(bFett.textContent, "Weißenstein (Serrinmoor)", "das Ziel steht in <b>");
@@ -461,7 +461,7 @@ async function testFalteUmhaengen() {
 	assert.ok(meldung, "Meldezeile vorhanden");
 	assert.ok(meldung.classList.contains("fs-add-note--ok"));
 	assert.strictEqual(meldung.getAttribute("role"), "status");
-	assert.strictEqual(meldung.textContent, "Umgehängt: „Burg Weißenstein\" liegt jetzt in Weißenstein (Serrinmoor).");
+	assert.strictEqual(meldung.textContent, "Umgehängt: „Burg Weißenstein“ liegt jetzt in Weißenstein (Serrinmoor).");
 
 	// Nutzlast nachgezogen: der Eintrag trägt jetzt den neuen Ortsnamen, Index verworfen, Infopanel gerufen
 	const eintrag = win.avesmapsInSettlementPlaces.find((e) => e.name === "Burg Weißenstein");
@@ -497,7 +497,7 @@ async function testLoeschen() {
 	const falte = host.querySelector(".st-falte");
 	assert.ok(falte);
 	assert.strictEqual(falte.textContent,
-		"Stätte „Ingerimm-Tempel Lodernde Flamme\" löschen? Sie verschwindet aus der Infobox von Alriksburg; "
+		"Stätte „Ingerimm-Tempel Lodernde Flamme“ löschen? Sie verschwindet aus der Infobox von Alriksburg; "
 		+ "ihre Quellen bleiben an ihr hängen.Abbrechen" + "Löschen",
 		"Rückfrage nennt Namen und Ort");
 	assert.ok(!falte.querySelector(".st-falte__suche"), "keine Ortssuche bei Löschen");
@@ -515,7 +515,7 @@ async function testLoeschen() {
 	assert.strictEqual(host.querySelectorAll(".avm-row").length, 2);
 	const meldung = host.querySelector(".fs-add-note");
 	assert.ok(meldung.classList.contains("fs-add-note--ok"));
-	assert.strictEqual(meldung.textContent, "Gelöscht: „Ingerimm-Tempel Lodernde Flamme\".");
+	assert.strictEqual(meldung.textContent, "Gelöscht: „Ingerimm-Tempel Lodernde Flamme“.");
 
 	// Nutzlast nachgezogen: der Eintrag ist aus der Liste entfernt
 	const gefunden = win.avesmapsInSettlementPlaces.some((e) => e.name === "Ingerimm-Tempel Lodernde Flamme");
@@ -561,6 +561,10 @@ async function testFehlerBeimSchreiben() {
 	klicke(host.querySelectorAll(".avm-row")[0].querySelector(".fs-row__remove"));
 	const prim = host.querySelector(".st-falte").querySelector(".fs-actions__prim");
 	klicke(prim);
+	// Synchron nach dem Klick (vor der -- hier sofort aufgeloesten -- Antwort) ist er deaktiviert;
+	// das ist derselbe Zustand, den ein zweiter, rascher Klick vor der Antwort vorfaende.
+	assert.strictEqual(host.querySelector(".st-falte").querySelector(".fs-actions__prim").disabled, true,
+		"während des Sendens ist der Primärknopf deaktiviert");
 	await tick();
 
 	// Die Falte bleibt offen, die Liste bleibt unverändert (3 Zeilen), eine Meldung OHNE --ok
@@ -572,6 +576,11 @@ async function testFehlerBeimSchreiben() {
 	assert.strictEqual(meldung.getAttribute("role"), "status");
 	assert.strictEqual(meldung.textContent, "Die Stätte gibt es nicht (mehr).");
 	assert.strictEqual(win.avesmapsRefreshInfopanel_aufrufe, 0, "kein Nachziehen bei einem Fehler");
+	// Nach dem Fehlschlag ist der Knopf (und Abbrechen) wieder aktiv -- auch im Fehlerfall frei.
+	assert.strictEqual(host.querySelector(".st-falte").querySelector(".fs-actions__prim").disabled, false,
+		"nach einem Fehlschlag ist der Primärknopf wieder aktiv");
+	assert.strictEqual(host.querySelector(".st-falte").querySelector(".fs-actions__sek").disabled, false,
+		"…und Abbrechen ebenfalls");
 
 	console.log("5a. Fehler (Server): OK");
 
@@ -716,7 +725,7 @@ async function testEscape() {
 	klicke(host.querySelector(".st-falte").querySelector(".fs-actions__prim"));
 	await tick();
 	const meldung = host.querySelector(".fs-add-note");
-	assert.strictEqual(meldung.textContent, "Gelöscht: „<b>Angriff</b> auf Alriksburg\".");
+	assert.strictEqual(meldung.textContent, "Gelöscht: „<b>Angriff</b> auf Alriksburg“.");
 
 	console.log("8. Escape: OK");
 }
@@ -791,6 +800,136 @@ async function testWiedermontage() {
 	console.log("11. Wiedermontage: OK");
 }
 
+// ══ 12. DOPPELTES ABSENDEN: zwei rasche Klicks vor der Antwort -> genau EINE Anfrage ═══════════
+async function testDoppeltesAbsenden() {
+	const aufrufe = [];
+	const win = winFixtur();
+	const host = neu("div");
+	const sektion = neu("div");
+	let freigeben;
+	const wartend = new Promise((resolve) => { freigeben = resolve; });
+	// Die delete-Antwort haengt bewusst, bis der Test sie freigibt -- so laesst sich ein zweiter
+	// Klick VOR jeder Antwort auslösen, nicht nur vor dem naechsten `tick()`.
+	const fetchImpl = async (url, init) => {
+		const body = JSON.parse(init.body);
+		aufrufe.push(body);
+		if (body.action === "list") {
+			return { ok: true, json: async () => ({ ok: true, staetten: staettenFixtur() }) };
+		}
+		if (body.action === "delete") {
+			await wartend;
+			return { ok: true, json: async () => ({ ok: true, staetten: [staettenFixtur()[1], staettenFixtur()[2]] }) };
+		}
+		throw new Error("unerwartete Aktion " + body.action);
+	};
+
+	await modul.mountStaettenKasten(host, {
+		ortPublicId: "ort-1", ortName: "Alriksburg", sektion, fetchImpl, win,
+	});
+	klicke(host.querySelectorAll(".avm-row")[0].querySelector(".fs-row__remove"));
+	const prim = () => host.querySelector(".st-falte").querySelector(".fs-actions__prim");
+	const sek = () => host.querySelector(".st-falte").querySelector(".fs-actions__sek");
+
+	assert.strictEqual(prim().disabled, false, "vor dem ersten Klick ist der Löschen-Knopf aktiv");
+	klicke(prim());
+	assert.strictEqual(prim().disabled, true, "sofort nach dem Klick, während des Sendens: deaktiviert");
+	assert.strictEqual(sek().disabled, true, "…und Abbrechen ebenfalls");
+	assert.strictEqual(aufrufe.filter((a) => a.action === "delete").length, 1, "die erste Anfrage lief los");
+
+	// Zwei weitere, rasche Klicks -- Primärknopf UND Abbrechen -- VOR der (noch hängenden) Antwort.
+	klicke(prim());
+	klicke(sek());
+	await tick();
+	assert.strictEqual(aufrufe.filter((a) => a.action === "delete").length, 1,
+		"trotz zweier weiterer Klicks genau EINE delete-Anfrage");
+	assert.strictEqual(host.querySelectorAll(".st-falte").length, 1,
+		"die Falte ist trotz des Abbrechen-Klicks noch offen -- sie ist während des Sendens gesperrt");
+
+	// Die Antwort freigeben -> Erfolg wie gewohnt.
+	freigeben();
+	await tick();
+	assert.strictEqual(host.querySelectorAll(".st-falte").length, 0, "nach der Antwort ist die Falte zu");
+	const meldung = host.querySelector(".fs-add-note");
+	assert.ok(meldung.classList.contains("fs-add-note--ok"));
+	assert.strictEqual(meldung.textContent, "Gelöscht: „Hesinde-Tempel zu Ehren der Heiligen Niobara“.");
+
+	console.log("12. Doppeltes Absenden: OK");
+}
+
+// ══ 13. LINK-PROTOKOLL: nur http(s) wird zu <a href>, kein javascript: ═══════════════════════════
+async function testLinkProtokoll() {
+	const aufrufe = [];
+	const host = neu("div");
+	const sektion = neu("div");
+	const staetten = [
+		{ public_id: "sp-js", name: "Gefährliche Stätte", place_type: "Sonstiges",
+			wiki_url: "javascript:alert(1)", origin: "manual", gleichnamig_auf_der_karte: false },
+	];
+	const fetchImpl = baueFetch({ list: () => ({ ok: true, staetten }) }, aufrufe);
+	await modul.mountStaettenKasten(host, {
+		ortPublicId: "ort-1", ortName: "Alriksburg", sektion, fetchImpl, win: {},
+	});
+
+	assert.ok(!/javascript/i.test(host.innerHTML), "kein href mit javascript im HTML");
+	const zeile = host.querySelectorAll(".avm-row")[0];
+	assert.strictEqual(zeile.querySelectorAll("a").length, 0, "kein <a>-Element für eine javascript:-Adresse");
+
+	// Gegenprobe: dieselbe Regel direkt an der reinen Funktion, groß/klein egal.
+	assert.strictEqual(modul.staettenKastenIstVerlinkbareAdresse("javascript:alert(1)"), false);
+	assert.strictEqual(modul.staettenKastenIstVerlinkbareAdresse("JavaScript:alert(1)"), false);
+	assert.strictEqual(modul.staettenKastenIstVerlinkbareAdresse("data:text/html,x"), false);
+	assert.strictEqual(modul.staettenKastenIstVerlinkbareAdresse("https://garetien.de/x"), true);
+	assert.strictEqual(modul.staettenKastenIstVerlinkbareAdresse("HTTP://garetien.de/x"), true);
+	assert.strictEqual(modul.staettenKastenIstVerlinkbareAdresse("ftp://garetien.de/x"), false);
+
+	console.log("13. Link-Protokoll: OK");
+}
+
+// ══ 14. NICHT PARSEBARE/LEERE ADRESSE: kein Link, kein Pfeil, kein führendes " · " ═══════════════
+async function testNichtParsebareAdresse() {
+	// 14a: eine Adresse, die new URL() wirft (kein absoluter Pfad, kein Protokoll)
+	{
+		const aufrufe = [];
+		const host = neu("div");
+		const sektion = neu("div");
+		const staetten = [
+			{ public_id: "sp-kaputt", name: "Ohne echte Adresse", place_type: "Sonstiges",
+				wiki_url: "nicht-eine-url", origin: "manual", gleichnamig_auf_der_karte: false },
+		];
+		const fetchImpl = baueFetch({ list: () => ({ ok: true, staetten }) }, aufrufe);
+		await modul.mountStaettenKasten(host, {
+			ortPublicId: "ort-1", ortName: "Alriksburg", sektion, fetchImpl, win: {},
+		});
+		const zeile = host.querySelectorAll(".avm-row")[0];
+		assert.strictEqual(zeile.querySelectorAll("a").length, 0, "keine nicht parsebare Adresse als Link");
+		const l2 = zeile.querySelector(".avm-row__l2");
+		assert.strictEqual(l2, null, "Zeile 2 bleibt ganz leer -- kein „nur ↗“, keine leere Hülle");
+	}
+	// 14b: dieselbe Adresse, aber die Stätte ist zusätzlich gleichnamig -- der Hinweis bleibt,
+	// OHNE führendes " · " (das gäbe es sonst nur vor dem -- hier fehlenden -- Linktext).
+	{
+		const aufrufe = [];
+		const host = neu("div");
+		const sektion = neu("div");
+		const staetten = [
+			{ public_id: "sp-kaputt2", name: "Burg Weißenstein", place_type: "Burg",
+				wiki_url: "javascript:void(0)", origin: "manual", gleichnamig_auf_der_karte: true },
+		];
+		const fetchImpl = baueFetch({ list: () => ({ ok: true, staetten }) }, aufrufe);
+		await modul.mountStaettenKasten(host, {
+			ortPublicId: "ort-1", ortName: "Alriksburg", sektion, fetchImpl, win: {},
+		});
+		const zeile = host.querySelectorAll(".avm-row")[0];
+		assert.strictEqual(zeile.querySelectorAll("a").length, 0);
+		const l2 = zeile.querySelector(".avm-row__l2");
+		assert.ok(l2, "die Zeile 2 steht -- der Namensnachbar-Hinweis allein");
+		assert.ok(l2.classList.contains("warn"));
+		assert.strictEqual(l2.textContent, "gleichnamiger Punkt auf der Karte",
+			"kein führendes „ · “ ohne vorangehenden Linktext");
+	}
+	console.log("14. Nicht parsebare/leere Adresse: OK");
+}
+
 (async () => {
 	await testRuhezustand();
 	await testFalteUmhaengen();
@@ -803,6 +942,9 @@ async function testWiedermontage() {
 	await testLadeplatzhalter();
 	await testListeFehlgeschlagen();
 	await testWiedermontage();
+	await testDoppeltesAbsenden();
+	await testLinkProtokoll();
+	await testNichtParsebareAdresse();
 	console.log("staetten-kasten: alle Zusicherungen erfüllt");
 })().catch((fehler) => {
 	console.error(fehler);

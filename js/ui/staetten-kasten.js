@@ -88,12 +88,30 @@ function staettenKastenOrtsklassenLabel(subtype) {
 }
 
 // Der Wirt einer Wiki-Adresse ohne "www." -- fuer die Zeile 2 einer Staette ("garetien.de ↗").
+// Liefert "" bei einer nicht parsebaren Adresse UND bei einer ohne Host (z. B. "javascript:…" --
+// eine solche URL wirft nicht, hat aber keine Autoritaet und damit keinen `host`).
 function staettenKastenWirt(url) {
   try {
     var geparst = new URL(String(url || ""));
     return geparst.host.replace(/^www\./i, "");
   } catch (fehler) {
     return "";
+  }
+}
+
+/**
+ * Darf eine Wiki-Adresse als `<a href>` erscheinen? Nur http/https (Protokoll, Gross/Klein egal).
+ *
+ * 🔴 Alles andere -- `javascript:`, `data:`, `mailto:`, … -- wird NIE zu einem echten Link:
+ * `javascript:` waere in einem `<a href>` ein Sicherheitsloch (Klick fuehrt Code aus), die
+ * anderen sind fuer eine Kartenquelle sinnlos. Review-Vorgabe (Task 4, Punkt 3).
+ */
+function staettenKastenIstVerlinkbareAdresse(url) {
+  try {
+    var geparst = new URL(String(url || ""));
+    return /^https?:$/i.test(geparst.protocol);
+  } catch (fehler) {
+    return false;
   }
 }
 
@@ -124,18 +142,26 @@ function staettenKastenZeileMarkup(staette, offenId, offenArt, escape, tr) {
   var id = String(staette.public_id);
   var offenFuerDiese = offenId !== null && offenId === id;
   var wikiUrl = String(staette.wiki_url || "");
+  var wirtText = staettenKastenWirt(wikiUrl);
+  // 🔴 NUR http/https wird zu einem <a href> -- alles andere (nicht parsebar, ohne Host, oder ein
+  // anderes Protokoll wie "javascript:") zeigt hoechstens den Wirtstext, nie einen Link und nie
+  // den Pfeil (Review-Vorgabe, Task 4 Punkte 3+4). Ist auch der Text leer, traegt die Zeile 2
+  // NICHTS aus dieser Haelfte -- kein "nur ↗" und kein fuehrendes " · " vor dem Namensnachbar-Hinweis.
+  var verlinkbar = wirtText !== "" && staettenKastenIstVerlinkbareAdresse(wikiUrl);
   var gleichnamig = staette.gleichnamig_auf_der_karte === true;
   var warnText = gleichnamig ? tr("staetten.row.duplicateOnMap", "gleichnamiger Punkt auf der Karte") : "";
-  var l2 = "";
-  if (wikiUrl) {
-    l2 = '<div class="avm-row__l2' + (gleichnamig ? " warn" : "") + '">'
-      + '<a href="' + escape(wikiUrl) + '" target="_blank" rel="noopener noreferrer">'
-      + escape(staettenKastenWirt(wikiUrl)) + " ↗</a>"
-      + (gleichnamig ? " · " + escape(warnText) : "")
-      + "</div>";
-  } else if (gleichnamig) {
-    l2 = '<div class="avm-row__l2 warn">' + escape(warnText) + "</div>";
+  var teile = [];
+  if (wirtText !== "") {
+    teile.push(verlinkbar
+      ? '<a href="' + escape(wikiUrl) + '" target="_blank" rel="noopener noreferrer">' + escape(wirtText) + " ↗</a>"
+      : escape(wirtText));
   }
+  if (gleichnamig) {
+    teile.push(escape(warnText));
+  }
+  var l2 = teile.length > 0
+    ? '<div class="avm-row__l2' + (gleichnamig ? " warn" : "") + '">' + teile.join(" · ") + "</div>"
+    : "";
   var ariaUmhaengen = offenFuerDiese && offenArt === "umhaengen" ? ' aria-expanded="true"' : "";
   var ariaLoeschen = offenFuerDiese && offenArt === "loeschen" ? ' aria-expanded="true"' : "";
   return (
@@ -157,10 +183,12 @@ function staettenKastenZeileMarkup(staette, offenId, offenArt, escape, tr) {
 }
 
 // ── Rein: die Falte "Umhängen" -- Suche, gewaehltes Ziel, Bestaetigung ────────────────────────
-function staettenKastenFalteUmhaengenMarkup(staette, suchtext, ziel, falteFehler, escape, tr) {
+// `sendetGerade`: waehrend die Anfrage laeuft, sind Primaerknopf UND Abbrechen deaktiviert (Review
+// Task 4 Punkt 2) -- ein zweiter Klick vor der Antwort darf keine zweite Anfrage ausloesen.
+function staettenKastenFalteUmhaengenMarkup(staette, suchtext, ziel, falteFehler, sendetGerade, escape, tr) {
   var satz = "";
   if (ziel) {
-    var vorlage = tr("staetten.move.confirm", "„{name}\" nach {ziel} umhängen?");
+    var vorlage = tr("staetten.move.confirm", "„{name}“ nach {ziel} umhängen?");
     satz = "<div>" + vorlage
       .replace("{name}", escape(staette.name))
       .replace("{ziel}", "<b>" + escape(ziel.name) + "</b>") + "</div>";
@@ -177,18 +205,18 @@ function staettenKastenFalteUmhaengenMarkup(staette, suchtext, ziel, falteFehler
     + satz
     + fehlerZeile
     + '<div class="fs-actions">'
-    + '<button type="button" class="fs-actions__sek" data-st-cancel>'
+    + '<button type="button" class="fs-actions__sek" data-st-cancel' + (sendetGerade ? " disabled" : "") + ">"
     + escape(tr("staetten.actions.cancel", "Abbrechen")) + "</button>"
-    + '<button type="button" class="fs-actions__prim" data-st-confirm' + (ziel ? "" : " disabled") + ">"
+    + '<button type="button" class="fs-actions__prim" data-st-confirm' + ((ziel && !sendetGerade) ? "" : " disabled") + ">"
     + escape(tr("staetten.actions.move", "Umhängen")) + "</button>"
     + "</div></div>"
   );
 }
 
 // ── Rein: die Falte "Löschen" -- Rückfrage ─────────────────────────────────────────────────────
-function staettenKastenFalteLoeschenMarkup(staette, ortName, falteFehler, escape, tr) {
+function staettenKastenFalteLoeschenMarkup(staette, ortName, falteFehler, sendetGerade, escape, tr) {
   var vorlage = tr("staetten.delete.confirm",
-    "Stätte „{name}\" löschen? Sie verschwindet aus der Infobox von {ort}; ihre Quellen bleiben an ihr hängen.");
+    "Stätte „{name}“ löschen? Sie verschwindet aus der Infobox von {ort}; ihre Quellen bleiben an ihr hängen.");
   var satz = "<div>" + vorlage
     .replace("{name}", escape(staette.name))
     .replace("{ort}", escape(ortName)) + "</div>";
@@ -200,9 +228,9 @@ function staettenKastenFalteLoeschenMarkup(staette, ortName, falteFehler, escape
     + satz
     + fehlerZeile
     + '<div class="fs-actions">'
-    + '<button type="button" class="fs-actions__sek" data-st-cancel>'
+    + '<button type="button" class="fs-actions__sek" data-st-cancel' + (sendetGerade ? " disabled" : "") + ">"
     + escape(tr("staetten.actions.cancel", "Abbrechen")) + "</button>"
-    + '<button type="button" class="fs-actions__prim" data-st-confirm>'
+    + '<button type="button" class="fs-actions__prim" data-st-confirm' + (sendetGerade ? " disabled" : "") + ">"
     + escape(tr("staetten.actions.delete", "Löschen")) + "</button>"
     + "</div></div>"
   );
@@ -390,8 +418,8 @@ function staettenKastenKastenHtml(state, ortName, escape, tr) {
     zeilen += staettenKastenZeileMarkup(staette, state.offenId, state.offenArt, escape, tr);
     if (state.offenId !== null && state.offenId === String(staette.public_id)) {
       zeilen += state.offenArt === "umhaengen"
-        ? staettenKastenFalteUmhaengenMarkup(staette, state.suchtext, state.ziel, state.falteFehler, escape, tr)
-        : staettenKastenFalteLoeschenMarkup(staette, ortName, state.falteFehler, escape, tr);
+        ? staettenKastenFalteUmhaengenMarkup(staette, state.suchtext, state.ziel, state.falteFehler, state.sendetGerade, escape, tr)
+        : staettenKastenFalteLoeschenMarkup(staette, ortName, state.falteFehler, state.sendetGerade, escape, tr);
     }
   });
   var note = "";
@@ -461,6 +489,10 @@ function mountStaettenKasten(host, opts) {
     suchtext: "",
     falteFehler: null,
     note: null,
+    // Review Task 4 Punkt 2: waehrend eine delete/move-Anfrage laeuft, sind Primaerknopf und
+    // Abbrechen deaktiviert und ein zweiter Klick auf den Primaerknopf loest keine zweite Anfrage
+    // aus -- siehe bestaetigeAktion() und den Ruecksetzer in fuehreLoeschenAus/fuehreUmhaengenAus.
+    sendetGerade: false,
   };
 
   var detachTypeahead = null;
@@ -566,6 +598,7 @@ function mountStaettenKasten(host, opts) {
     var alterOrtName = ortName;
     return staettenKastenPost(fetchImpl, { action: "delete", public_id: staette.public_id })
       .catch(function () {
+        state.sendetGerade = false;
         state.falteFehler = netzFehlerText();
         render();
         return null;
@@ -575,15 +608,17 @@ function mountStaettenKasten(host, opts) {
           return; // Netzfehler bereits behandelt
         }
         if (!antwort || antwort.ok !== true) {
+          state.sendetGerade = false;
           state.falteFehler = serverFehlerText(antwort);
           render();
           return;
         }
+        state.sendetGerade = false;
         state.staetten = Array.isArray(antwort.staetten) ? antwort.staetten : [];
         schliesseFalteOhneRender();
         state.note = {
           ok: true,
-          text: trFn("staetten.delete.done", "Gelöscht: „{name}\".").replace("{name}", staette.name),
+          text: trFn("staetten.delete.done", "Gelöscht: „{name}“.").replace("{name}", staette.name),
         };
         render();
         staettenKastenNutzlastNachziehen(win, "loeschen", staette, alterOrtName, null);
@@ -596,6 +631,7 @@ function mountStaettenKasten(host, opts) {
     var alterOrtName = ortName;
     return staettenKastenPost(fetchImpl, { action: "move", public_id: staette.public_id, ziel_public_id: zielId })
       .catch(function () {
+        state.sendetGerade = false;
         state.falteFehler = netzFehlerText();
         render();
         return null;
@@ -605,16 +641,18 @@ function mountStaettenKasten(host, opts) {
           return;
         }
         if (!antwort || antwort.ok !== true) {
+          state.sendetGerade = false;
           state.falteFehler = serverFehlerText(antwort);
           render();
           return;
         }
+        state.sendetGerade = false;
         var zielName = String(antwort.ziel_name || zielNameVorabgleich || "");
         state.staetten = Array.isArray(antwort.staetten) ? antwort.staetten : [];
         schliesseFalteOhneRender();
         state.note = {
           ok: true,
-          text: trFn("staetten.move.done", "Umgehängt: „{name}\" liegt jetzt in {ziel}.")
+          text: trFn("staetten.move.done", "Umgehängt: „{name}“ liegt jetzt in {ziel}.")
             .replace("{name}", staette.name).replace("{ziel}", zielName),
         };
         render();
@@ -633,8 +671,14 @@ function mountStaettenKasten(host, opts) {
     state.falteFehler = null;
   }
 
+  // 🔴 Review Task 4 Punkt 2: kehrt bei laufender Anfrage SOFORT zurueck -- kein zweites `delete`/
+  // `move`. Der Riegel wird synchron gesetzt, BEVOR irgendetwas asynchrones passiert: ein zweiter,
+  // rascher Klick landet als zweiter, aber ebenfalls synchroner Aufruf von bestaetigeAktion() (JS
+  // ist single-threaded, der erste Klick-Handler ist laengst fertig, bevor der zweite ueberhaupt
+  // startet) und sieht `state.sendetGerade === true`, unabhaengig davon, ob das `disabled` am Knopf
+  // im jeweiligen DOM tatsaechlich verhindert haette, dass der Klick ueberhaupt ausgeloest wird.
   function bestaetigeAktion() {
-    if (state.offenId === null) {
+    if (state.offenId === null || state.sendetGerade) {
       return;
     }
     var staette = findeStaette(state.offenId);
@@ -642,8 +686,12 @@ function mountStaettenKasten(host, opts) {
       return;
     }
     if (state.offenArt === "loeschen") {
+      state.sendetGerade = true;
+      render();
       fuehreLoeschenAus(staette);
     } else if (state.offenArt === "umhaengen" && state.ziel) {
+      state.sendetGerade = true;
+      render();
       fuehreUmhaengenAus(staette);
     }
   }
@@ -662,12 +710,22 @@ function mountStaettenKasten(host, opts) {
     var cancelBtn = target.closest("[data-st-cancel]");
     if (cancelBtn) {
       event.preventDefault();
-      schliesseFalte();
+      // Waehrend eine Anfrage laeuft, ist Abbrechen ebenfalls gesperrt (Review Task 4 Punkt 2) --
+      // die Falte gehoert bis zur Antwort der einen laufenden Anfrage.
+      if (!state.sendetGerade) {
+        schliesseFalte();
+      }
       return;
     }
     var aktionBtn = target.closest("[data-st-aktion]");
     if (aktionBtn) {
       event.preventDefault();
+      if (state.sendetGerade) {
+        // Keine andere Falte oeffnen/wechseln, solange eine Anfrage laeuft: sonst raeumt
+        // schliesseFalteOhneRender() beim Eintreffen der Antwort eine inzwischen andere, gerade
+        // geoeffnete Falte weg.
+        return;
+      }
       var zeile = aktionBtn.closest(".avm-row");
       var id = zeile ? zeile.getAttribute("data-st-id") : "";
       var aktion = aktionBtn.getAttribute("data-st-aktion");
@@ -721,6 +779,7 @@ if (typeof module !== "undefined" && module.exports) {
     staettenKastenNutzlastNachziehen: staettenKastenNutzlastNachziehen,
     staettenKastenOrtsklassenLabel: staettenKastenOrtsklassenLabel,
     staettenKastenWirt: staettenKastenWirt,
+    staettenKastenIstVerlinkbareAdresse: staettenKastenIstVerlinkbareAdresse,
     staettenKastenHervorhebung: staettenKastenHervorhebung,
     staettenKastenZeileMarkup: staettenKastenZeileMarkup,
     staettenKastenKastenHtml: staettenKastenKastenHtml,
