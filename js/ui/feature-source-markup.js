@@ -102,6 +102,26 @@ function featureSourceShortenPages(pages) {
   return { kurz: teile[0] + " ff.", voll: voll, gekuerzt: true };
 }
 
+// 🔴 DARF DIESE ADRESSE EIN `<a href>` WERDEN? Nur http:// und https:// (Gross/Klein egal). Gibt die
+// getrimmte Adresse zurueck, sonst "". Wer "" bekommt, zeigt TEXT statt Link -- nie einen Link ins
+// Leere und nie den Pfeil ↗.
+// 💣 Maskieren allein reicht in einem href NICHT: `javascript:alert(1)` ueberlebt jedes Escaping und
+// fuehrt beim Klick Code aus -- in der Infobox, die jeder Besucher sieht. Der Server nimmt beim
+// Anlegen und Bearbeiten nur http(s) an (avesmapsFeatureSourceUrlErlaubt), aber der Katalog hat
+// weitere Schreiber (Wiki-Abgleich, Altbestand); die Anzeige verlaesst sich darauf nicht.
+// 💣 Der Anker `^` ist tragend: der Browser wirft fuehrende Leer- und Steuerzeichen weg, bevor er das
+// Schema liest -- " javascript:" IST javascript:. Getrimmt wird nur, was `trim()` kennt; ein
+// Steuerzeichen davor faellt am Anker durch, und das ist die sichere Richtung.
+// 🔴 EIN Helfer fuer ALLE href-Erzeuger beider Oberflaechen (Infobox hier, Quellen-Editor ueber
+// featureSourceUrlSicher in js/review/review-feature-sources.js) und fuer den Staetten-Kasten
+// (js/ui/staetten-kasten.js). Dieselbe Regel wie avesmapsWikiAssignSichereUrl (js/ui/wiki-assign.js),
+// die Besuchern aber nicht geladen wird.
+// Live gemessen 26.09.2026: 3.917 Katalogquellen, 3.538 https, 20 http, 359 ohne Adresse, keine andere.
+function featureSourceSichereUrl(url) {
+  var text = String(url == null ? "" : url).trim();
+  return /^https?:\/\//i.test(text) ? text : "";
+}
+
 /**
  * DER KANON-STEMPEL an einer einzelnen Quelle.
  * Entwurf: docs/superpowers/specs/2026-08-27-kanon-etikett-design.md
@@ -282,8 +302,14 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     var titel = s.gekuerzt ? ' title="S. ' + esc(s.voll) + '"' : "";
     return '<span class="fs-src-pages"' + titel + ">S. " + esc(s.kurz) + "</span>";
   };
+  // 🔴 Nur eine SICHERE Adresse wird ein Link (featureSourceSichereUrl); sonst bleibt der Text stehen,
+  // in derselben Form wie eine Quelle ganz ohne Adresse.
   var link = function (url, inner) {
-    return '<a class="fs-src-a" href="' + esc(url) + '" target="_blank" rel="noopener">' + inner + ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>';
+    var sicher = featureSourceSichereUrl(url);
+    if (!sicher) {
+      return '<span class="fs-src-plain">' + inner + "</span>";
+    }
+    return '<a class="fs-src-a" href="' + esc(sicher) + '" target="_blank" rel="noopener">' + inner + ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>';
   };
   // 🪤 HIER STAND `wikiLicenseMarkup` -- der Lizenzhinweis NEBEN dem Wiki-Link, in der Zeile.
   // Seit dem 03.09.2026 steht er in der Tafel hinter dem ⓘ, wie bei jeder anderen Quelle seit dem
@@ -298,8 +324,9 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     if (!label) {
       return "";
     }
-    return "<dt>" + esc(rightsLicenseLabel) + "</dt><dd>" + (url
-      ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(label) +
+    var lizenzHref = featureSourceSichereUrl(url);
+    return "<dt>" + esc(rightsLicenseLabel) + "</dt><dd>" + (lizenzHref
+      ? '<a href="' + esc(lizenzHref) + '" target="_blank" rel="noopener">' + esc(label) +
         ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>'
       : esc(label)) + "</dd>";
   };
@@ -379,10 +406,15 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     }
     // 🔴 Die Adresse ist ANKLICKBAR (Owner 01.09.2026). Sie steht hier vollstaendig, waehrend der
     // Titel oben kuerzt -- und ein Link, den man sieht, aber nicht folgen kann, ist eine Sackgasse.
+    // ⚠️ Eine UNSICHERE Adresse steht als Text da, nicht als Link (featureSourceSichereUrl) -- sehen
+    // soll man sie trotzdem, sonst sucht der Editor die Zeile, die er reparieren muss.
     if (s && s.url) {
-      zeilen += "<dt>" + esc(rightsUrlLabel) + '</dt><dd><a class="fs-src-rights-url" href="' + esc(s.url) +
-        '" target="_blank" rel="noopener">' + esc(s.url) +
-        ' <span class="fs-src-ext" aria-hidden="true">↗</span></a></dd>';
+      var adresseHref = featureSourceSichereUrl(s.url);
+      zeilen += "<dt>" + esc(rightsUrlLabel) + "</dt><dd>" + (adresseHref
+        ? '<a class="fs-src-rights-url" href="' + esc(adresseHref) +
+          '" target="_blank" rel="noopener">' + esc(s.url) +
+          ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>'
+        : esc(s.url)) + "</dd>";
     }
     return {
       knopf: '<button type="button" class="fs-src-info" aria-expanded="false" aria-controls="' + id +
@@ -471,10 +503,11 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     // --attrib: sie darf umbrechen, der kurze Wiki-Hinweis nicht (css/features/feature-sources.css).
     // ⚠️ Ohne Adresse ein <span>, kein Link ins Leere -- "Gemeinfrei" und "Keine freie Lizenz"
     // haben nichts zu verlinken.
-    if (!eintrag.url) {
+    var lizenzAdresse = featureSourceSichereUrl(eintrag.url);
+    if (!lizenzAdresse) {
       return '<span class="fs-src-lic">' + esc(eintrag.label) + "</span>";
     }
-    return '<a class="fs-src-lic" href="' + esc(eintrag.url) +
+    return '<a class="fs-src-lic" href="' + esc(lizenzAdresse) +
       '" target="_blank" rel="noopener">' + esc(eintrag.label) +
       ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>';
   };
@@ -663,11 +696,12 @@ function avesmapsSourceTabKeydown(event, tabEl) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { buildSourceListMarkup: buildSourceListMarkup, FEATURE_SOURCE_MARKUP_TYPE_LABELS: FEATURE_SOURCE_MARKUP_TYPE_LABELS, featureSourceShortenPages: featureSourceShortenPages, featureSourceVornName: featureSourceVornName, featureSourceLicenseText: featureSourceLicenseText, FEATURE_SOURCE_LICENSES: FEATURE_SOURCE_LICENSES, featureKanonBadgeMarkup: featureKanonBadgeMarkup, featureKanonBezeichnerText: featureKanonBezeichnerText, avesmapsToggleSourceRights,};
+  module.exports = { buildSourceListMarkup: buildSourceListMarkup, FEATURE_SOURCE_MARKUP_TYPE_LABELS: FEATURE_SOURCE_MARKUP_TYPE_LABELS, featureSourceShortenPages: featureSourceShortenPages, featureSourceSichereUrl: featureSourceSichereUrl, featureSourceVornName: featureSourceVornName, featureSourceLicenseText: featureSourceLicenseText, FEATURE_SOURCE_LICENSES: FEATURE_SOURCE_LICENSES, featureKanonBadgeMarkup: featureKanonBadgeMarkup, featureKanonBezeichnerText: featureKanonBezeichnerText, avesmapsToggleSourceRights,};
 }
 if (typeof window !== "undefined") {
   window.buildSourceListMarkup = buildSourceListMarkup;
   window.featureSourceShortenPages = featureSourceShortenPages;
+  window.featureSourceSichereUrl = featureSourceSichereUrl;
   window.featureSourceVornName = featureSourceVornName;
   window.featureKanonBadgeMarkup = featureKanonBadgeMarkup;
   window.avesmapsToggleSourceTab = avesmapsToggleSourceTab;

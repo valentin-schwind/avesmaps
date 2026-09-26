@@ -635,6 +635,28 @@ function avesmapsSourceOfficialWriteAllowed(bool $chosen, ?array $bestehend): bo
     return trim((string) ($bestehend['wiki_key'] ?? '')) === '';
 }
 
+/**
+ * Darf diese Adresse in den Katalog? Nur http:// und https:// (Gross/Klein egal).
+ *
+ * 🔴 Jede Katalogadresse wird in der Infobox, die jeder Besucher sieht, als `<a href>` ausgegeben;
+ * ein `javascript:`-Schema waere von dort aus ausfuehrbar, und Maskieren hilft dagegen nicht.
+ * Dieselbe Regel steht im Browser (featureSourceSichereUrl, js/ui/feature-source-markup.js), der
+ * zusaetzlich jede Adresse vor dem Rendern prueft -- der Katalog hat auch Schreiber, die hier nicht
+ * vorbeikommen (Wiki-Abgleich), und die Anzeige verlaesst sich nicht auf den Eingang.
+ * 🔴 EINE Regel, DREI Tueren: Anlegen (avesmapsAddFeatureSource -- beide Endpunkt-Aufrufe),
+ * Bearbeiten der Adresse (avesmapsUpdateFeatureSource, Feld `url`) und die Annahme einer
+ * Kartenmeldung (api/edit/reports/locations.php, dort wird eine unsichere Adresse UEBERSPRUNGEN statt
+ * die ganze Annahme abzubrechen). Bis zum 26.09.2026 pruefte nur das Bearbeiten.
+ * ⚠️ Eine leere Adresse ist hier NICHT erlaubt -- wer sie zulassen will (URL-lose Publikationen im
+ * Wiki-Abgleich), fragt vorher selbst nach `''`.
+ */
+function avesmapsFeatureSourceUrlErlaubt(string $url): bool
+{
+    return preg_match('#^https?://#i', trim($url)) === 1;
+}
+
+const AVESMAPS_FEATURE_SOURCE_URL_FEHLER = 'Die Adresse muss mit http:// oder https:// beginnen.';
+
 function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, string $type, bool $official, int $userId, string $wikiKey = '', bool $refreshLabel = false, string $license = '', string $attribution = '', bool $retype = false, bool $setOfficial = true): int
 {
     // 💣 DIESE LISTE KUERZTE LAUTLOS. Was nicht darinsteht, wird zu 'sonstiges' -- kein Fehler,
@@ -1440,6 +1462,12 @@ function avesmapsFeatureSourceKorpusVorgaben(?array $korpus, string $type, strin
 
 function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId, string $url, string $label, string $type, bool $official, int $userId, string $pages = '', string $referenceKind = '', string $license = '', string $attribution = '', bool $retype = false, bool $officialChosen = false): array
 {
+    // 🔴 VOR jedem Schreibvorgang: nur http(s) (avesmapsFeatureSourceUrlErlaubt). Der Endpunkt macht
+    // aus der Ausnahme ein 400 `invalid_request` -- dieselbe Antwort wie beim Bearbeiten der Adresse.
+    // Beim Verteilen auf mehrere Abschnitte wirft schon der ERSTE Aufruf, es entsteht also nichts halb.
+    if (!avesmapsFeatureSourceUrlErlaubt($url)) {
+        throw new InvalidArgumentException(AVESMAPS_FEATURE_SOURCE_URL_FEHLER);
+    }
     avesmapsEnsureFeatureSourceTables($pdo);
     // Publication-link normalization (dedup): if the URL is a Wiki-Aventurica article for a KNOWN
     // publication, resolve it to the SAME identity the wiki reconcile uses (chosen_url or URL-less
@@ -1754,10 +1782,9 @@ function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publi
                 $neu[$name] = $kind;
                 break;
             case 'url':
-                // 🔴 http(s) UND SONST NICHTS. Die Adresse wird in jeder Infobox als `<a href>`
-                // ausgegeben; ein `javascript:`-Schema waere von dort aus ausfuehrbar. ⚠️ Der
-                // ANLEGE-Weg prueft das bis heute nicht -- das ist eine eigene, aeltere Luecke und
-                // kein Grund, sie hier zu wiederholen.
+                // 🔴 http(s) UND SONST NICHTS (avesmapsFeatureSourceUrlErlaubt). Die Adresse wird in
+                // jeder Infobox als `<a href>` ausgegeben; ein `javascript:`-Schema waere von dort
+                // aus ausfuehrbar. Seit dem 26.09.2026 prueft der Anlege-Weg dieselbe Regel.
                 $adresse = trim((string) $wert);
                 if ($adresse === '') {
                     // Eine leere Adresse ist keine Korrektur: der Hash fiele auf sha256('') und
@@ -1765,8 +1792,8 @@ function avesmapsUpdateFeatureSource(PDO $pdo, string $entityType, string $publi
                     // ausschliesslich im Wiki-Abgleich, und der ist hier ohnehin gesperrt.
                     return avesmapsFeatureSourceUpdateError(400, 'invalid_request', 'Die Adresse darf nicht leer sein.');
                 }
-                if (!preg_match('#^https?://#i', $adresse)) {
-                    return avesmapsFeatureSourceUpdateError(400, 'invalid_request', 'Die Adresse muss mit http:// oder https:// beginnen.');
+                if (!avesmapsFeatureSourceUrlErlaubt($adresse)) {
+                    return avesmapsFeatureSourceUpdateError(400, 'invalid_request', AVESMAPS_FEATURE_SOURCE_URL_FEHLER);
                 }
                 $neu[$name] = $adresse;
                 break;

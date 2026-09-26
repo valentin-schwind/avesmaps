@@ -202,10 +202,14 @@ function renderFeatureSourceWikiRow(wikiUrl, escape, tr) {
     return "";
   }
   const label = tr("popup.wiki", "Wiki Aventurica");
+  // 🔴 Nur eine sichere Adresse wird ein Link (featureSourceUrlSicher) -- sonst der Name ohne ↗.
+  const sicher = featureSourceUrlSicher(wikiUrl);
   return (
     '<div class="fs-row fs-row--wiki" data-fs-readonly="wiki">' +
-    '<a class="fs-row__link" href="' + escape(wikiUrl) + '" target="_blank" rel="noopener">' +
-    escape(label) + " ↗</a>" +
+    (sicher
+      ? '<a class="fs-row__link" href="' + escape(sicher) + '" target="_blank" rel="noopener">' +
+        escape(label) + " ↗</a>"
+      : '<span class="fs-row__link">' + escape(label) + "</span>") +
     '<span class="fs-row__badge fs-row__badge--readonly">' + escape(tr("sources.readonly", "fest")) + "</span>" +
     "</div>"
   );
@@ -236,6 +240,20 @@ function featureSourcePagesShorten(pages) {
     throw new Error("feature-source-markup.js fehlt -- sie traegt die Kuerzung der Seitenangabe");
   }
   return geteilt(pages);
+}
+
+// 🔴 DARF EINE ADRESSE EIN LINK WERDEN? Die Regel steht in feature-source-markup.js
+// (featureSourceSichereUrl) -- dieselbe, die die Infobox fuer den Besucher anwendet: nur http(s).
+// `javascript:` ueberlebt jedes Escaping. Derselbe Weiterreicher wie bei der Seitenkuerzung, aus
+// denselben Gruenden: laut ohne die Datei, bei jedem Aufruf nachgeschlagen, ANDERER Name.
+function featureSourceUrlSicher(url) {
+  var geteilt = (typeof module !== "undefined" && module.exports)
+    ? require("../ui/feature-source-markup.js").featureSourceSichereUrl
+    : (typeof featureSourceSichereUrl === "function" ? featureSourceSichereUrl : null);
+  if (typeof geteilt !== "function") {
+    throw new Error("feature-source-markup.js fehlt -- sie traegt die Regel, welche Adresse ein Link wird");
+  }
+  return geteilt(url);
 }
 
 // 🔴 Der NAME VORN kommt aus feature-source-markup.js (featureSourceVornName) -- dieselbe Regel, die
@@ -347,6 +365,19 @@ function renderFeatureSourceRow(source, escape, tr, bearbeitbar) {
   // Titel in den Tooltip des links verlagern"). Vollstaendig steht er ohnehin im ✎.
   const name = featureSourceNameVorn(source, source.corpus || null);
   const tooltip = name.titel ? ' title="' + escape(name.titel + " — " + name.vorn) + '"' : "";
+  // 🔴 Nur eine SICHERE Adresse wird ein Link (featureSourceUrlSicher). Sonst steht der Name als
+  // Text da, ohne ↗ -- die Marke bleibt, ✎ und ✕ bleiben: genau hier repariert man die Adresse.
+  // ⚠️ Die Zellklassen stehen WOERTLICH da: quellen-lizenzfeld.test.js zaehlt sie im Quelltext gegen die
+  // Spaltenueberschriften -- eine zusammengesetzte Klasse entzoege sich der Zaehlung.
+  const sicher = featureSourceUrlSicher(source.url);
+  const kopf = !sicher
+    ? '<span class="fs-row__link' + (marke ? " fs-row__link--marke" : "") + '"' + tooltip + ">"
+      + escape(name.vorn || source.url) + marke + "</span>"
+    : marke
+      ? '<a class="fs-row__link fs-row__link--marke" href="' + escape(sicher) + '"' + tooltip + ' target="_blank" rel="noopener">'
+        + escape(name.vorn || source.url) + " ↗" + marke + "</a>"
+      : '<a class="fs-row__link" href="' + escape(sicher) + '"' + tooltip + ' target="_blank" rel="noopener">'
+        + escape(name.vorn || source.url) + " ↗</a>";
   return (
     '<div class="fs-row" data-source-id="' + escape(source.source_id) + '">' +
     // 💣 MIT Marke darf der Link UMBRECHEN (`.fs-row__link--marke`): der Link ellipsiert sonst am TEXT
@@ -355,11 +386,7 @@ function renderFeatureSourceRow(source, escape, tr, bearbeitbar) {
     // Zelle endet bei 211px). Ein Flex-Kasten mit ellipsiertem Titel-Span liess vom Titel 51px uebrig
     // („Geogr…“); der Umbruch haelt den Namen lesbar, und der Fall ist selten (12 Wege live, nur auf der
     // Weg-Ebene). Ohne Marke bleibt das Markup zeichengleich zu vorher.
-    (marke
-      ? '<a class="fs-row__link fs-row__link--marke" href="' + escape(source.url) + '"' + tooltip + ' target="_blank" rel="noopener">'
-        + escape(name.vorn || source.url) + " ↗" + marke + "</a>"
-      : '<a class="fs-row__link" href="' + escape(source.url) + '"' + tooltip + ' target="_blank" rel="noopener">'
-        + escape(name.vorn || source.url) + " ↗</a>") +
+    kopf +
     '<span class="fs-row__badge">' + escape(featureSourceTypeLabel(source.type)) + officialMark + "</span>" +
     kind +
     pages +
@@ -3473,6 +3500,8 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     // Der Zeilenbauer -- fuer quellenzeile-name-vorn.test.js, das beide Erzeuger des Namens gegeneinander haelt.
     renderFeatureSourceRow,
+    // Die Wiki-Zeile -- fuer quellen-sichere-adresse.test.js: auch sie darf nur eine http(s)-Adresse verlinken.
+    renderFeatureSourceWikiRow,
     // Die Warteschlangen-Zeile der Meldung und der Mount (fuer meldung-im-quellenkasten.test.js).
     featureSourceMeldungZeile, mountFeatureSourceEditor, mountFeatureSourceMeldungVorschau,
     renderFeatureSourceEditorHtml, createPendingFeatureSourceStore, syncFeatureSourcesToClientCache,

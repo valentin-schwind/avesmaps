@@ -413,7 +413,11 @@ function avesmapsCreateCitymapFromReport(PDO $pdo, array $payload, array $user):
             $linkedSources++;
             continue;
         }
-        if ($quellenUrl === '') {
+        // 🔴 Nur http(s) kommt in den Katalog (avesmapsFeatureSourceUrlErlaubt). Eine unsichere Adresse
+        // aus einer gespeicherten Meldung (der Eingang prueft das, der Leser avesmapsDecodeReportSources
+        // nicht) wird uebersprungen wie eine fehlende -- sonst braeche avesmapsAddFeatureSource die ganze
+        // Annahme mit einem 400 ab.
+        if ($quellenUrl === '' || !avesmapsFeatureSourceUrlErlaubt($quellenUrl)) {
             continue;
         }
         $korpusBekannt = function_exists('avesmapsSourceCorpusForUrl')

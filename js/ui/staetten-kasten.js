@@ -116,14 +116,21 @@ function staettenKastenWirt(url) {
  * 🔴 Alles andere -- `javascript:`, `data:`, `mailto:`, … -- wird NIE zu einem echten Link:
  * `javascript:` waere in einem `<a href>` ein Sicherheitsloch (Klick fuehrt Code aus), die
  * anderen sind fuer eine Kartenquelle sinnlos. Review-Vorgabe (Task 4, Punkt 3).
+ *
+ * 🔴 SEIT 26.09.2026 FRAGT DER KASTEN DIE GETEILTE REGEL (featureSourceSichereUrl,
+ * js/ui/feature-source-markup.js) -- dieselbe, die Infobox und Quellen-Editor fuer ihre Links
+ * nehmen. Vorher stand hier eine eigene Fassung ueber `new URL()`; sie liess `https:foo` (ohne
+ * `//`) durch, die geteilte nicht. Weiterreicher wie in review-feature-sources.js: laut ohne die
+ * Datei, bei jedem Aufruf nachgeschlagen. Jede Seite, die diesen Kasten laedt, laedt die Datei davor.
  */
 function staettenKastenIstVerlinkbareAdresse(url) {
-  try {
-    var geparst = new URL(String(url || ""));
-    return /^https?:$/i.test(geparst.protocol);
-  } catch (fehler) {
-    return false;
+  var geteilt = (typeof module !== "undefined" && module.exports)
+    ? require("./feature-source-markup.js").featureSourceSichereUrl
+    : (typeof featureSourceSichereUrl === "function" ? featureSourceSichereUrl : null);
+  if (typeof geteilt !== "function") {
+    throw new Error("feature-source-markup.js fehlt -- sie traegt die Regel, welche Adresse ein Link wird");
   }
+  return geteilt(url) !== "";
 }
 
 // Hebt jedes Vorkommen des Suchworts in einem Namen hervor -- wie renderSourceAutocompleteLabel
