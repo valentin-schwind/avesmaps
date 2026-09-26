@@ -1,0 +1,63 @@
+/* Der Kasten "Stätten" -- gespeicherte Innerorts-Objekte eines Ortes loeschen und umhaengen.
+ *
+ * Bauteil: js/ui/staetten-kasten.js (mountStaettenKasten), montiert an zwei Stellen: dem Dialog
+ * "Ort bearbeiten" (index.html) und dem Detailfeld des Ortseditors
+ * (html/wiki-sync-settlement-editor.html), jeweils direkt vor "Quellen".
+ * Entwurf: docs/superpowers/specs/2026-09-26-staetten-loeschen-umhaengen-design.md (§5)
+ * Mockup (bindet diese Datei): docs/staetten-kasten-mockup.html
+ *
+ * 🔴 DIE fs-KLASSEN DES QUELLENKASTENS WERDEN MITBENUTZT, NICHT ABGESCHRIEBEN: `.fs-row__edit` /
+ * `.fs-row__remove` fuer die Knoepfe, `.fs-row--open` an der Zeile fuer den offenen Zustand,
+ * `.fs-actions` / `__prim` / `__sek` fuer die Knoepfe der Falte, `.fs-add-note` (`--ok`) fuer die
+ * Meldezeile. `feature-sources.css` ist an beiden Montagestellen ohnehin geladen (AGENTS.md §11:
+ * eine Zeilenform, es gibt ZWEI, und das ist die Obergrenze -- eine dritte Rezeptur fuer dieselbe
+ * Sache waere die Divergenz, vor der dieser Abschnitt warnt). Neu ist nur, was hier steht.
+ */
+
+/* ══ VERTRAG: css/components/staetten-kasten.css ══ gebunden von docs/staetten-kasten-mockup.html
+   🔴 ALLES ZWISCHEN DIESEN MARKEN MUSS ZEICHENGLEICH STEHEN
+   (tools/mockup-vertrag/__tests__/mockup-vertrag.test.js, laeuft im Deploy-Tor). */
+.st-kasten {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+.st-kasten .avm-row {
+	cursor: default;
+}
+.st-kasten .avm-row:hover {
+	background: transparent;
+}
+.st-aktionen {
+	display: flex;
+	flex-shrink: 0;
+	gap: var(--space-4);
+}
+.st-kasten .avm-row__l2 a {
+	color: var(--color-link);
+}
+.st-falte {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-6);
+	margin: 0 0 var(--space-4) var(--space-12);
+	padding: var(--space-6) var(--space-8);
+	border-left: 2px solid var(--color-accent);
+	border-radius: 0 var(--radius-md) var(--radius-md) 0;
+	background: var(--color-hover-wash);
+	font-size: var(--font-size-caption);
+}
+.st-falte .fs-actions {
+	justify-content: flex-end;
+	margin-top: 0;
+}
+.st-falte__suche {
+	box-sizing: border-box;
+	width: 100%;
+}
+.st-wiki {
+	padding: 0 var(--space-6);
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+/* ══ VERTRAG ENDE ══ */

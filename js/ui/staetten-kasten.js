@@ -1,0 +1,729 @@
+// Der Kasten "Stätten" -- gespeicherte Innerorts-Objekte (`settlement_place`) eines Ortes
+// loeschen und an einen anderen Ort haengen.
+//
+// Entwurf: docs/superpowers/specs/2026-09-26-staetten-loeschen-umhaengen-design.md (§5)
+// Mockup: docs/staetten-kasten-mockup.html · Endpunkt: api/edit/map/settlement-places.php
+//
+// mountStaettenKasten(host, opts) kennt keine Montagestelle -- sie wird zweimal montiert (Dialog
+// "Ort bearbeiten" und das Detailfeld des Ortseditors), jeweils direkt vor "Quellen" (Quellen
+// bleiben immer ganz unten, Owner 03.09.2026). Nur die GESPEICHERTEN Stätten sind hier
+// bearbeitbar; die aus dem Wiki abgeleiteten (siehe AGENTS.md §11 "Teil 2 -- innerorts als
+// Praedikat", offen) zaehlt nur die graue Zeile.
+//
+// 🔴 DIE fs-KLASSEN DES QUELLENKASTENS WERDEN MITBENUTZT (`.fs-row__edit`/`.fs-row__remove` fuer
+// die Knoepfe, `.fs-row--open` fuer die offene Zeile, `.fs-actions`/`__prim`/`__sek`,
+// `.fs-add-note`/`--ok` fuer die Meldezeile) -- `feature-sources.css` ist an beiden
+// Montagestellen ohnehin geladen. Neu ist nur, was in css/components/staetten-kasten.css steht.
+//
+// 💣 GENAU EINE FALTE OFFEN. Sie liegt als `.st-falte` direkt nach der Zeile, deren ⇄/✕ sie
+// aufgeklappt hat; ein zweiter Klick auf denselben Knopf schliesst sie wieder, ein Klick auf
+// einen anderen Knopf ersetzt sie.
+//
+// ⭐ DIE ORTSSUCHE LAEUFT UEBER DEN GETEILTEN TYPEAHEAD (js/ui/source-autocomplete.js,
+// `attachTypeahead`) -- keine eigene Vorschlagsliste, keine eigene Tastatursteuerung. Injizierbar
+// als `opts.attachTypeaheadImpl` (Tests brauchen so kein DOM fuer die Dropdown-Mechanik selbst).
+
+// Root-absolut: das Bauteil haengt auch im Ortseditor-iframe (html/wiki-sync-settlement-editor.html),
+// wo ein relativer Pfad unter html/ aufgeloest wuerde -- derselbe Grund wie bei
+// SOURCE_AUTOCOMPLETE_API_URL in source-autocomplete.js.
+var STAETTEN_KASTEN_API_URL = "/api/edit/map/settlement-places.php";
+
+function staettenKastenDefaultEscape(value) {
+  return String(value === null || value === undefined ? "" : value)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// Uebersetzung: opts.tr, sonst ein globales tr/window.tr (falls die Seite eine i18n-Schicht hat),
+// sonst der deutsche Fallback-Text. Schluessel tragen das Praefix "staetten." (Controller-Vorgabe).
+function staettenKastenTr(options, key, fallback) {
+  if (options && typeof options.tr === "function") {
+    return options.tr(key, fallback);
+  }
+  if (typeof window !== "undefined" && typeof window.tr === "function") {
+    return window.tr(key, fallback);
+  }
+  if (typeof tr === "function") {
+    return tr(key, fallback);
+  }
+  return fallback;
+}
+
+// Die fuenf Siedlungsklassen, aus denen die Ortssuche des Endpunkts ueberhaupt waehlt
+// (api/_internal/app/settlement-places.php filtert auf dieselbe Liste wie
+// AVESMAPS_PLACE_SCOPE_SETTLEMENT_SUBTYPES). Rueckfall, siehe staettenKastenOrtsklassenLabel.
+var STAETTEN_KASTEN_ORTSKLASSEN_FALLBACK = {
+  dorf: "Dorf",
+  kleinstadt: "Kleinstadt",
+  stadt: "Stadt",
+  grossstadt: "Großstadt",
+  metropole: "Metropole",
+};
+
+/**
+ * Die Beschriftung einer Ortsklasse fuer die Trefferliste der Ortssuche ("Dorf · Garetien").
+ *
+ * 🔴 `LOCATION_TYPE_CONFIG` (js/config.js) traegt dieselben Label laengst -- aber js/config.js ist
+ * im Ortseditor-iframe (html/wiki-sync-settlement-editor.html) NICHT geladen, an dieser
+ * Montagestelle waere der Zugriff `undefined`. Die Tafel oben ist deshalb ein eigener, kleiner
+ * Rueckfall statt einer Abschrift der ganzen Konfiguration -- sie deckt genau die fuenf
+ * Siedlungsklassen ab, aus denen der Server ueberhaupt waehlt.
+ */
+function staettenKastenOrtsklassenLabel(subtype) {
+  var key = String(subtype || "");
+  if (typeof window !== "undefined") {
+    if (typeof window.avesmapsOrtsklassenLabel === "function") {
+      var eigens = window.avesmapsOrtsklassenLabel(key);
+      if (eigens) {
+        return eigens;
+      }
+    }
+    if (window.LOCATION_TYPE_CONFIG && window.LOCATION_TYPE_CONFIG[key]) {
+      return window.LOCATION_TYPE_CONFIG[key].singularLabel || window.LOCATION_TYPE_CONFIG[key].label || key;
+    }
+  }
+  return STAETTEN_KASTEN_ORTSKLASSEN_FALLBACK[key] || key;
+}
+
+// Der Wirt einer Wiki-Adresse ohne "www." -- fuer die Zeile 2 einer Staette ("garetien.de ↗").
+function staettenKastenWirt(url) {
+  try {
+    var geparst = new URL(String(url || ""));
+    return geparst.host.replace(/^www\./i, "");
+  } catch (fehler) {
+    return "";
+  }
+}
+
+// Hebt jedes Vorkommen des Suchworts in einem Namen hervor -- wie renderSourceAutocompleteLabel
+// in source-autocomplete.js, aber lokal: jene Funktion haengt im Browser nicht an window (nur
+// unter Node exportiert), und eine dritte Abschrift ist billiger als eine unsichtbare Abhaengigkeit.
+function staettenKastenHervorhebung(text, suchwort, escape) {
+  var roh = String(text === null || text === undefined ? "" : text);
+  var wort = String(suchwort || "").trim();
+  if (wort === "") {
+    return escape(roh);
+  }
+  var kleinRoh = roh.toLowerCase();
+  var kleinWort = wort.toLowerCase();
+  var out = "";
+  var cursor = 0;
+  var treffer = kleinRoh.indexOf(kleinWort);
+  while (treffer !== -1) {
+    out += escape(roh.slice(cursor, treffer)) + "<mark>" + escape(roh.slice(treffer, treffer + wort.length)) + "</mark>";
+    cursor = treffer + wort.length;
+    treffer = kleinRoh.indexOf(kleinWort, cursor);
+  }
+  return out + escape(roh.slice(cursor));
+}
+
+// ── Rein: das Markup einer Stätten-Zeile ──────────────────────────────────────────────────────
+function staettenKastenZeileMarkup(staette, offenId, offenArt, escape, tr) {
+  var id = String(staette.public_id);
+  var offenFuerDiese = offenId !== null && offenId === id;
+  var wikiUrl = String(staette.wiki_url || "");
+  var gleichnamig = staette.gleichnamig_auf_der_karte === true;
+  var warnText = gleichnamig ? tr("staetten.row.duplicateOnMap", "gleichnamiger Punkt auf der Karte") : "";
+  var l2 = "";
+  if (wikiUrl) {
+    l2 = '<div class="avm-row__l2' + (gleichnamig ? " warn" : "") + '">'
+      + '<a href="' + escape(wikiUrl) + '" target="_blank" rel="noopener noreferrer">'
+      + escape(staettenKastenWirt(wikiUrl)) + " ↗</a>"
+      + (gleichnamig ? " · " + escape(warnText) : "")
+      + "</div>";
+  } else if (gleichnamig) {
+    l2 = '<div class="avm-row__l2 warn">' + escape(warnText) + "</div>";
+  }
+  var ariaUmhaengen = offenFuerDiese && offenArt === "umhaengen" ? ' aria-expanded="true"' : "";
+  var ariaLoeschen = offenFuerDiese && offenArt === "loeschen" ? ' aria-expanded="true"' : "";
+  return (
+    '<div class="avm-row' + (offenFuerDiese ? " fs-row--open" : "") + '" data-st-id="' + escape(id) + '">'
+    + '<div class="avm-row__text">'
+    + '<div class="avm-row__l1"><span class="avm-row__name">' + escape(staette.name) + "</span>"
+    + '<span class="avm-row__kind">' + escape(staette.place_type) + "</span></div>"
+    + l2
+    + "</div>"
+    + '<div class="st-aktionen">'
+    + '<button type="button" class="fs-row__edit" data-st-aktion="umhaengen"' + ariaUmhaengen
+    + ' title="' + escape(tr("staetten.row.moveTitle", "An einen anderen Ort hängen")) + '"'
+    + ' aria-label="' + escape(tr("staetten.row.moveLabel", "Umhängen")) + '">⇄</button>'
+    + '<button type="button" class="fs-row__remove" data-st-aktion="loeschen"' + ariaLoeschen
+    + ' title="' + escape(tr("staetten.row.deleteTitle", "Stätte löschen")) + '"'
+    + ' aria-label="' + escape(tr("staetten.row.deleteLabel", "Löschen")) + '">✕</button>'
+    + "</div></div>"
+  );
+}
+
+// ── Rein: die Falte "Umhängen" -- Suche, gewaehltes Ziel, Bestaetigung ────────────────────────
+function staettenKastenFalteUmhaengenMarkup(staette, suchtext, ziel, falteFehler, escape, tr) {
+  var satz = "";
+  if (ziel) {
+    var vorlage = tr("staetten.move.confirm", "„{name}\" nach {ziel} umhängen?");
+    satz = "<div>" + vorlage
+      .replace("{name}", escape(staette.name))
+      .replace("{ziel}", "<b>" + escape(ziel.name) + "</b>") + "</div>";
+  }
+  var fehlerZeile = falteFehler
+    ? '<p class="fs-add-note" role="status">' + escape(falteFehler) + "</p>"
+    : "";
+  return (
+    '<div class="st-falte">'
+    + '<input class="st-falte__suche" type="search"'
+    + ' aria-label="' + escape(tr("staetten.move.searchLabel", "Neuer Ort")) + '"'
+    + ' placeholder="' + escape(tr("staetten.move.searchPlaceholder", "Neuer Ort …")) + '"'
+    + ' value="' + escape(suchtext || "") + '">'
+    + satz
+    + fehlerZeile
+    + '<div class="fs-actions">'
+    + '<button type="button" class="fs-actions__sek" data-st-cancel>'
+    + escape(tr("staetten.actions.cancel", "Abbrechen")) + "</button>"
+    + '<button type="button" class="fs-actions__prim" data-st-confirm' + (ziel ? "" : " disabled") + ">"
+    + escape(tr("staetten.actions.move", "Umhängen")) + "</button>"
+    + "</div></div>"
+  );
+}
+
+// ── Rein: die Falte "Löschen" -- Rückfrage ─────────────────────────────────────────────────────
+function staettenKastenFalteLoeschenMarkup(staette, ortName, falteFehler, escape, tr) {
+  var vorlage = tr("staetten.delete.confirm",
+    "Stätte „{name}\" löschen? Sie verschwindet aus der Infobox von {ort}; ihre Quellen bleiben an ihr hängen.");
+  var satz = "<div>" + vorlage
+    .replace("{name}", escape(staette.name))
+    .replace("{ort}", escape(ortName)) + "</div>";
+  var fehlerZeile = falteFehler
+    ? '<p class="fs-add-note" role="status">' + escape(falteFehler) + "</p>"
+    : "";
+  return (
+    '<div class="st-falte">'
+    + satz
+    + fehlerZeile
+    + '<div class="fs-actions">'
+    + '<button type="button" class="fs-actions__sek" data-st-cancel>'
+    + escape(tr("staetten.actions.cancel", "Abbrechen")) + "</button>"
+    + '<button type="button" class="fs-actions__prim" data-st-confirm>'
+    + escape(tr("staetten.actions.delete", "Löschen")) + "</button>"
+    + "</div></div>"
+  );
+}
+
+// Die Zeile "Sonstiges" reicht -- pure Trefferlisten-Markup fuer den Typeahead der Ortssuche.
+// state = { items, activeIndex, query } (derselbe Vertrag wie renderSourceAutocompleteHtml).
+function staettenKastenTrefferListeHtml(state, opts) {
+  var options = opts || {};
+  var escape = options.escape || staettenKastenDefaultEscape;
+  var tr = typeof options.tr === "function" ? options.tr : function (_k, f) { return f; };
+  var items = Array.isArray(state && state.items) ? state.items : [];
+  var query = String((state && state.query) || "");
+  var head = '<div class="sac-head">' + escape(tr("staetten.move.searchHeading", "Orte auf der Karte")) + "</div>";
+  var zeilen = items.map(function (item, index) {
+    var aktiv = index === (state && state.activeIndex);
+    var art = staettenKastenOrtsklassenLabel(item.subtype);
+    var lage = String(item.lage || "").trim();
+    var uses = art + (lage ? " · " + lage : "");
+    return (
+      '<li class="sac-item' + (aktiv ? " is-active" : "") + '" role="option"'
+      + ' id="' + escape(staettenKastenTrefferId(item, index)) + '"'
+      + ' aria-selected="' + (aktiv ? "true" : "false") + '"'
+      + ' data-sac-index="' + index + '">'
+      + '<span class="sac-name">' + staettenKastenHervorhebung(item.name, query, escape) + "</span>"
+      + '<span class="sac-uses">' + escape(uses) + "</span>"
+      + "</li>"
+    );
+  }).join("");
+  return head + '<ul class="sac-list" role="listbox">' + zeilen + "</ul>";
+}
+
+function staettenKastenTrefferId(item, index) {
+  return "st-treffer-" + staettenKastenIdTeil(item && item.public_id, index);
+}
+// Nur Zeichen, die in einer DOM-id gefahrlos stehen -- eine public_id ist ein Server-Schlüssel,
+// kein garantiert id-sicherer String.
+function staettenKastenIdTeil(value, index) {
+  var raw = String(value === null || value === undefined || value === "" ? index : value);
+  return raw.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+async function staettenKastenPost(fetchImpl, body, signal) {
+  var f = fetchImpl || (typeof fetch === "function" ? fetch : null);
+  if (!f) {
+    throw new Error("kein fetch verfügbar");
+  }
+  var antwort = await f(STAETTEN_KASTEN_API_URL, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal: signal,
+  });
+  return await antwort.json();
+}
+
+async function staettenKastenSuche(fetchImpl, term, signal) {
+  var daten = await staettenKastenPost(fetchImpl, { action: "orte", q: term }, signal);
+  return daten && daten.ok === true && Array.isArray(daten.orte) ? daten.orte : [];
+}
+
+/**
+ * Das Zielfenster einer Anfrage: das eigene, wenn es `avesmapsInSettlementPlaces` traegt --
+ * sonst (in einem iframe wie dem Ortseditor) das Elternfenster, wenn ES die Liste traegt.
+ *
+ * 🔴 EIN Vertrag fuer `staettenKastenWikiZahl` UND `staettenKastenNutzlastNachziehen` -- beide
+ * lesen/schreiben dieselbe Liste und muessen dasselbe Fenster meinen, sonst zaehlt die graue
+ * Zeile am eigenen Fenster, waehrend das Nachziehen am Elternfenster ins Leere schreibt.
+ * ⚠️ `try`: ein fremdes `window.parent` (Cross-Origin) wirft beim blossen Lesen -- das ist dann
+ * "keine Liste erreichbar", kein Fehler, den der Aufrufer sehen muesste.
+ */
+function staettenKastenZielfenster(win) {
+  var eigenesFenster = win || (typeof window !== "undefined" ? window : null);
+  if (!eigenesFenster) {
+    return null;
+  }
+  if (Array.isArray(eigenesFenster.avesmapsInSettlementPlaces)) {
+    return eigenesFenster;
+  }
+  try {
+    if (eigenesFenster.parent && eigenesFenster.parent !== eigenesFenster
+      && Array.isArray(eigenesFenster.parent.avesmapsInSettlementPlaces)) {
+      return eigenesFenster.parent;
+    }
+  } catch (fehler) {
+    // fremde Herkunft (Cross-Origin) -> keine Liste erreichbar
+  }
+  return null;
+}
+
+function staettenKastenSchluesselFn(fenster) {
+  if (fenster && typeof fenster.avesmapsStaettenSchluessel === "function") {
+    return fenster.avesmapsStaettenSchluessel;
+  }
+  return function (x) { return String(x === null || x === undefined ? "" : x).trim().toLowerCase(); };
+}
+
+/**
+ * Wie viele der aus dem Wiki abgeleiteten Stätten dieses Ortes NICHT unter den gespeicherten
+ * sind -- die Zahl der grauen Zeile. `null` heisst "die Liste ist nicht erreichbar" (Seite ohne
+ * Karte, fremdes iframe) und ist etwas anderes als 0.
+ */
+function staettenKastenWikiZahl(ortName, gespeicherteNamen, win) {
+  var fenster = staettenKastenZielfenster(win);
+  if (!fenster) {
+    return null;
+  }
+  var schluesselFn = staettenKastenSchluesselFn(fenster);
+  var ortSchluessel = schluesselFn(ortName);
+  var gespeicherteSet = {};
+  (gespeicherteNamen || []).forEach(function (name) {
+    gespeicherteSet[schluesselFn(name)] = true;
+  });
+  var zahl = 0;
+  fenster.avesmapsInSettlementPlaces.forEach(function (eintrag) {
+    var stadt = schluesselFn(eintrag && eintrag.settlement);
+    if (stadt !== ortSchluessel) {
+      return;
+    }
+    var name = String((eintrag && eintrag.name) || "").trim();
+    if (name === "") {
+      return;
+    }
+    if (!gespeicherteSet[schluesselFn(name)]) {
+      zahl += 1;
+    }
+  });
+  return zahl;
+}
+
+/**
+ * Die Kartennutzlast im Browser nach einem Schreibvorgang nachziehen: den ersten Eintrag mit
+ * gleichem Namen+Ort in `avesmapsInSettlementPlaces` entfernen (Löschen) bzw. seinen Ortsnamen auf
+ * das Ziel setzen (Umhängen), danach den Stätten-Index der Infobox verwerfen (er prüft nur die
+ * LÄNGE der Liste -- ein Umhängen ändert sie nicht und bliebe unsichtbar) und das offene Infopanel
+ * auffrischen.
+ *
+ * 🔴 ALLES IN `try` -- ein Fehler hier (z. B. weil die Karte gar nicht geladen ist) darf den
+ * Schreiberfolg, den der Server längst bestätigt hat, nicht nachträglich als Fehler melden.
+ */
+function staettenKastenNutzlastNachziehen(win, art, staette, alterOrt, zielName) {
+  try {
+    var fenster = staettenKastenZielfenster(win);
+    if (!fenster) {
+      return;
+    }
+    var schluesselFn = staettenKastenSchluesselFn(fenster);
+    var namensSchluessel = schluesselFn(staette && staette.name);
+    var ortSchluessel = schluesselFn(alterOrt);
+    var liste = fenster.avesmapsInSettlementPlaces;
+    var index = -1;
+    for (var i = 0; i < liste.length; i += 1) {
+      var eintrag = liste[i];
+      if (schluesselFn(eintrag && eintrag.name) === namensSchluessel
+        && schluesselFn(eintrag && eintrag.settlement) === ortSchluessel) {
+        index = i;
+        break;
+      }
+    }
+    if (index === -1) {
+      return;
+    }
+    if (art === "loeschen") {
+      liste.splice(index, 1);
+    } else if (art === "umhaengen") {
+      liste[index].settlement = zielName;
+    }
+    fenster.avesmapsStaettenIndex = null;
+    if (typeof fenster.avesmapsRefreshInfopanel === "function") {
+      fenster.avesmapsRefreshInfopanel();
+    }
+  } catch (fehler) {
+    // Ein Fehler hier darf den Schreiberfolg nicht als Fehler melden (siehe Kommentar oben).
+  }
+}
+
+// ── Der Kasten insgesamt, aus dem Modulzustand ─────────────────────────────────────────────────
+function staettenKastenKastenHtml(state, ortName, escape, tr) {
+  if (state.laedt) {
+    return '<p class="st-wiki">' + escape(tr("staetten.loading", "Stätten werden geladen …")) + "</p>";
+  }
+  var zeilen = "";
+  state.staetten.forEach(function (staette) {
+    zeilen += staettenKastenZeileMarkup(staette, state.offenId, state.offenArt, escape, tr);
+    if (state.offenId !== null && state.offenId === String(staette.public_id)) {
+      zeilen += state.offenArt === "umhaengen"
+        ? staettenKastenFalteUmhaengenMarkup(staette, state.suchtext, state.ziel, state.falteFehler, escape, tr)
+        : staettenKastenFalteLoeschenMarkup(staette, ortName, state.falteFehler, escape, tr);
+    }
+  });
+  var note = "";
+  if (state.note) {
+    note = '<p class="fs-add-note' + (state.note.ok ? " fs-add-note--ok" : "") + '" role="status">'
+      + escape(state.note.text) + "</p>";
+  }
+  var grau = "";
+  if (state.wikiZahl !== null && state.wikiZahl > 0) {
+    var text;
+    if (state.staetten.length > 0) {
+      text = tr("staetten.wiki.more", "+ {n} weitere aus dem Wiki — hier nicht bearbeitbar.")
+        .replace("{n}", String(state.wikiZahl));
+    } else if (state.wikiZahl === 1) {
+      text = tr("staetten.wiki.oneOnly", "1 Stätte aus dem Wiki — hier nicht bearbeitbar.");
+    } else {
+      text = tr("staetten.wiki.onlyMany", "{n} Stätten aus dem Wiki — hier nicht bearbeitbar.")
+        .replace("{n}", String(state.wikiZahl));
+    }
+    grau = '<p class="st-wiki">' + escape(text) + "</p>";
+  }
+  return zeilen + note + grau;
+}
+
+/**
+ * Montiert den Kasten "Stätten" in `host` (ein leeres <div>, direkt vor "Quellen"). Kennt keine
+ * Montagestelle -- Task 5 ruft dieselbe Funktion an beiden Oberflächen.
+ *
+ * opts: { ortPublicId, ortName, sektion, escape?, tr?, fetchImpl?, win?, attachTypeaheadImpl? }
+ * `sektion` ist der aeussere Abschnitt (Titel + Kasten), dessen `hidden` diese Funktion setzt --
+ * `host` selbst bleibt immer da, nur sein Inhalt wechselt.
+ *
+ * @returns {Promise<void>} erfuellt nach dem ersten Zeichnen (dem geladenen Zustand, nicht dem
+ *   Ladeplatzhalter).
+ */
+function mountStaettenKasten(host, opts) {
+  if (!host) {
+    return Promise.resolve();
+  }
+  var options = opts || {};
+  var escape = options.escape || staettenKastenDefaultEscape;
+  var trFn = function (key, fallback) { return staettenKastenTr(options, key, fallback); };
+  var fetchImpl = options.fetchImpl || (typeof fetch === "function" ? fetch : null);
+  var win = options.win || (typeof window !== "undefined" ? window : null);
+  var attachFn = options.attachTypeaheadImpl
+    || (typeof attachTypeahead === "function" ? attachTypeahead : null);
+  var ortId = String(options.ortPublicId || "");
+  var ortName = String(options.ortName || "");
+  var sektion = options.sektion || null;
+
+  // Wiedermontage: der vorige Aufbau (Typeahead, Zuhoerer) wird zuerst geloest -- derselbe
+  // Vertrag wie containerEl.__fsDetachAutocomplete in review-feature-sources.js, nur mit dem
+  // Namen dieses Bauteils.
+  if (typeof host.__staettenAbbau === "function") {
+    host.__staettenAbbau();
+    host.__staettenAbbau = null;
+  }
+
+  var state = {
+    laedt: true,
+    ladeFehlgeschlagen: false,
+    staetten: [],
+    wikiZahl: null,
+    offenId: null,
+    offenArt: null,
+    ziel: null,
+    suchtext: "",
+    falteFehler: null,
+    note: null,
+  };
+
+  var detachTypeahead = null;
+
+  function detachAlleZuhoerer() {
+    if (detachTypeahead) {
+      detachTypeahead();
+      detachTypeahead = null;
+    }
+  }
+
+  function setzeSichtbarkeit() {
+    if (!sektion) {
+      return;
+    }
+    if (state.laedt || state.ladeFehlgeschlagen) {
+      sektion.hidden = false;
+      return;
+    }
+    var keineGespeicherte = state.staetten.length === 0;
+    var keinWiki = state.wikiZahl === null || state.wikiZahl === 0;
+    sektion.hidden = keineGespeicherte && keinWiki;
+  }
+
+  function verdrahteFalte() {
+    if (state.offenId === null || state.offenArt !== "umhaengen" || !attachFn) {
+      return;
+    }
+    var input = host.querySelector(".st-falte__suche");
+    if (!input) {
+      return;
+    }
+    detachTypeahead = attachFn(input, {
+      minChars: 2,
+      escape: escape,
+      tr: trFn,
+      renderHtml: staettenKastenTrefferListeHtml,
+      itemId: function (item, index) { return staettenKastenTrefferId(item, index); },
+      search: function (term, signal) {
+        return staettenKastenSuche(fetchImpl, term, signal);
+      },
+      onPick: function (item) {
+        var eingabe = host.querySelector(".st-falte__suche");
+        state.suchtext = eingabe ? eingabe.value : state.suchtext;
+        state.ziel = { id: String(item.public_id), name: String(item.name || "") };
+        state.falteFehler = null;
+        render();
+      },
+    });
+  }
+
+  function render() {
+    detachAlleZuhoerer();
+    setzeSichtbarkeit();
+    host.innerHTML = staettenKastenKastenHtml(state, ortName, escape, trFn);
+    verdrahteFalte();
+  }
+
+  function findeStaette(id) {
+    for (var i = 0; i < state.staetten.length; i += 1) {
+      if (String(state.staetten[i].public_id) === id) {
+        return state.staetten[i];
+      }
+    }
+    return null;
+  }
+
+  function oeffneFalte(id, aktion) {
+    state.offenId = id;
+    state.offenArt = aktion;
+    state.ziel = null;
+    state.suchtext = "";
+    state.falteFehler = null;
+    state.note = null;
+    render();
+  }
+
+  function schliesseFalte() {
+    state.offenId = null;
+    state.offenArt = null;
+    state.ziel = null;
+    state.suchtext = "";
+    state.falteFehler = null;
+    render();
+  }
+
+  function netzFehlerText() {
+    return trFn("staetten.netError", "Keine Verbindung zum Server. Nichts wurde geändert.");
+  }
+  function serverFehlerText(antwort) {
+    return (antwort && antwort.error && antwort.error.message)
+      || trFn("staetten.serverError", "Die Stätte konnte nicht bearbeitet werden.");
+  }
+  // Eigener Rückfalltext (nicht serverFehlerText, dessen eigener Rückfall den hier gemeinten
+  // immer verdeckte): die anfängliche Liste hat noch keine Stätte, über die der generische
+  // Text reden könnte.
+  function ladeFehlerText(antwort) {
+    return (antwort && antwort.error && antwort.error.message)
+      || trFn("staetten.loadError", "Die Stätten konnten nicht geladen werden.");
+  }
+
+  function fuehreLoeschenAus(staette) {
+    var alterOrtName = ortName;
+    return staettenKastenPost(fetchImpl, { action: "delete", public_id: staette.public_id })
+      .catch(function () {
+        state.falteFehler = netzFehlerText();
+        render();
+        return null;
+      })
+      .then(function (antwort) {
+        if (antwort === null) {
+          return; // Netzfehler bereits behandelt
+        }
+        if (!antwort || antwort.ok !== true) {
+          state.falteFehler = serverFehlerText(antwort);
+          render();
+          return;
+        }
+        state.staetten = Array.isArray(antwort.staetten) ? antwort.staetten : [];
+        schliesseFalteOhneRender();
+        state.note = {
+          ok: true,
+          text: trFn("staetten.delete.done", "Gelöscht: „{name}\".").replace("{name}", staette.name),
+        };
+        render();
+        staettenKastenNutzlastNachziehen(win, "loeschen", staette, alterOrtName, null);
+      });
+  }
+
+  function fuehreUmhaengenAus(staette) {
+    var zielId = state.ziel.id;
+    var zielNameVorabgleich = state.ziel.name;
+    var alterOrtName = ortName;
+    return staettenKastenPost(fetchImpl, { action: "move", public_id: staette.public_id, ziel_public_id: zielId })
+      .catch(function () {
+        state.falteFehler = netzFehlerText();
+        render();
+        return null;
+      })
+      .then(function (antwort) {
+        if (antwort === null) {
+          return;
+        }
+        if (!antwort || antwort.ok !== true) {
+          state.falteFehler = serverFehlerText(antwort);
+          render();
+          return;
+        }
+        var zielName = String(antwort.ziel_name || zielNameVorabgleich || "");
+        state.staetten = Array.isArray(antwort.staetten) ? antwort.staetten : [];
+        schliesseFalteOhneRender();
+        state.note = {
+          ok: true,
+          text: trFn("staetten.move.done", "Umgehängt: „{name}\" liegt jetzt in {ziel}.")
+            .replace("{name}", staette.name).replace("{ziel}", zielName),
+        };
+        render();
+        staettenKastenNutzlastNachziehen(win, "umhaengen", staette, alterOrtName, zielName);
+      });
+  }
+
+  // Wie schliesseFalte(), aber ohne eigenes render() -- der Aufrufer zeichnet gleich darauf
+  // ohnehin neu (mitsamt der neuen Liste und der Meldung), ein Zwischenschritt waere ein
+  // sichtbares Flackern ohne Aussage.
+  function schliesseFalteOhneRender() {
+    state.offenId = null;
+    state.offenArt = null;
+    state.ziel = null;
+    state.suchtext = "";
+    state.falteFehler = null;
+  }
+
+  function bestaetigeAktion() {
+    if (state.offenId === null) {
+      return;
+    }
+    var staette = findeStaette(state.offenId);
+    if (!staette) {
+      return;
+    }
+    if (state.offenArt === "loeschen") {
+      fuehreLoeschenAus(staette);
+    } else if (state.offenArt === "umhaengen" && state.ziel) {
+      fuehreUmhaengenAus(staette);
+    }
+  }
+
+  function onHostClick(event) {
+    var target = event && event.target;
+    if (!target || typeof target.closest !== "function") {
+      return;
+    }
+    var confirmBtn = target.closest("[data-st-confirm]");
+    if (confirmBtn) {
+      event.preventDefault();
+      bestaetigeAktion();
+      return;
+    }
+    var cancelBtn = target.closest("[data-st-cancel]");
+    if (cancelBtn) {
+      event.preventDefault();
+      schliesseFalte();
+      return;
+    }
+    var aktionBtn = target.closest("[data-st-aktion]");
+    if (aktionBtn) {
+      event.preventDefault();
+      var zeile = aktionBtn.closest(".avm-row");
+      var id = zeile ? zeile.getAttribute("data-st-id") : "";
+      var aktion = aktionBtn.getAttribute("data-st-aktion");
+      if (state.offenId === id && state.offenArt === aktion) {
+        schliesseFalte();
+      } else {
+        oeffneFalte(id, aktion);
+      }
+    }
+  }
+  host.addEventListener("click", onHostClick);
+
+  host.__staettenAbbau = function () {
+    detachAlleZuhoerer();
+    host.removeEventListener("click", onHostClick);
+  };
+
+  render(); // Ladeplatzhalter, damit die Sektion sofort sichtbar ist, waehrend list laeuft
+
+  return staettenKastenPost(fetchImpl, { action: "list", settlement_public_id: ortId })
+    .then(function (antwort) {
+      if (!antwort || antwort.ok !== true) {
+        state.staetten = [];
+        state.ladeFehlgeschlagen = true;
+        state.note = { ok: false, text: ladeFehlerText(antwort) };
+        return;
+      }
+      state.staetten = Array.isArray(antwort.staetten) ? antwort.staetten : [];
+      state.ladeFehlgeschlagen = false;
+    })
+    .catch(function () {
+      state.staetten = [];
+      state.ladeFehlgeschlagen = true;
+      state.note = { ok: false, text: netzFehlerText() };
+    })
+    .then(function () {
+      state.wikiZahl = staettenKastenWikiZahl(
+        ortName,
+        state.staetten.map(function (s) { return s.name; }),
+        win
+      );
+      state.laedt = false;
+      render();
+    });
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    mountStaettenKasten: mountStaettenKasten,
+    staettenKastenWikiZahl: staettenKastenWikiZahl,
+    staettenKastenNutzlastNachziehen: staettenKastenNutzlastNachziehen,
+    staettenKastenOrtsklassenLabel: staettenKastenOrtsklassenLabel,
+    staettenKastenWirt: staettenKastenWirt,
+    staettenKastenHervorhebung: staettenKastenHervorhebung,
+    staettenKastenZeileMarkup: staettenKastenZeileMarkup,
+    staettenKastenKastenHtml: staettenKastenKastenHtml,
+    staettenKastenTrefferListeHtml: staettenKastenTrefferListeHtml,
+  };
+}
