@@ -4,8 +4,13 @@
 > superpowers:executing-plans. Schritte als Checkbox (`- [ ]`).
 
 **Ziel:** Gespeicherte Stätten (`settlement_place`) lassen sich in „Ort bearbeiten" und im Ortseditor löschen
-und an einen anderen Ort hängen; eine Stätte, deren Wiki-Artikel einem Kartenpunkt zugewiesen ist, erscheint
-nicht mehr als Stätte.
+und an einen anderen Ort hängen.
+
+> 🔴 **Änderung 26.09.2026 (Owner):** Die Regel „Kartenpunkt schlägt Innerorts" ist gestrichen — innerorts ist
+> ein unabhängiges Prädikat und wird ein eigener Auftrag (Teil 2, Variante B). **Task 2 entfällt.** Task 1 ist
+> gebaut und behält die reinen Hilfen `avesmapsInnerortsArtikelSchluessel/…KartenArtikel/…OhneKartenpunkte`
+> für Teil 2. Im Endpunkt entfällt das Feld `auf_der_karte`, im Bauteil der Hinweis „liegt auf der Karte …"
+> und der Nachsatz der grauen Zeile.
 
 **Architektur:** Reine PHP-Funktionen in `api/_internal/app/settlement-places.php` (Regel, Liste, Umhängen,
 Ortssuche, Namensnachbarn), ein Editor-Endpunkt `api/edit/map/settlement-places.php`, ein Browser-Bauteil
@@ -148,7 +153,7 @@ function avesmapsSettlementPlaceNamensnachbarn(PDO $pdo, string $ortId): array; 
   `api/_internal/wiki/__tests__/in-settlement-search-test.php` weiter grün.
 - [ ] **Schritt 6: Commit** `feat(staetten): Bibliothek fuer Loeschen, Umhaengen und die Regel „Kartenpunkt schlaegt Innerorts"`.
 
-### Task 2: Die Regel an beiden Erzeugern
+### ~~Task 2: Die Regel an beiden Erzeugern~~ — ENTFÄLLT (siehe Änderung oben; nicht umsetzen)
 
 **Files:**
 - Modify: `api/app/map-features.php` (`avesmapsMapFeaturesInSettlementPlaces` ~Z. 206;
@@ -195,8 +200,7 @@ function avesmapsSettlementPlaceNamensnachbarn(PDO $pdo, string $ortId): array; 
   CORS, `OPTIONS` → 204, nur `POST`, `avesmapsRequireUserWithCapability('edit')`,
   `avesmapsReadJsonRequest()`, `action` (40 Zeichen), `avesmapsCreatePdo`.
   - `list`: `settlement_public_id` Pflicht (sonst 400 `invalid_request`) → Antwort
-    `staetten` = je Zeile + `auf_der_karte` (Schlüssel der `wiki_url` in `avesmapsInnerortsKartenArtikel`)
-    + `gleichnamig_auf_der_karte` (`strtolower(trim(name))` in `…Namensnachbarn`).
+    `staetten` = je Zeile + `gleichnamig_auf_der_karte` (`strtolower(trim(name))` in `…Namensnachbarn`).
   - `delete`: `public_id` Pflicht; `avesmapsSettlementPlaceEnsureSchema` davor;
     `avesmapsSettlementPlaceDeactivate` → false ⇒ 404 `not_found`; sonst Ort der Stätte **vorher** lesen
     und dessen neue Liste zurückgeben.
@@ -237,8 +241,8 @@ function staettenKastenNutzlastNachziehen(win, art, staette, alterOrt, zielName)
 - Markup je Stätte: `.avm-row` (bei offener Falte zusätzlich `fs-row--open`) › `.avm-row__text` ›
   `.avm-row__l1` (Name `.avm-row__name`, Art `.avm-row__kind`) + `.avm-row__l2` (Link auf die Wiki-Adresse,
   Text = Wirt ohne `www.` + ` ↗`, `target="_blank" rel="noopener noreferrer"`; Klasse `warn` und Anhang
-  „ · liegt auf der Karte — erscheint nicht mehr als Stätte" bzw. „ · gleichnamiger Punkt auf der Karte";
-  beide gleichzeitig → nur der erste) + `.st-aktionen` mit `button.fs-row__edit[data-st-aktion=umhaengen]`
+  „ · gleichnamiger Punkt auf der Karte" bei `gleichnamig_auf_der_karte`;
+  kein weiterer Hinweis) + `.st-aktionen` mit `button.fs-row__edit[data-st-aktion=umhaengen]`
   „⇄" (`aria-label="Umhängen"`, `title="An einen anderen Ort hängen"`) und
   `button.fs-row__remove[data-st-aktion=loeschen]` „✕" (`aria-label="Löschen"`, `title="Stätte löschen"`).
   Alles durch `escape`.
@@ -257,9 +261,8 @@ function staettenKastenNutzlastNachziehen(win, art, staette, alterOrt, zielName)
   `staettenKastenNutzlastNachziehen(…)`. Nach Fehler: Meldezeile `p.fs-add-note` mit `error.message`,
   Falte bleibt offen. Netzfehler: „Keine Verbindung zum Server. Nichts wurde geändert."
 - Graue Zeile `p.st-wiki`: `n = staettenKastenWikiZahl(…)`; `n === null` → keine Zeile; `n > 0` und
-  gespeicherte vorhanden → „+ {n} weitere aus dem Wiki — hier nicht bearbeitbar; sie verschwinden hier,
-  sobald ihr Artikel einem Kartenpunkt zugewiesen ist."; keine gespeicherten → „{n} Stätte(n) aus dem Wiki
-  — …" (Einzahl „1 Stätte"). 
+  gespeicherte vorhanden → „+ {n} weitere aus dem Wiki — hier nicht bearbeitbar."; keine gespeicherten →
+  „{n} Stätten aus dem Wiki — hier nicht bearbeitbar." (Einzahl „1 Stätte aus dem Wiki — …"). 
 - Sichtbarkeit: 0 gespeicherte **und** (`n === null` oder `n === 0`) → `sektion.hidden = true`; sonst
   `false`. Während `list` lädt: `sektion.hidden = false` und `p.st-wiki` „Stätten werden geladen …".
   Liefert `list` einen Fehler: Meldezeile, Sektion bleibt sichtbar.
@@ -325,11 +328,10 @@ function staettenKastenNutzlastNachziehen(win, art, staette, alterOrt, zielName)
 
 ### Task 6: Doku, Push, Abnahme (Controller)
 
-- [ ] AGENTS.md §11: ein Eintrag „Stätten löschen und umhängen" (Regel „Kartenpunkt schlägt Innerorts",
-  beide Erzeuger, kein Namensvergleich; Endpunkt; ein Bauteil, zwei Montagestellen; fs-Klassen
-  mitbenutzt; Nutzlast-Index-Falle). Commit `docs(staetten): …`.
-- [ ] Push in zwei Schritten über einen Wegwerf-Worktree: (1) Task 1–3 (Server; sichtbar: die 11
-  Doppelten verschwinden) — Deploy abwarten, Besucher-Karte + Konsole prüfen, an Salthel „Burg Aarkopf"
-  nicht mehr unter „Stätten"; (2) Spec+Mockup, Task 4–5, AGENTS — Deploy abwarten, Besucher-Konsole.
+- [ ] AGENTS.md §11: ein Eintrag „Stätten löschen und umhängen" (Endpunkt; ein Bauteil, zwei Montagestellen;
+  fs-Klassen mitbenutzt; Nutzlast-Index-Falle; Verweis auf den offenen Teil 2 „innerorts als Prädikat").
+  Commit `docs(staetten): …`.
+- [ ] Push in EINEM Schritt über einen Wegwerf-Worktree (alles zusammen, denn ohne Task 2 ist nur die
+  Oberfläche sichtbar) — Deploy abwarten, Besucher-Karte + Konsole prüfen.
 - [ ] Owner-Abnahme (Ablauf): Burg Weißenstein-Hinweis sehen, eine Stätte umhängen und die Infobox
   beider Orte ansehen, eine löschen.
