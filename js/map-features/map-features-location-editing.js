@@ -363,6 +363,7 @@ function applyFeatureResponseToMarker(markerEntry, feature) {
 		isNodix: Boolean(feature.is_nodix),
 		isRuined: Boolean(feature.is_ruined),
 		isHidden: Boolean(feature.is_hidden),
+		isSeaport: Boolean(feature.is_seaport),
 		// Ortsart. Die Antwort trägt sie IMMER (auch leer), also darf sie hier bedingungslos
 		// gewinnen -- sonst liesse sich eine geleerte Art am Marker nie wieder loswerden.
 		placeKind: String(feature.place_kind || ""),
@@ -475,6 +476,7 @@ function addCreatedLocationMarker(feature, { openPopup = true } = {}) {
 		isNodix: Boolean(feature.is_nodix),
 		isRuined: Boolean(feature.is_ruined),
 		isHidden: Boolean(feature.is_hidden),
+		isSeaport: Boolean(feature.is_seaport),
 		placeKind: String(feature.place_kind || ""),
 		revision: Number(feature.revision) || null,
 	};
@@ -523,6 +525,7 @@ function applyLiveLocationFeature(feature) {
 		is_nodix: Boolean(properties.is_nodix),
 		is_ruined: Boolean(properties.is_ruined),
 		is_hidden: Boolean(properties.is_hidden),
+		is_seaport: Boolean(properties.is_seaport),
 		revision: properties.revision || null,
 	};
 	if (markerEntry) {

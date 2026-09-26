@@ -595,6 +595,7 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	activeReviewReportSourceQueue = Array.isArray(meldungQuellen) ? meldungQuellen.slice() : [];
 	mountLocationEditFeatureSources();
 	mountLocationEditNameAutocomplete();
+	document.getElementById("location-edit-is-seaport").checked = Boolean(location.isSeaport);
 	document.getElementById("location-edit-is-nodix").checked = presetIsNodix === null
 		? (isCrossingConversion ? pendingCrossingConversionIsNodix : Boolean(location.isNodix))
 		: Boolean(presetIsNodix);
@@ -817,6 +818,8 @@ function buildLocationEditPayload(formElement) {
 		// the shared editor + its server-side takeover own that field now, so re-sending the old
 		// {url,label} pair on every save would clobber whatever the takeover just consolidated.
 		wiki_url: String(formData.get("wiki_url") || "").trim(),
+		// Seehafen (Owner 26.09.2026): wird bisher nur gespeichert, wirkt noch nirgends.
+		is_seaport: formData.get("is_seaport") === "on",
 		is_nodix: formData.get("is_nodix") === "on",
 		is_ruined: formData.get("is_ruined") === "on",
 		// 💣 IMMER MITSENDEN. avesmapsUpdatePointFeatureDetails liest `$payload['is_hidden'] ?? false`

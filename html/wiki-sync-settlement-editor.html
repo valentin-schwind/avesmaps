@@ -2014,6 +2014,9 @@ function buildSettlementEditFormHtml(detail) {
 	// stehen bei ALLEN Editorfenstern zwischen Wiki-Zuweisung und Speicherleiste). Der Behaelter
 	// behaelt seine Kennung -- renderSettlementDetail montiert unveraendert dorthin.
 	const otherSourceRow = `<div class="dt-grp">Quellen</div><div id="dtFeatureSources"></div>`;
+	// Seehafen (Owner 26.09.2026): wird bisher nur gespeichert, wirkt noch nirgends.
+	const seaportRow =
+		`<div class="k"></div><div><label class="dt-edit-checkrow"><input type="checkbox" id="dtEditIsSeaport"${props.is_seaport ? " checked" : ""}> Seehafen</label></div>`;
 	const nodixRow =
 		`<div class="k"></div><div><label class="dt-edit-checkrow"><input type="checkbox" id="dtEditIsNodix"${props.is_nodix ? " checked" : ""}> Ort ist ein Nodix</label></div>`;
 	const ruinedRow =
@@ -2046,7 +2049,7 @@ function buildSettlementEditFormHtml(detail) {
 	// die Rasterstellung).
 	const propertiesHtml =
 		`<div class="dt-grp">Eigenschaften</div>` +
-		`<div class="dt-grid dt-edit-grid">${nodixRow}${ruinedRow}${hiddenRow}</div>`;
+		`<div class="dt-grid dt-edit-grid">${seaportRow}${nodixRow}${ruinedRow}${hiddenRow}</div>`;
 	return {
 		identity:
 			`<div class="dt-grp">Identität</div>` +
@@ -2381,6 +2384,7 @@ function buildSettlementSavePayload() {
 		// re-sending the old {url,label} pair on every save would clobber whatever the
 		// takeover just folded into the fs_source catalog.
 		wiki_url: String($("dtEditWikiUrl")?.value || "").trim(),
+		is_seaport: Boolean($("dtEditIsSeaport")?.checked),
 		is_nodix: Boolean($("dtEditIsNodix")?.checked),
 		is_ruined: Boolean($("dtEditIsRuined")?.checked),
 		is_hidden: Boolean($("dtEditIsHidden")?.checked),

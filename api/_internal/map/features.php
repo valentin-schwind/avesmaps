@@ -1563,6 +1563,13 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
         // gehoert dem ORT und liegt im properties_json. Sie teilen keine Tabelle und keine Datei,
         // aber `git grep is_hidden` findet beide -- also steht der Unterschied hier.
         $properties['is_hidden'] = avesmapsReadBoolean($payload['is_hidden'] ?? false);
+        // Seehafen (Owner 26.09.2026) -- liegt wie die drei darueber im properties_json, wirkt aber
+        // noch nirgends. 🪤 array_key_exists, NICHT `?? false` wie darueber: update_point hat mehr
+        // Aufrufer als die zwei Editorformen, und wer das Feld nicht kennt, naehme mit `?? false`
+        // einen gesetzten Seehafen bei jedem Speichern still zurueck.
+        if (array_key_exists('is_seaport', $payload)) {
+            $properties['is_seaport'] = avesmapsReadBoolean($payload['is_seaport']);
+        }
         // Ortsart ("Brücke", "Oase", ...) -- beschreibt den Ort, aendert NICHT seine Darstellung.
         // Absent = leer: das Feld ist optional, und "leer" ist eine gueltige Antwort, kein Fehlen.
         $placeKind = avesmapsNormalizePlaceKind((string) ($payload['place_kind'] ?? ''));
@@ -1644,6 +1651,7 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
             'is_nodix' => $properties['is_nodix'],
             'is_ruined' => $properties['is_ruined'],
             'is_hidden' => $properties['is_hidden'],
+            'is_seaport' => !empty($properties['is_seaport']),
             'properties_json' => $properties,
             'revision' => $revision,
         ]));
@@ -1676,6 +1684,7 @@ function avesmapsCreatePointFeature(PDO $pdo, array $payload, array $user): arra
         'is_nodix' => avesmapsReadBoolean($payload['is_nodix'] ?? false),
         'is_ruined' => avesmapsReadBoolean($payload['is_ruined'] ?? false),
         'is_hidden' => avesmapsReadBoolean($payload['is_hidden'] ?? false),
+        'is_seaport' => avesmapsReadBoolean($payload['is_seaport'] ?? false),
     ];
     // Ortsart -- siehe avesmapsUpdatePointFeatureDetails. Nur setzen, wenn wirklich eine kam:
     // ein leerer Schluessel im JSON waere eine Behauptung ("keine Art"), die niemand getroffen hat.
@@ -3951,6 +3960,7 @@ function avesmapsBuildPointFeatureResponse(string $publicId, string $name, strin
         'is_nodix' => !empty($properties['is_nodix']),
         'is_ruined' => !empty($properties['is_ruined']),
         'is_hidden' => !empty($properties['is_hidden']),
+        'is_seaport' => !empty($properties['is_seaport']),
         // Ortsart -- der Editor liest sie hier zurueck, um das Feld beim Oeffnen zu fuellen.
         'place_kind' => (string) ($properties['place_kind'] ?? ''),
         // 🔴 Die DREI Wiki-Textfelder MUESSEN hier stehen. Der Kartendialog baut seinen

@@ -209,6 +209,7 @@ const prepareLocationData = (data) => {
 				isNodix: Boolean(feature.properties.is_nodix),
 				isRuined: Boolean(feature.properties.is_ruined),
 				isHidden: Boolean(feature.properties.is_hidden),
+				isSeaport: Boolean(feature.properties.is_seaport),
 				revision: Number(feature.properties.revision) || null,
 			};
 		});
