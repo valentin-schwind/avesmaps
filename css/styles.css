@@ -39,6 +39,7 @@
    🔴 VOR den Wirten: seine Regeln sind (0,1,0), die Wirte duerfen sie ueberschreiben. */
 @import url("components/fenster.css");
 @import url("components/editor-row.css");
+@import url("components/staetten-kasten.css");
 /* Der Statuskreis neben einem Listennamen. Dieselbe Reise wie die Zeile darueber und aus
    demselben Grund: er gehoert der App (Panel-Listen, Territorien-Baum) UND den Editorfenstern,
    seit die Kraftlinienliste im Editor einen traegt (Owner 18.08.2026). editor-page.css bindet

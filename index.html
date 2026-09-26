@@ -1445,6 +1445,7 @@
 					     Zuweisung (die steht in `properties.wiki_settlement`), sondern das flache Feld
 					     daneben, das jedes Speichern mitschickt -- siehe den Kopf von js/ui/wiki-assign-ort.js. -->
 					<!-- 🔴 KEIN `.label-edit-section` DARUM (Owner 31.08.2026: „Wiki-Ort in einem doppelten rahmen"). Das Bauteil zeichnet seinen eigenen Kasten -- `.label-wiki-reference` bringt Rand, Radius, Hintergrund und Polsterung mit, und die Ueberschrift steht DARIN. Ein `.label-edit-section` aussen herum ist deshalb ein zweiter, leerer Kasten mit derselben Randfarbe und demselben Hintergrund. ⚠️ Der Unterschied zu „Andere Quelle" daneben: dort traegt der aeussere Kasten die Ueberschrift, hat also eine Aufgabe. ⭐ Der Label-Editor machte es von Anfang an so. --><div id="settlement-wiki-assign-host"></div>
+					<div class="label-edit-section" id="location-edit-staetten-sektion" hidden><div class="label-edit-section-title">Stätten</div><div id="location-edit-staetten"></div></div>
 					<div class="label-edit-section"><div class="label-edit-section-title">Quellen</div>
 						<div id="location-edit-feature-sources"></div>
 					</div>
@@ -3786,6 +3787,7 @@
 		     ersten Klick auf einen Editor, und das Fenster geht gar nicht auf. -->
 		<script src="js/ui/fenster-kopf.js"></script>
 		<template data-nur-editor><script src="js/review/review-feature-sources.js"></script></template><script>avesmapsNurEditorSkripte()</script>
+		<template data-nur-editor><script src="js/ui/staetten-kasten.js"></script></template><script>avesmapsNurEditorSkripte()</script>
 		<script src="js/review/review-core.js"></script>
 		<script src="js/review/review-status.js"></script>
 		<!-- Der EINE Bilanzzeilen-Erzeuger fuer alle acht WikiSync-Listen (Entwurf

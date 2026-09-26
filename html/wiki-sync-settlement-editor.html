@@ -807,11 +807,15 @@
      with ?v=Date.now() by its host, not through index.html's own asset-versioning pass. -->
 <link rel="stylesheet" href="/css/components/rahmenkasten.css" />
 <link rel="stylesheet" href="/css/features/feature-sources.css" />
+<link rel="stylesheet" href="/css/components/staetten-kasten.css" />
 <script src="/js/ui/source-autocomplete.js"></script>
 <!-- ⚠️ feature-source-markup.js ZUERST: es traegt die Kuerzung langer Seitenangaben,
      die der Quellen-Editor und die Infobox sich teilen (eine Fassung, zwei Oberflaechen). -->
 <script src="/js/ui/feature-source-markup.js"></script>
 <script src="/js/review/review-feature-sources.js"></script>
+<!-- Der Kasten „Stätten" (mountStaettenKasten) -- dieselbe Ortssuche wie oben ueber
+     source-autocomplete.js, deshalb erst danach. -->
+<script src="/js/ui/staetten-kasten.js"></script>
 <!-- Der geteilte Filter-Trichter (avmFilterMenuAttach + Zeitraum-Abschnitt). Dieselbe Datei lädt
      auch das Hauptfenster; das iframe bekommt seine eigene Kopie der Globalen. Vor dem Inline-Skript
      unten, das ihn für die linke Spalte verdrahtet. -->
@@ -1771,6 +1775,16 @@ async function renderSettlementDetail(publicId) {
 		if (typeof mountFeatureSourceEditor === "function" && $("dtFeatureSources") && selectedPublicId) {
 			mountFeatureSourceEditor($("dtFeatureSources"), "settlement", () => selectedPublicId, { escape: settlementEscape });
 		}
+		// Der Kasten „Stätten" -- unter demselben Rennwaechter wie der Quellen-Editor darueber: eine
+		// neuere Auswahl kann selectedPublicId geleert haben, waehrend diese Anfrage noch unterwegs war.
+		if (typeof mountStaettenKasten === "function" && $("dtStaetten") && selectedPublicId) {
+			mountStaettenKasten($("dtStaetten"), {
+				ortPublicId: selectedPublicId,
+				ortName: payload.detail.name || "",
+				sektion: $("dtStaettenSektion"),
+				escape: settlementEscape,
+			});
+		}
 		// Die Wiki-Zuweisung in ihren (leeren) Behaelter haengen -- NACH dem innerHTML oben, weil der
 		// Knoten erst dann existiert. Dieselbe Stelle und derselbe Grund wie beim Quellen-Editor
 		// darueber; die Rennwaechter gelten fuer beide.
@@ -2027,6 +2041,13 @@ function buildSettlementEditFormHtml(detail) {
 	// 🔴 SEIT 16.08.2026 EIN EIGENER ABSCHNITT, keine Rasterzeile mehr (Owner-Reihenfolge: Quellen
 	// stehen bei ALLEN Editorfenstern zwischen Wiki-Zuweisung und Speicherleiste). Der Behaelter
 	// behaelt seine Kennung -- renderSettlementDetail montiert unveraendert dorthin.
+	// Der Kasten „Stätten" (mountStaettenKasten) -- nur bei einem Kartenpunkt, wie der Territorium-
+	// Trichter daneben; ein reiner Wiki-Ort hat keine `map_features.public_id`, an der eine
+	// gespeicherte Stätte haengen koennte. Anfangs `hidden`, wie im Dialog „Ort bearbeiten" --
+	// renderSettlementDetail setzt sie sichtbar, sobald der Kasten wirklich etwas zeigt.
+	const staettenRow = detail.on_map === true
+		? `<div id="dtStaettenSektion" hidden><div class="dt-grp">Stätten</div><div id="dtStaetten"></div></div>`
+		: "";
 	const otherSourceRow = `<div class="dt-grp">Quellen</div><div id="dtFeatureSources"></div>`;
 	// Seehafen (Owner 26.09.2026): wird bisher nur gespeichert, wirkt noch nirgends. Mit Seeweg-Anbindung
 	// automatisch gesetzt und gesperrt, sonst setzt der Editor es von Hand -- dieselbe Regel wie „Ort
@@ -2072,6 +2093,7 @@ function buildSettlementEditFormHtml(detail) {
 			`<div class="dt-grp">Identität</div>` +
 			`<div class="dt-grid dt-grid--wiki dt-edit-grid">${nameRow}${typeRow}${einwohnerRow}${lageRow}${oberhauptRow}${descRow}${wikiUrlRow}</div>`,
 		properties: propertiesHtml,
+		staetten: staettenRow,
 		sources: otherSourceRow,
 		actions: actionsHtml,
 	};
@@ -2247,8 +2269,8 @@ function buildSettlementDetailHtml(detail) {
 	const form = buildSettlementEditFormHtml(detail);
 	const locationHtml = buildLocationGroupHtml(detail);
 	const wikiHtml = buildWikiSourceGroupHtml(detail);
-	return coatHtml + imagesHtml + form.identity + form.properties + wikiHtml + form.sources
-		+ form.actions + locationHtml;
+	return coatHtml + imagesHtml + form.identity + form.properties + wikiHtml + form.staetten
+		+ form.sources + form.actions + locationHtml;
 }
 
 // ---- Territorium: assign / clear -------------------------------------------------------

@@ -224,7 +224,10 @@ async function haupt() {
 	// Ablauf selbst laeuft in meldung-warteschlange-erreicht-den-mount.test.js.
 	assert.ok((flow.match(/openLocationEditDialog\(\{ (?:latlng|markerEntry), meldungQuellen(?:: linkedSources)? \}\)/g) || []).length === 2, "beide Oeffner (neuer Ort, Aenderungswunsch) reichen die Warteschlange MIT dem Oeffnen-Aufruf herein");
 	assert.ok(!/activeReviewReportSourceQueue = /.test(flow) && !/activeReviewReportSourceSuggestions/.test(flow), "… und keiner schreibt den Zustand NACH dem Oeffnen (der Mount hat ihn dann schon gelesen)");
-	assert.ok(orte.indexOf("activeReviewReportSourceQueue = Array.isArray(meldungQuellen) ? meldungQuellen.slice() : [];") > 0 && orte.indexOf("activeReviewReportSourceQueue = Array.isArray(meldungQuellen)") < orte.indexOf("mountLocationEditFeatureSources();\n\tmountLocationEditNameAutocomplete();"), "populateLocationEditForm setzt die Warteschlange aus der Option VOR dem Mount");
+	// 🔴 Seit Task 5 des Staetten-Umbaus (2026-09-26) steht zwischen beiden Aufrufen ein dritter Mount
+	// (mountLocationEditStaetten) -- die Nadel sucht deshalb nur noch den EINEN Mount, dessen Reihenfolge
+	// diese Zeile eigentlich zusichert (der Quellen-Editor liest die Warteschlange synchron beim Mounten).
+	assert.ok(orte.indexOf("activeReviewReportSourceQueue = Array.isArray(meldungQuellen) ? meldungQuellen.slice() : [];") > 0 && orte.indexOf("activeReviewReportSourceQueue = Array.isArray(meldungQuellen)") < orte.indexOf("mountLocationEditFeatureSources();"), "populateLocationEditForm setzt die Warteschlange aus der Option VOR dem Mount");
 	assert.ok(/activeReviewReportSourceQueue = \[\],/.test(lies("js/app/runtime-state.js")), "der Laufzeitzustand kennt die Warteschlange");
 	const panels = ohneKommentare(lies("js/review/review-panels.js"));
 	assert.ok(/details\.review-report__quellen\[open\]/.test(panels) && /offeneQuellenFalten\.has\(String\(report\.id\)\)/.test(panels), "die Review-Karte: die Falte ueberlebt den Poll");

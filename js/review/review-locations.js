@@ -594,6 +594,7 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	// resetLocationEditForm() hat die Warteschlange gerade geleert; ein normaler Dialog bleibt also ohne.
 	activeReviewReportSourceQueue = Array.isArray(meldungQuellen) ? meldungQuellen.slice() : [];
 	mountLocationEditFeatureSources();
+	mountLocationEditStaetten();
 	mountLocationEditNameAutocomplete();
 	// Seehafen (Owner 26.09.2026): mit Seeweg-Anbindung automatisch gesetzt und gesperrt, sonst setzt
 	// der Editor es von Hand. Die Anbindung rechnet der Anbindungs-Index der Pruefhaken
@@ -808,6 +809,30 @@ function mountLocationEditFeatureSources() {
 		if (data && typeof data.revision === "number" && markerEntry && markerEntry.location) {
 			markerEntry.location.revision = data.revision;
 		}
+	});
+}
+
+// Der Kasten „Stätten" (js/ui/staetten-kasten.js) im Dialog „Ort bearbeiten" -- direkt vor den
+// Quellen, dieselbe Reihenfolge wie im Ortseditor (Owner 03.09.2026: Quellen bleiben ganz unten).
+// Nur für einen bestehenden Ort: ein neu angelegter hat noch keine gespeicherten Stätten, und die
+// Kennung, an der der Server sie fände, gibt es erst nach dem ersten Speichern.
+function mountLocationEditStaetten() {
+	const sektion = document.getElementById("location-edit-staetten-sektion");
+	if (!sektion) {
+		return;
+	}
+	sektion.hidden = true;
+	const host = document.getElementById("location-edit-staetten");
+	const publicId = document.getElementById("location-edit-public-id")?.value || "";
+	if (!publicId || !host || typeof mountStaettenKasten !== "function") {
+		return;
+	}
+	const ortName = document.getElementById("location-edit-name")?.value || "";
+	void mountStaettenKasten(host, {
+		ortPublicId: publicId,
+		ortName,
+		sektion,
+		escape: escapeHtml,
 	});
 }
 
