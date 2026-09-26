@@ -41,17 +41,22 @@ ihren Punkt. Die gemessenen 11 Fälle (Burg Aarkopf/Salthel …) sind damit kein
 Die reinen Hilfen dafür (`avesmapsInnerortsArtikelSchluessel`, `…KartenArtikel`, `…OhneKartenpunkte`) stehen
 bereits in `settlement-places.php`; Teil 2 benutzt sie für die Suche (ein Objekt, ein Treffer).
 
-## 4. Teil 2 — Editor-Endpunkt `api/edit/map/settlement-places.php`
+## 4. Endpunkt `api/edit/map/settlement-places.php`
+
+🔴 **M6 (Nachbesserung):** diese Überschrift hieß „Teil 2" — das ist jetzt der Name des offenen
+Folgeauftrags „innerorts als eigenes Prädikat" (§1.2, §3). Zwei verschiedene Dinge unter demselben
+Namen sind eine Verwechslungsfalle; hier steht der Endpunkt, „Teil 2" bleibt ausschließlich der
+Folgeauftrag.
 
 `POST`, Fähigkeit `edit`, Hausumschlag `{ok:true,…}` / `{ok:false,error:{code,message}}`, JSON-Rumpf mit
 `action`:
 
 | Aktion | Rumpf | Antwort | Fehlercodes |
 |---|---|---|---|
-| `list` | `settlement_public_id` | `staetten: [{public_id, name, place_type, wiki_url, origin, gleichnamig_auf_der_karte}]` | `invalid_request` |
-| `delete` | `public_id` | `staetten` (die neue Liste des Ortes) | `not_found` |
-| `move` | `public_id`, `ziel_public_id` | `staetten` (neue Liste des **alten** Ortes), `ziel_name` | `not_found`, `invalid_target`, `name_taken`, `name_taken_deleted` |
-| `orte` | `q` (≥ 2 Zeichen) | `orte: [{public_id, name, subtype, lage}]`, höchstens 12 | `invalid_request` |
+| `list` | `settlement_public_id` | `staetten: [{public_id, name, place_type, wiki_url, origin, gleichnamig_auf_der_karte}]` | `invalid_request` (fehlender Ort) |
+| `delete` | `public_id` | `staetten` (die neue Liste des Ortes) | `invalid_request` (fehlende Kennung), `not_found` |
+| `move` | `public_id`, `ziel_public_id` | `staetten` (neue Liste des **alten** Ortes), `ziel_name` | `invalid_request` (fehlende Kennung), `not_found`, `invalid_target`, `name_taken`, `name_taken_deleted` |
+| `orte` | `q` | `orte: [{public_id, name, subtype, lage}]`, höchstens 12 | keine — `q` unter 2 Zeichen liefert `orte: []`, keinen Fehler |
 
 - **`list`** liest `settlement_place WHERE settlement_public_id = ? AND is_active = 1`, sortiert nach Name.
   - `gleichnamig_auf_der_karte`: ein aktiver Kartenpunkt **in der Nähe des Ortes** trägt denselben Namen
@@ -80,7 +85,10 @@ bereits in `settlement-places.php`; Teil 2 benutzt sie für die Suche (ein Objek
   MySQL implizit, AGENTS.md §11).
 - **Kein Protokolleintrag** im Fenster „Änderungen“ (Owner-Entscheid 4) — bewusst, nicht vergessen.
 
-## 5. Teil 3 — der Kasten „Stätten“ (ein Bauteil, zwei Montagestellen)
+## 5. Bauteil — der Kasten „Stätten“ (ein Bauteil, zwei Montagestellen)
+
+🔴 **M6 (Nachbesserung):** diese Überschrift hieß „Teil 3" — dieselbe Verwechslungsfalle wie bei §4:
+„Teil 2" ist der Name des Folgeauftrags, nicht dieses Abschnitts (siehe die Randnotiz in §4).
 
 **Bauteil:** `js/ui/staetten-kasten.js` + `css/components/staetten-kasten.css`.
 `mountStaettenKasten(host, { ortPublicId, ortName, sektion, escape, tr })` — kennt keine Montagestelle.
@@ -124,7 +132,8 @@ bereits in `settlement-places.php`; Teil 2 benutzt sie für die Suche (ein Objek
      (`avesmapsStaettenIndex = null` — 💣 der Index prüft nur die **Länge** der Liste, ein Umhängen ändert
      sie nicht und bliebe unsichtbar) und das Infopanel auffrischen, falls offen. Im iframe über
      `window.parent`.
-  3. meldet es in einer Zeile unter der Liste: „Gelöscht: Burg X.“ / „Umgehängt nach Neuort.“
+  3. meldet es in einer Zeile unter der Liste — M6 (Nachbesserung): an den gebauten Text
+     angeglichen — „Gelöscht: „Burg X“." / „Umgehängt: „Burg X“ liegt jetzt in Neuort."
 - **Fehler** stehen in derselben Meldezeile in Warnfarbe, mit dem Satz des Servers; die Falte bleibt offen.
 
 ## 6. Was dieser Entwurf bewusst NICHT tut
