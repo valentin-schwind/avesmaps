@@ -30,9 +30,9 @@ require_once __DIR__ . '/../wiki/place-scope.php';
 
 /**
  * Karteneinheiten, innerhalb derer ein gleichnamiger Kartenpunkt als „Namensnachbar" gilt --
- * die Regel „Kartenpunkt schlaegt Innerorts" braucht das, um eine Staette vor einer NAMENSGLEICHEN
- * aber andernorts liegenden Karte zu schuetzen (AGENTS.md, Coordinate convention: 1 Karteneinheit
- * = 3 Meilen, hier also 15 Meilen).
+ * braucht `avesmapsSettlementPlaceNamensnachbarn` fuer den Hinweis „gleichnamiger Punkt auf der
+ * Karte" im Editor-Endpunkt (reiner Hinweis, nichts wird ausgeblendet; AGENTS.md, Coordinate
+ * convention: 1 Karteneinheit = 3 Meilen, hier also 15 Meilen).
  */
 const AVESMAPS_STAETTEN_NAMENSNACHBAR_RADIUS = 5.0;
 
@@ -272,13 +272,20 @@ function avesmapsSettlementPlaceReadStamp(PDO $pdo): string
 }
 
 /**
- * Die Regel „Kartenpunkt schlaegt Innerorts".
+ * Vorrat fuer Teil 2 -- „innerorts" als eigenes Praedikat.
  * ===========================================================================
- * Ein Wiki-Artikel, den ein Redakteur bereits als KARTENPUNKT platziert hat (properties.
- * wiki_settlement.wiki_url zeigt drauf), erscheint nicht zusaetzlich als Innerorts-Objekt seiner
- * Stadt -- weder in den drei abgeleiteten Quellen (avesmapsFetchInSettlementSearchRows) noch in
- * einer gespeicherten `settlement_place`-Zeile. Owner 26.09.2026: „Orte, die auf der Karte
- * platziert sind, sind nicht innerorts".
+ * 🔴 DIE URSPRUENGLICHE REGEL IST GESTRICHEN (Owner 26.09.2026, noch am Tag der ersten Fassung
+ * dieser Datei). Sie hiess „Kartenpunkt schlaegt Innerorts": ein Wiki-Artikel, den ein Redakteur
+ * bereits als KARTENPUNKT platziert hat, sollte nicht zusaetzlich als Innerorts-Objekt seiner
+ * Stadt erscheinen. Der Owner hat das umgedreht: „innerorts ist ein unabhaengiges Praedikat"
+ * (gehoert zu einem Ort), unabhaengig davon, ob das Objekt AUCH einen Kartenpunkt hat -- Suche und
+ * Wegfindung springen auf den Punkt, wenn es einen gibt, sonst auf den Ort. Das ist ein eigener,
+ * noch offener Auftrag (Teil 2, Variante B) und baut hier NICHT mehr mit.
+ *
+ * Die drei Funktionen unten bleiben deshalb bewusst OHNE Aufrufer in diesem Entwurf -- sie sind
+ * der Vorrat, mit dem Teil 2 die Frage „ist dieser Wiki-Artikel schon einem Kartenpunkt
+ * zugewiesen?" beantworten wird (dort als Grundlage fuer „ein Objekt, ein Treffer" in Suche und
+ * Wegfindung, nicht mehr als Ausblendregel).
  *
  * 🔴 DER VERGLEICH IST DIE WIKI-ADRESSE, NIE DER NAME. Zwei Objekte koennen denselben Namen
  * tragen (eine Burg auf der Karte, eine andere gleichnamige Innerorts-Staette in einer anderen
@@ -649,9 +656,11 @@ function avesmapsSettlementPlaceOrteSuchen(PDO $pdo, string $q, int $limit = 12)
 }
 
 /**
- * Namensgleiche Kartenpunkte in der Naehe eines Ortes -- die zweite Haelfte der Regel
- * „Kartenpunkt schlaegt Innerorts": eine gespeicherte Staette, deren Name auf einen NAHEN
- * Kartenpunkt gleichen Namens trifft, ist vermutlich derselbe Ort, nur (noch) ohne Wiki-Adresse.
+ * Namensgleiche Kartenpunkte in der Naehe eines Ortes -- Grundlage fuer den Hinweis
+ * „gleichnamiger Punkt auf der Karte" im Editor-Endpunkt (reiner Hinweis, blendet nichts aus):
+ * eine gespeicherte Staette, deren Name auf einen NAHEN Kartenpunkt gleichen Namens trifft, ist
+ * vermutlich derselbe Ort, nur (noch) ohne Wiki-Adresse. Unabhaengig vom gestrichenen Vorrat oben
+ * (Teil 2) -- diese Funktion ist live gedacht, nicht vorgehalten.
  *
  * @return array<string,true> kleingeschriebene, getrimmte Namen
  */

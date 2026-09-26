@@ -172,6 +172,24 @@ $pdoKaputt = new class('sqlite::memory:') extends PDO {
 assert(avesmapsInnerortsKartenArtikel($pdoKaputt) === [], 'ein werfender Zugriff faellt offen aus: []');
 $pruefungen += 1;
 
+// --- avesmapsInnerortsJsonExtractText DIREKT: der MariaDB-Pfad (gequotet inkl. \/-Escape) wird
+// von Test 3 nie erreicht, weil SQLite json_extract() schon entpackt liefert (siehe Kopf-Notiz des
+// Controllers). Der Helfer wird deshalb hier isoliert mit einer HANDGEBAUTEN gequoteten
+// Zeichenkette geprueft, wie MariaDB's JSON_EXTRACT sie tatsaechlich zurueckgibt.
+assert(
+    avesmapsInnerortsJsonExtractText('"https:\/\/de.wiki-aventurica.de\/wiki\/Burg_Aarkopf"')
+    === 'https://de.wiki-aventurica.de/wiki/Burg_Aarkopf',
+    'MariaDB-Form (gequotet, \/-escaped): json_decode() packt sie sauber aus'
+);
+assert(
+    avesmapsInnerortsJsonExtractText('https://de.wiki-aventurica.de/wiki/Burg_Aarkopf')
+    === 'https://de.wiki-aventurica.de/wiki/Burg_Aarkopf',
+    'SQLite-Form (schon entpackt, keine Anfuehrungszeichen): unveraendert durchgereicht'
+);
+assert(avesmapsInnerortsJsonExtractText('') === '', 'leer -> leer');
+assert(avesmapsInnerortsJsonExtractText((string) null) === '', 'null (wie es der Aufrufer per ?? \'\' hereinreicht) -> leer');
+$pruefungen += 4;
+
 // === 4) …OhneKartenpunkte ====================================================================
 $kartenArtikel = avesmapsInnerortsKartenArtikelAusZeilen([
     ['feature_type' => 'location', 'is_active' => 1,
@@ -369,6 +387,21 @@ $nachbarn = avesmapsSettlementPlaceNamensnachbarn($pdo9, 'nn-mitte');
 assert(isset($nachbarn['mittelburg']), '3 Einheiten entfernt: der gleichnamige Punkt zaehlt: ' . json_encode($nachbarn));
 assert(isset($nachbarn['andere burg']), 'ein anderer Name in Reichweite zaehlt ebenfalls');
 $pruefungen += 2;
+
+// --- Eckfall: die bbox-Vorfilterung prueft JEDE Achse fuer sich (BETWEEN x-5..x+5 UND
+// y-5..y+5), das ergibt ein QUADRAT; der Radius ist aber ein KREIS. Ein Punkt in der Ecke des
+// Quadrats (dx=4, dy=4) liegt innerhalb der bbox, aber sein echter Abstand ist sqrt(4^2+4^2)
+// = 5,657 -- ausserhalb des Radius 5. Ohne die echte Distanzpruefung (statt nur der bbox) faende
+// sich dieser Punkt faelschlich als Nachbar.
+$pdo9d = avesmapsStaettenEditorTestPdo();
+avesmapsStaettenTestOrtEinfuegen($pdo9d, 'nn-mitte', 'Mittelburg', 'stadt', 100.0, 100.0);
+avesmapsStaettenTestOrtEinfuegen($pdo9d, 'nn-ecke', 'Mittelburg', 'dorf', 104.0, 104.0);
+$nachbarnEcke = avesmapsSettlementPlaceNamensnachbarn($pdo9d, 'nn-mitte');
+assert(
+    $nachbarnEcke === [],
+    'Eckfall der Suchbox (dx=4, dy=4 -> Abstand 5,657 > Radius 5) faellt bei der ECHTEN Distanz durch: ' . json_encode($nachbarnEcke)
+);
+$pruefungen += 1;
 
 // Eigene Fixture ohne den 8-Einheiten-Punkt in derselben Menge zu verwaschen: gezielt pruefen,
 // dass NUR der 3-Einheiten-Punkt den Namen beisteuert, indem wir den Namensnachbarn-Aufruf
