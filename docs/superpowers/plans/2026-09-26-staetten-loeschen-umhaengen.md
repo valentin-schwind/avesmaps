@@ -3,13 +3,13 @@
 > **Für ausführende Agenten:** PFLICHT-SKILL: superpowers:subagent-driven-development (empfohlen) oder
 > superpowers:executing-plans. Schritte als Checkbox (`- [ ]`).
 
-**Ziel:** Gespeicherte Stätten (`settlement_place`) lassen sich in „Ort bearbeiten" und im Ortseditor löschen
+**Ziel:** Gespeicherte Stätten (`settlement_place`) lassen sich in „Ort bearbeiten“ und im Ortseditor löschen
 und an einen anderen Ort hängen.
 
-> 🔴 **Änderung 26.09.2026 (Owner):** Die Regel „Kartenpunkt schlägt Innerorts" ist gestrichen — innerorts ist
+> 🔴 **Änderung 26.09.2026 (Owner):** Die Regel „Kartenpunkt schlägt Innerorts“ ist gestrichen — innerorts ist
 > ein unabhängiges Prädikat und wird ein eigener Auftrag (Teil 2, Variante B). **Task 2 entfällt.** Task 1 ist
 > gebaut und behält die reinen Hilfen `avesmapsInnerortsArtikelSchluessel/…KartenArtikel/…OhneKartenpunkte`
-> für Teil 2. Im Endpunkt entfällt das Feld `auf_der_karte`, im Bauteil der Hinweis „liegt auf der Karte …"
+> für Teil 2. Im Endpunkt entfällt das Feld `auf_der_karte`, im Bauteil der Hinweis „liegt auf der Karte …“
 > und der Nachsatz der grauen Zeile.
 
 **Architektur:** Reine PHP-Funktionen in `api/_internal/app/settlement-places.php` (Regel, Liste, Umhängen,
@@ -94,7 +94,7 @@ function avesmapsSettlementPlaceNamensnachbarn(PDO $pdo, string $ortId): array; 
 - [ ] **Schritt 4: Implementieren.**
   ```php
   /**
-   * Der Vergleichsschluessel einer Wiki-Adresse fuer „ist dieser Artikel einem Kartenpunkt zugewiesen?".
+   * Der Vergleichsschluessel einer Wiki-Adresse fuer „ist dieser Artikel einem Kartenpunkt zugewiesen?“.
    * Wirt ohne www., Pfad dekodiert, Leerzeichen = Unterstrich, klein. Kein mb_*: beide Seiten gehen
    * hier durch, ein nicht gefaltetes Umlaut-Grossbuchstabe trifft sich also selbst.
    */
@@ -138,9 +138,9 @@ function avesmapsSettlementPlaceNamensnachbarn(PDO $pdo, string $ortId): array; 
     settlement_public_id = :ziel AND name = :name`); `UPDATE settlement_place SET settlement_public_id =
     :ziel, settlement_name = :zielname, updated_at = :t WHERE public_id = :pid`, `:t =
     (new DateTimeImmutable())->format('Y-m-d H:i:s.v')`; commit; bei Throwable rollBack + weiterwerfen.
-    Meldungen: „Die Stätte gibt es nicht (mehr)." · „Das Ziel ist kein Ort auf der Karte." · „In
-    {Ziel} gibt es schon eine Stätte „{Name}". Nichts wurde geändert." · „In {Ziel} gab es schon eine
-    gelöschte Stätte „{Name}". Nichts wurde geändert."
+    Meldungen: „Die Stätte gibt es nicht (mehr).“ · „Das Ziel ist kein Ort auf der Karte.“ · „In
+    {Ziel} gibt es schon eine Stätte „{Name}“. Nichts wurde geändert." · „In {Ziel} gab es schon eine
+    gelöschte Stätte „{Name}“. Nichts wurde geändert."
   - `Deactivate`: `SET is_active = 0, updated_at = :t` (gleiches `:t`-Format).
   - `OrteSuchen`: `q = trim`, `< 2` Zeichen → `[]`; `LIKE :m ESCAPE '!'` mit `!`, `%`, `_` durch `!`
     maskiert, `LIMIT 60`; in PHP: Präfix (strtolower-Vergleich) zuerst, dann Name; `array_slice(0,
@@ -151,7 +151,7 @@ function avesmapsSettlementPlaceNamensnachbarn(PDO $pdo, string $ortId): array; 
     Distanz `≤ AVESMAPS_STAETTEN_NAMENSNACHBAR_RADIUS`; Menge `strtolower(trim(name))`.
 - [ ] **Schritt 5: Test grün**, dazu `settlement-places-test.php` und
   `api/_internal/wiki/__tests__/in-settlement-search-test.php` weiter grün.
-- [ ] **Schritt 6: Commit** `feat(staetten): Bibliothek fuer Loeschen, Umhaengen und die Regel „Kartenpunkt schlaegt Innerorts"`.
+- [ ] **Schritt 6: Commit** `feat(staetten): Bibliothek fuer Loeschen, Umhaengen und die Regel „Kartenpunkt schlaegt Innerorts“`.
 
 ### ~~Task 2: Die Regel an beiden Erzeugern~~ — ENTFÄLLT (siehe Änderung oben; nicht umsetzen)
 
@@ -217,7 +217,7 @@ function avesmapsSettlementPlaceNamensnachbarn(PDO $pdo, string $ortId): array; 
   rufen dieselbe Listenfunktion; Fehlercodes ↔ HTTP-Status wie oben. `php -l`.
 - [ ] **Schritt 3: grün, Commit** `feat(staetten): Editor-Endpunkt zum Loeschen und Umhaengen gespeicherter Staetten`.
 
-### Task 4: Das Bauteil „Stätten"
+### Task 4: Das Bauteil „Stätten“
 
 **Files:**
 - Create: `css/components/staetten-kasten.css` — **Vertragsblock aus `docs/staetten-kasten-mockup.html`
@@ -241,30 +241,30 @@ function staettenKastenNutzlastNachziehen(win, art, staette, alterOrt, zielName)
 - Markup je Stätte: `.avm-row` (bei offener Falte zusätzlich `fs-row--open`) › `.avm-row__text` ›
   `.avm-row__l1` (Name `.avm-row__name`, Art `.avm-row__kind`) + `.avm-row__l2` (Link auf die Wiki-Adresse,
   Text = Wirt ohne `www.` + ` ↗`, `target="_blank" rel="noopener noreferrer"`; Klasse `warn` und Anhang
-  „ · gleichnamiger Punkt auf der Karte" bei `gleichnamig_auf_der_karte`;
+  „ · gleichnamiger Punkt auf der Karte“ bei `gleichnamig_auf_der_karte`;
   kein weiterer Hinweis) + `.st-aktionen` mit `button.fs-row__edit[data-st-aktion=umhaengen]`
-  „⇄" (`aria-label="Umhängen"`, `title="An einen anderen Ort hängen"`) und
-  `button.fs-row__remove[data-st-aktion=loeschen]` „✕" (`aria-label="Löschen"`, `title="Stätte löschen"`).
+  „⇄“ (`aria-label="Umhängen"`, `title="An einen anderen Ort hängen"`) und
+  `button.fs-row__remove[data-st-aktion=loeschen]` „✕“ (`aria-label="Löschen"`, `title="Stätte löschen"`).
   Alles durch `escape`.
 - Genau **eine** Falte offen (`.st-falte` direkt nach der Zeile). Umhängen: `input.st-falte__suche`
   (`type=search`, `placeholder="Neuer Ort …"`), angebunden über `attachTypeahead` (global aus
   `js/ui/source-autocomplete.js`, `minChars: 2`) mit `search: (q, signal) => POST {action:"orte", q}` →
-  `orte`; `renderHtml` → `.sac-head` „Orte auf der Karte" + `ul.sac-list` mit `li.sac-item`
-  (`.sac-name` mit `<mark>` um den Treffer, `.sac-uses` „Ortsklasse · Lage"; Ortsklasse über
+  `orte`; `renderHtml` → `.sac-head` „Orte auf der Karte“ + `ul.sac-list` mit `li.sac-item`
+  (`.sac-name` mit `<mark>` um den Treffer, `.sac-uses` „Ortsklasse · Lage“; Ortsklasse über
   `avesmapsOrtsklassenLabel`/`LOCATION_TYPE_CONFIG` falls vorhanden, sonst der Schlüssel); `onPick` merkt
-  das Ziel und zeigt „„{Name}" nach **{Ziel}** umhängen?" + `.fs-actions` mit `.fs-actions__sek`
-  „Abbrechen" und `.fs-actions__prim` „Umhängen" (vor der Wahl: Primärknopf `disabled`). Löschen:
-  Satz „Stätte „{Name}" löschen? Sie verschwindet aus der Infobox von {Ort}; ihre Quellen bleiben an ihr
+  das Ziel und zeigt „„{Name}“ nach **{Ziel}** umhängen?" + `.fs-actions` mit `.fs-actions__sek`
+  „Abbrechen“ und `.fs-actions__prim` „Umhängen“ (vor der Wahl: Primärknopf `disabled`). Löschen:
+  Satz „Stätte „{Name}“ löschen? Sie verschwindet aus der Infobox von {Ort}; ihre Quellen bleiben an ihr
   hängen." + Abbrechen/Löschen.
 - Nach Erfolg: Liste aus der Antwort neu zeichnen, Falte zu, Meldezeile `p.fs-add-note.fs-add-note--ok
-  [role=status]` („Gelöscht: „{Name}"." / „Umgehängt: „{Name}" liegt jetzt in {Ziel}."),
+  [role=status]` („Gelöscht: „{Name}“." / „Umgehängt: „{Name}“ liegt jetzt in {Ziel}."),
   `staettenKastenNutzlastNachziehen(…)`. Nach Fehler: Meldezeile `p.fs-add-note` mit `error.message`,
-  Falte bleibt offen. Netzfehler: „Keine Verbindung zum Server. Nichts wurde geändert."
+  Falte bleibt offen. Netzfehler: „Keine Verbindung zum Server. Nichts wurde geändert.“
 - Graue Zeile `p.st-wiki`: `n = staettenKastenWikiZahl(…)`; `n === null` → keine Zeile; `n > 0` und
-  gespeicherte vorhanden → „+ {n} weitere aus dem Wiki — hier nicht bearbeitbar."; keine gespeicherten →
-  „{n} Stätten aus dem Wiki — hier nicht bearbeitbar." (Einzahl „1 Stätte aus dem Wiki — …"). 
+  gespeicherte vorhanden → „+ {n} weitere aus dem Wiki — hier nicht bearbeitbar.“; keine gespeicherten →
+  „{n} Stätten aus dem Wiki — hier nicht bearbeitbar.“ (Einzahl „1 Stätte aus dem Wiki — …“). 
 - Sichtbarkeit: 0 gespeicherte **und** (`n === null` oder `n === 0`) → `sektion.hidden = true`; sonst
-  `false`. Während `list` lädt: `sektion.hidden = false` und `p.st-wiki` „Stätten werden geladen …".
+  `false`. Während `list` lädt: `sektion.hidden = false` und `p.st-wiki` „Stätten werden geladen …“.
   Liefert `list` einen Fehler: Meldezeile, Sektion bleibt sichtbar.
 - `staettenKastenWikiZahl`: Liste = `win.avesmapsInSettlementPlaces`, sonst (in `try`, fremde Herkunft
   wirft) `win.parent.avesmapsInSettlementPlaces` wenn `win.parent !== win`; keine Array-Liste → `null`.
@@ -284,7 +284,7 @@ function staettenKastenNutzlastNachziehen(win, art, staette, alterOrt, zielName)
   nachgezogen, `avesmapsStaettenIndex` null, Infopanel gerufen), Fehler (Meldung, Falte offen),
   Sektion verborgen bei 0/0 und bei 0/`null`, iframe-Fall (Liste nur am `parent`), Escape (Name mit `<`).
 - [ ] **Schritt 2: rot, Schritt 3: umsetzen, Schritt 4: grün** + `node tools/mockup-vertrag/__tests__/mockup-vertrag.test.js` grün.
-- [ ] **Schritt 5: Commit** `feat(staetten): Bauteil „Staetten" mit Loeschen und Umhaengen`.
+- [ ] **Schritt 5: Commit** `feat(staetten): Bauteil „Staetten“ mit Loeschen und Umhaengen`.
 
 ### Task 5: Einbau an beiden Stellen
 
@@ -324,12 +324,12 @@ function staettenKastenNutzlastNachziehen(win, art, staette, alterOrt, zielName)
 - [ ] **Schritt 5: Browser-Sichtprüfung lokal** (`docs-static`-Muster, PHP-Server auf den Worktree): das
   Mockup und ein Bauteil-Testaufbau hell/dunkel — die echte Montage braucht eine Sitzung und wird live
   abgenommen (Task 6).
-- [ ] **Schritt 6: Commit** `feat(staetten): Staetten in „Ort bearbeiten" und im Ortseditor loeschen und umhaengen`.
+- [ ] **Schritt 6: Commit** `feat(staetten): Staetten in „Ort bearbeiten“ und im Ortseditor loeschen und umhaengen`.
 
 ### Task 6: Doku, Push, Abnahme (Controller)
 
-- [ ] AGENTS.md §11: ein Eintrag „Stätten löschen und umhängen" (Endpunkt; ein Bauteil, zwei Montagestellen;
-  fs-Klassen mitbenutzt; Nutzlast-Index-Falle; Verweis auf den offenen Teil 2 „innerorts als Prädikat").
+- [ ] AGENTS.md §11: ein Eintrag „Stätten löschen und umhängen“ (Endpunkt; ein Bauteil, zwei Montagestellen;
+  fs-Klassen mitbenutzt; Nutzlast-Index-Falle; Verweis auf den offenen Teil 2 „innerorts als Prädikat“).
   Commit `docs(staetten): …`.
 - [ ] Push in EINEM Schritt über einen Wegwerf-Worktree (alles zusammen, denn ohne Task 2 ist nur die
   Oberfläche sichtbar) — Deploy abwarten, Besucher-Karte + Konsole prüfen.
