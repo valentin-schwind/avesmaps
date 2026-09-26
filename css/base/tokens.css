@@ -826,8 +826,8 @@
 	      ein Push, sein Blick -- dann der naechste").
 	   ⚠️ Und KEIN Test haelt den Zahlenwert fest; das Feld bliebe gruen.
 	   ⭐ Wer ein Fenster einzeln auf die Kante zieht, ueberschreibt den Token AN SEINER HUELLE
-	      (so macht es .gi-win seit dem 04.09.2026). Wenn alle neun dort sind, faellt der
-	      Wert hier auf --space-12 und die lokalen Zeilen fallen weg. */
+	      (so machen es inzwischen sechs Fenster, z. B. .social-hub). Wenn alle neun dort sind,
+	      faellt der Wert hier auf --space-12 und die lokalen Zeilen fallen weg. */
 	--avm-col-pad: var(--space-6) var(--space-10);      /* 8 / 12 — jede der drei Spalten */
 	--avm-row-pad: var(--space-2) var(--space-4);       /* 4 / 6 — Listenzeile */
 	--avm-field-label-w: 130px;                         /* Beschriftung links neben dem Feld */

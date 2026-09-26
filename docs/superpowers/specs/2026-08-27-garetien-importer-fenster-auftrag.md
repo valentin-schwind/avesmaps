@@ -285,6 +285,9 @@ Ein Klick auf eine Zeile zeigt:
 
 ### 5.5 🔴 Der Importer ist ein Gerüst — er wird wieder abgebaut
 
+✅ **Abgebaut am 26.09.2026** (Plan `docs/superpowers/plans/2026-09-26-garetien-importer-rueckbau.md`).
+Übernommene Objekte, Quellen und Namensnennung stehen.
+
 **Owner-Entscheid 27.08.2026, wörtlich:** *„nichts soll so gebaut werden, dass es nicht entfernt
 werden kann."*
 

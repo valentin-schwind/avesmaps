@@ -231,7 +231,8 @@
  *    koennte -- und es BLEIBT STEHEN, wo es steht.
  * 💣 EIN Selektor statt einer Liste der Zonen: eine Liste veraltet lautlos, und die naechste
  *    Zone stuende eingeklappt sichtbar da. Dieselbe Klasse wie die Zahl im Kommentar
- *    (AGENTS.md §11) -- `.gi-win.is-minimized` macht es seit dem 04.09.2026 schon so. */
+ *    (AGENTS.md §11) -- das Konfliktzentrum (`#wiki-sync-conflicts-dialog.is-minimized`) macht
+ *    es schon so. */
 .avm-fenster.is-minimized > :not(.avm-fenster__kopf) { display: none; }
 .avm-fenster.is-minimized .avm-fenster__kopf { border-bottom: 0; }
 
