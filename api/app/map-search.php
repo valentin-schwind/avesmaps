@@ -129,7 +129,10 @@ try {
     // (api/app/map-features.php). ⚠️ Gelesen NACH dem Riegel oben: ohne Anmeldung als Editor ist edit_mode
     // hier schon entfernt, und die Suche antwortet wie im Frontend.
     $imBearbeitenModus = trim((string) ($_GET['edit_mode'] ?? '')) === '1';
-    $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit, $inSettlementRows, $pdo, $citymapRows, $gameLiteratureRows, $loreRows, $offmapRows, imBearbeitenModus: $imBearbeitenModus);
+    // Innerorts (Entwurf 2026-09-26-innerorts-praedikat-design.md §7): die von der Karte genommenen
+    // Stadtviertel/Bauwerke -- $rows traegt nur aktive Zeilen. Eine kleine Abfrage (LIKE-Vorfilter).
+    $innerortsVonDerKarte = avesmapsFetchInnerortsVonDerKarteRows($pdo);
+    $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit, $inSettlementRows, $pdo, $citymapRows, $gameLiteratureRows, $loreRows, $offmapRows, imBearbeitenModus: $imBearbeitenModus, innerortsVonDerKarte: $innerortsVonDerKarte);
 
     avesmapsJsonResponse(200, [
         'ok' => true,
@@ -236,12 +239,32 @@ function avesmapsBuildMapSearchResults(
     // 🔴 Der elfte, und er wird BENANNT uebergeben (`imBearbeitenModus: $x`) -- niemand soll zehn
     // Positionen abzaehlen, um ihn zu setzen. Vorgabe ist das FRONTEND: ein Aufrufer, der den Modus
     // vergisst, versteckt eher eine unsichtbare Beschriftung zu viel als eine zu wenig.
-    bool $imBearbeitenModus = false
+    bool $imBearbeitenModus = false,
+    // Der zwoelfte, ebenfalls BENANNT: die von der Karte genommenen innerorts-Punkte
+    // (avesmapsFetchInnerortsVonDerKarteRows). Vorgabe leer -- ein Aufrufer ohne sie verliert nur
+    // diese Treffer, nichts sonst.
+    array $innerortsVonDerKarte = []
 ): array {
     $normalizedQuery = avesmapsNormalizeSearchText($query);
     if ($normalizedQuery === '') {
         return [];
     }
+
+    // 🔴 EIN OBJEKT, EIN TREFFER (Spec §6.1/§7): eine abgeleitete Innerorts-Zeile, deren Artikel einem
+    // innerorts-PUNKT gehoert (aktiv oder von der Karte genommen), faellt heraus -- der Punkt selbst
+    // ist der Treffer. Gefiltert wird mit genau der Menge der Punkt-Artikel, nie mit allen Kartenpunkten.
+    $innerortsArtikel = avesmapsInnerortsSuchArtikel($rows, $innerortsVonDerKarte);
+    if ($innerortsArtikel !== [] && $inSettlementRows !== []) {
+        $inSettlementRows = avesmapsInnerortsOhneKartenpunkte($inSettlementRows, $innerortsArtikel);
+    }
+    // ⚠️ Dasselbe fuer die Objekte ohne Kartenobjekt: ein von der Karte genommener Punkt ist fuer deren
+    // Praesenzindex (nur aktive Zeilen) unsichtbar -- ohne diese Zeile stuende sein Artikel dort ein
+    // zweites Mal, wenn der Wiki-Standort ihn ausserhalb einer Stadt nennt.
+    if ($innerortsArtikel !== [] && $offmapRows !== []) {
+        $offmapRows = avesmapsInnerortsOhneKartenpunkte($offmapRows, $innerortsArtikel);
+    }
+    // Die aktiven Siedlungen nach Kennung -- erst gebaut, wenn ein innerorts-Punkt sie braucht.
+    $innerortsStaedte = null;
 
     $results = [];
     $pathGroups = [];
@@ -272,6 +295,14 @@ function avesmapsBuildMapSearchResults(
                 avesmapsSearchMergePathEntry($pathGroups, $entry, $score);
             }
             continue;
+        }
+
+        // Ein aktiver innerorts-Punkt bleibt ein normaler Kartentreffer, mit dem Zusatz „in Gareth"
+        // (Spec §7). Nur Stadtviertel/Bauwerke MIT Feld zahlen die Stadttafel.
+        if ($entry['kind'] === 'location' && avesmapsInnerortsIstKlasse((string) ($row['feature_subtype'] ?? ''))
+            && str_contains((string) ($row['properties_json'] ?? ''), 'innerorts')) {
+            $innerortsStaedte ??= avesmapsInnerortsStaedteAusZeilen($rows);
+            $entry = avesmapsInnerortsSuchZusatz($entry, $row, $innerortsStaedte);
         }
 
         $entry['score'] = $score;
@@ -393,6 +424,18 @@ function avesmapsBuildMapSearchResults(
             $entry['score'] = $score;
             $results[] = $entry;
         }
+    }
+
+    // Innerorts-PUNKTE, die von der Karte genommen sind: Treffer ihrer Stadt in derselben Bauform wie
+    // die abgeleiteten darueber (`kind: in_settlement`, Sprung auf die Stadt, Spec §7). Braucht weder
+    // Scope-Index noch Datenbank -- ihre Stadt ist eine gespeicherte Kennung, keine Vermutung.
+    foreach (avesmapsBuildInnerortsVonDerKarteSearchEntries($innerortsVonDerKarte, $rows) as $entry) {
+        $score = avesmapsCalculateSearchScore($entry, $normalizedQuery);
+        if ($score === null) {
+            continue;
+        }
+        $entry['score'] = $score;
+        $results[] = $entry;
     }
 
     // Section sources are collected SEPARATELY from the map objects and capped, then appended. A single

@@ -66,6 +66,11 @@ try {
         'update_region' => avesmapsUpdateRegionFeature($pdo, $payload, $user),
         'update_region_geometry' => avesmapsUpdateRegionFeatureGeometry($pdo, $payload, $user),
         'delete_feature' => avesmapsDeleteMapFeature($pdo, $payload, $user),
+        // Innerorts (Entwurf 2026-09-26-innerorts-praedikat-design.md §4): ein Stadtviertel/Bauwerk
+        // mit Stadt verlaesst die Karte und bleibt Staette -- und kommt an derselben Stelle zurueck.
+        // Faehigkeit `edit` wie delete_feature (oben am Endpunkt), die Sperre prueft der Handler.
+        'take_off_map' => avesmapsTakeOffMapFeature($pdo, $payload, $user),
+        'put_on_map' => avesmapsPutOnMapFeature($pdo, $payload, $user),
         'undo_audit_change' => avesmapsUndoAuditChange($pdo, $payload, $user),
         'acquire_lock' => avesmapsAcquireMapFeatureLock($pdo, $payload, $user),
         'release_lock' => avesmapsReleaseMapFeatureLock($pdo, $payload, $user),

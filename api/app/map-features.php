@@ -18,6 +18,8 @@ require_once __DIR__ . '/../_internal/media-license.php';
 require_once __DIR__ . '/../_internal/app/app-setting.php';
 require_once __DIR__ . '/../_internal/app/in-settlement-search.php';
 require_once __DIR__ . '/../_internal/app/settlement-places.php';
+// Die dritte Quelle der Staettenliste: innerorts-Punkte (avesmapsInnerortsPunkteFuerStaetten).
+require_once __DIR__ . '/../_internal/app/innerorts.php';
 // Which label belongs to which landscape region. ONE definition of that relation, shared with
 // api/app/ecosystem-areas.php -- it is stored twice (once per direction) and neither side alone is
 // complete, so a second copy of the rule here would be the second truth. Pure functions + one reader;
@@ -178,7 +180,13 @@ require_once __DIR__ . '/../_internal/app/map-features-cache.php';
 //    seither wieder „offiziell". Dritter Inhaltswechsel in `feature_kanon.abweichungen` an diesem
 //    Tag, und wieder ein eigener Bump: er repariert eine Regression von 25 und muss die warmen
 //    Browser genauso erreichen wie sie.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 26;
+// 27 (27.09.2026): `in_settlement_places` bekommt die innerorts-PUNKTE als Quelle (Entwurf
+//    2026-09-26-innerorts-praedikat-design.md §6.1) -- ihre Eintraege tragen zusaetzlich `public_id`
+//    und `auf_der_karte`, und eine abgeleitete Staette desselben Artikels faellt heraus. Heute traegt
+//    noch kein Punkt das Feld (das bringt erst der Admin-Lauf `innerorts_aus_wiki`), der Inhalt
+//    aendert sich also erst mit ihm -- ein Stempel, der die Form der Liste anzeigt, gehoert aber zur
+//    Form, nicht zum ersten Wert: jede spaetere Aenderung am Feld bewegt `map_revision` ohnehin.
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 27;
 
 // 🔴 avesmapsMapFeaturesWikiNamespaces() UND die zugehoerige Typ-Zuordnung stehen NICHT hier,
 // sondern in api/_internal/app/feature-sources.php, direkt neben avesmapsFeatureSourcesDeriveKanon,
@@ -215,6 +223,15 @@ function avesmapsMapFeaturesInSettlementPlaces(PDO $pdo): array {
         $storedPlaces = [];
     }
 
+    // Die dritte Quelle (27.09.2026): innerorts-Punkte -- aktive und von der Karte genommene
+    // (Entwurf 2026-09-26-innerorts-praedikat-design.md §6.1). Eigenes Netz aus demselben Grund wie oben.
+    $innerortsPunkte = [];
+    try {
+        $innerortsPunkte = avesmapsInnerortsPunkteFuerStaetten($pdo);
+    } catch (Throwable) {
+        $innerortsPunkte = [];
+    }
+
     $registryRows = [];
     try {
         $registryRows = avesmapsFetchInSettlementSearchRows($pdo);
@@ -222,7 +239,7 @@ function avesmapsMapFeaturesInSettlementPlaces(PDO $pdo): array {
         $registryRows = [];
     }
 
-    if ($registryRows === [] && $storedPlaces === []) {
+    if ($registryRows === [] && $storedPlaces === [] && $innerortsPunkte === []) {
         return [];
     }
 
@@ -231,7 +248,7 @@ function avesmapsMapFeaturesInSettlementPlaces(PDO $pdo): array {
         // nichts zu klassifizieren, und die Abfrage waere reine Last.
         $scopeIndex = $registryRows === [] ? ['settlements' => [], 'regions' => []] : avesmapsPlaceScopeLoadIndex($pdo);
 
-        return avesmapsBuildInSettlementPlaceList($registryRows, $scopeIndex, $storedPlaces);
+        return avesmapsBuildInSettlementPlaceList($registryRows, $scopeIndex, $storedPlaces, $innerortsPunkte);
     } catch (Throwable) {
         return [];
     }

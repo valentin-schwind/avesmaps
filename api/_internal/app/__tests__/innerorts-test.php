@@ -34,7 +34,7 @@ if (ini_get('zend.assertions') !== '1') {
 // avesmapsUndoAuditChange per function_exists an unsere Bibliothek durch), dann unsere.
 require __DIR__ . '/../../bootstrap.php';
 require __DIR__ . '/../../map/features.php';
-require __DIR__ . '/../innerorts.php';
+require_once __DIR__ . '/../innerorts.php'; // require_once: features.php laedt sie seit Task 2 schon (innerorts-anschluss.php)
 require __DIR__ . '/../../ortsklassen.php';
 
 $pruefungen = 0;

@@ -27,6 +27,10 @@ require_once __DIR__ . '/audit-powerline-group.php';
 require_once __DIR__ . '/audit-wiki-path-group.php';
 require_once __DIR__ . '/path-seasons-edit.php';
 require_once __DIR__ . '/../schema-ensure-once.php';
+// Innerorts (Entwurf 2026-09-26-innerorts-praedikat-design.md): das Feld beim Speichern eines Punktes
+// und die zwei Gesten „Von der Karte nehmen" / „Auf die Karte setzen". Die Bibliothek ruft ihrerseits
+// Helfer DIESER Datei (Revision, Protokoll, Kraftlinien-Riegel) -- nur zur Laufzeit, per function_exists.
+require_once __DIR__ . '/../app/innerorts-anschluss.php';
 
 // 🔴 DIESE BIBLIOTHEK WIRFT SIE, ALSO DEKLARIERT SIE SIE AUCH. Bis zum 20.08.2026 stand die
 // Klasse nur in api/edit/map/features.php -- fuenf `throw new AvesmapsConflictException` hier drin
@@ -120,12 +124,30 @@ final class AvesmapsDuplicateLocationNameException extends InvalidArgumentExcept
     }
 }
 
+// Die Absage einer Innerorts-Geste („Von der Karte nehmen" / „Auf die Karte setzen"): die Bibliothek
+// (api/_internal/app/innerorts.php) antwortet mit `code` + Satz; hier wird daraus die 400 des
+// Endpunkts, und `reason` reist als Beilage mit (avesmapsMapFeatureErrorDetails).
+final class AvesmapsInnerortsZustandException extends InvalidArgumentException
+{
+    public function __construct(
+        public readonly string $reason,
+        string $message
+    ) {
+        parent::__construct($message);
+    }
+}
+
 // Die maschinenlesbare Beilage zu einer abgelehnten Schreibanfrage, fuer `error.duplicate_location`
 // in der Fehlerhuelle (AGENTS.md §4). Rein, damit die Weiche pruefbar ist -- im Endpunkt selbst
 // waere sie es nicht, der beantwortet eine HTTP-Anfrage und beendet den Prozess.
 // ⚠️ Alles, was KEINE Dublettenablehnung ist, liefert `[]` und laesst die Huelle damit exakt so,
 // wie sie vorher war. Die Beilage ist eine Zugabe, nie eine Bedingung.
 function avesmapsMapFeatureErrorDetails(Throwable $exception): array {
+    // Innerorts-Gesten: der Grund der Absage maschinenlesbar (`not_found` | `invalid_state`), neben
+    // dem gemeinsamen Code `invalid_request` -- dieselbe Weiche, kein zweiter `catch` am Endpunkt.
+    if ($exception instanceof AvesmapsInnerortsZustandException) {
+        return ['reason' => $exception->reason];
+    }
     if (!$exception instanceof AvesmapsDuplicateLocationNameException) {
         return [];
     }
@@ -512,6 +534,8 @@ function avesmapsUndoColumnsForAuditAction(string $action): array {
         // der Zeile -- anders als delete_feature/dessen Undo, das die GANZE Zeile restauriert.
         'take_off_map',
         'put_on_map' => ['is_active', 'properties_json'],
+        // „⇄" am innerorts-Punkt (Staetten-Kasten, avesmapsInnerortsOrtSpeichern): nur das Nest.
+        'set_innerorts' => ['properties_json'],
         default => [],
     };
 }
@@ -1624,6 +1648,11 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
         } else {
             $properties['field_origins'] = $herkunft;
         }
+        // Das Feld „Innerorts" (Spec §5, Schreiber 1). 🔴 Ein Rumpf ohne `innerorts_ort`/`innerorts_wiki`
+        // laesst es unveraendert (alte, gecachte Clients); nur ein Wechsel der Ortsgroesse weg von
+        // Stadtviertel/Bauwerk nimmt es mit. NACH der Herkunft der uebrigen Felder, damit deren
+        // Stempel es nicht ueberschreibt; die ganze Regel steht in avesmapsInnerortsUpdatePointAnwenden.
+        $properties = avesmapsInnerortsUpdatePointAnwenden($pdo, $properties, $payload, $subtype, $publicId);
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         [$lng, $lat] = avesmapsReadPointCoordinatesFromGeometry($geometry);
         $revision = avesmapsNextMapRevision($pdo);
@@ -3875,6 +3904,76 @@ function avesmapsFindPowerlinesAnchoredAt(PDO $pdo, string $publicId): array {
     return $names;
 }
 
+/**
+ * Die Absage einer Innerorts-Geste in die Ausnahme des Endpunkts uebersetzen: `conflict` (fremde
+ * Sperre, alte Revision) wird 409 wie beim Loeschen, alles andere 400 mit `reason`.
+ */
+function avesmapsInnerortsGesteAbsage(array $ergebnis): never {
+    $code = (string) ($ergebnis['code'] ?? 'invalid_state');
+    $satz = (string) ($ergebnis['message'] ?? 'Die Aktion ist für diesen Punkt nicht möglich.');
+    if ($code === 'conflict') {
+        throw new AvesmapsConflictException($satz);
+    }
+    throw new AvesmapsInnerortsZustandException($code, $satz);
+}
+
+/**
+ * „⊖ Von der Karte nehmen" (Spec §4.1) -- Aktion `take_off_map`. Sperre und Faehigkeit wie
+ * `delete_feature`: die Faehigkeit `edit` prueft der Endpunkt, die Sperre diese Funktion VOR der
+ * Transaktion der Bibliothek (avesmapsInnerortsSperreFehler); Kraftlinien-Riegel, Merker und
+ * Protokoll stehen in avesmapsInnerortsVonDerKarteNehmen.
+ *
+ * Die Antwort ist die eines geloeschten Objekts (`deleted: true` -- der Client nimmt den Marker weg)
+ * plus `von_der_karte` und `innerorts_ort`, damit er „ist jetzt Staette von X" sagen kann.
+ */
+function avesmapsTakeOffMapFeature(PDO $pdo, array $payload, array $user): array {
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $sperre = avesmapsInnerortsSperreFehler($pdo, $payload, $publicId, $user);
+    if ($sperre !== null) {
+        avesmapsInnerortsGesteAbsage($sperre);
+    }
+    $ergebnis = avesmapsInnerortsVonDerKarteNehmen($pdo, $publicId, (int) $user['id']);
+    if (($ergebnis['ok'] ?? false) !== true) {
+        avesmapsInnerortsGesteAbsage($ergebnis);
+    }
+
+    $zeile = avesmapsInnerortsZeileLesen($pdo, $publicId);
+    if ($zeile === null) {
+        throw new RuntimeException('Der Punkt ist nach dem Speichern nicht mehr lesbar.');
+    }
+    $ort = avesmapsInnerortsOrtVon(avesmapsInnerortsPropertiesDekodieren($zeile['properties_json'] ?? null) ?? []);
+
+    return avesmapsBuildFeatureResponseFromStoredFeature($zeile) + [
+        'name' => (string) ($ergebnis['name'] ?? ''),
+        'von_der_karte' => true,
+        'innerorts_ort' => ['public_id' => $ort, 'name' => avesmapsInnerortsStadtName($pdo, $ort)],
+    ];
+}
+
+/**
+ * „● Auf die Karte setzen" (Spec §4.2) -- Aktion `put_on_map`. Antwort: der wieder aktive Punkt in
+ * der Form jedes anderen Punktes (avesmapsBuildFeatureResponseFromStoredFeature), an seiner alten
+ * Position.
+ */
+function avesmapsPutOnMapFeature(PDO $pdo, array $payload, array $user): array {
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $sperre = avesmapsInnerortsSperreFehler($pdo, $payload, $publicId, $user);
+    if ($sperre !== null) {
+        avesmapsInnerortsGesteAbsage($sperre);
+    }
+    $ergebnis = avesmapsInnerortsAufDieKarteSetzen($pdo, $publicId, (int) $user['id']);
+    if (($ergebnis['ok'] ?? false) !== true) {
+        avesmapsInnerortsGesteAbsage($ergebnis);
+    }
+
+    $zeile = avesmapsInnerortsZeileLesen($pdo, $publicId);
+    if ($zeile === null) {
+        throw new RuntimeException('Der Punkt ist nach dem Speichern nicht mehr lesbar.');
+    }
+
+    return avesmapsBuildFeatureResponseFromStoredFeature($zeile);
+}
+
 function avesmapsDeleteMapFeature(PDO $pdo, array $payload, array $user): array {
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
 
@@ -4129,6 +4228,10 @@ function avesmapsBuildPointFeatureResponse(string $publicId, string $name, strin
         // Speichern „Herkunft unbekannt" fuer ein Feld, dessen Herkunft der Server soeben selbst
         // gestempelt hat -- und die Sync-Vorschau daneben haekelte wieder nichts vor.
         'field_origins' => (object) (is_array($properties['field_origins'] ?? null) ? $properties['field_origins'] : []),
+        // Das Feld „Innerorts" -- derselbe Grund: ohne diese Zeile verlöre der neu gebaute
+        // Marker-Eintrag nach jedem Speichern seine Stadt, und das nächste Öffnen zeigte „keine".
+        // `null` = keine Zugehoerigkeit (gespeichert ist nur die Kennung, Spec §3).
+        'innerorts' => is_array($properties['innerorts'] ?? null) ? $properties['innerorts'] : null,
         'lat' => $lat,
         'lng' => $lng,
         'revision' => $revision,

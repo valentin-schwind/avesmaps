@@ -45,6 +45,11 @@ require_once __DIR__ . '/place-scope.php';
 require_once __DIR__ . '/map-presence.php';
 // The global "Wappen: An/Aus" switch for settlement coats (ribbon toggle next to "Bilder: An").
 require_once __DIR__ . '/../app/coat-display.php';
+// Innerorts (Entwurf 2026-09-26-innerorts-praedikat-design.md §5, Schreiber 2): wer
+// `properties.wiki_settlement` schreibt, zieht danach den Wiki-Stand von „Innerorts" nach
+// (avesmapsInnerortsNachZuweisung). Der Waechter api/_internal/app/__tests__/innerorts-wiki-schreiber-test.php
+// zaehlt diese Schreiber repoweit.
+require_once __DIR__ . '/../app/innerorts-anschluss.php';
 
 const AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE = 'wiki_sync_pages';
 
@@ -1171,6 +1176,10 @@ function avesmapsWikiSettlementAssignTo(PDO $pdo, string $title, string $publicI
 
     avesmapsWikiSettlementCacheDetails($pdo, $settlement['title'], $settlement);
 
+    // Innerorts: der neue Artikel kann eine andere Stadt nennen -- NACH dem Schreiben oben (eigene
+    // Transaktion der Bibliothek), und ein `manual` bleibt unberuehrt.
+    $innerortsNachgezogen = avesmapsInnerortsNachZuweisung($pdo, [$publicId], $userId);
+
     // 🔴 DAS NEUE KANON-ETIKETT REIST MIT. Die Karte traegt ihre Kanon-Tafel aus der Nutzlast
     // (`feature_kanon`, einmal beim Laden); ohne diese Zeile saehe der Editor sein eigenes
     // Ergebnis erst nach F5 -- gemeldet 02.09.2026.
@@ -1191,6 +1200,8 @@ function avesmapsWikiSettlementAssignTo(PDO $pdo, string $title, string $publicI
         'kanon' => avesmapsFeatureSourcesKanonFuerEines(
             $pdo, 'settlement', $publicId, (string) ($settlement['wiki_url'] ?? '')
         ),
+        // Der Editor muss wissen, dass sich neben der Zuweisung auch „Innerorts" bewegt hat.
+        'innerorts_nachgezogen' => $innerortsNachgezogen > 0,
     ];
 }
 
@@ -1223,6 +1234,10 @@ function avesmapsWikiSettlementClearAssign(PDO $pdo, string $publicId, bool $dry
     $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $target['id']]);
     avesmapsWikiSettlementAuditAssignment($pdo, $auditBefore, $props, $revision, $userId);
 
+    // Innerorts: ohne Artikel faellt der Wiki-Stand auf den Punktnamen zurueck (avesmapsInnerortsWikiStand)
+    // oder auf „keiner" -- ein wiki-stammender Wert folgt, ein `manual` bleibt.
+    $innerortsNachgezogen = avesmapsInnerortsNachZuweisung($pdo, [$publicId], $userId);
+
     // Auch das LOESEN aendert das Etikett -- siehe die Begruendung bei assign_to. Der Wiki-Artikel
     // ist weg, also faellt der Namensraum als Rang 2 aus; uebrig bleibt, was die Quellen sagen.
     // ⚠️ Leere Adresse, nicht die alte: avesmapsWikiSettlementClearAssign hat sie gerade entfernt.
@@ -1233,6 +1248,7 @@ function avesmapsWikiSettlementClearAssign(PDO $pdo, string $publicId, bool $dry
         'target_name' => (string) $target['name'],
         'revision' => $revision,
         'kanon' => avesmapsFeatureSourcesKanonFuerEines($pdo, 'settlement', $publicId, ''),
+        'innerorts_nachgezogen' => $innerortsNachgezogen > 0,
     ];
 }
 
@@ -1690,6 +1706,15 @@ function avesmapsWikiSettlementBulkConnect(PDO $pdo, int $limit, bool $dryRun, i
     foreach ($details as $title => $settlement) {
         avesmapsWikiSettlementCacheDetails($pdo, $title, $settlement);
     }
+    // Innerorts: NACH dem Commit des Pakets, und nur fuer die zwei Ortsgroessen, die das Feld tragen
+    // -- ein Paket aus 200 Doerfern soll keine 200 leeren Transaktionen oeffnen.
+    $innerortsKandidaten = [];
+    foreach ($updates as $update) {
+        if (avesmapsInnerortsIstKlasse((string) ($update['before']['feature_subtype'] ?? ''))) {
+            $innerortsKandidaten[] = (string) ($update['before']['public_id'] ?? '');
+        }
+    }
+    avesmapsInnerortsNachZuweisung($pdo, $innerortsKandidaten, $userId);
     return ['ok' => true, 'dry_run' => false, 'connected' => count($updates),
         'remaining' => max(0, $remainingBefore - count($updates)), 'failed' => []];
 }
@@ -2049,6 +2074,14 @@ function avesmapsWikiSettlementDetail(PDO $pdo, string $publicId): array {
             'lng' => $lng,
             'lat' => $lat,
             'properties' => $properties,
+            // Das Feld „Innerorts" (Entwurf 2026-09-26-innerorts-praedikat-design.md §5): gespeicherter
+            // Ort samt Namen, seine Herkunft und der Wiki-Stand ZUM VERGLEICH (durchgestrichen neben einem
+            // Override). Nur fuer Stadtviertel/Bauwerke gerechnet -- sonst die leere Form, ohne Abfrage.
+            'innerorts' => avesmapsInnerortsEditorStand(
+                $pdo,
+                is_array($properties) ? $properties : [],
+                (string) ($row['feature_subtype'] ?? '')
+            ),
         ],
     ];
 }

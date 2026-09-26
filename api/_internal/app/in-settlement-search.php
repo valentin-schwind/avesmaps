@@ -34,6 +34,12 @@ require_once __DIR__ . '/../wiki/deities.php';
 require_once __DIR__ . '/../wiki/organisation-sync.php';
 // Die Stadtteilweiterleitungen (Yol-Fessar -> Fasar). Eigene Tabelle, dieselbe Zeilenform.
 require_once __DIR__ . '/../wiki/stadtteil-weiterleitung.php';
+// Der Artikel-Schluessel und sein Filter (avesmapsInnerortsArtikelSchluessel,
+// avesmapsInnerortsOhneKartenpunkte) fuer die innerorts-Punkte der Staettenliste.
+require_once __DIR__ . '/settlement-places.php';
+// Die innerorts-Punkte als Suchtreffer (avesmapsBuildInnerortsVonDerKarteSearchEntries & Co.) --
+// hier geladen, weil jeder Leser der Kartensuche diese Datei ohnehin laedt.
+require_once __DIR__ . '/innerorts-anschluss.php';
 
 /**
  * Registry-Zeilen mit Ortsbezug: Bauwerke (wiki_sync_pages.standort) + Wege
@@ -217,13 +223,51 @@ function avesmapsBuildSettlementLocationIndex(array $rows): array
  *
  * @param list<array{title:string, raw:string, type_label:string, wiki_url:string}> $registryRows
  * @param array{settlements:array<string,bool>, regions:array<string,bool>} $scopeIndex
+ * 🔴 FUENFTE QUELLE seit 27.09.2026: INNERORTS-PUNKTE (Kartenpunkte `gebaeude`/`stadtviertel` mit
+ * `properties.innerorts`, avesmapsInnerortsPunkteFuerStaetten, api/_internal/app/innerorts.php) --
+ * aktive UND von der Karte genommene. Sie stehen GANZ VORN und tragen als einzige `public_id` und
+ * `auf_der_karte` (Infobox-`⊕`, Spec §6.2); die uebrigen Eintraege bleiben Feld fuer Feld wie bisher.
+ * 💣 Ein Objekt, ein Eintrag (Spec §6.1): eine ABGELEITETE Zeile, deren Artikel einem dieser Punkte
+ * gehoert, faellt heraus -- gefiltert wird mit GENAU der Menge der Punkt-Artikel, nie mit allen
+ * Kartenpunkten (sonst verschwaende jede Staette, deren Artikel irgendwo auf der Karte liegt).
+ * ⚠️ Punkte untereinander werden NICHT entdoppelt: jeder ist ein eigener Datensatz mit eigenem `⊕`
+ * (zwei gleichnamige Tempel sind zwei Tempel). Gegenueber gespeicherten und abgeleiteten Zeilen gilt
+ * der Name wie bisher -- ein Punkt verdraengt sie, nie umgekehrt.
+ *
  * @param list<array{name:string, settlement:string, type:string, wiki_url:string}> $storedPlaces
+ * @param list<array{name:string, settlement:string, type:string, wiki_url:string, public_id:string, auf_der_karte:bool}> $innerortsPunkte
  * @return list<array{name:string, settlement:string, type:string}>
  */
-function avesmapsBuildInSettlementPlaceList(array $registryRows, array $scopeIndex, array $storedPlaces = []): array
+function avesmapsBuildInSettlementPlaceList(array $registryRows, array $scopeIndex, array $storedPlaces = [], array $innerortsPunkte = []): array
 {
     $places = [];
     $seen = [];
+
+    $punktArtikel = [];
+    foreach ($innerortsPunkte as $punkt) {
+        $schluessel = avesmapsInnerortsArtikelSchluessel((string) ($punkt['wiki_url'] ?? ''));
+        if ($schluessel !== '') {
+            $punktArtikel[$schluessel] = true;
+        }
+        $name = trim((string) ($punkt['name'] ?? ''));
+        $settlement = trim((string) ($punkt['settlement'] ?? ''));
+        if ($name === '' || $settlement === '') {
+            continue;
+        }
+
+        $seen[$name] = true;
+        $places[] = [
+            'name' => $name,
+            'settlement' => $settlement,
+            'type' => (string) ($punkt['type'] ?? ''),
+            'wiki_url' => (string) ($punkt['wiki_url'] ?? ''),
+            'public_id' => (string) ($punkt['public_id'] ?? ''),
+            'auf_der_karte' => ($punkt['auf_der_karte'] ?? false) === true,
+        ];
+    }
+    if ($punktArtikel !== []) {
+        $registryRows = avesmapsInnerortsOhneKartenpunkte($registryRows, $punktArtikel);
+    }
 
     foreach ($storedPlaces as $storedPlace) {
         $name = trim((string) ($storedPlace['name'] ?? ''));

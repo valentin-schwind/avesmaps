@@ -157,18 +157,28 @@ foreach ([$blockListe, $blockLoeschen, $blockUmhaengen] as $index => $block) {
 // `delete`: nicht gefunden -> 404 not_found.
 assert(str_contains($blockLoeschen, "avesmapsErrorResponse(404, 'not_found'"), 'delete: nicht gefunden -> 404 not_found');
 $zaehl();
-// `move`: die Statuszuordnung fuer alle vier Fehlercodes der Bibliothek.
+// `move`: die Statuszuordnung fuer alle Fehlercodes der Bibliothek. Seit 27.09.2026 (Innerorts-Punkte)
+// steht die Tafel in EINER Funktion, die move, delete und put_on_map gemeinsam rufen -- vorher stand
+// sie im move-Block; eine zweite Tafel fuer die Punkte haette denselben Code zweimal abgebildet.
+$posAbsageFn = strpos($quelle, 'function avesmapsStaettenEndpunktAbsage(');
+assert($posAbsageFn !== false, 'die Absage-Tafel steht als eigene Funktion im Endpunkt');
+$zaehl();
+$blockAbsage = substr($quelle, (int) $posAbsageFn, (int) strpos($quelle, "\n}\n", (int) $posAbsageFn) - (int) $posAbsageFn);
 $statusZuordnung = [
     'not_found' => 404,
     'invalid_target' => 422,
     'name_taken' => 409,
     'name_taken_deleted' => 409,
+    'invalid_state' => 409,
+    'conflict' => 409,
 ];
 foreach ($statusZuordnung as $errorCode => $status) {
-    assert(preg_match("/'{$errorCode}'\\s*=>\\s*{$status}\\b/", $blockUmhaengen) === 1,
-        "move: {$errorCode} wird auf HTTP {$status} abgebildet");
+    assert(preg_match("/'{$errorCode}'\\s*=>\\s*{$status}\\b/", $blockAbsage) === 1,
+        "Absage: {$errorCode} wird auf HTTP {$status} abgebildet");
     $zaehl();
 }
+assert(str_contains($blockUmhaengen, 'avesmapsStaettenEndpunktAbsage('), 'move meldet seine Absage ueber die gemeinsame Tafel');
+$zaehl();
 // Unbekannte Aktion -> 400 invalid_action.
 assert(str_contains($quelle, "avesmapsErrorResponse(400, 'invalid_action'"), 'unbekannte Aktion -> 400 invalid_action');
 $zaehl();
@@ -182,6 +192,55 @@ $zaehl();
 
 // ---- I. Kein Protokolleintrag (Owner-Entscheid 4, Entwurf §4) -------------------------------
 assert(!str_contains($quelle, 'avesmapsWriteMapAuditLog'), 'kein Protokolleintrag -- bewusst, nicht vergessen');
+$zaehl();
+
+// ---- J. Innerorts-Punkte (Entwurf 2026-09-26-innerorts-praedikat-design.md §6.3) ------------
+foreach (['put_on_map', 'innerorts_wiki_stand', 'innerorts_aus_wiki'] as $aktion) {
+    assert(str_contains($quelle, "\$action === '{$aktion}'"), "die Aktion `{$aktion}` ist verdrahtet");
+    $zaehl();
+}
+$posPutOn = strpos($quelle, "\$action === 'put_on_map'");
+$posWikiStand = strpos($quelle, "\$action === 'innerorts_wiki_stand'");
+$posAusWiki = strpos($quelle, "\$action === 'innerorts_aus_wiki'");
+$posUnbekannt = strpos($quelle, "avesmapsErrorResponse(400, 'invalid_action'");
+assert($posOrte < $posPutOn && $posPutOn < $posWikiStand && $posWikiStand < $posAusWiki && $posAusWiki < $posUnbekannt,
+    'die drei neuen Aktionsbloecke stehen nach `orte` und vor der Absage fuer unbekannte Aktionen');
+$zaehl();
+$blockPutOn = substr($quelle, (int) $posPutOn, $posWikiStand - $posPutOn);
+$blockAusWiki = substr($quelle, (int) $posAusWiki, $posUnbekannt - $posAusWiki);
+
+// Die Liste fuehrt die Punkte der Stadt -- im Trichter, damit alle Antwortwege sie tragen.
+$posListeFn = strpos($quelle, 'function avesmapsStaettenEndpunktListe(');
+$blockListeFn = substr($quelle, (int) $posListeFn, (int) strpos($quelle, "\n}\n", (int) $posListeFn) - (int) $posListeFn);
+assert(str_contains($blockListeFn, 'avesmapsInnerortsPunkteEinerStadt($pdo, $ortId)'), 'der Listen-Trichter haengt die Punkte der Stadt an');
+$zaehl();
+
+// delete und move unterscheiden Staette und Punkt an der Kennung -- Staette zuerst.
+foreach (['delete' => $blockLoeschen, 'move' => $blockUmhaengen] as $name => $block) {
+    assert(str_contains($block, '!avesmapsSettlementPlaceExists($pdo, $publicId) && avesmapsInnerortsIstPunkt($pdo, $publicId)'),
+        "`{$name}` nimmt den Punktweg nur, wenn die Kennung KEINE gespeicherte Staette ist");
+    $zaehl();
+    assert(str_contains($block, 'avesmapsStaettenEndpunktPunktSperre($pdo, $payload, $publicId, $user)'),
+        "`{$name}` prueft beim Punkt die Bearbeitungssperre");
+    $zaehl();
+}
+assert(str_contains($blockLoeschen, 'avesmapsInnerortsEndgueltigEntfernen($pdo, $publicId, $userId)'), 'delete eines Punkts nimmt nur den Merker (endgueltig)');
+$zaehl();
+assert(str_contains($blockUmhaengen, 'avesmapsInnerortsOrtSpeichern($pdo, $publicId, $zielId, $userId)'), 'move eines Punkts setzt innerorts.ort (manual)');
+$zaehl();
+assert(str_contains($blockPutOn, 'avesmapsInnerortsAufDieKarteSetzen($pdo, $publicId, $userId)')
+    && str_contains($blockPutOn, 'avesmapsStaettenEndpunktPunktSperre(')
+    && str_contains($blockPutOn, 'avesmapsStaettenEndpunktListe('),
+    'put_on_map: Sperre, derselbe Bibliotheksweg wie die Kartenaktion, Liste zurueck');
+$zaehl();
+
+// Der Admin-Lauf: Faehigkeit `admin`, Trockenlauf als Vorgabe (scharf NUR bei `apply === true`).
+assert(str_contains($blockAusWiki, "avesmapsUserCan(\$user, 'admin')") && str_contains($blockAusWiki, "avesmapsErrorResponse(403, 'forbidden'"),
+    'innerorts_aus_wiki ist Admins vorbehalten');
+$zaehl();
+assert(str_contains($blockAusWiki, "(\$payload['apply'] ?? false) === true"), 'innerorts_aus_wiki: Trockenlauf ist die Vorgabe');
+$zaehl();
+assert(str_contains($blockAusWiki, 'avesmapsInnerortsAusWikiLauf($pdo, $scharf, $limit, $userId)'), 'innerorts_aus_wiki ruft den Bibliothekslauf');
 $zaehl();
 
 echo "staetten-endpunkt: alle {$pruefungen} Zusicherungen gruen\n";
