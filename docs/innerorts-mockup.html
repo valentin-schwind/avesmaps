@@ -1,0 +1,180 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Innerorts als eigenes Prädikat — Mockup</title>
+<!-- Entwurf: docs/superpowers/specs/2026-09-26-innerorts-praedikat-design.md. Die ECHTEN Blätter der
+     Hauptseite (dieselben <link>s wie index.html) plus editor-page.css für die Ortseditor-Szene. Alles, was
+     hier aus vorhandenen Klassen gebaut ist, sieht live genauso aus; neu ist nur der Vertragsblock. -->
+<link rel="stylesheet" href="../css/components/region-sync.css">
+<link rel="stylesheet" href="../css/components/rahmenkasten.css">
+<link rel="stylesheet" href="../css/features/feature-sources.css">
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/components/editor-page.css">
+<style>
+/* ══ VERTRAG: css/components/staetten-kasten.css ══
+   🔴 ALLES ZWISCHEN DIESEN MARKEN MUSS IN DER GENANNTEN DATEI ZEICHENGLEICH STEHEN
+   (tools/mockup-vertrag/__tests__/mockup-vertrag.test.js). Das Feld „Innerorts" und der Sprung ⊕ in der
+   Stättenzeile — beides gehört zum Stätten-Bauteil, deshalb dieselbe Datei. */
+.innerorts-feld {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+}
+.innerorts-feld__gewaehlt {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+}
+.innerorts-sprung {
+	margin-left: var(--space-2);
+	padding: 0 var(--space-2);
+	border: 0;
+	background: none;
+	color: var(--color-link);
+	font: inherit;
+	cursor: pointer;
+}
+/* ══ VERTRAG ENDE ══ */
+
+/* ---- Nur für diese Mockup-Seite ---------------------------------------------------------- */
+body { margin: 0; padding: 24px; background: #e9e2d3; color: var(--color-text); font: 14px/1.45 var(--font-ui, system-ui, sans-serif); }
+:root[data-theme="dark"] body { background: #1d1b17; }
+h1 { font-size: 20px; margin: 0 0 4px; }
+.lead { max-width: 960px; color: var(--color-text-muted); margin: 0 0 16px; }
+.theme { position: fixed; top: 12px; right: 16px; display: flex; gap: 6px; z-index: 5; }
+.buehne { display: grid; grid-template-columns: repeat(auto-fill, minmax(430px, 1fr)); gap: 20px; align-items: start; }
+.szene { background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.szene > h2 { margin: 0; font-size: 13px; color: var(--color-text-muted); font-weight: 600; }
+.szene > p.anm { margin: 0; font-size: 12px; color: var(--color-text-muted); }
+.stummel { opacity: .55; }
+.feldzeile { display: grid; grid-template-columns: 120px 1fr; gap: 8px; align-items: start; font-size: 13px; }
+.feldzeile > span:first-child { color: var(--color-text-muted); padding-top: 6px; }
+.feldzeile select, .feldzeile input { font: inherit; padding: 5px 8px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel); color: var(--color-text); width: 100%; box-sizing: border-box; }
+.confirm { border: 1px dashed var(--color-border); border-radius: var(--radius-md); padding: 8px 10px; font-size: 12px; }
+</style>
+
+<div class="theme"><button onclick="document.documentElement.removeAttribute('data-theme')">hell</button><button onclick="document.documentElement.setAttribute('data-theme','dark')">dunkel</button></div>
+
+<h1>Innerorts als eigenes Prädikat</h1>
+<p class="lead">Ein Stadtviertel oder Bauwerk <b>gehört zu einer Stadt</b> — ob es einen Punkt auf der Karte hat oder nicht. Beispiel: Neu-Gareth, heute ein Stadtviertel-Punkt ohne Zugehörigkeit. Szenen 1–2 setzen die Stadt, 3 nimmt den Punkt von der Karte, 4–5 zeigen, wo er danach steht, 6 holt ihn zurück.</p>
+
+<div class="buehne">
+
+<!-- 1 · Ort bearbeiten -->
+<section class="szene">
+	<h2>1 · „Ort bearbeiten" — Feld „Innerorts" (nur Stadtviertel / Bauwerke)</h2>
+	<div class="feldzeile"><span>Ortsgröße</span><select><option>Stadtviertel</option></select></div>
+	<div class="feldzeile"><span>Innerorts</span>
+		<div class="innerorts-feld"><div class="innerorts-feld__gewaehlt"><span><b>Gareth</b> · Metropole</span><button type="button" class="fs-row__edit" aria-label="Stadt ändern" title="Andere Stadt">⇄</button><button type="button" class="fs-row__remove" aria-label="Zugehörigkeit lösen" title="Gehört zu keinem Ort">✕</button></div></div>
+	</div>
+	<p class="anm">So steht es nach dem Wiki: Neu-Gareth ist „ein Stadtteil Gareths". Kein Klick nötig — der Wiki-Stand steht im Feld.</p>
+	<div class="feldzeile"><span class="k ovr" style="padding-top:6px">Innerorts<span class="wiki-alt"><span class="dt-old" title="Von uns gesetzt. Wiki-Stand: Gareth">Gareth</span><button type="button" class="dt-reset" title="Auf Wiki-Stand zurücksetzen">↺</button></span></span>
+		<div class="innerorts-feld"><div class="innerorts-feld__gewaehlt"><span><b>Alt-Gareth</b> · Stadt</span><button type="button" class="fs-row__edit" aria-label="Stadt ändern">⇄</button><button type="button" class="fs-row__remove" aria-label="Zugehörigkeit lösen">✕</button></div></div>
+	</div>
+	<p class="anm">Von Hand überschrieben: Beschriftung braun, Wiki-Stand durchgestrichen, ↺ holt ihn zurück — dasselbe Muster wie Name, Einwohner, Lage. Bei Dorf … Metropole gibt es die Zeile nicht.</p>
+</section>
+
+<!-- 2 · Ortseditor -->
+<section class="szene">
+	<h2>2 · Ortseditor — dieselbe Zeile im Raster „Identität"</h2>
+	<div class="dt-grp">Identität</div>
+	<div class="dt-grid dt-grid--wiki">
+		<div class="k">Name</div><div>Neu-Gareth</div>
+		<div class="k">Typ</div><div>Stadtviertel</div>
+		<div class="k">Innerorts</div><div><div class="innerorts-feld"><div class="innerorts-feld__gewaehlt"><span><b>Gareth</b> · Metropole</span><button type="button" class="fs-row__edit" aria-label="Stadt ändern">⇄</button><button type="button" class="fs-row__remove" aria-label="Zugehörigkeit lösen">✕</button></div></div></div>
+	</div>
+</section>
+
+<!-- 3 · Kachelband -->
+<section class="szene">
+	<h2>3 · Infobox von Neu-Gareth — neue Kachel „Von der Karte nehmen"</h2>
+	<div class="location-popup__editor-band">
+		<p class="location-popup__editor-band-title"><span>Bearbeiten</span><span class="avesmaps-scope-hint">nur Editoren</span></p>
+		<div class="location-popup__actions">
+			<button type="button" class="location-popup__action-button"><span class="location-popup__action-glyph" aria-hidden="true">✥</span>Ort verschieben</button>
+			<button type="button" class="location-popup__action-button"><span class="location-popup__action-glyph" aria-hidden="true">⚙</span>Bearbeiten</button>
+			<button type="button" class="location-popup__action-button"><span class="location-popup__action-glyph" aria-hidden="true">⊖</span>Von der Karte nehmen</button>
+			<button type="button" class="location-popup__action-button location-popup__action-button--danger"><span class="location-popup__action-glyph" aria-hidden="true">✕</span>Ort löschen</button>
+		</div>
+	</div>
+	<div class="confirm">„Neu-Gareth“ von der Karte nehmen? Es bleibt als Stätte von Gareth erhalten und kann dort wieder auf die Karte gesetzt werden. <b>[Abbrechen] [OK]</b></div>
+	<div class="confirm">„Neu-Gareth“ wirklich löschen? Es wird auch nicht als Stätte von Gareth geführt. <b>[Abbrechen] [OK]</b></div>
+	<p class="anm">Die Kachel gibt es nur, wenn „Innerorts" gesetzt ist. Sie ist nicht rot — sie ist umkehrbar.</p>
+</section>
+
+<!-- 4 · Infobox der Stadt -->
+<section class="szene">
+	<h2>4 · Infobox von Gareth — Zeile „Stätten" (auch für Besucher)</h2>
+	<dl class="region-info-box" style="margin:0">
+		<div class="region-info-box__row avesmaps-lore__row"><dt>Stätten</dt><dd><span class="avesmaps-lore__names"><a class="avesmaps-lore__name" href="#">Alt-Gareth</a>, Neu-Gareth<button type="button" class="innerorts-sprung" title="Auf der Karte zeigen" aria-label="Neu-Gareth auf der Karte zeigen">⊕</button>, <a class="avesmaps-lore__name" href="#">Praios-Tempel</a>, Südquartier</span></dd></div>
+	</dl>
+	<p class="anm">Solange Neu-Gareth auf der Karte liegt, fliegt ⊕ dorthin (dasselbe Fadenkreuz wie im Änderungsverlauf). Von der Karte genommen: kein ⊕ — die Suche führt dann auf Gareth.</p>
+</section>
+
+<!-- 5 · Stätten-Kasten -->
+<section class="szene">
+	<h2>5 · Stätten-Kasten von Gareth (Editor) — drei Sorten</h2>
+	<div class="label-edit-section"><div class="label-edit-section-title">Stätten</div>
+		<div class="st-kasten">
+			<div class="avm-row">
+				<div class="avm-row__text">
+					<div class="avm-row__l1"><span class="avm-row__name">Neu-Gareth</span><span class="avm-row__kind">Stadtviertel</span></div>
+					<div class="avm-row__l2">auf der Karte<button type="button" class="innerorts-sprung" aria-label="Auf der Karte zeigen">⊕</button></div>
+				</div>
+				<div class="st-aktionen"><button type="button" class="fs-row__edit" aria-label="Stadt ändern" title="Zu einer anderen Stadt">⇄</button></div>
+			</div>
+			<div class="avm-row">
+				<div class="avm-row__text">
+					<div class="avm-row__l1"><span class="avm-row__name">Südquartier</span><span class="avm-row__kind">Stadtviertel</span></div>
+					<div class="avm-row__l2">nicht auf der Karte</div>
+				</div>
+				<div class="st-aktionen"><button type="button" class="fs-row__edit" aria-label="Auf die Karte setzen" title="Wieder an seiner alten Stelle auf die Karte">●</button><button type="button" class="fs-row__edit" aria-label="Stadt ändern">⇄</button><button type="button" class="fs-row__remove" aria-label="Endgültig löschen">✕</button></div>
+			</div>
+			<div class="avm-row">
+				<div class="avm-row__text">
+					<div class="avm-row__l1"><span class="avm-row__name">Schwanenbruch-Hof</span><span class="avm-row__kind">Gut</span></div>
+					<div class="avm-row__l2"><a href="#">garetien.de ↗</a></div>
+				</div>
+				<div class="st-aktionen"><button type="button" class="fs-row__edit" aria-label="Umhängen">⇄</button><button type="button" class="fs-row__remove" aria-label="Löschen">✕</button></div>
+			</div>
+			<p class="st-wiki">+ 148 weitere aus dem Wiki — hier nicht bearbeitbar.</p>
+		</div>
+	</div>
+	<p class="anm">Auf der Karte: nur ⇄ (gelöscht wird auf der Karte). Von der Karte genommen: ● zurück · ⇄ · ✕ endgültig. Gespeicherte Stätte (Garetien): wie bisher.</p>
+</section>
+
+<!-- 6 · Zurück auf die Karte -->
+<section class="szene">
+	<h2>6 · ● Auf die Karte setzen</h2>
+	<div class="st-kasten">
+		<div class="avm-row">
+			<div class="avm-row__text">
+				<div class="avm-row__l1"><span class="avm-row__name">Südquartier</span><span class="avm-row__kind">Stadtviertel</span></div>
+				<div class="avm-row__l2">auf der Karte<button type="button" class="innerorts-sprung" aria-label="Auf der Karte zeigen">⊕</button></div>
+			</div>
+			<div class="st-aktionen"><button type="button" class="fs-row__edit" aria-label="Stadt ändern">⇄</button></div>
+		</div>
+		<p class="fs-add-note fs-add-note--ok" role="status">„Südquartier“ liegt wieder auf der Karte — an seiner alten Stelle. Verschieben mit „Ort verschieben".</p>
+	</div>
+	<p class="anm">Keine Stelle zum Anklicken nötig: ein von der Karte genommener Punkt behält seine Position. Rückgängig geht auch über den Änderungsverlauf.</p>
+</section>
+
+<!-- 7 · Stätte zum Kartenpunkt -->
+<section class="szene">
+	<h2>7 · Gespeicherte Stätte → Kartenpunkt (● bei Garetien-Stätten)</h2>
+	<div class="st-kasten">
+		<div class="avm-row">
+			<div class="avm-row__text">
+				<div class="avm-row__l1"><span class="avm-row__name">Schwanenbruch-Hof</span><span class="avm-row__kind">Gut</span></div>
+				<div class="avm-row__l2"><a href="#">garetien.de ↗</a></div>
+			</div>
+			<div class="st-aktionen"><button type="button" class="fs-row__edit" aria-label="Auf die Karte setzen" title="Als Punkt auf die Karte">●</button><button type="button" class="fs-row__edit" aria-label="Umhängen">⇄</button><button type="button" class="fs-row__remove" aria-label="Löschen">✕</button></div>
+		</div>
+		<div class="st-falte">
+			<div>„Schwanenbruch-Hof“ als Punkt auf die Karte setzen? Er erscheint bei Gareth; zieh ihn danach an die richtige Stelle. Seine Quellen gehen mit.</div>
+			<div class="fs-actions"><button type="button" class="fs-actions__sek">Abbrechen</button><button type="button" class="fs-actions__prim">Auf die Karte</button></div>
+		</div>
+	</div>
+	<p class="anm">Danach fliegt die Karte hin und „Ort verschieben" läuft schon. Ab dann ist es ein innerorts-Punkt (Szene 5, oberste Sorte).</p>
+</section>
+
+</div>
