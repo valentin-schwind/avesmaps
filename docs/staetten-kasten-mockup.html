@@ -1,0 +1,222 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Stätten löschen und umhängen — Mockup</title>
+<!-- Die ECHTEN Blätter, damit hier nichts schöner aussieht als live (Entwurf
+     docs/superpowers/specs/2026-09-26-staetten-loeschen-umhaengen-design.md). Der Kasten benutzt
+     die Listenzeile `.avm-row`, die Knopf- und Meldungsrezepturen des Quellenkastens (`.fs-row__edit`,
+     `.fs-row__remove`, `.fs-actions*`, `.fs-add-note`) und die Vorschlagsliste `.sac` MIT — neu ist
+     nur, was im Vertragsblock steht. -->
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/components/editor-row.css">
+<link rel="stylesheet" href="../css/features/feature-sources.css">
+<link rel="stylesheet" href="../css/components/source-autocomplete.css">
+<link rel="stylesheet" href="../css/components/location-report-dialog.css">
+<link rel="stylesheet" href="../css/components/region-sync.css">
+<link rel="stylesheet" href="../css/components/editor-page.css">
+<style>
+/* ══ VERTRAG: css/components/staetten-kasten.css ══
+   🔴 ALLES ZWISCHEN DIESEN MARKEN MUSS IN DER GENANNTEN DATEI ZEICHENGLEICH STEHEN
+   (tools/mockup-vertrag/__tests__/mockup-vertrag.test.js, läuft im Deploy-Tor). */
+.st-kasten {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+.st-kasten .avm-row {
+	cursor: default;
+}
+.st-kasten .avm-row:hover {
+	background: transparent;
+}
+.st-aktionen {
+	display: flex;
+	flex-shrink: 0;
+	gap: var(--space-4);
+}
+.st-kasten .avm-row__l2 a {
+	color: var(--color-link);
+}
+.st-falte {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-6);
+	margin: 0 0 var(--space-4) var(--space-12);
+	padding: var(--space-6) var(--space-8);
+	border-left: 2px solid var(--color-accent);
+	border-radius: 0 var(--radius-md) var(--radius-md) 0;
+	background: var(--color-hover-wash);
+	font-size: var(--font-size-caption);
+}
+.st-falte .fs-actions {
+	justify-content: flex-end;
+	margin-top: 0;
+}
+.st-falte__suche {
+	box-sizing: border-box;
+	width: 100%;
+}
+.st-wiki {
+	padding: 0 var(--space-6);
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+/* ══ VERTRAG ENDE ══ */
+
+/* ---- Nur für diese Mockup-Seite ---------------------------------------------------------- */
+body { margin: 0; padding: 24px; background: var(--color-surface, #e9e2d3); color: var(--color-text); font: 14px/1.45 var(--font-ui, system-ui, sans-serif); }
+h1 { font-size: 20px; margin: 0 0 4px; }
+:root[data-theme="dark"] body { background: #1d1b17; }
+.lead { max-width: 900px; color: var(--color-text-muted); margin: 0 0 16px; }
+.theme { position: fixed; top: 12px; right: 16px; display: flex; gap: 6px; }
+.theme button { padding: 4px 10px; }
+.buehne { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 20px; align-items: start; }
+.szene { background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.szene > h2 { margin: 0; font-size: 13px; color: var(--color-text-muted); font-weight: 600; }
+.szene > p.anm { margin: 0; font-size: 12px; color: var(--color-text-muted); }
+.stummel { opacity: .55; }
+/* .sac steht live fixiert am Feld; hier im Fluss, damit man sie sieht. */
+.szene .sac { position: static; max-width: none; }
+.st-falte input { font: inherit; padding: 5px 8px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel); color: var(--color-text); }
+.mini-dt { border-top: 1px solid var(--color-divider); padding-top: 8px; }
+</style>
+
+<div class="theme"><button onclick="document.documentElement.removeAttribute('data-theme')">hell</button><button onclick="document.documentElement.setAttribute('data-theme','dark')">dunkel</button></div>
+
+<h1>Stätten löschen und umhängen</h1>
+<p class="lead">Ein Kasten, zwei Montagestellen: „Ort bearbeiten" (Karte) und das Detailfeld des Ortseditors — jeweils direkt vor „Quellen". Er zeigt nur die <b>gespeicherten</b> Stätten; die aus dem Wiki abgeleiteten zählt die graue Zeile. Beispielort Alriksburg, Zahlen erfunden bis auf die Owner-Fälle.</p>
+
+<div class="buehne">
+
+<!-- 1 · Ruhezustand im Dialog „Ort bearbeiten" -->
+<section class="szene">
+	<h2>1 · „Ort bearbeiten" — Ruhezustand</h2>
+	<div class="label-edit-section"><div class="label-edit-section-title">Stätten</div>
+		<div class="st-kasten">
+			<div class="avm-row">
+				<div class="avm-row__text">
+					<div class="avm-row__l1"><span class="avm-row__name">Hesinde-Tempel zu Ehren der Heiligen Niobara</span><span class="avm-row__kind">Tempel</span></div>
+					<div class="avm-row__l2"><a href="#">garetien.de ↗</a></div>
+				</div>
+				<div class="st-aktionen"><button type="button" class="fs-row__edit" title="An einen anderen Ort hängen" aria-label="Umhängen">⇄</button><button type="button" class="fs-row__remove" title="Stätte löschen" aria-label="Löschen">✕</button></div>
+			</div>
+			<div class="avm-row">
+				<div class="avm-row__text">
+					<div class="avm-row__l1"><span class="avm-row__name">Ingerimm-Tempel Lodernde Flamme</span><span class="avm-row__kind">Tempel</span></div>
+					<div class="avm-row__l2"><a href="#">garetien.de ↗</a></div>
+				</div>
+				<div class="st-aktionen"><button type="button" class="fs-row__edit" aria-label="Umhängen">⇄</button><button type="button" class="fs-row__remove" aria-label="Löschen">✕</button></div>
+			</div>
+			<div class="avm-row">
+				<div class="avm-row__text">
+					<div class="avm-row__l1"><span class="avm-row__name">Burg Weißenstein</span><span class="avm-row__kind">Burg</span></div>
+					<div class="avm-row__l2 warn"><a href="#">garetien.de ↗</a> · gleichnamiger Punkt auf der Karte</div>
+				</div>
+				<div class="st-aktionen"><button type="button" class="fs-row__edit" aria-label="Umhängen">⇄</button><button type="button" class="fs-row__remove" aria-label="Löschen">✕</button></div>
+			</div>
+			<p class="st-wiki">+ 3 weitere aus dem Wiki — hier nicht bearbeitbar; sie verschwinden hier, sobald ihr Artikel einem Kartenpunkt zugewiesen ist.</p>
+		</div>
+	</div>
+	<div class="label-edit-section stummel"><div class="label-edit-section-title">Quellen</div><p class="anm">(der vorhandene Quellenkasten)</p></div>
+</section>
+
+<!-- 2 · Umhängen: Falte offen, Treffer gewählt -->
+<section class="szene">
+	<h2>2 · Umhängen — Ort suchen, dann bestätigen</h2>
+	<div class="label-edit-section"><div class="label-edit-section-title">Stätten</div>
+		<div class="st-kasten">
+			<div class="avm-row fs-row--open">
+				<div class="avm-row__text">
+					<div class="avm-row__l1"><span class="avm-row__name">Burg Weißenstein</span><span class="avm-row__kind">Burg</span></div>
+					<div class="avm-row__l2 warn"><a href="#">garetien.de ↗</a> · gleichnamiger Punkt auf der Karte</div>
+				</div>
+				<div class="st-aktionen"><button type="button" class="fs-row__edit" aria-expanded="true" aria-label="Umhängen">⇄</button><button type="button" class="fs-row__remove" aria-label="Löschen">✕</button></div>
+			</div>
+			<div class="st-falte">
+				<input class="st-falte__suche" type="search" value="Weißens" aria-label="Neuer Ort" placeholder="Neuer Ort …">
+				<div class="sac">
+					<div class="sac-head">Orte auf der Karte</div>
+					<ul class="sac-list">
+						<li class="sac-item is-active"><span class="sac-name"><mark>Weißens</mark>tein (Serrinmoor)</span><span class="sac-uses">Dorf · Garetien</span></li>
+						<li class="sac-item"><span class="sac-name"><mark>Weißens</mark>tein</span><span class="sac-uses">Kleinstadt · Kosch</span></li>
+					</ul>
+				</div>
+				<div>„Burg Weißenstein" nach <b>Weißenstein (Serrinmoor)</b> umhängen?</div>
+				<div class="fs-actions"><button type="button" class="fs-actions__sek">Abbrechen</button><button type="button" class="fs-actions__prim">Umhängen</button></div>
+			</div>
+			<p class="st-wiki">+ 3 weitere aus dem Wiki — hier nicht bearbeitbar; sie verschwinden hier, sobald ihr Artikel einem Kartenpunkt zugewiesen ist.</p>
+		</div>
+	</div>
+	<p class="anm">Treffer nennen Ortsklasse und Lage — zwei „Weißenstein" sind sonst nicht zu unterscheiden. Erst „Umhängen" schreibt.</p>
+</section>
+
+<!-- 3 · Löschen: Rückfrage in derselben Falte -->
+<section class="szene">
+	<h2>3 · Löschen — Rückfrage</h2>
+	<div class="label-edit-section"><div class="label-edit-section-title">Stätten</div>
+		<div class="st-kasten">
+			<div class="avm-row">
+				<div class="avm-row__text">
+					<div class="avm-row__l1"><span class="avm-row__name">Ingerimm-Tempel Lodernde Flamme</span><span class="avm-row__kind">Tempel</span></div>
+					<div class="avm-row__l2"><a href="#">garetien.de ↗</a></div>
+				</div>
+				<div class="st-aktionen"><button type="button" class="fs-row__edit" aria-label="Umhängen">⇄</button><button type="button" class="fs-row__remove" aria-expanded="true" aria-label="Löschen">✕</button></div>
+			</div>
+			<div class="st-falte">
+				<div>Stätte „Ingerimm-Tempel Lodernde Flamme" löschen? Sie verschwindet aus der Infobox von Alriksburg; ihre Quellen bleiben an ihr hängen.</div>
+				<div class="fs-actions"><button type="button" class="fs-actions__sek">Abbrechen</button><button type="button" class="fs-actions__prim">Löschen</button></div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- 4 · Ortseditor, nach einem Umhängen + ein Fehlerfall -->
+<section class="szene">
+	<h2>4 · Ortseditor (Detailfeld) — nach dem Umhängen</h2>
+	<div class="mini-dt">
+		<div class="dt-grp">Stätten</div>
+		<div class="st-kasten">
+			<div class="avm-row">
+				<div class="avm-row__text">
+					<div class="avm-row__l1"><span class="avm-row__name">Hesinde-Tempel zu Ehren der Heiligen Niobara</span><span class="avm-row__kind">Tempel</span></div>
+					<div class="avm-row__l2"><a href="#">garetien.de ↗</a></div>
+				</div>
+				<div class="st-aktionen"><button type="button" class="fs-row__edit" aria-label="Umhängen">⇄</button><button type="button" class="fs-row__remove" aria-label="Löschen">✕</button></div>
+			</div>
+			<p class="fs-add-note fs-add-note--ok" role="status">Umgehängt: „Burg Weißenstein" liegt jetzt in Weißenstein (Serrinmoor).</p>
+			<p class="st-wiki">+ 3 weitere aus dem Wiki — hier nicht bearbeitbar; sie verschwinden hier, sobald ihr Artikel einem Kartenpunkt zugewiesen ist.</p>
+		</div>
+		<div class="dt-grp stummel">Quellen</div>
+	</div>
+	<h2>Fehlerfall — der Zielort hat die Stätte schon</h2>
+	<div class="st-kasten">
+		<div class="st-falte">
+			<div>„Burg Weißenstein" nach <b>Weißenstein</b> umhängen?</div>
+			<p class="fs-add-note" role="status">In Weißenstein gibt es schon eine Stätte „Burg Weißenstein". Nichts wurde geändert.</p>
+			<div class="fs-actions"><button type="button" class="fs-actions__sek">Abbrechen</button><button type="button" class="fs-actions__prim">Umhängen</button></div>
+		</div>
+	</div>
+</section>
+
+<!-- 5 · Ort nur mit Wiki-Stätten, und ein Eintrag, der auf der Karte liegt -->
+<section class="szene">
+	<h2>5 · Ort ohne gespeicherte Stätten</h2>
+	<div class="label-edit-section"><div class="label-edit-section-title">Stätten</div>
+		<div class="st-kasten">
+			<p class="st-wiki">12 Stätten aus dem Wiki — hier nicht bearbeitbar; sie verschwinden hier, sobald ihr Artikel einem Kartenpunkt zugewiesen ist.</p>
+		</div>
+	</div>
+	<p class="anm">Beantwortet „warum finde ich die Stätte aus der Infobox hier nicht". Hat ein Ort gar keine Stätten, gibt es den Abschnitt nicht.</p>
+	<h2>Gespeicherte Stätte, deren Artikel auf der Karte liegt</h2>
+	<div class="st-kasten">
+		<div class="avm-row">
+			<div class="avm-row__text">
+				<div class="avm-row__l1"><span class="avm-row__name">Burg Aarkopf</span><span class="avm-row__kind">Burg</span></div>
+				<div class="avm-row__l2 warn"><a href="#">de.wiki-aventurica.de ↗</a> · liegt auf der Karte — erscheint nicht mehr als Stätte</div>
+			</div>
+			<div class="st-aktionen"><button type="button" class="fs-row__edit" aria-label="Umhängen">⇄</button><button type="button" class="fs-row__remove" aria-label="Löschen">✕</button></div>
+		</div>
+	</div>
+	<p class="anm">Heute gibt es keinen solchen gespeicherten Fall (die 11 Doppelten sind Wiki-Stätten, die fallen einfach aus der Liste). Der Hinweis sagt dem Editor, dass Löschen hier nur aufräumt.</p>
+</section>
+
+</div>
