@@ -3463,9 +3463,10 @@ if (typeof window !== "undefined") {
   window.mountFeatureSourceMeldungVorschau = mountFeatureSourceMeldungVorschau;
   window.featureSourceMeldungZeile = featureSourceMeldungZeile;
   window.createPendingFeatureSourceStore = createPendingFeatureSourceStore;
-  // 🔴 Damit der Garetien-Importer DIESE Fassung ruft statt einer eigenen. Er legt Quellen an
-  // Objekten an, die die geladene Karte noch nicht mit Quelle kennt; ohne den Abgleich stuende
-  // seine Quelle erst nach einem vollstaendigen Neuladen in der Infobox.
+  // 🔴 Damit js/map-features/map-features-powerlines.js (~Z. 780) DIESE Fassung ruft statt einer
+  // eigenen. Es legt Quellen an Objekten an, die die geladene Karte noch nicht mit Quelle kennt;
+  // ohne den Abgleich stuende die Quelle erst nach einem vollstaendigen Neuladen in der Infobox.
+  // (Bis 26.09.2026 war der Garetien-Importer derselbe Fall.)
   window.syncFeatureSourcesToClientCache = syncFeatureSourcesToClientCache;
 }
 if (typeof module !== "undefined" && module.exports) {

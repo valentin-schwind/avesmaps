@@ -16,7 +16,8 @@ declare(strict_types=1);
  *
  * 💣 GEFAHREN WIRD MIT DEN ECHTEN BIBLIOTHEKEN (features.php, ecosystem.php, wiki/regions.php) gegen SQLite.
  * Die MySQL-eigenen Anweisungen werden an der Treibernaht uebersetzt, nie im Produktivcode verbogen
- * (AGENTS.md §9, Error 1093) -- dieselbe Naht wie garetien-wiki-nachzug-test.php.
+ * (AGENTS.md §9, Error 1093) -- dieselbe Naht wie die des (mit dem Importer am 26.09.2026 geloeschten)
+ * garetien-wiki-nachzug-test.php.
  *
  * Lauf (Windows), aus dem Repo-Root:
  *   php -d zend.assertions=1 -d assert.exception=1 -d extension=php_mbstring.dll -d extension=php_pdo_sqlite.dll api/_internal/app/__tests__/landschaft-wiki-eine-quelle-test.php

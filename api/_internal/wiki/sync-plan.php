@@ -308,14 +308,13 @@ function avesmapsSyncPlanStartRun(PDO $pdo, string $kind, int $userId, ?string $
 {
     avesmapsSyncPlanSupersedeRuns($pdo, $kind);
     // 🔴 UND DIE OFFENEN ZEILEN DER UEBERHOLTEN LAEUFE DIESER ART (05.09.2026, siehe
-    // avesmapsSyncPlanAufraeumen) -- gedeckelt. Ein Fehlschlag kippt den neuen Lauf NICHT: er wird als
-    // `null` gemerkt und vom Garetien-Importer in seiner Kachel genannt, nie verschluckt.
+    // avesmapsSyncPlanAufraeumen) -- gedeckelt. Ein Fehlschlag kippt den neuen Lauf NICHT, er wird
+    // nur geloggt (bis 26.09.2026 zusaetzlich in einem Prozess-Speicher gemerkt, den der
+    // Garetien-Importer in seiner Kachel nannte -- mit ihm zurueckgebaut).
     try {
         avesmapsSyncPlanAufraeumen($pdo, $kind);
     } catch (PDOException $exception) {
         error_log('sync-plan: Aufraeumen der Vorschauzeilen (' . $kind . ') fehlgeschlagen: ' . $exception->getMessage());
-        $speicher = &avesmapsSyncPlanAufraeumSpeicher();
-        $speicher[$kind] = null;
     }
 
     $pdo->prepare(
@@ -863,45 +862,18 @@ function avesmapsSyncPlanDecisionTargetsForItems(PDO $pdo, int $runId, array $id
 /**
  * Hoechstens so viele ueberholte Laeufe raeumt EIN Start eines neuen Laufs ab.
  *
- * Sechs Garetien-Laeufe sind rund 30.000 Zeilen in einer Anfrage -- dieselbe Groessenordnung wie
- * die drei Staging-Laeufe (25.000 Zeilen), die der Importer je „Holen & Rechnen" abraeumt. Der
- * Rest wartet auf den naechsten Start; die Kachel des Importers nennt, wie viele.
+ * Sechs Garetien-Laeufe waren rund 30.000 Zeilen in einer Anfrage -- dieselbe Groessenordnung wie
+ * die drei Staging-Laeufe (25.000 Zeilen), die der Garetien-Importer je „Holen & Rechnen"
+ * abraeumte, bis er am 26.09.2026 zurueckgebaut wurde. Der Rest wartet auf den naechsten Start.
  */
 const AVESMAPS_SYNC_PLAN_AUFRAEUM_DECKEL = 6;
 
 /**
- * Das Ergebnis der letzten Aufraeumung je Art -- fuer den Aufrufer von avesmapsSyncPlanStartRun.
- *
- * ⚠️ Ein Prozess-Speicher, weil StartRun eine feste Rueckgabe hat (die Lauf-Nummer) und acht
- * Aufrufer: eine stille Loeschung ist von „nichts passiert" nicht zu unterscheiden, also muss
- * wenigstens der Garetien-Importer sie in seiner Kachel nennen koennen. `null` heisst
- * „gescheitert" (StartRun faengt den Fehler, damit der neue Lauf entsteht), ein fehlender
- * Schluessel „in diesem Prozess nicht gelaufen".
- *
- * @return array<string, array{laeufe:int, zeilen:int, offen:int}|null>
- */
-function &avesmapsSyncPlanAufraeumSpeicher(): array
-{
-    static $speicher = [];
-
-    return $speicher;
-}
-
-/**
- * @return array{laeufe:int, zeilen:int, offen:int}|null|false  false = in diesem Prozess nicht gelaufen
- */
-function avesmapsSyncPlanLetzteAufraeumung(string $kind): array|null|false
-{
-    $speicher = &avesmapsSyncPlanAufraeumSpeicher();
-
-    return array_key_exists($kind, $speicher) ? $speicher[$kind] : false;
-}
-
-/**
  * Die offenen Vorschauzeilen ueberholter Laeufe EINER Art abraeumen -- gedeckelt je Aufruf.
  *
- * 🔴 WAS BLEIBT, und warum: `done` (die laufuebergreifende Ruecknahme und der Nachzug des
- * Garetien-Importers lesen ihre `apply_note`), stale/skipped/failed (Protokoll einer Uebernahme),
+ * 🔴 WAS BLEIBT, und warum: `done` (die laufuebergreifende Ruecknahme liest ihre `apply_note`;
+ * bis zum 26.09.2026 auch der Nachzug des Garetien-Importers), stale/skipped/failed (Protokoll
+ * einer Uebernahme),
  * alle Zeilen des OFFENEN Laufs (die Arbeitsliste), alle Zeilen ANDERER Arten, und die
  * `sync_plan_run`-Zeilen selbst (die Ruecknahme JOINt sie fuer die Art, done-Zeilen haengen an
  * ihrem Lauf). Nur `state = 'superseded'` ist ueberholt -- ein `applied`-Lauf ist das Ende einer
@@ -912,7 +884,7 @@ function avesmapsSyncPlanLetzteAufraeumung(string $kind): array|null|false
  * faelligen Laeufe werden VORHER ermittelt und einzeln abgeraeumt -- dieselbe Form wie die
  * Staging-Aufraeumung des (zurueckgebauten) Garetien-Imports, und sie laeuft auf beiden.
  * ⚠️ Vom AELTESTEN her: wer den Deckel erreicht, hat den groessten Ballast zuerst weg.
- * ⚠️ Faellt NICHT still aus -- der Aufrufer (StartRun) faengt, merkt `null` und meldet.
+ * ⚠️ Faellt NICHT still aus -- der Aufrufer (StartRun) faengt eine `PDOException` und loggt sie.
  *
  * @return array{laeufe:int, zeilen:int, offen:int}
  */
@@ -939,9 +911,5 @@ function avesmapsSyncPlanAufraeumen(PDO $pdo, string $kind, int $deckel = AVESMA
         $zeilen += $loesche->rowCount();
     }
 
-    $ergebnis = ['laeufe' => count($dran), 'zeilen' => $zeilen, 'offen' => count($faellig) - count($dran)];
-    $speicher = &avesmapsSyncPlanAufraeumSpeicher();
-    $speicher[$kind] = $ergebnis;
-
-    return $ergebnis;
+    return ['laeufe' => count($dran), 'zeilen' => $zeilen, 'offen' => count($faellig) - count($dran)];
 }

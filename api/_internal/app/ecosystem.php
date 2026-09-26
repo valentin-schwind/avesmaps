@@ -2839,10 +2839,10 @@ function avesmapsCreateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
     // dem der Editor den Namen vergeben soll. Er schickt deshalb ein ausdrueckliches `false` mit.
     $fields = array_merge($fields, avesmapsEcosystemApplyRegionAutoName([], $payload, $fields));
     // 🔴 DIE KURVENBESCHRIFTUNG DARF SCHON BEI DER ANLAGE GESETZT WERDEN (Owner 30.08.2026, Kasten
-    // „Eingefügt wird" des Garetien-Importers: „warum darf ich das nicht verändern?"). Derselbe
-    // Anwender wie in `update_region` -- nur mit einem leeren „davor" (eine frische Region traegt
-    // noch kein `properties_json`). `null`/`null` (kein Schluessel im Rumpf) aendert nichts, wie
-    // ueberall sonst in diesem Anwender.
+    // „Eingefügt wird" des (inzwischen zurückgebauten) Garetien-Importers: „warum darf ich das
+    // nicht verändern?"). Derselbe Anwender wie in `update_region` -- nur mit einem leeren
+    // „davor" (eine frische Region traegt noch kein `properties_json`). `null`/`null` (kein
+    // Schluessel im Rumpf) aendert nichts, wie ueberall sonst in diesem Anwender.
     $fields = array_merge($fields, avesmapsCurveLabelApplyToProperties(
         $fields['properties_json'] ?? null,
         array_key_exists('curve_label', $payload) ? avesmapsEcosystemReadBoolean($payload['curve_label']) : null,
@@ -2864,8 +2864,8 @@ function avesmapsCreateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
         // liest es fuer BEIDE Anwender), landete beim ANLEGEN aber nie in der Zeile -- dieser
         // INSERT nannte die Spalte nicht, die Tabelle fiel also immer auf ihren Deckel 0 zurueck.
         // Fuer `update_region` war das nie sichtbar (dort steht die Spalte laengst da); der Kasten
-        // „Eingefügt wird" des Garetien-Importers ist der erste Aufrufer, der eine Flaeche schon
-        // GESPERRT anlegen will.
+        // „Eingefügt wird" des (inzwischen zurückgebauten) Garetien-Importers war der erste
+        // Aufrufer, der eine Flaeche schon GESPERRT anlegen wollte.
         $statement = $pdo->prepare(
             'INSERT INTO ecosystem_region
                 (public_id, name, kind, region_type, wiki_region_key, wiki_url, label_public_id, properties_json, stack_order, is_locked, created_by, updated_by)

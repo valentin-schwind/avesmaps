@@ -113,12 +113,7 @@ assert((int) $pdo->query('SELECT COUNT(*) FROM sync_plan_run')->fetchColumn() ==
     '⚠️ die Lauf-Zeilen bleiben stehen: die Ruecknahme JOINt sync_plan_run fuer die Art, und done-Zeilen haengen an ihrem Lauf');
 assert(avesmapsSyncPlanAufraeumen($pdo, 'citymap', 0) === ['laeufe' => 1, 'zeilen' => 2, 'offen' => 0],
     '💣 die Klemme steht IM Rumpf: ein Deckel 0 heisst mindestens 1, nicht „nichts tun"');
-// Das Ergebnis wird je Art gemerkt -- der Garetien-Importer nennt es in seiner Kachel, weil eine
-// stille Loeschung von „nichts passiert" nicht zu unterscheiden ist.
-assert(avesmapsSyncPlanLetzteAufraeumung('citymap') === ['laeufe' => 1, 'zeilen' => 2, 'offen' => 0], 'die letzte Aufraeumung je Art ist abrufbar');
-assert(avesmapsSyncPlanLetzteAufraeumung('garetien') === $dritte, 'je Art getrennt');
-assert(avesmapsSyncPlanLetzteAufraeumung('lore') === false, 'eine Art, fuer die nichts lief: false -- keine Aussage, kein Fehlschlag');
-$pruefungen += 8;
+$pruefungen += 5;
 
 // =================================================================================================
 // B. Der Start eines neuen Laufs raeumt -- ohne dass ein Aufrufer daran denken muss

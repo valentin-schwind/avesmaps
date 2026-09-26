@@ -1009,9 +1009,10 @@
    zweimal, weil index.html styles.css laedt und die Editor-iframes editor-page.css -- keine der
    beiden Dateien sieht die andere. Sie MUESSEN dasselbe sagen; listenkopf.test.js haelt sie
    gegeneinander.
-   💣 Und die Gleichheit loest nebenbei einen Spezifitaetskonflikt: diese Regel (0,1,0)
-      schlug `.avm-tile` auf der Ebenen-Kachel, die BEIDE Klassen traegt. Wenn beide dasselbe
-      sagen, ist es gleichgueltig, wer gewinnt. */
+   💣 Und die Gleichheit loeste nebenbei einen Spezifitaetskonflikt: diese Regel (0,1,0) schlug
+      `.avm-tile` auf der Ebenen-Kachel des (inzwischen zurueckgebauten) Garetien-Importers, die
+      BEIDE Klassen trug. Wenn beide dasselbe sagen, ist es gleichgueltig, wer gewinnt -- die
+      Regel bleibt trotzdem, falls je wieder ein Wirt beide Klassen kombiniert. */
 .type-filter__toggle {
 	min-height: var(--avm-control-h);
 	padding: 0 var(--space-8);
@@ -1064,7 +1065,9 @@
    wie `.mlf-option--muted` (media-license-fields.js, "bleibt waehlbar, nur die Schrift ist
    gedaempft, kein disabled"). Gescoped auf `.type-filter__label`, NICHT auf `.type-filter__opt`
    selbst -- `.type-filter__count` traegt schon immer `--color-text-muted` und bleibt unangetastet
-   ("die Zahl in Klammern bleibt, wie sie ist"). */
+   ("die Zahl in Klammern bleibt, wie sie ist").
+   ⚠️ Derzeit ohne Aufrufer (bis 26.09.2026 der Garetien-Importer) -- kein Trichter setzt die
+   Klasse mehr, siehe js/ui/filter-menu.js. */
 .type-filter__opt--muted .type-filter__label {
 	color: var(--color-text-muted);
 	font-style: italic;

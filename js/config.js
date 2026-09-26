@@ -452,9 +452,10 @@ function applyEcosystemAccess(granted) {
 	// bach-darstellung.test.js, kraftlinie-kurve-alle-erzeuger.test.js,
 	// location-at-path-endpoint.test.js, location-type-classifier.test.js,
 	// powerline-connected-endpoints.test.js, powerline-span.test.js,
-	// path-transport-options.test.js, create-graph-connectivity.test.js,
-	// location-connectivity-index.test.js und vier garetien-*.test.js -- 13 Dateien, die js/config.js
-	// standalone laden. Derselbe Riegel wie bei `syncEcosystemControlsVisibility` daneben, aus
+	// path-transport-options.test.js, create-graph-connectivity.test.js und
+	// location-connectivity-index.test.js -- Dateien, die js/config.js standalone laden (bis zum
+	// Rueckbau des Garetien-Importers am 26.09.2026 kamen vier garetien-*.test.js dazu, jetzt
+	// geloescht). Derselbe Riegel wie bei `syncEcosystemControlsVisibility` daneben, aus
 	// demselben Grund.
 	if (typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
 		&& typeof syncEcosystemControlsVisibility === "function") {

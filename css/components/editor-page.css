@@ -376,8 +376,8 @@ body.avm-editor-body {
    .avm-pill samt Modifikator, .avm-status samt .avm-status__text) stehen NICHT mehr hier, sondern
    in css/components/editor-body.css (oben per @import gebunden). Grund: bis zum Rückbau des
    Garetien-Importers (26.09.2026) brauchte auch dessen Fenster in index.html dieselben Formen;
-   editor-body.css bindet heute nur noch diese Datei. Nicht hierher zurueckkopieren -- dann gaebe
-   es sie zweimal, und genau daraus ist die Divergenz vom 14.08.2026 gewachsen. Gewacht von
+   editor-body.css wird heute nur noch von dieser Datei gebunden. Nicht hierher zurueckkopieren --
+   dann gaebe es sie zweimal, und genau daraus ist die Divergenz vom 14.08.2026 gewachsen. Gewacht von
    js/pages/__tests__/editor-body-single-source.test.js und
    js/app/__tests__/statuszeile-geteilt.test.js. */
 

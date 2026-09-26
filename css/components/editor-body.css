@@ -1,5 +1,6 @@
 /* Der gemeinsame Editor-KOERPER — Menüband, Kacheln, Spalten, Reiter, Rollkasten.
- * EINE Datei, weil die Formen an ZWEI Orten gebraucht werden.
+ * EINE Datei fuer die sechs Editor-SEITEN (gebunden von css/components/editor-page.css) — bis
+ * zum Rueckbau des Garetien-Importers (26.09.2026) brauchte sie ein zweiter Ort, index.html.
  *
  * 💣 Sie standen bis 2026-08-27 in css/components/editor-page.css, und die laden nur die sechs
  *    Editor-SEITEN in html/. Das Fenster „Garetien Importer" lebte in index.html, nicht in einem

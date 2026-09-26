@@ -290,9 +290,10 @@
 	   Textfeld rund 290 px -- zu wenig fuer einen Beitrag, den man vor dem Absenden lesen will. */
 	width: min(1180px, 100%);
 	max-height: 100%;
-	/* 🔴 DIE KANTE, LOKAL -- wie beim Garetien Importer. --avm-col-pad steht global noch auf 12
-	   (tokens.css sagt warum: neun Fenster lesen ihn gleichzeitig); dieses Fenster ist das
-	   zweite auf der 14er-Kante, also zieht es den Token an seiner eigenen Huelle.
+	/* 🔴 DIE KANTE, LOKAL -- wie einst beim (inzwischen zurueckgebauten) Garetien Importer.
+	   --avm-col-pad steht global noch auf 12 (tokens.css sagt warum: neun Fenster lesen ihn
+	   gleichzeitig); dieses Fenster ist eines von inzwischen sechs, die den Token an ihrer
+	   eigenen Huelle ziehen.
 	   💣 OHNE DIESE ZEILE saessen Kopf und Fuss auf 14 und der Rumpf auf 12 -- im Browser
 	      gemessen, bevor sie dastand. Genau der 2px-Versatz, den dieser Umbau beseitigt, nur
 	      innerhalb EINES Fensters. Wer ein weiteres Fenster anschliesst, braucht sie auch.

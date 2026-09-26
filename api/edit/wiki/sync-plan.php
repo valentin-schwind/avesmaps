@@ -333,6 +333,8 @@ try {
             // uebrigen Arten kennen die Ablehnung nur als NEBENPRODUKT der Uebernahme (eine nicht
             // angehakte LOESCHUNG, siehe avesmapsCitymapApplyFinish). Ohne diesen Ausgang gaebe es
             // fuer „Ablehnen" keinen Weg und der Reiter „Abgelehnt" bliebe leer (Ruling R10).
+            // ⚠️ Derzeit ohne Aufrufer (bis 26.09.2026 der Garetien-Importer) -- kein js/-Code ruft
+            // `action: "decline"`. Bleibt fuer die naechste Art, die eine SOFORTIGE Ablehnung braucht.
             //
             // 💣 KEIN ZWEITER ENDPUNKT. Hier haengen Rechteriegel, CORS, JSON und der Kind-Riegel
             // -- eine eigene Tuer daneben waere die zweite Fassung von all dem.
@@ -371,6 +373,8 @@ try {
             //   `entity_keys` -- die Loeschungs-Vorschau, unveraendert seit Sitzung 1.
             //   `ids` + `run_id` -- eine Zeile des offenen Laufs, deren change_type der Server
             //                       nachschlaegt (dieselbe Naht wie bei 'decline' darueber).
+            //                       ⚠️ Derzeit ohne Aufrufer (bis 26.09.2026 der
+            //                       Garetien-Importer) -- kein js/-Code schickt `ids`+`run_id`.
             $keys = isset($payload['entity_keys']) && is_array($payload['entity_keys'])
                 ? $payload['entity_keys']
                 : [];

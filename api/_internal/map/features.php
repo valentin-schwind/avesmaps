@@ -213,10 +213,10 @@ function avesmapsReadLocationDescription(mixed $value): string {
 function avesmapsReadPathSubtype(mixed $value): string {
     $subtype = avesmapsNormalizeSingleLine((string) ($value ?: 'Weg'), 60);
     // 🔴 Diese Liste ist der SCHREIB-Riegel -- ohne 'Bach' hier wirft jeder Versuch, einen Bach
-    // anzulegen oder zu speichern (u.a. der Garetien-Importer, avesmapsCreatePathFeature),
-    // 'Der Wegtyp ist ungueltig.' Sie ist eine EIGENE Kopie von PATH_SUBTYPE_KEYS (js/config.js),
-    // nicht dieselbe Liste -- ein Fund beim Bauen dieser Aufgabe, nicht Teil des urspruenglichen
-    // Auftrags.
+    // anzulegen oder zu speichern (u.a. der bis 26.09.2026 zurueckgebaute Garetien-Importer,
+    // avesmapsCreatePathFeature), 'Der Wegtyp ist ungueltig.' Sie ist eine EIGENE Kopie von
+    // PATH_SUBTYPE_KEYS (js/config.js), nicht dieselbe Liste -- ein Fund beim Bauen dieser
+    // Aufgabe, nicht Teil des urspruenglichen Auftrags.
     // 🔴 'Bach' STEHT HIER NICHT MEHR (Owner 30.08.2026, an einem Bildschirmfoto des Dialogs
     // „Weg bearbeiten": ein Haekchen am Wegtyp, kein eigener Wegtyp). Er war vom 29. bis zum
     // 30.08.2026 eine eigene Wegart, aber weder in der Auswahlliste des Dialogs noch auf einem

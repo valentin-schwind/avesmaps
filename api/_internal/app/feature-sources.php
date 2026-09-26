@@ -3233,8 +3233,9 @@ function avesmapsPoliticalTerritoryWikiNamespaces(PDO $pdo): array
  *
  * 💣 SICHTBAR WURDE ES ERST DURCH DIE QUELLEN, NICHT DURCH DEN UMBAU. Ohne Verweis gibt es gar
  * kein Etikett, mit Verweisen ohne Ableitung gilt die Vorgabe „offiziell" -- eine Flaeche sah also
- * so lange richtig aus, bis ihr jemand die erste INOFFIZIELLE Quelle eintrug. Genau das tut der
- * Garetien-Importer dieser Tage reihenweise.
+ * so lange richtig aus, bis ihr jemand die erste INOFFIZIELLE Quelle eintrug. Genau das tat der
+ * Garetien-Importer in den Tagen vor dem 10.09.2026 reihenweise (er ist seit dem 26.09.2026
+ * zurückgebaut).
  *
  * 🔴 HIER IST DIE ADRESSE DIE ZUWEISUNG -- wie bei `political_territory.wiki_url` und aus
  * demselben Grund: `ecosystem_region.wiki_url` fuellt nur ein Schreibvorgang, es wird nichts

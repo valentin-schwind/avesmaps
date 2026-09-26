@@ -734,9 +734,10 @@ function avesmapsFetchMapRevision(PDO $pdo): int {
 // naechsten vollen Laden". Das stimmte nicht: mit `no-cache, must-revalidate` und unveraendertem
 // ETag IST das naechste volle Laden ein 304.
 // 💣 UND $placesStamp AUS DEMSELBEN GRUND (02.09.2026). Die Nutzlast traegt `in_settlement_places`,
-// und seit heute schreibt der Garetien-Import dort GESPEICHERTE Staetten hinein -- eine Zeile in
-// `settlement_place` bewegt kein Kartenobjekt und hebt deshalb `map_revision` nicht. Ohne diesen
-// Keim bekaeme jeder warme Browser sein 304, und die frisch eingefuegte Staette taeuchte weder im
+// und bis zum Rueckbau (26.09.2026) schrieb der Garetien-Import dort GESPEICHERTE Staetten hinein
+// -- die Tabelle hat seither keinen Schreiber (offener Bearbeitungsweg, settlement-places.php).
+// Eine Zeile in `settlement_place` bewegt kein Kartenobjekt und hebt deshalb `map_revision` nicht.
+// Ohne diesen Keim bekaeme jeder warme Browser sein 304, und die frisch eingefuegte Staette taeuchte weder im
 // Reiseplaner-Autocomplete noch in der Infobox-Zeile „Staetten" auf. Dritte Auflage derselben
 // Falle nach Klimastempel und Tempowerten -- und die vierte, wenn man den Wappen-Notaus mitzaehlt.
 function avesmapsMapFeaturesETag(int $revision, array $queryParams, string $climateStamp = '', string $travelStamp = '', string $placesStamp = ''): string {

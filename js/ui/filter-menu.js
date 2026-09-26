@@ -78,6 +78,8 @@ function avmRangeIsActive(state) {
 // Abschnittsarten dieselbe Klasse und denselben `title` bekommt, statt in einer davon lautlos
 // wirkungslos zu bleiben. Die Option bleibt WAEHLBAR -- kein `disabled`, nur die Schrift ist
 // gedaempft (CSS: `.type-filter__opt--muted`, review-panel.css).
+// ⚠️ Derzeit ohne Aufrufer (bis 26.09.2026 der Garetien-Importer) -- kein Trichter setzt
+// `muted: true` auf einer Option. Bleibt fuer den naechsten Filter mit leeren Typen.
 function avmFilterOptLabelOpen(option) {
 	const klasse = option && option.muted ? "type-filter__opt type-filter__opt--muted" : "type-filter__opt";
 	const titel = option && option.title ? ` title="${avmFilterEscape(option.title)}"` : "";
@@ -169,6 +171,8 @@ function avmFilterMenuAttach(toggleId, panelId, sections, applyFilter, label = "
 	// `.t1`/`.t2` (der Zustand steht IN der Kachel, Hausform „Status in den Knopf"), und ein
 	// `toggle.innerHTML = …` machte daraus lautlos einen einzeiligen Knopf. Die Alternative wäre
 	// eine zweite Menü-Rezeptur gewesen -- genau das, was diese Datei verhindern soll.
+	// ⚠️ Derzeit ohne Aufrufer (bis 26.09.2026 der Garetien-Importer) -- kein Wirt setzt das
+	// Attribut mehr. Bleibt fuer die naechste Kachel, die ihren Zustand selbst traegt.
 	// ⚠️ Dann bleiben AUCH `title` und `aria-label` unangetastet -- das Element wird gar nicht mehr
 	// beschriftet, nur noch bedient. Ein Wirt, der seinen Zustand selbst in seiner zweiten Zeile
 	// trägt („2 von 18 · Gewässer ggp + kosch"), hat den besseren Namen als eine angehängte Zahl

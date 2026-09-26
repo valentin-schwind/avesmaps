@@ -45,7 +45,7 @@ Retire-Liste des Deploy-Workflows (der Deploy löscht nie, AGENTS.md §6/§10).
    `feature-sources.php`, `entity_type = settlement_place`). Owner-Regel: „es darf auf der Map keine
    Elemente geben, über die ich keine Kontrolle mehr habe." → **Owner-Entscheidung E1.**
 2. 💣 **Sieben fremde Tests lesen Importer-Dateien direkt** und fallen beim Löschen um (Task 2/3 listet
-   sie mit Zeile).
+   sie mit Zeile). *(Inventur vor dem Bau; angepasst wurden am Ende 15 Testdateien, siehe `ae53b0bae`.)*
 3. 💣 **Ein Mockup-Vertrag bindet `css/components/garetien-importer.css`**
    (`docs/garetien-import-vereint-mockup.html`, drei `VERTRAG`-Blöcke). `tools/mockup-vertrag`
    liest jedes `docs/*-mockup.html` — ohne die CSS-Datei ist das Deploy-Tor rot.
@@ -53,6 +53,8 @@ Retire-Liste des Deploy-Workflows (der Deploy löscht nie, AGENTS.md §6/§10).
    mit dem Importer begründet: `js/ui/filter-menu.js` und `js/ui/wiki-weitere-kasten.js` benutzen
    ihre Klassen inzwischen auch in `index.html`. Nur der Modifier `.avm-cols--2` hat keinen anderen
    Nutzer und geht.
+   🔴 **Widerlegt 26.09.2026 (`d70e7b5e0`):** keine Klasse hat im index.html-Kontext einen
+   Code-Nutzer; die Inventur-grep hatte Kommentare mitgezählt. Der `@import` ist gefallen.
 5. ⚠️ **Zwei Funktionen in geteilten Dateien werden tot:** `avesmapsSyncPlanRecordApplied`
    (`api/_internal/wiki/sync-plan.php`, einzige Aufrufer im Importer) und
    `avesmapsSettlementPlacePublicIds` (`settlement-places.php`, einziger Aufrufer
@@ -133,7 +135,8 @@ Nach diesem Commit ist der Importer für niemanden mehr erreichbar; der Endpunkt
   `--color-garetien-*` in hell ~263–290 und dunkel ~1169–1174 samt ihrer Kommentarblöcke),
   `css/components/editor-body.css:118-120` (`.avm-cols--2`), die Kommentare in
   `css/styles.css:55-58` und `css/components/editor-body.css:5,24,238` (Begründung auf
-  „filter-menu / wiki-weitere-kasten in index.html" umstellen)
+  „filter-menu / wiki-weitere-kasten in index.html" umstellen — 🔴 **widerlegt 26.09.2026
+  (`d70e7b5e0`), siehe Befund 4**: kein Code-Nutzer, der `@import` fiel)
 - Modify (fremde Tests): `js/review/__tests__/kanon-nachtrag-tafel.test.js:146-167`,
   `js/ui/__tests__/keine-auto-silbentrennung.test.js:165-175`,
   `js/pages/__tests__/editor-body-single-source.test.js` (Abschnitt `.avm-cols--2`, ~Z. 125-130,
@@ -279,17 +282,20 @@ leerem Rumpf — AGENTS.md: „liest sich im Browser als Netzfehler").
 **Files:** `AGENTS.md`, `docs/superpowers/specs/2026-08-27-garetien-importer-fenster-auftrag.md`,
 Kommentare in `css/components/editor-page.css:60,316,374`, Memory.
 
-- [ ] **Schritt 1: AGENTS.md** — den §11-Eintrag „Die Arbeitsliste des Garetien-Importers hat einen
+- [x] **Schritt 1: AGENTS.md** — den §11-Eintrag „Die Arbeitsliste des Garetien-Importers hat einen
   FESTEN und einen WECHSELNDEN Teil" entfernen (er beschreibt nur noch Gelöschtes). Die übrigen
   Erwähnungen (Z. ~755, 779, 785, 935, 936, 957, 958, 1030) sind Historie eines bleibenden Features;
   nur dort, wo ein **Dateipfad** des Importers als lebend genannt wird, „(zurückgebaut 26.09.2026)"
   anhängen. `.gi-detail__name` in Z. ~1030 streichen.
-- [ ] **Schritt 2: Spec §5.5** — unter die Überschrift eine Zeile: „✅ **Abgebaut am 26.09.2026**
+- [x] **Schritt 2: Spec §5.5** — unter die Überschrift eine Zeile: „✅ **Abgebaut am 26.09.2026**
   (Plan `docs/superpowers/plans/2026-09-26-garetien-importer-rueckbau.md`). Übernommene Objekte,
   Quellen und Namensnennung stehen."
-- [ ] **Schritt 3: CSS-Kommentare** in `editor-page.css`, die das Importer-Fenster als Grund nennen,
-  auf den heutigen Grund umstellen (siehe Task 2 Schritt 4).
-- [ ] **Schritt 4: Testfeld, Commit, Push** — Betreff: `docs(garetien): Abbau des Importers dokumentiert`
+- [x] **Schritt 3: CSS-Kommentare** in `editor-page.css`, die das Importer-Fenster als Grund nennen,
+  auf den heutigen Grund umstellen (siehe Task 2 Schritt 4). 🔴 **Widerlegt 26.09.2026
+  (`d70e7b5e0`):** „der heutige Grund" war die falsche Annahme aus Befund 4
+  (filter-menu/wiki-weitere-kasten in index.html) — kein Code-Nutzer. Tatsächlich umgesetzt: der
+  `@import` fiel, die Kommentare nennen den historischen Grund (Garetien-Importer, zurückgebaut).
+- [x] **Schritt 4: Testfeld, Commit, Push** — Betreff: `docs(garetien): Abbau des Importers dokumentiert`
 - [ ] **Schritt 5: Memory** — `garetien-importer-abbau.md` auf „✅ abgebaut 26.09.2026, offen: Task 6"
   setzen, `index-garetien-import.md` und die Zeile in `MEMORY.md` entsprechend kürzen.
 
