@@ -66,6 +66,26 @@ let locationReportPickedSourceId = 0;
 let locationReportPickedLabel = "";
 let detachLocationReportAutocomplete = null;
 
+// ---- Das Feld "Innerorts" im Dialog „Ort bearbeiten" (js/ui/innerorts-feld.js) ----
+// Entwurf docs/superpowers/specs/2026-09-26-innerorts-praedikat-design.md §5, Plan
+// docs/superpowers/plans/2026-09-27-innerorts-schritt-1.md Task 3.
+// Nur bei Ortsgröße Stadtviertel/Besondere Bauwerke UND einem bestehenden Ort (dieselbe Regel wie
+// beim Kasten „Stätten" nebenan). Das Bauteil selbst kennt nur "die Stadt oder keine" -- welche
+// Herkunft ('manual'/'wiki') gerade gilt und ob der Wiki-Stand ueberhaupt schon geladen wurde,
+// hält dieser Dialog fest, weil das Bauteil bewusst keinen Wiki-Vergleich fuehrt (siehe Kopf von
+// js/ui/innerorts-feld.js).
+const LOCATION_EDIT_INNERORTS_SIZES = ["gebaeude", "stadtviertel"];
+let locationEditInnerortsFeld = null; // Controller von mountInnerortsFeld, oder null
+let locationEditInnerortsWikiStand = null; // {public_id,name}|null -- fuer die Beschriftung und ↺
+let locationEditInnerortsHerkunft = ""; // ""|"manual"|"wiki"
+// 🔴 ERST WENN DER STAND WIRKLICH GELADEN IST (Serverantwort ODER eine echte Nutzerhandlung),
+// schickt buildLocationEditPayload etwas mit -- ein Rumpf ohne die beiden Felder heisst
+// "unveraendert" (Task 2), und das ist der sichere Rückfall, solange niemand weiss, was gilt.
+let locationEditInnerortsGeladen = false;
+// Ein Rennwaechter wie bei syncSettlementWikiFromServer: ein Dialogwechsel waehrend die Anfrage
+// noch unterwegs ist, darf deren Antwort nicht mehr auf den NEUEN Ort schreiben.
+let locationEditInnerortsLadeToken = 0;
+
 function showLocationReportSourceNote(text) {
 	const note = document.getElementById("report-source-note");
 	if (!note) {
@@ -595,6 +615,9 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	activeReviewReportSourceQueue = Array.isArray(meldungQuellen) ? meldungQuellen.slice() : [];
 	mountLocationEditFeatureSources();
 	mountLocationEditStaetten();
+	// NACH dem Setzen der Ortsgroesse (weiter unten, setLocationEditSize): die Sichtbarkeit haengt
+	// an ihr. mountLocationEditInnerorts ruft syncLocationEditInnerortsAvailability selbst zuerst.
+	void mountLocationEditInnerorts();
 	mountLocationEditNameAutocomplete();
 	// Seehafen (Owner 26.09.2026): mit Seeweg-Anbindung automatisch gesetzt und gesperrt, sonst setzt
 	// der Editor es von Hand. Die Anbindung rechnet der Anbindungs-Index der Pruefhaken
@@ -836,6 +859,138 @@ function mountLocationEditStaetten() {
 	});
 }
 
+// Sperrt/entsperrt (hier: blendet ein/aus) die Zeile „Innerorts" nach der gewählten Ortsgröße --
+// wortgleiche Rolle zu syncLocationEditPlaceKindAvailability nebenan, nur eben ein/ausblenden statt
+// sperren/leeren (das Feld hat keinen einzelnen Formularwert, den ein leeres FormData-Feld je
+// automatisch ausliesse). Aufgerufen bei jedem Öffnen UND bei jedem Wechsel der Ortsgröße
+// (js/app/bootstrap.js).
+function locationEditInnerortsAnwendbar() {
+	const select = document.getElementById("location-edit-type");
+	return LOCATION_EDIT_INNERORTS_SIZES.indexOf(String(select?.value || "")) !== -1;
+}
+
+function syncLocationEditInnerortsAvailability() {
+	const row = document.getElementById("location-edit-innerorts-row");
+	if (!row) {
+		return;
+	}
+	const publicId = document.getElementById("location-edit-public-id")?.value || "";
+	row.hidden = !locationEditInnerortsAnwendbar() || !publicId;
+}
+
+// Der NUTZERweg (js/app/bootstrap.js, "#location-edit-type" change): nur die Sichtbarkeit
+// umschalten reicht nicht, wenn die Zeile beim Öffnen des Dialogs noch verborgen war -- dann
+// steht darunter noch gar kein montiertes Feld. Neu montiert wird deshalb nur, wenn die Zeile jetzt
+// sichtbar UND noch NICHT montiert ist; ein Wechsel zwischen den zwei anwendbaren Ortsgrößen
+// (Stadtviertel ↔ Besondere Bauwerke) fasst ein bereits montiertes Feld nicht erneut an.
+function syncLocationEditInnerortsOnTypeChange() {
+	syncLocationEditInnerortsAvailability();
+	const row = document.getElementById("location-edit-innerorts-row");
+	if (row && !row.hidden && !locationEditInnerortsFeld) {
+		void mountLocationEditInnerorts();
+	}
+}
+
+// Die Beschriftung samt Wiki-Override zeichnen -- dasselbe Muster wie settlementWikiZeichneAbweichungen
+// nebenan, aber ein EIGENES Attribut (`data-innerorts-alt`, nie `data-wiki-alt`): jener Zeichner läuft
+// über ALLE `[data-wiki-alt]` im Dialog und würde unsere Zeile bei jedem Tastendruck in einem der fünf
+// anderen Felder leerräumen (er kennt "innerorts" nicht und liest sie bei jedem Aufruf neu).
+function renderLocationEditInnerortsLabel() {
+	const zelle = document.querySelector("#location-edit-overlay [data-innerorts-alt]");
+	if (!zelle || typeof avesmapsInnerortsFeldStand !== "function" || typeof avesmapsInnerortsAltMarkup !== "function") {
+		return;
+	}
+	const ort = locationEditInnerortsFeld ? locationEditInnerortsFeld.wert().ort : null;
+	const stand = avesmapsInnerortsFeldStand(locationEditInnerortsWikiStand, ort, locationEditInnerortsHerkunft);
+	zelle.innerHTML = avesmapsInnerortsAltMarkup(stand, { escape: escapeHtml });
+	// Wortgleich zum Territoriumseditor (`.k.ovr`): die Beschriftung faerbt sich braun, wenn WIR das
+	// Feld gesetzt haben -- nicht schon bei jeder Abweichung (die Regel steht in wiki-override.css).
+	zelle.parentElement?.classList.toggle("has-wiki-ovr", Boolean(stand.abweicht && stand.vonUns));
+}
+
+// Das Feld „Innerorts" (js/ui/innerorts-feld.js) -- direkt vor „Einwohner", nur für einen
+// bestehenden Ort (dieselbe Regel wie beim Kasten „Stätten": ein neu angelegter Punkt hat noch
+// keine Kennung, an der sich eine Stadt festmachen ließe -- update_point verarbeitet die Felder,
+// create_point nicht, siehe Task 2).
+async function mountLocationEditInnerorts() {
+	if (locationEditInnerortsFeld) {
+		locationEditInnerortsFeld.zerstoeren();
+		locationEditInnerortsFeld = null;
+	}
+	locationEditInnerortsWikiStand = null;
+	locationEditInnerortsHerkunft = "";
+	locationEditInnerortsGeladen = false;
+	locationEditInnerortsLadeToken += 1;
+	const eigenerToken = locationEditInnerortsLadeToken;
+
+	syncLocationEditInnerortsAvailability();
+	const row = document.getElementById("location-edit-innerorts-row");
+	const host = document.getElementById("location-edit-innerorts");
+	if (!row || !host) {
+		return;
+	}
+	if (row.hidden || typeof mountInnerortsFeld !== "function") {
+		host.innerHTML = "";
+		return;
+	}
+	const publicId = document.getElementById("location-edit-public-id")?.value || "";
+	locationEditInnerortsFeld = mountInnerortsFeld(host, {
+		ort: null,
+		escape: escapeHtml,
+		onChange: () => {
+			locationEditInnerortsHerkunft = "manual";
+			locationEditInnerortsGeladen = true;
+			renderLocationEditInnerortsLabel();
+		},
+	});
+	renderLocationEditInnerortsLabel();
+
+	// Der Wiki-Stand kommt mit dem Detail des Punkts -- ein Editor-Lesepfad, keine Kartennutzlast
+	// (Task 2, "Wie der Editor den Wiki-Stand bekommt").
+	try {
+		const antwort = await fetch("/api/edit/map/settlement-places.php", {
+			method: "POST",
+			credentials: "same-origin",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ action: "innerorts_wiki_stand", public_id: publicId }),
+		});
+		const daten = await antwort.json();
+		// Rennwaechter: ein Dialogwechsel waehrend die Anfrage unterwegs war, hat diese Montage
+		// laengst durch eine neue ersetzt -- dieselbe Regel wie bei syncSettlementWikiFromServer.
+		if (eigenerToken !== locationEditInnerortsLadeToken || !daten || daten.ok !== true || !daten.innerorts) {
+			return;
+		}
+		locationEditInnerortsWikiStand = daten.innerorts.wiki_stand || null;
+		locationEditInnerortsHerkunft = daten.innerorts.herkunft || "";
+		locationEditInnerortsGeladen = true;
+		if (locationEditInnerortsFeld) {
+			locationEditInnerortsFeld.setzeOrt(daten.innerorts.ort || null);
+		}
+		renderLocationEditInnerortsLabel();
+	} catch (fehler) {
+		// Ein Fehlschlag hier ist kein Speicherfehler -- das Feld bleibt leer, `geladen` bleibt
+		// false (buildLocationEditPayload schickt dann nichts, statt eine unbekannte Zugehörigkeit
+		// zu löschen), und die Suche daneben funktioniert trotzdem von Hand.
+	}
+}
+
+// Das ↺ an der Beschriftung: auf den Wiki-Stand zurücksetzen (Task 2: `innerorts_wiki: true`).
+// EIN Zuhörer am document (das Feld ist Teil des statischen Dialogs, nicht neu gezeichnet) --
+// dieselbe Delegation wie beim Wappen-Lizenzfeld weiter unten in dieser Datei.
+document.addEventListener("click", (event) => {
+	const knopf = event.target && event.target.closest ? event.target.closest("[data-innerorts-reset]") : null;
+	if (!knopf || !document.getElementById("location-edit-overlay")?.contains(knopf)) {
+		return;
+	}
+	event.preventDefault();
+	locationEditInnerortsHerkunft = "wiki";
+	locationEditInnerortsGeladen = true;
+	if (locationEditInnerortsFeld) {
+		locationEditInnerortsFeld.setzeOrt(locationEditInnerortsWikiStand);
+	}
+	renderLocationEditInnerortsLabel();
+});
+
 function buildLocationEditPayload(formElement) {
 	const formData = new FormData(formElement);
 	const publicId = String(formData.get("public_id") || "").trim();
@@ -900,6 +1055,23 @@ function buildLocationEditPayload(formElement) {
 	// 🔴 Hier stand „die Entscheidung stammt oft aus dem Konfliktzentrum, nicht aus diesem Dialog".
 	// Seit dem 09.09.2026 gibt es dort keine Entscheidung mehr: der Knopf „Kein Wiki-Eintrag" ist
 	// mit dem Merker gefallen, und diese Zeilen sind toter Transport, der in Schritt 2 folgt.
+
+	// 🔴 „Innerorts" (Task 2, api/_internal/app/innerorts-anschluss.php:
+	// avesmapsInnerortsUpdatePointAnwenden) -- NUR mitsenden, wenn wirklich etwas geladen wurde:
+	// ein Rumpf ohne diese beiden Felder heißt „unverändert", und das ist der sichere Rückfall,
+	// solange der Wiki-Stand noch nicht angekommen ist (siehe mountLocationEditInnerorts). Auch bei
+	// `create_point` unproblematisch (der Server verarbeitet die Felder ohnehin nur bei
+	// `update_point`), aber `geladen` bleibt für einen frisch angelegten Punkt ohnehin `false`.
+	if (locationEditInnerortsGeladen) {
+		if (locationEditInnerortsHerkunft === "manual") {
+			const ort = locationEditInnerortsFeld ? locationEditInnerortsFeld.wert().ort : null;
+			payload.innerorts_ort = ort ? String(ort.public_id) : "";
+		} else {
+			// "" (nie beobachtet) und "wiki" laufen beide auf den Wiki-Stand hinaus -- ↺ setzt
+			// die Herkunft ausdrücklich auf "wiki" (siehe der Zuhörer an data-innerorts-reset).
+			payload.innerorts_wiki = true;
+		}
+	}
 
 	if (action === "create_point") {
 		payload.lat = Number.parseFloat(String(formData.get("lat") || ""));
@@ -1348,5 +1520,10 @@ if (typeof module !== "undefined" && module.exports) {
 		saveSettlementCoat,
 		renderSettlementCoatSection,
 		openSettlementCoatEditor,
+		buildLocationEditPayload,
+		locationEditInnerortsAnwendbar,
+		syncLocationEditInnerortsAvailability,
+		mountLocationEditInnerorts,
+		renderLocationEditInnerortsLabel,
 	};
 }

@@ -1379,6 +1379,17 @@
 							<span>Art</span>
 							<input id="location-edit-place-kind" name="place_kind" type="search" maxlength="120" autocomplete="off" placeholder="z. B. Brücke – leer lassen, wenn unbekannt" />
 						</label>
+						<!-- Innerorts (Entwurf docs/superpowers/specs/2026-09-26-innerorts-praedikat-design.md §5,
+						     Mockup docs/innerorts-mockup.html Szene 1) -- nur bei Stadtviertel/Besondere Bauwerke,
+						     beim Ortsgrößenwechsel sofort ein-/ausgeblendet (js/app/bootstrap.js). Das Wert-Feld
+						     selbst montiert js/ui/innerorts-feld.js (mountInnerortsFeld) in den leeren Behälter
+						     darunter -- nur für einen bestehenden Ort (dieselbe Regel wie beim Kasten „Stätten"
+						     nebenan: eine Kennung, an der sich eine Stadt festmachen ließe, gibt es erst nach dem
+						     ersten Speichern). -->
+						<div class="location-report-form__field" id="location-edit-innerorts-row" hidden>
+							<span>Innerorts<span class="wiki-alt" data-innerorts-alt></span></span>
+							<div id="location-edit-innerorts"></div>
+						</div>
 						<!-- Einwohner · Lage · Herrscher: die drei Wiki-Angaben mit eigenem Kartenfeld
 						     (Owner-Entscheid 16.08.2026). Bis dahin gab es sie NUR im Wiki-Nest -- der Ort
 						     hatte damit nur die Ortsgröße als Sync-Ziel. Der Knopf „Sync" im Kasten unten
@@ -3788,6 +3799,10 @@
 		<script src="js/ui/fenster-kopf.js"></script>
 		<template data-nur-editor><script src="js/review/review-feature-sources.js"></script></template><script>avesmapsNurEditorSkripte()</script>
 		<template data-nur-editor><script src="js/ui/staetten-kasten.js"></script></template><script>avesmapsNurEditorSkripte()</script>
+		<!-- NACH staetten-kasten.js: mountInnerortsFeld benutzt dessen Trefferlisten-Bauer
+		     (staettenKastenTrefferListeHtml) und Ortsklassen-Beschriftung (staettenKastenOrtsklassenLabel)
+		     als geteilte Hilfsfunktionen, statt sie abzuschreiben. -->
+		<template data-nur-editor><script src="js/ui/innerorts-feld.js"></script></template><script>avesmapsNurEditorSkripte()</script>
 		<script src="js/review/review-core.js"></script>
 		<script src="js/review/review-status.js"></script>
 		<!-- Der EINE Bilanzzeilen-Erzeuger fuer alle acht WikiSync-Listen (Entwurf

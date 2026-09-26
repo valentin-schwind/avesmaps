@@ -781,10 +781,14 @@ $("#legal-overlay").on("click", function (event) {
 ].forEach(([overlayId, schliessen]) => avesmapsDialogHintergrundSchliessenById(overlayId, schliessen));
 $("#location-report-close, #location-report-cancel").on("click", () => setLocationReportDialogOpen(false, { resetForm: true }));
 $("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEditDialogOpen(false, { resetForm: true }));
-// Ortsgroesse geaendert -> das Feld „Art" auf-/zusperren. Deckt den NUTZERweg ab; die drei
-// programmatischen Schreiber gehen ueber setLocationEditSize(), weil `select.value = x` kein
+// Ortsgroesse geaendert -> das Feld „Art" auf-/zusperren, und die Zeile „Innerorts" ein-/ausblenden
+// (Task 3, docs/superpowers/plans/2026-09-27-innerorts-schritt-1.md). Deckt den NUTZERweg ab; die
+// drei programmatischen Schreiber gehen ueber setLocationEditSize(), weil `select.value = x` kein
 // change-Ereignis feuert.
-$("#location-edit-type").on("change", () => syncLocationEditPlaceKindAvailability());
+$("#location-edit-type").on("change", () => {
+	syncLocationEditPlaceKindAvailability();
+	syncLocationEditInnerortsOnTypeChange();
+});
 $("#wiki-sync-territories").on("click", () => startWikiSyncTerritoryRun());
 $("#settlement-editor-open").on("click", () => openAvesmapsSettlementEditorOverlay());
 $("#game-literature-editor-open").on("click", () => openAvesmapsGameLiteratureEditorOverlay());

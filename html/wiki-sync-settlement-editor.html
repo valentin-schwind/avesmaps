@@ -816,6 +816,9 @@
 <!-- Der Kasten „Stätten" (mountStaettenKasten) -- dieselbe Ortssuche wie oben ueber
      source-autocomplete.js, deshalb erst danach. -->
 <script src="/js/ui/staetten-kasten.js"></script>
+<!-- Das Feld „Innerorts" (mountInnerortsFeld) -- benutzt staettenKastenTrefferListeHtml/
+     staettenKastenOrtsklassenLabel als geteilte Hilfsfunktionen, deshalb NACH staetten-kasten.js. -->
+<script src="/js/ui/innerorts-feld.js"></script>
 <!-- Der geteilte Filter-Trichter (avmFilterMenuAttach + Zeitraum-Abschnitt). Dieselbe Datei lädt
      auch das Hauptfenster; das iframe bekommt seine eigene Kopie der Globalen. Vor dem Inline-Skript
      unten, das ihn für die linke Spalte verdrahtet. -->
@@ -1428,6 +1431,12 @@ const SETTLEMENT_SOURCE_OPTIONS = [
 	{ value: "keine", label: "Keine" },
 ];
 
+// Die zwei Ortsgrößen, die „Innerorts" tragen (Task 3) -- dieselbe Liste wie server-seitig
+// AVESMAPS_INNERORTS_KLASSEN (api/_internal/app/innerorts.php) und clientseitig
+// LOCATION_EDIT_INNERORTS_SIZES (js/review/review-locations.js); eine eigene, kleine Kopie statt
+// eines Imports, wie LOCATION_EDIT_PLACE_KIND_SIZE nebenan.
+const SETTLEMENT_INNERORTS_SIZES = ["gebaeude", "stadtviertel"];
+
 // Does one item pass every filter EXCEPT the assignment axis? (continent + on-map-tab + search +
 // type + source + coat + image). Factored out so the visibility predicate and the assignment counts
 // share ONE definition -- otherwise the two copies drift and a count stops matching its own filter.
@@ -1773,6 +1782,7 @@ async function renderSettlementDetail(publicId) {
 		settlementWikiUebernommenLeeren();
 		body.innerHTML = buildSettlementDetailHtml(payload.detail);
 		settlementWikiResetZuhoererBinden(body);
+		settlementInnerortsZuhoererBinden(body);
 		// Mount the shared multi-source editor into its container (only present for an
 		// on-map settlement's edit form -- see otherSourceRow in buildSettlementEditFormHtml).
 		// Guarded on selectedPublicId too since a newer selection could have cleared it while
@@ -1789,6 +1799,25 @@ async function renderSettlementDetail(publicId) {
 				sektion: $("dtStaettenSektion"),
 				escape: settlementEscape,
 			});
+		}
+		// Das Feld „Innerorts" (Task 3) -- der Wiki-Stand kommt bereits mit `detail.innerorts`
+		// (settlement_detail, Task 2), keine zweite Anfrage noetig. Derselbe Rennwaechter wie oben.
+		if (typeof mountInnerortsFeld === "function" && $("dtInnerortsWert") && selectedPublicId) {
+			const stand = payload.detail.innerorts || { wiki_stand: null, ort: null, herkunft: "", von_der_karte: false };
+			settlementInnerortsWikiStand = stand.wiki_stand || null;
+			settlementInnerortsHerkunft = stand.herkunft || "";
+			settlementInnerortsFeld = mountInnerortsFeld($("dtInnerortsWert"), {
+				ort: stand.ort || null,
+				escape: settlementEscape,
+				onChange: () => {
+					settlementInnerortsHerkunft = "manual";
+					settlementInnerortsZeichneLabel();
+				},
+			});
+		} else {
+			settlementInnerortsFeld = null;
+			settlementInnerortsWikiStand = null;
+			settlementInnerortsHerkunft = "";
 		}
 		// Die Wiki-Zuweisung in ihren (leeren) Behaelter haengen -- NACH dem innerHTML oben, weil der
 		// Knoten erst dann existiert. Dieselbe Stelle und derselbe Grund wie beim Quellen-Editor
@@ -2018,6 +2047,28 @@ function buildSettlementEditFormHtml(detail) {
 		+ `<div><input type="text" id="dtEditName" maxlength="160" value="${settlementEscape(detail.name || "")}"></div>`;
 	const typeRow = kZelle("feature_subtype", "Typ")
 		+ `<div>${buildSettlementTypeSelectHtml(detail)}</div>`;
+	// Innerorts (Task 3, docs/superpowers/plans/2026-09-27-innerorts-schritt-1.md; Entwurf
+	// docs/superpowers/specs/2026-09-26-innerorts-praedikat-design.md §5) -- direkt unter „Typ",
+	// nur bei Stadtviertel/Besondere Bauwerke. ANDERS als die fuenf Zeilen oben ist das hier KEIN
+	// Feld aus `avesmapsWikiFeldStand`: sein Wiki-Stand kommt bereits fertig mit `detail.innerorts`
+	// (settlement_detail, Task 2), nicht aus einer geparsten Wiki-Infobox -- deshalb die eigene,
+	// kleine Vergleichsrechnung (avesmapsInnerortsFeldStand, js/ui/innerorts-feld.js) statt kZelle.
+	// 🔴 IMMER GEBAUT, NIE WEGGELASSEN (anders als staettenRow unten): die Zeile muss beim
+	// Ortsgrößenwechsel sofort ein-/ausgeblendet werden koennen (settlementInnerortsZuhoererBinden),
+	// und dafuer muss sie im DOM stehen -- `hidden` traegt beide Zellen GEMEINSAM (dieselbe Klasse
+	// `dt-row-innerorts`), sonst zerfaellt das Raster in eine Beschriftung ohne Feld oder umgekehrt.
+	const innerortsStand = (detail && detail.innerorts) || { wiki_stand: null, ort: null, herkunft: "", von_der_karte: false };
+	const innerortsSichtbar = SETTLEMENT_INNERORTS_SIZES.indexOf(String(detail.feature_subtype || "")) !== -1;
+	const innerortsVergleich = (typeof avesmapsInnerortsFeldStand === "function")
+		? avesmapsInnerortsFeldStand(innerortsStand.wiki_stand, innerortsStand.ort, innerortsStand.herkunft)
+		: { abweicht: false, vonUns: false, wikiName: "" };
+	const innerortsAlt = typeof avesmapsInnerortsAltMarkup === "function"
+		? avesmapsInnerortsAltMarkup(innerortsVergleich, { escape: settlementEscape })
+		: "";
+	const innerortsRow =
+		`<div id="dtInnerortsLabel" class="k${innerortsVergleich.abweicht && innerortsVergleich.vonUns ? " ovr" : ""} dt-row-innerorts"${innerortsSichtbar ? "" : " hidden"}>`
+		+ `Innerorts${innerortsAlt}</div>`
+		+ `<div class="dt-row-innerorts"${innerortsSichtbar ? "" : " hidden"}><div id="dtInnerortsWert"></div></div>`;
 	const descRow = `<div class="k">Beschreibung</div><div><textarea id="dtEditDescription" maxlength="2000">${settlementEscape(props.description || "")}</textarea></div>`;
 	// Wiki-URL is now read-only here: the shared source editor (mounted below via
 	// mountFeatureSourceEditor) owns the write path for this field's identity/takeover
@@ -2096,7 +2147,7 @@ function buildSettlementEditFormHtml(detail) {
 	return {
 		identity:
 			`<div class="dt-grp">Identität</div>` +
-			`<div class="dt-grid dt-grid--wiki dt-edit-grid">${nameRow}${typeRow}${einwohnerRow}${lageRow}${oberhauptRow}${descRow}${wikiUrlRow}</div>`,
+			`<div class="dt-grid dt-grid--wiki dt-edit-grid">${nameRow}${typeRow}${innerortsRow}${einwohnerRow}${lageRow}${oberhauptRow}${descRow}${wikiUrlRow}</div>`,
 		properties: propertiesHtml,
 		staetten: staettenRow,
 		sources: otherSourceRow,
@@ -2457,6 +2508,19 @@ function buildSettlementSavePayload() {
 	// dasselbe wie ein fehlender Schluessel: „nichts kam aus dem Wiki", also alles von uns.
 	payload.wiki_uebernommen = Array.from(settlementWikiUebernommen);
 
+	// „Innerorts" (Task 2, avesmapsInnerortsUpdatePointAnwenden) -- nur mitsenden, wenn das Feld
+	// wirklich montiert ist (die Zeile also gerade sichtbar war): sonst kennt `settlementInnerortsFeld`
+	// keinen Stand, und ein Rumpf ohne beide Felder heißt „unverändert" (dieselbe sichere Regel wie
+	// beim Zwilling im Kartendialog).
+	if (settlementInnerortsFeld) {
+		if (settlementInnerortsHerkunft === "manual") {
+			const ort = settlementInnerortsFeld.wert().ort;
+			payload.innerorts_ort = ort ? String(ort.public_id) : "";
+		} else {
+			payload.innerorts_wiki = true;
+		}
+	}
+
 	return payload;
 }
 
@@ -2671,6 +2735,78 @@ function settlementWikiResetZuhoererBinden(behaelter) {
 		if (!knopf) { return; }
 		ereignis.preventDefault();
 		settlementWikiFeldZuruecksetzen(knopf.getAttribute("data-wiki-reset") || "");
+	});
+}
+
+// ---- Das Feld „Innerorts" (Task 3, js/ui/innerorts-feld.js) --------------------------------------
+// Der Wiki-Stand kommt fertig mit `detail.innerorts` (siehe renderSettlementDetail oben); dieser
+// Zustand haelt fest, was seither VON HAND geaendert wurde (Auswahl, ✕, ↺), damit die Beschriftung
+// und buildSettlementSavePayload denselben Stand sehen -- das Bauteil selbst kennt nur "die Stadt
+// oder keine" (siehe Kopf von js/ui/innerorts-feld.js).
+let settlementInnerortsFeld = null;
+let settlementInnerortsWikiStand = null;
+let settlementInnerortsHerkunft = "";
+
+// Die Beschriftung neu zeichnen -- eigene, kleine Funktion statt kZelle/altMarkup daneben: die
+// gehoeren zu den fuenf Feldern aus avesmapsWikiFeldStand (Wiki-Infobox), „Innerorts" vergleicht
+// gegen `detail.innerorts` (Task 2), eine andere Quelle.
+function settlementInnerortsZeichneLabel() {
+	const zelle = $("dtInnerortsLabel");
+	if (!zelle || typeof avesmapsInnerortsFeldStand !== "function" || typeof avesmapsInnerortsAltMarkup !== "function") {
+		return;
+	}
+	const ort = settlementInnerortsFeld ? settlementInnerortsFeld.wert().ort : null;
+	const stand = avesmapsInnerortsFeldStand(settlementInnerortsWikiStand, ort, settlementInnerortsHerkunft);
+	zelle.classList.toggle("ovr", Boolean(stand.abweicht && stand.vonUns));
+	zelle.innerHTML = "Innerorts" + avesmapsInnerortsAltMarkup(stand, { escape: settlementEscape });
+}
+
+/**
+ * ↺ an der Beschriftung UND die Sichtbarkeit bei einem Ortsgrößenwechsel -- EIN Zuhoerer am
+ * Behaelter, genau einmal gebunden, dieselbe Rezeptur wie settlementWikiResetZuhoererBinden
+ * darueber (der Behaelter ueberlebt jedes Neuzeichnen, ein Zuhoerer im Zeichenpfad haeufte sich).
+ * 🔴 EIN EIGENES ATTRIBUT (`data-innerorts-reset`, nie `data-wiki-reset`): jener Zuhoerer ruft
+ * settlementWikiFeldZuruecksetzen("innerorts"), das den Schluessel nicht kennt und im leeren
+ * `if (!element) return;` verpufft -- harmlos, aber zwei Zuhoerer fuer eine Handlung sind keine
+ * Regel mehr, sondern Zufall.
+ */
+let settlementInnerortsGebunden = false;
+function settlementInnerortsZuhoererBinden(behaelter) {
+	if (settlementInnerortsGebunden || !behaelter) { return; }
+	settlementInnerortsGebunden = true;
+	behaelter.addEventListener("click", (ereignis) => {
+		const knopf = ereignis.target && ereignis.target.closest
+			? ereignis.target.closest("[data-innerorts-reset]")
+			: null;
+		if (!knopf) { return; }
+		ereignis.preventDefault();
+		settlementInnerortsHerkunft = "wiki";
+		if (settlementInnerortsFeld) {
+			settlementInnerortsFeld.setzeOrt(settlementInnerortsWikiStand);
+		}
+		settlementInnerortsZeichneLabel();
+	});
+	behaelter.addEventListener("change", (ereignis) => {
+		if (!ereignis.target || ereignis.target.id !== "dtEditType") { return; }
+		const sichtbar = SETTLEMENT_INNERORTS_SIZES.indexOf(String(ereignis.target.value || "")) !== -1;
+		// Die Beschriftung TRÄGT die Klasse `dt-row-innerorts` selbst (sie steht in derselben Liste
+		// wie die Wert-Zelle) -- ein Durchgang genügt fuer beide.
+		Array.from(behaelter.querySelectorAll(".dt-row-innerorts")).forEach((el) => { el.hidden = !sichtbar; });
+		// War die Zeile beim Zeichnen verborgen, wurde nichts montiert (siehe renderSettlementDetail) --
+		// jetzt sichtbar geworden, holt das nach. Ein Wechsel zwischen den zwei anwendbaren
+		// Ortsgroessen (Stadtviertel ↔ Besondere Bauwerke) laesst ein bereits montiertes Feld stehen.
+		if (sichtbar && !settlementInnerortsFeld && typeof mountInnerortsFeld === "function" && $("dtInnerortsWert")) {
+			settlementInnerortsWikiStand = null;
+			settlementInnerortsHerkunft = "";
+			settlementInnerortsFeld = mountInnerortsFeld($("dtInnerortsWert"), {
+				ort: null,
+				escape: settlementEscape,
+				onChange: () => {
+					settlementInnerortsHerkunft = "manual";
+					settlementInnerortsZeichneLabel();
+				},
+			});
+		}
 	});
 }
 

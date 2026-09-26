@@ -17,6 +17,29 @@
 /* ══ VERTRAG: css/components/staetten-kasten.css ══ gebunden von docs/staetten-kasten-mockup.html
    🔴 ALLES ZWISCHEN DIESEN MARKEN MUSS ZEICHENGLEICH STEHEN
    (tools/mockup-vertrag/__tests__/mockup-vertrag.test.js, laeuft im Deploy-Tor). */
+/* ══ VERTRAG: css/components/staetten-kasten.css ══ gebunden von docs/innerorts-mockup.html
+   Das Feld „Innerorts" (js/ui/innerorts-feld.js) und der Sprung ⊕ in der Stättenzeile (Task 4) --
+   beides gehört zum Stätten-Bauteil, deshalb dieselbe Datei. */
+.innerorts-feld {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+}
+.innerorts-feld__gewaehlt {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+}
+.innerorts-sprung {
+	margin-left: var(--space-2);
+	padding: 0 var(--space-2);
+	border: 0;
+	background: none;
+	color: var(--color-link);
+	font: inherit;
+	cursor: pointer;
+}
+/* ══ VERTRAG ENDE ══ */
 .st-kasten {
 	display: flex;
 	flex-direction: column;
