@@ -2,9 +2,9 @@
  * EINE Datei, weil die Formen an ZWEI Orten gebraucht werden.
  *
  * 💣 Sie standen bis 2026-08-27 in css/components/editor-page.css, und die laden nur die sechs
- *    Editor-SEITEN in html/. Das Fenster „Garetien Importer" lebt aber in index.html — es muss
- *    die laufende Karte freigeben und kann deshalb kein iframe-Editor sein. Ohne diesen Umzug
- *    hätte es die Formen abschreiben müssen, und genau daraus ist die Divergenz gewachsen, die
+ *    Editor-SEITEN in html/. filter-menu.js und wiki-weitere-kasten.js benutzen diese Formen aber
+ *    auch in index.html, nicht nur in einem iframe-Editor. Ohne diesen Umzug hätten sie die Formen
+ *    abschreiben müssen, und genau daraus ist die Divergenz gewachsen, die
  *    die Vereinheitlichung vom 14.08.2026 beseitigt hat (sieben Zeilenformen, vier Abschriften).
  *
  * ⭐ Dieselbe Reise wie --avm-* → tokens.css, .avm-row → editor-row.css, der Statuskreis →
@@ -21,8 +21,8 @@
  *    Spalten, Rollkasten, Reiter, Zeilen-Badge. Was in editor-page.css BLEIBT: die :root-Aliase,
  *    `body.avm-editor-body` selbst, die auf `.avm-editor-body` gescopten Knopf-/Feld-Regeln, die
  *    Statuszeile, die Feldspalte (`.dt-*`), die Speicherleiste, `.rb-menu*` und `.type-filter*` —
- *    das ist Editor-SEITEN-Sache, das Fenster „Garetien Importer" trägt keine `body.avm-editor-
- *    body`-Klasse.
+ *    das ist Editor-SEITEN-Sache, filter-menu.js und wiki-weitere-kasten.js tragen in index.html
+ *    keine `body.avm-editor-body`-Klasse.
  */
 
 /* ---- Ribbon (Spec §3.3) ---------------------------------------------------------------------
@@ -114,10 +114,6 @@
 	flex: 1 1 auto;
 	min-height: 0;
 }
-
-/* Zwei Spuren statt drei. Ein MODIFIER, keine zweite Rezeptur: das Fenster „Garetien Importer"
-   hat Liste und Einzelansicht nebeneinander und keine dritte Spalte. */
-.avm-cols--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 .avm-col {
 	display: flex;
@@ -235,8 +231,8 @@
  * Meldung darf die Spalten nie nach unten drücken.
  *
  * 🔴 SIE STAND BIS ZUM 06.09.2026 IN editor-page.css und war damit den Editor-SEITEN vorbehalten.
- * Das Fenster „Garetien Importer" lebt aber in index.html und lädt jene Datei nie — dieselbe
- * Reise wie editor-row.css, map-status-circle.css und wiki-override.css, und aus demselben
+ * filter-menu.js und wiki-weitere-kasten.js leben aber in index.html und laden jene Datei nie —
+ * dieselbe Reise wie editor-row.css, map-status-circle.css und wiki-override.css, und aus demselben
  * Grund: eine Regel, zwei Welten, EINE Datei, die beide laden.
  * 💣 UND DESHALB DIE ECHTEN TOKENS, NICHT DIE KURZ-ALIASE. `--soft`/`--line`/`--mut`/`--ok`/
  *    `--bad` stehen im `:root` von editor-page.css; in index.html sind sie undefiniert, und

@@ -577,8 +577,8 @@
    🪤 HIER NICHT MESSBAR: dieses Chrome bringt kein deutsches Trennwoerterbuch mit. Gemessen
       09.09.2026 an „Blutotter"/„Boronsäffchen" in einem 182px-Kasten mit `lang="de"` -- die
       Umbrueche sind mit `hyphens: auto` zeichengleich mit denen unter `hyphens: manual`. Wer
-      den Fall nachstellen will, braucht einen Browser MIT Woerterbuch; dieselbe Messfalle steht
-      am Namen des Garetien-Importers (css/components/garetien-importer.css).
+      den Fall nachstellen will, braucht einen Browser MIT Woerterbuch; dieselbe Messfalle stand
+      vor dessen Rueckbau (26.09.2026) am Namen des Garetien-Importers.
    🔴 `manual` steht ausgeschrieben, statt die Zeile nur zu loeschen: `hyphens` VERERBT sich, und
       der geschriebene Wert sagt der naechsten Aenderung, dass hier nichts fehlt, sondern etwas
       entschieden wurde. Gewacht von js/ui/__tests__/keine-auto-silbentrennung.test.js und

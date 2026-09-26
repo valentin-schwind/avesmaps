@@ -3,9 +3,9 @@
 //
 // 🔴 DIESER TEST EXISTIERT WEGEN DES FUENFTEN UMZUGS. Die Regeln standen bis 2026-08-27 in
 // css/components/editor-page.css, und die laedt NUR die sechs Editor-iframes in html/, nie
-// index.html. Das Fenster „Garetien Importer" lebt aber in index.html, weil es die laufende
-// Karte freigeben muss -- es kann also kein iframe sein. Ohne diesen Umzug haette das Fenster die
-// Formen abschreiben muessen, und genau daraus ist die Divergenz gewachsen, die die
+// index.html. filter-menu.js und wiki-weitere-kasten.js benutzen die Formen aber auch in
+// index.html, nicht nur in einem iframe-Editor. Ohne diesen Umzug haetten sie die Formen
+// abschreiben muessen, und genau daraus ist die Divergenz gewachsen, die die
 // Vereinheitlichung vom 14.08.2026 beseitigt hat (sieben Zeilenformen, vier davon Abschriften).
 // Dieselbe Reise wie --avm-* -> tokens.css, .avm-row -> editor-row.css, der Statuskreis ->
 // map-status-circle.css und der Wiki-Override -> wiki-override.css.
@@ -67,8 +67,8 @@ for (const sel of gewanderteSelektoren) {
 		+ "css/components/editor-body.css.");
 	checks++;
 	assert.ok(kopf.test(ohneKommentare(editorBody)),
-		`${sel} fehlt in css/components/editor-body.css -- das Fenster "Garetien Importer" in `
-		+ "index.html haette dann keine Form dafuer.");
+		`${sel} fehlt in css/components/editor-body.css -- filter-menu.js und wiki-weitere-kasten.js `
+		+ "in index.html haetten dann keine Form dafuer.");
 	checks++;
 }
 
@@ -121,12 +121,9 @@ assert.ok(/^\.type-filter\s*\{/m.test(editorPageOhneKommentare),
 	+ "(css/features/review-panel.css traegt bereits eine zweite Fassung fuer index.html).");
 checks++;
 
-// ---- 5. .avm-cols bleibt dreispurig, der Modifier ist ZUSAETZLICH, keine Ersetzung -------------
+// ---- 5. .avm-cols bleibt dreispurig -------------------------------------------------------------
 assert.ok(/\.avm-cols\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/.test(editorBodyOhneKommentare),
 	".avm-cols ist nicht mehr dreispurig -- sechs Editoren stehen darauf.");
-checks++;
-assert.ok(/\.avm-cols--2\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(editorBodyOhneKommentare),
-	".avm-cols--2 fehlt -- das Fenster \"Garetien Importer\" braucht zwei Spuren statt drei.");
 checks++;
 
 console.log(`editor-body-single-source: ${checks} Pruefungen bestanden.`);

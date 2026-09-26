@@ -1009,9 +1009,9 @@
    zweimal, weil index.html styles.css laedt und die Editor-iframes editor-page.css -- keine der
    beiden Dateien sieht die andere. Sie MUESSEN dasselbe sagen; listenkopf.test.js haelt sie
    gegeneinander.
-   💣 Und die Gleichheit loest nebenbei den Spezifitaetskonflikt, den garetien-importer.css
-      beschreibt: diese Regel (0,1,0) schlug `.avm-tile` auf der Ebenen-Kachel, die BEIDE Klassen
-      traegt. Wenn beide dasselbe sagen, ist es gleichgueltig, wer gewinnt. */
+   💣 Und die Gleichheit loest nebenbei einen Spezifitaetskonflikt: diese Regel (0,1,0)
+      schlug `.avm-tile` auf der Ebenen-Kachel, die BEIDE Klassen traegt. Wenn beide dasselbe
+      sagen, ist es gleichgueltig, wer gewinnt. */
 .type-filter__toggle {
 	min-height: var(--avm-control-h);
 	padding: 0 var(--space-8);
@@ -1058,8 +1058,8 @@
 	flex: 1 1 auto;
 	min-width: 0;
 }
-/* Owner-Meldung 29.08.2026 (Garetien Importer): eine Option, aus der der Server ohnehin nichts
-   liefert (facetten.typ_kategorie, avesmapsGaretienTypKategorie), bleibt WAEHLBAR -- nur ihre
+/* Owner-Meldung 29.08.2026 (Garetien Importer, seit 26.09.2026 zurueckgebaut): eine Option, aus
+   der der Server ohnehin nichts liefert, bleibt WAEHLBAR -- nur ihre
    Schrift ist gedaempft. Kein `disabled`, keine `opacity` an der ganzen Zeile: dasselbe Muster
    wie `.mlf-option--muted` (media-license-fields.js, "bleibt waehlbar, nur die Schrift ist
    gedaempft, kein disabled"). Gescoped auf `.type-filter__label`, NICHT auf `.type-filter__opt`

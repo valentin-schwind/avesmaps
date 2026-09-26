@@ -1,11 +1,9 @@
-// Owner-Meldung 29.08.2026 (Garetien Importer): Objekttypen, aus denen der Server ohnehin nichts
-// liefert, werden im Filter-Trichter blasser dargestellt -- "Blasser, nicht versteckt", die Option
-// bleibt waehlbar. Die Entscheidung, WELCHE Option das ist, liegt in
-// js/review/review-garetien-importer.js (garetienFacettenOptionen, siehe garetien-filtertrichter.test.js);
-// DIESE Datei prueft die andere Haelfte -- dass der GETEILTE Trichter (js/ui/filter-menu.js,
-// avmFilterMenuAttach) eine Option mit `option.muted`/`option.title` auch WIRKLICH als solche
-// zeichnet. Der Trichter bedient nicht nur den Garetien Importer (review-wiki-sync.js, wege-editor.js,
-// …) -- eine Aenderung hier wirkt auf alle.
+// Owner-Meldung 29.08.2026 (Garetien Importer, seit dem 26.09.2026 zurueckgebaut): Objekttypen,
+// aus denen der Server ohnehin nichts liefert, werden im Filter-Trichter blasser dargestellt --
+// "Blasser, nicht versteckt", die Option bleibt waehlbar. DIESE Datei prueft, dass der GETEILTE
+// Trichter (js/ui/filter-menu.js, avmFilterMenuAttach) eine Option mit `option.muted`/
+// `option.title` auch WIRKLICH als solche zeichnet. Der Trichter bedient mehrere Oberflaechen
+// (review-wiki-sync.js, wege-editor.js, …) -- eine Aenderung hier wirkt auf alle.
 //
 // 🔴 GEPRUEFT WIRD DIE ECHTE DATEI. `js/ui/filter-menu.js` exportiert fuer `require()` nur die
 // REINEN Teile (siehe ihr eigener Kommentar am Dateiende); die rendernden Funktionen leben nur als

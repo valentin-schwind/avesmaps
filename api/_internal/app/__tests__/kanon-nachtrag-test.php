@@ -315,18 +315,4 @@ assert(strpos($endpunkt, 'avesmapsFeatureSourcesKanonFuerEines') === false,
     'der Einzelweg steht hier nicht: er laedt Katalog und Verweise je Aufruf vollstaendig und '
     . 'gehoert nicht in einen Weg, der bis zu 250 Kennungen bedient');
 
-$uebernahme = $nurCode(__DIR__ . '/../../import/garetien-uebernahme.php');
-assert(strpos($uebernahme, "'quellen_neu'") !== false, 'der Bauer heisst weiterhin quellen_neu');
-assert(strpos($uebernahme, 'avesmapsFeatureSourcesKanonFuerMehrere') !== false,
-    'die Uebernahme fragt den Mehrfach-Rechner -- der Garetien-Import ist der Weg, ueber den der '
-    . 'gemeldete Fall lief');
-assert(preg_match_all('/\[\'kanon\'\]\s*=/', $uebernahme) === 1,
-    'jeder quellen_neu-Eintrag bekommt sein Kanon-Feld an GENAU EINER Stelle -- eine zweite waere '
-    . 'ein zweiter Erzeuger fuer denselben Wert');
-assert(strpos($uebernahme, "?? null;") !== false,
-    'und er wird AUSDRUECKLICH gesetzt, auch als null: ein fehlender Schluessel hiesse im Client '
-    . '„nicht gefragt" und liesse den alten Tafeleintrag stehen');
-assert(strpos($uebernahme, 'avesmapsFeatureSourcesKanonFuerEines') === false,
-    'der Einzelweg gehoert nicht in einen Massenlauf');
-
 echo "kanon-nachtrag-test: OK\n";

@@ -164,7 +164,6 @@ $ausnahmen = [
     // Der XML-Dump ist eine Datei, aber ein anderer Wirt und ein anderer Vorgang.
     'api/_internal/wiki/dump-fetch.php' => 'offline.wiki-aventurica.de, XML-Dump statt Bild',
     // Feste fremde Wirte -- der Riegel gilt dem Wiki, nicht dem Internet.
-    'api/_internal/import/garetien-abruf.php' => 'garetien.de / koschwiki.de',
     'api/_internal/diagnostics/ausgang-sonde.php' => 'feste Zielliste, kein Wiki',
     'api/_internal/social/connect.php' => 'Graph-API',
     'api/_internal/social/media.php' => 'eigener Server',

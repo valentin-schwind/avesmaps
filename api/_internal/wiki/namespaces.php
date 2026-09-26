@@ -182,8 +182,8 @@ function avesmapsPublicationCatalogIsOfficial(mixed $pageNs): bool
  *
  * 💣 NUR ADRESSEN DES WIKIS. Die Funktion heisst „Namensraum hinter einer WIKI-Adresse" und las
  * ihn zuerst aus JEDER Adresse -- `https://www.garetien.de/wiki/Inoffiziell:Apfeldorn` ergab 222.
- * Das ist hier kein Strohmann: garetien.de ist eine Briefspielseite, deren Uebernahme gerade
- * gebaut wird (js/review/review-garetien-importer.js), und ihr Etikett haette dann „Wiki
+ * Das ist hier kein Strohmann: garetien.de ist eine Briefspielseite, deren Uebernahme ueber den
+ * (seit 26.09.2026 zurueckgebauten) Garetien-Importer lief, und ihr Etikett haette dann „Wiki
  * Aventurica" als Bezeichner getragen -- eine falsche Zuschreibung an einen fremden Betreiber.
  * Geprueft wird auf SUFFIX-GRENZE, derselbe Ausdruck wie in datei-riegel.php, coat-url.php und
  * settlements-coat-localize.php: `stripos($host, 'wiki-aventurica.de')` naehme auch

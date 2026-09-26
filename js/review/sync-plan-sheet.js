@@ -23,7 +23,6 @@ const SYNC_PLAN_KIND_NOUNS = {
 	lore_rule: { one: "Regel", many: "Regeln" },
 	territory_wiki: { one: "Kopie", many: "Kopien" },
 	territory: { one: "Herrschaftsgebiet", many: "Herrschaftsgebiete" },
-	garetien: { one: "Gewässer", many: "Gewässer" },
 };
 
 const SYNC_PLAN_KIND_TITLES = {
@@ -34,7 +33,6 @@ const SYNC_PLAN_KIND_TITLES = {
 	lore_rule: "Lebensraum-Regeln aus dem Wiki ableiten",
 	territory_wiki: "Die Wiki-Kopie der Herrschaftsgebiete nachführen",
 	territory: "Herrschaftsgebiete in die Karte übernehmen",
-	garetien: "Gewässer aus Garetien und dem Kosch übernehmen",
 };
 
 /**
@@ -130,10 +128,6 @@ const SYNC_PLAN_KIND_DELETION = {
 	// falsch wäre: hier steht das Verschwundene nicht in der Zeile des Eintrags, sondern in der
 	// anderen Vorschau.
 	territory: null,
-	// 💣 Ein IMPORT löscht nichts. Er bringt fremde Kartendaten herein; was bei uns liegt und dort
-	// fehlt, ist kein Verlust, sondern schlicht nicht Volkers Gebiet — die Quelle deckt Garetien,
-	// Greifenfurt, Perricum und den Kosch ab, unsere Karte den ganzen Kontinent.
-	garetien: null,
 };
 
 /**
@@ -151,7 +145,6 @@ const SYNC_PLAN_KIND_EMPTY_HINT = {
 	lore_rule: 'Erst „Regeln ableiten" drücken — die Liste wird dann gerechnet.',
 	territory_wiki: 'Erst „1 · 🚨 Syncen" ausführen.',
 	territory: 'Erst „3 · Übernehmen" drücken — die Liste wird dann gerechnet.',
-	garetien: 'Erst die Exportseiten holen oder hochladen — die Liste wird daraus gerechnet.',
 };
 
 /**
@@ -173,9 +166,6 @@ const SYNC_PLAN_KIND_NO_DELETION_NOTE = {
 	territory: "Ein Herrschaftsgebiet wird nie gelöscht. Der Abgleich hat dafür keinen Weg und hatte nie "
 		+ "einen — auch dann nicht, wenn sein Wiki-Artikel verschwindet. Verwaiste Kopien stehen in der "
 		+ "Vorschau von „🚨 Syncen\".",
-	garetien: "Ein Import löscht nichts. Er bringt Kartendaten von garetien.de und koschwiki.de herein; "
-		+ "was bei uns liegt und dort fehlt, ist kein Verlust — die Quelle deckt Garetien, Greifenfurt, "
-		+ "Perricum und den Kosch ab, unsere Karte den ganzen Kontinent.",
 };
 
 /**

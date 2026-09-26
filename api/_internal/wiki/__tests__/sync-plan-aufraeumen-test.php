@@ -148,18 +148,4 @@ assert((int) $pdo3->query('SELECT COUNT(*) FROM sync_plan_item WHERE apply_state
     'der naechste Start nimmt den Rest');
 $pruefungen += 2;
 
-// =================================================================================================
-// C. Die NAHT zum Importer: der Endpunkt nennt das Feld, das die Kachel liest
-// =================================================================================================
-// 💣 „Beide Haelften gruen, die Naht ungeprueft": ein Endpunkt mit ausdruecklicher Feldliste hat
-// schon einmal ein Feld verworfen, das der Browser las (`anzahl`, 31.08.2026). Hier geht nur der
-// Quelltext -- Kommentare vorher weg, sonst schlaegt die Zusicherung an dem Satz an, der sie beschreibt.
-$ohneKommentare = static fn(string $quelle): string => (string) preg_replace('~^\s*(//|\*|/\*).*$~m', '', $quelle);
-$endpunkt = $ohneKommentare((string) file_get_contents(__DIR__ . '/../../../edit/map/garetien-import.php'));
-$kachel = $ohneKommentare((string) file_get_contents(__DIR__ . '/../../../../js/review/review-garetien-importer.js'));
-assert(str_contains($endpunkt, "'vorschau_aufgeraeumt'") && str_contains($endpunkt, 'avesmapsSyncPlanLetzteAufraeumung(AVESMAPS_GARETIEN_PLAN_KIND)'),
-    'der plan-Zweig des Importer-Endpunkts meldet die letzte Aufraeumung unter vorschau_aufgeraeumt');
-assert(str_contains($kachel, 'plan.vorschau_aufgeraeumt'), 'und die Kachel liest genau diesen Schluessel');
-$pruefungen += 2;
-
 echo "OK: {$pruefungen} Pruefungen\n";

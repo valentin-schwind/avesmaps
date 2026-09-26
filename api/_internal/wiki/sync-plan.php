@@ -649,9 +649,11 @@ function avesmapsSyncPlanDecisions(PDO $pdo, string $kind): array
             'skipped_count' => (int) $row['skipped_count'],
             'last_skipped_at' => $row['last_skipped_at'] === null ? null : (string) $row['last_skipped_at'],
             'declined_at' => $row['declined_at'] === null ? null : (string) $row['declined_at'],
-            // 🔴 Der dauerhafte Uebernahme-Vermerk (avesmapsSyncPlanRecordApplied). Er reist im
-            // selben Rueckgabewert wie die Ablehnung, weil beide dieselbe Frage beantworten:
-            // „hat jemand ueber diese Zeile schon entschieden?"
+            // 🔴 Der dauerhafte Uebernahme-Vermerk. Er reist im selben Rueckgabewert wie die
+            // Ablehnung, weil beide dieselbe Frage beantworten: „hat jemand ueber diese Zeile
+            // schon entschieden?" Der einzige Schreiber war dem Garetien-Import vorbehalten und
+            // ist seit dem 26.09.2026 zurueckgebaut -- der Leser bleibt, weil die sieben
+            // uebrigen Arten dieselbe Antwortform teilen.
             'applied_at' => ($row['applied_at'] ?? null) === null ? null : (string) $row['applied_at'],
         ];
     }
@@ -687,10 +689,10 @@ function avesmapsSyncPlanRecordSkip(PDO $pdo, string $kind, string $entityKey, i
  * (design §2), so everything else about it carries on being maintained.
  *
  * 🔴 RULING R10 (28.08.2026): der `change_type` stand hier FEST VERDRAHTET auf 'deleted', und das
- * machte einen ganzen Reiter unerreichbar. Der Garetien-Importer erzeugt keine Loeschungen -- seine
- * Zeilen sind 'new' und 'changed' --, eine Ablehnung landete also auf einem Schluessel, den sein
- * Lesepfad nie abfragt (api/_internal/import/garetien-liste.php liest `declined_at` je
- * (entity_key, change_type)). Der Reiter „Abgelehnt" konnte deshalb NIE belegt werden.
+ * machte einen ganzen Reiter unerreichbar. Der (inzwischen zurueckgebaute) Garetien-Importer
+ * erzeugte keine Loeschungen -- seine Zeilen waren 'new' und 'changed' --, eine Ablehnung landete
+ * also auf einem Schluessel, den sein Lesepfad nie abfragte. Der Reiter „Abgelehnt" konnte
+ * deshalb NIE belegt werden.
  *
  * 💣 DIE VORGABE 'deleted' IST TRAGEND. Die uebrigen Arten rufen diese Funktion OHNE fuenftes
  * Argument -- citymap, lore, lore_rule, territory, territory_wiki. Wer eine ergaenzt, ergaenzt sie
@@ -733,86 +735,6 @@ function avesmapsSyncPlanRecordDecline(
         'ct' => $changeType,
         'by' => $userId > 0 ? $userId : null,
     ]);
-}
-
-/**
- * Der DAUERHAFTE Vermerk „das ist uebernommen" -- das Gegenstueck zu avesmapsSyncPlanRecordDecline.
- *
- * 🔴 WARUM ES IHN GIBT (Owner 30.08.2026): der Garetien-Importer soll eine Liste sein, die man
- * LEER bekommt -- „ich will die liste abarbeiten bis am ende alles entweder abgelehnt oder auf der
- * karte und in 'übernommen' ist". Das ging nicht, und der Grund war eine Asymmetrie:
- *
- *   Abgelehnt    -> sync_decision.declined_at   -> ueberlebt jedes Neurechnen
- *   Uebernommen  -> sync_plan_item.apply_state  -> stirbt mit dem Lauf
- *
- * Ein neuer Lauf legt den alten stillt (avesmapsSyncPlanSupersedeRuns), und damit fiel die halbe
- * Arbeit jedes Mal auf „Offen" zurueck -- die abgelehnte Haelfte blieb korrekt liegen, die
- * uebernommene nicht. Der Owner hat das gemessen: „das problem ist, dass 'holen' die einträge /
- * IDs in 'übernommen' killt". Beide Endzustaende leben jetzt in DERSELBEN Tabelle, unter DEMSELBEN
- * Schluessel, mit DERSELBEN Lebensdauer.
- *
- * 💣 KEIN `ON DUPLICATE KEY UPDATE`. Das kennt SQLite nicht, und dieser Schreibweg laeuft in den
- * Tests wirklich (avesmapsGaretienUebernehmen ruft ihn). Die Produktionsform fuer einen Test zu
- * verbiegen ist der Fehler, den AGENTS.md §9 als Error-1093-Falle beschreibt -- deshalb hier
- * UPDATE-dann-INSERT, das auf beiden Maschinen dieselbe Bedeutung hat.
- * ⚠️ Zwei gleichzeitige Schreiber koennten sich zwischen UPDATE und INSERT ueberholen; der INSERT
- * faellt dann auf den Primaerschluessel und wird geschluckt -- der Vermerk steht danach trotzdem,
- * nur vom anderen gesetzt. Fuer „ist uebernommen" ist das gleichwertig.
- *
- * ⚠️ `avesmapsSyncPlanClearSkip` loescht Zeilen mit change_type='changed' GANZ und naehme einen
- * dort stehenden Vermerk mit. Der Garetien-Weg ruft sie nicht, und seine uebernommenen Zeilen sind
- * 'new' -- wer das aendert, prueft diese Wechselwirkung.
- */
-function avesmapsSyncPlanRecordApplied(
-    PDO $pdo,
-    string $kind,
-    string $entityKey,
-    int $userId,
-    string $changeType = 'new'
-): void {
-    $jetzt = gmdate('Y-m-d H:i:s');
-    $wer = $userId > 0 ? $userId : null;
-
-    $update = $pdo->prepare(
-        'UPDATE sync_decision SET applied_at = :at, applied_by = :by
-          WHERE kind = :k AND entity_key = :ek AND change_type = :ct'
-    );
-    $update->execute(['at' => $jetzt, 'by' => $wer, 'k' => $kind, 'ek' => $entityKey, 'ct' => $changeType]);
-    if ($update->rowCount() > 0) {
-        return;
-    }
-
-    try {
-        $pdo->prepare(
-            'INSERT INTO sync_decision (kind, entity_key, change_type, applied_at, applied_by)
-             VALUES (:k, :ek, :ct, :at, :by)'
-        )->execute(['k' => $kind, 'ek' => $entityKey, 'ct' => $changeType, 'at' => $jetzt, 'by' => $wer]);
-    } catch (PDOException) {
-        // Ein zweiter Schreiber war schneller -- der Vermerk steht, und genau darauf kommt es an.
-    }
-}
-
-/**
- * Den dauerhaften Uebernahme-Vermerk WIEDER LOESCHEN -- das Gegenstueck zu
- * avesmapsSyncPlanRecordApplied.
- *
- * 🔴 MELDUNG 31.08.2026, und der Fehler war MEIN eigener: seit `applied_at` die Uebernahme den
- * Lauf ueberleben laesst, setzte die Ruecknahme zwar `sync_plan_item` zurueck -- aber nicht diesen
- * Vermerk. Gemessen: nach der Ruecknahme steht `apply_state = NULL, selected = 1` und trotzdem
- * `applied_at`, und `avesmapsGaretienListeObjektStand` liest genau ihn („zwei Wege zu
- * uebernommen"). Das Objekt verschwand also von der Karte und blieb im Reiter „Uebernommen"
- * stehen -- die Ruecknahme sah aus, als haette sie nicht gewirkt.
- *
- * ⚠️ Die ZEILE bleibt stehen, nur die zwei Spalten werden geleert. Sie kann eine Ablehnung
- * tragen (`declined_at`), und ein `DELETE` naehme die mit -- genau das braucht die Ablehnung eines
- * uebernommenen Objekts (Owner 31.08.2026), die beides nacheinander tut.
- */
-function avesmapsSyncPlanForgetApplied(PDO $pdo, string $kind, string $entityKey, string $changeType = 'new'): void
-{
-    $pdo->prepare(
-        'UPDATE sync_decision SET applied_at = NULL, applied_by = NULL
-          WHERE kind = :k AND entity_key = :ek AND change_type = :ct'
-    )->execute(['k' => $kind, 'ek' => $entityKey, 'ct' => $changeType]);
 }
 
 /**
@@ -882,8 +804,8 @@ function avesmapsSyncPlanUndecline(
  * Die Entscheidungs-Ziele hinter einer Liste von Plan-Zeilen: (entity_key, change_type) je id.
  *
  * 🔴 DIE OBERFLAECHE SCHICKT ZEILEN-IDs, NIE SCHLUESSEL. Ein `entity_key` ist ein Interna des
- * Planbaus -- beim Garetien-Import traegt er Abschnitt UND Anlass (garetien-plan.php,
- * `<objekt>|<anlass>|<public_id>`) --, und `change_type` muesste der Browser dann auch noch
+ * Planbaus -- beim (zurueckgebauten) Garetien-Import trug er Abschnitt UND Anlass
+ * (`<objekt>|<anlass>|<public_id>`) --, und `change_type` muesste der Browser dann auch noch
  * mitfuehren. Beides durch den Browser reisen zu lassen waere eine zweite Fassung derselben
  * Bildung; die id hat er ohnehin schon.
  *
@@ -988,7 +910,7 @@ function avesmapsSyncPlanLetzteAufraeumung(string $kind): array|null|false
  * 💣 KEIN `DELETE ... LIMIT` und keine Subquery auf die eigene Tabelle: das erste kennt SQLite
  * ohne SQLITE_ENABLE_UPDATE_DELETE_LIMIT nicht, das zweite lehnt MySQL mit Fehler 1093 ab. Die
  * faelligen Laeufe werden VORHER ermittelt und einzeln abgeraeumt -- dieselbe Form wie die
- * Staging-Aufraeumung (garetien-abruf.php), und sie laeuft auf beiden.
+ * Staging-Aufraeumung des (zurueckgebauten) Garetien-Imports, und sie laeuft auf beiden.
  * ⚠️ Vom AELTESTEN her: wer den Deckel erreicht, hat den groessten Ballast zuerst weg.
  * ⚠️ Faellt NICHT still aus -- der Aufrufer (StartRun) faengt, merkt `null` und meldet.
  *

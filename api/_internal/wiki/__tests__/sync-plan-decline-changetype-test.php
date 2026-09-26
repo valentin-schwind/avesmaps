@@ -10,8 +10,8 @@ declare(strict_types=1);
  *       api/_internal/wiki/__tests__/sync-plan-decline-changetype-test.php
  *
  * 🔴 DAS IST EIN ABLAUF, KEIN MASS. Abgelehnt wird wirklich, und die Zeile wird ueber DENSELBEN
- * Leseweg wiedergefunden, den die Arbeitsliste des Garetien-Importers benutzt
- * (avesmapsSyncPlanDecisions, api/_internal/import/garetien-liste.php -- dort `declined_at` je
+ * Leseweg wiedergefunden, den die Arbeitsliste des (ehemals) Garetien-Importers benutzte
+ * (avesmapsSyncPlanDecisions -- dort `declined_at` je
  * avesmapsSyncPlanDecisionKey(entity_key, change_type), und daraus der Stand 'abgelehnt').
  * Ein Test, der nur den Funktionskopf liest, koennte nicht sagen, ob die Zeile ankommt.
  *
@@ -74,9 +74,9 @@ avesmapsEnsureSyncPlanTablesSqlite($pdo);
 
 // ---- Die Fixture: EIN offener Garetien-Lauf mit drei Zeilen -----------------------------------
 //
-// So sieht ein Objekt des Imports wirklich aus (garetien-plan.php): ein Basis-Eintrag ohne Pipe
-// und Abschnitts-Eintraege `<basis>|<anlass>|<public_id>`. KEINE Loeschung ist dabei -- genau das
-// ist der Grund fuer dieses Ruling.
+// So sah ein Objekt des (inzwischen zurueckgebauten) Imports wirklich aus: ein Basis-Eintrag ohne
+// Pipe und Abschnitts-Eintraege `<basis>|<anlass>|<public_id>`. KEINE Loeschung ist dabei -- genau
+// das ist der Grund fuer dieses Ruling.
 $pdo->exec("INSERT INTO sync_plan_run (id, kind, state) VALUES (7, 'garetien', 'open')");
 $pdo->exec("INSERT INTO sync_plan_run (id, kind, state) VALUES (8, 'garetien', 'open')");
 
@@ -95,9 +95,9 @@ $lege($pdo, 102, 7, 'ggp:Gewaesser:Fluss:Natter|ergaenzung|w-6120', 'changed');
 $lege($pdo, 103, 7, 'ggp:Gewaesser:Sumpf:Blutmoor', 'new');
 $lege($pdo, 201, 8, 'fremder:Lauf:Zeile', 'changed');
 // 💣 ZWEI Zeilen mit DEMSELBEN Schluessel. `sync_plan_item` traegt darauf keinen eindeutigen
-// Index (die DDL kennt nur zwei KEYs), und garetien-plan.php kappt seinen entity_key bei 190
-// Zeichen (`mb_substr`) -- zwei lange Schluessel koennen danach gleich sein. Fuer sync_decision
-// ist das EINE Entscheidung, und die Aufrufer zaehlen die Rueckgabe.
+// Index (die DDL kennt nur zwei KEYs), und der (zurueckgebaute) Import kappte seinen entity_key
+// bei 190 Zeichen (`mb_substr`) -- zwei lange Schluessel konnten danach gleich sein. Fuer
+// sync_decision ist das EINE Entscheidung, und die Aufrufer zaehlen die Rueckgabe.
 $lege($pdo, 104, 7, 'ggp:Gewaesser:Fluss:Natter|ergaenzung|w-4471', 'changed');
 
 // ---- A. Ablehnen auf 'changed' -- und der echte Leseweg findet es wieder ----------------------

@@ -14,8 +14,8 @@
  *    beiden Dateien sieht die andere. Sie muessen deshalb ZEICHENGLEICH sein.
  * ⚠️ Der Test verlangt Gleichheit, nicht bestimmte Werte -- wer beide zusammen aendert, darf das.
  *    Er faellt nur, wenn eine Kopie allein wandert.
- * ⭐ Die Gleichheit loest nebenbei den Spezifitaetskonflikt, den garetien-importer.css beschreibt:
- *    diese Regel (0,1,0) schlaegt `.avm-tile` auf der Ebenen-Kachel, die beide Klassen traegt.
+ * ⭐ Die Gleichheit loest nebenbei einen Spezifitaetskonflikt: diese Regel (0,1,0)
+ *    schlaegt `.avm-tile` auf der Ebenen-Kachel, die beide Klassen traegt.
  *    Sagen beide dasselbe, ist gleichgueltig, wer gewinnt.
  */
 

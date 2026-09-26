@@ -42,10 +42,10 @@ if (!class_exists('AvesmapsConflictException')) {
 
 // 🔴 DIESELBE FALLE, EIN JAHR SPAETER: `avesmapsReadLocationSubtype` (unten) liest diese Konstante,
 // aber sie stand bis zum 29.08.2026 NUR in api/edit/map/features.php -- dem Endpunkt, der DIESE
-// Bibliothek erst DANACH einbindet (Kommentar oben, Zeile 24). Der Garetien-Importer ist der erste
-// Aufrufer von avesmapsCreatePointFeature ausserhalb jenes Endpunkts (api/_internal/import/
-// garetien-uebernahme.php) und bekam dafuer "Undefined constant AVESMAPS_LOCATION_SUBTYPES" statt
-// eines angelegten Ortes -- derselbe Fatal-Error-statt-Fehlermeldung-Fehler wie bei
+// Bibliothek erst DANACH einbindet (Kommentar oben, Zeile 24). Der (inzwischen zurueckgebaute)
+// Garetien-Importer war der erste Aufrufer von avesmapsCreatePointFeature ausserhalb jenes
+// Endpunkts und bekam dafuer "Undefined constant AVESMAPS_LOCATION_SUBTYPES" statt eines
+// angelegten Ortes -- derselbe Fatal-Error-statt-Fehlermeldung-Fehler wie bei
 // AvesmapsConflictException oben, nur an einer Konstante statt an einer Klasse.
 // ⚠️ Unter `defined()`, damit die vorhandene, ungeschuetzte Deklaration dort (und die
 // abweichend sortierte Kopie in api/app/report-location.php) unveraendert gewinnt, wenn sie

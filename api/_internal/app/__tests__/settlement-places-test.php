@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 // Gespeicherte Staetten (`settlement_place`) -- Objekte ohne Weltkarten-Position, die zu einer
 // Stadt gehoeren. Bis zum 02.09.2026 gab es sie nur als Ableitung aus der Wiki-Aventurica-Registry;
-// „Innerorts einfuegen" des Garetien-Importers ist der erste Schreiber.
+// „Innerorts einfuegen" des Garetien-Importers war ihr erster Schreiber (Importer seit 26.09.2026
+// zurueckgebaut).
 // Entwurf: docs/superpowers/specs/2026-09-02-innerorts-import-design.md §3
 //
 // Geprueft wird die Bibliothek gegen SQLite: Anlegen, Wiederbeleben, Zuruecknehmen, Lesen, der
@@ -145,25 +146,13 @@ try {
 assert(is_string($leerOrt), 'ohne Ort wird nicht angelegt -- die Bindung ist die public_id des Ortes');
 $pruefungen += 2;
 
-// --- Die Menge der aktiven Kennungen je Herkunft -- der Leser der Arbeitsliste („uebernommen · innerorts").
-$garetienIds = avesmapsSettlementPlacePublicIds($pdo, 'garetien');
-assert($garetienIds === [$id1 => true, $id2 => true] || $garetienIds === [$id2 => true, $id1 => true],
-    'alle aktiven Staetten dieser Herkunft, als Menge (public_id => true): ' . json_encode($garetienIds));
-avesmapsSettlementPlaceAdd($pdo, ['name' => 'Von Hand', 'settlement_public_id' => 'stadt-wandleth',
-    'settlement_name' => 'Wandleth', 'origin' => 'manual'], 7);
-assert(count(avesmapsSettlementPlacePublicIds($pdo, 'garetien')) === 2, 'eine andere Herkunft zaehlt nicht mit');
-avesmapsSettlementPlaceDeactivate($pdo, $id2, 7);
-assert(avesmapsSettlementPlacePublicIds($pdo, 'garetien') === [$id1 => true], 'und eine zurueckgenommene faellt heraus');
-$pruefungen += 3;
-
 // --- Ohne Tabelle (frische Installation) faellt ALLES still aus -- die Karte darf nicht ausfallen.
 $ohne = avesmapsStaettenTestPdo(false);
 assert(avesmapsSettlementPlaceRows($ohne) === [], 'ohne Tabelle: keine Zeilen');
 assert(avesmapsSettlementPlaceExists($ohne, $id1) === false, 'ohne Tabelle: nichts liegt dort');
 assert(avesmapsSettlementPlaceDeactivate($ohne, $id1, 7) === false, 'ohne Tabelle: nichts zurueckzunehmen');
 assert(avesmapsSettlementPlaceReadStamp($ohne) === '', 'ohne Tabelle: LEERER Stempel, damit der ETag-Keim zeichengleich bleibt');
-assert(avesmapsSettlementPlacePublicIds($ohne, 'garetien') === [], 'ohne Tabelle: leere Menge');
-$pruefungen += 5;
+$pruefungen += 4;
 
 // --- Die zwei Nahtstellen zum Quellensystem. Eine Staette traegt ihre Quelle (die Rechtsfolge des
 // Imports) als entity_type 'settlement_place'; der Quellen-Editor fragt beim Lesen nach Wiki-Adresse

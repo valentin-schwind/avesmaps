@@ -122,9 +122,9 @@ assert(avesmapsMapFeaturesWikiNamespaces([['type' => 'Feature'], ['properties' =
     'formlose Eintraege ergeben nichts');
 
 // ---- 5. Fremde Betreiber werden abgewiesen ----------------------------------------------------
-// 💣 garetien.de ist hier kein Strohmann: die Uebernahme dieser Briefspielseite wird gerade
-// gebaut (js/review/review-garetien-importer.js). Ihr Etikett truege sonst „Wiki Aventurica" als
-// Bezeichner -- eine falsche Zuschreibung an einen fremden Betreiber.
+// 💣 garetien.de ist hier kein Strohmann: die Uebernahme dieser Briefspielseite lief ueber den
+// (seit 26.09.2026 zurueckgebauten) Garetien-Importer. Ihr Etikett truege sonst „Wiki Aventurica"
+// als Bezeichner -- eine falsche Zuschreibung an einen fremden Betreiber.
 assert(avesmapsWikiNamespaceFromWikiUrl('https://www.garetien.de/wiki/Inoffiziell:Apfeldorn') === null,
     'fremder Wirt -> kein Namensraum');
 assert(avesmapsWikiNamespaceFromWikiUrl('https://de.wiki-aventurica.de.angreifer.example/wiki/Inoffiziell:X') === null,

@@ -4005,7 +4005,7 @@ function avesmapsEcosystemWikiAusdruecklichEntfernt(array $fields): bool
 // Label-Feature (AGENTS.md §5) -- und der Browser hat genau EINEN Leser dafuer.
 // ⚠️ Die Funktion wird vom Aufrufer geladen, genau wie avesmapsNextMapRevision und
 // avesmapsWriteMapAuditLog daneben: jeder Schreib-Endpunkt dieser Bibliothek laedt features.php
-// zuerst (api/edit/map/ecosystem.php, garetien-uebernahme.php); die Tests tragen ein Doppel.
+// zuerst (api/edit/map/ecosystem.php); die Tests tragen ein Doppel.
 function avesmapsEcosystemLabelFeatureNachSchreiben(array $row, string $propertiesJson, int $revision): array
 {
     $nachher = $row;

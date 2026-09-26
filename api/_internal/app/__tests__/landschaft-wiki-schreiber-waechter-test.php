@@ -106,8 +106,6 @@ foreach ($imTrichter as $f) {
 // Ein Array mit diesem Schluessel ist entweder ein Rumpf fuer create_label/update_label (der Trichter
 // entscheidet) oder eine neue, eigene Ablage -- und die haette dieser Test sonst nicht gesehen.
 $erlaubteRuempfe = [
-    // Der Berggipfel des Garetien-Imports: ein FREIES Label, der Rumpf geht an avesmapsCreateLabelFeature.
-    'api/_internal/import/garetien-uebernahme.php' => 1,
     // Nur der deutsche Feldtitel im Verlauf, kein Properties-Rumpf oder Wiki-Schreiber.
     'api/_internal/map/audit-path-group.php' => 1,
 ];

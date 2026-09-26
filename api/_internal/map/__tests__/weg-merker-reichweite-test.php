@@ -38,12 +38,11 @@ declare(strict_types=1);
  * Wirkung an der Karte misst. Wer sie mit ihrem Gegenstand weggeworfen haette, haette den
  * Weg-Schreibweg ohne eigene Probe zurueckgelassen.
  * 🪤 HIER STAND „die EINZIGE ausfuehrende Abdeckung … die zwei anderen Nenner im api/-Baum lesen
- * nur Quelltext". Das ist FALSCH und wurde am 09.09.2026 von einem Pruefagenten widerlegt:
- * `api/_internal/import/__tests__/garetien-uebernahme-test.php` faehrt `avesmapsGaretienApplyStep`,
- * und das ruft den Schreibweg wirklich auf (garetien-uebernahme.php). Nur `weg-feld-herkunft-test.php`
- * liest bloss Quelltext. Die Entscheidung, diese Datei zu behalten, bleibt richtig -- die
- * Begruendung war es nicht, und eine falsche Begruendung im Kopf einer Datei ueberlebt jeden
- * Testlauf.
+ * nur Quelltext". Das ist FALSCH und wurde am 09.09.2026 von einem Pruefagenten widerlegt: der
+ * (inzwischen zurueckgebaute) Garetien-Import fuhr den Schreibweg ebenfalls wirklich. Nur
+ * `weg-feld-herkunft-test.php` liest bloss Quelltext. Die Entscheidung, diese Datei zu behalten,
+ * bleibt richtig -- die Begruendung war es nicht, und eine falsche Begruendung im Kopf einer
+ * Datei ueberlebt jeden Testlauf.
  *
  * ⚠️ ABLAUF, NICHT BAUER: gefahren wird `avesmapsUpdatePathFeatureDetails` selbst, an einer echten
  * (SQLite-)Karte. Eine Probe an einem reinen Rechner allein saehe nicht, ob der Schreibweg ihn

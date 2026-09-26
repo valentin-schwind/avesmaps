@@ -143,8 +143,6 @@ function ohneKommentare(text) {
 }
 const editorCode = ohneKommentare(
 	fs.readFileSync(path.join(REPO, "js", "review", "review-feature-sources.js"), "utf8"));
-const importerCode = ohneKommentare(
-	fs.readFileSync(path.join(REPO, "js", "review", "review-garetien-importer.js"), "utf8"));
 
 let geprueft = 0;
 for (const treffer of editorCode.split("syncFeatureSourcesToClientCache(").slice(1)) {
@@ -157,10 +155,5 @@ for (const treffer of editorCode.split("syncFeatureSourcesToClientCache(").slice
 	geprueft += 1;
 }
 pruefe(geprueft === 2, "H: beide Aufrufwege des Editors sind geprueft (gefunden: " + geprueft + ")");
-
-const importerAufruf = importerCode.slice(importerCode.indexOf("abgleich(eintrag"));
-pruefe(/kanon/i.test(importerAufruf.slice(0, importerAufruf.indexOf(";"))),
-	"H: die Garetien-Uebernahme reicht ihr `kanon` durch -- sie ist der Weg, ueber den der "
-	+ "gemeldete Fall lief");
 
 console.log(`kanon-nachtrag-tafel.test.js: ${pruefungen} Pruefungen erfuellt`);

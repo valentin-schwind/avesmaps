@@ -11,9 +11,8 @@ declare(strict_types=1);
  * (`avesmapsFetchInSettlementSearchRows`, drei Quellen); gespeichert wurde nichts.
  *
  * 🔴 DIESE TABELLE GEHOERT NICHT DEM IMPORTER. Sie ist der allgemeine Platz fuer „Objekt ohne
- * Kartenposition, gehoert zu Stadt X"; der Garetien-Import ist heute ihr einziger Schreiber und
- * traegt das in `origin`. Sein Abbau-Vertrag verbietet ihm, in fremde Tabellen zu schreiben -- und
- * er verbietet fremden Modulen, seine zu kennen. Deshalb steht sie hier und nicht dort.
+ * Kartenposition, gehoert zu Stadt X"; der Garetien-Import war ihr erster Schreiber und trug das
+ * in `origin` -- seit dem Rueckbau (26.09.2026) hat sie keinen; ein Bearbeitungsweg ist offen.
  *
  * 💣 DIE BINDUNG IST DIE public_id DES ORTES, NICHT SEIN NAME. Die abgeleiteten Zeilen tragen den
  * Stadt-NAMEN, weil es im Wiki keine id gibt, und der Browser faltet Namen aufeinander
@@ -251,41 +250,4 @@ function avesmapsSettlementPlaceReadStamp(PDO $pdo): string
     }
 
     return (string) ($row['n'] ?? '0') . '|' . (string) ($row['t'] ?? '');
-}
-
-/**
- * Die public_ids der AKTIVEN Staetten, als Menge (public_id => true) -- optional auf eine Herkunft
- * eingeschraenkt.
- *
- * Der Leser der Arbeitsliste des Garetien-Importers („uebernommen · innerorts", garetien-liste.php):
- * EINE Abfrage je Listenbau statt einer je Objekt, und die Antwort auf „liegt das als Staette?" kommt
- * aus der Tabelle, nicht aus einem zweiten Vermerk am Item.
- *
- * ⚠️ FAELLT STILL AUS: ohne Tabelle eine leere Menge -- dann ist nichts innerorts, und das stimmt.
- *
- * @return array<string,true>
- */
-function avesmapsSettlementPlacePublicIds(PDO $pdo, ?string $origin = null): array
-{
-    try {
-        if ($origin === null) {
-            $statement = $pdo->query('SELECT public_id FROM settlement_place WHERE is_active = 1');
-        } else {
-            $statement = $pdo->prepare('SELECT public_id FROM settlement_place WHERE is_active = 1 AND origin = :origin');
-            $statement->execute(['origin' => $origin]);
-        }
-        $ids = $statement->fetchAll(PDO::FETCH_COLUMN);
-    } catch (PDOException) {
-        return [];
-    }
-
-    $menge = [];
-    foreach ((array) $ids as $id) {
-        $id = trim((string) $id);
-        if ($id !== '') {
-            $menge[$id] = true;
-        }
-    }
-
-    return $menge;
 }

@@ -25,9 +25,9 @@
 //     Eigenschaften-Dialog, und der zieht die Beschriftung dann ueber `update_region` nach.
 //   * `avesmapsCreateEcosystemRegion` ruft `avesmapsEcosystemPushRegionTypeToLabels` nicht, obwohl
 //     `avesmapsUpdateEcosystemRegion` es tut -- ein Erzeuger von zweien. Der einzige Aufrufer, der
-//     dort ueberhaupt ein `label_public_id` mitschickt (der Garetien-Import,
-//     garetien-uebernahme.php), setzt am Label denselben Subtyp, den er der Flaeche gibt. Kein
-//     erreichbarer Fehlerpfad, also keine Aenderung -- wer je einen findet, hat hier die Stelle.
+//     dort ueberhaupt ein `label_public_id` mitschickte (der inzwischen zurueckgebaute Garetien-
+//     Import), setzte am Label denselben Subtyp, den er der Flaeche gab. Kein erreichbarer
+//     Fehlerpfad, also keine Aenderung -- wer je einen findet, hat hier die Stelle.
 //
 // ⚠️ map-features-labels.js laesst sich nicht als Ganzes laden (sie fasst beim Laden `map` an).
 // Geschnitten wird deshalb genau die eine Funktion -- dasselbe Vorgehen wie in

@@ -162,21 +162,5 @@ assert.ok(
 	"das Netz `overflow-wrap: break-word` ist mit der Trennung verschwunden"
 );
 
-// ---- 3. Der Garetien-Importer: derselbe Fehler an einem NAMEN --------------------------------
-//
-// 💣 EINE REGEL, DIE EINEN VON ZWEI ERZEUGERN BINDET, IST KEINE REGEL. `.gi-detail__name` zeigt
-//    den Wiki-Seitennamen eines Importobjekts („Zwergenbinge Xorlosch") und trennte automatisch.
-const importerCss = ohneKommentare(lies(path.join(WURZEL, "css/components/garetien-importer.css")));
-const nameRegel = regeln(importerCss).find((r) => r.selektor === ".gi-detail__name");
-assert.ok(nameRegel, ".gi-detail__name fehlt");
-assert.ok(
-	/(^|[^-\w])hyphens\s*:\s*manual/.test(nameRegel.rumpf),
-	"der Name des Garetien-Importers trennt wieder automatisch (Fall #119)"
-);
-// ⚠️ Getragen hat den Umbruch dort ohnehin `min-width: 0`, nicht die Trennung -- die Zeile ist die
-//    tragende und darf beim Aufraeumen nicht mit verschwinden.
-assert.ok(/min-width\s*:\s*0/.test(nameRegel.rumpf), "`min-width: 0` traegt den Umbruch dort");
-assert.ok(/overflow-wrap\s*:\s*break-word/.test(nameRegel.rumpf), "das Netz fehlt");
-
 console.log("keine-auto-silbentrennung: ok (" + trennen.length + " erlaubte Trennstellen, "
 	+ blaetter.length + " Blaetter geprueft)");

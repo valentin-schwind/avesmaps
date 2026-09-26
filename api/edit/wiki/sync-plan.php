@@ -34,10 +34,6 @@ require_once __DIR__ . '/../../_internal/map/features.php';
 // __tests__/sync-plan-endpoint-chain-test.php, which exists for exactly this class of silence.
 require_once __DIR__ . '/../../_internal/wiki/locations-helpers.php';
 require_once __DIR__ . '/../../_internal/app/feature-sources.php';
-// Der Kartenimport aus garetien.de / koschwiki.de -- avesmapsGaretienApplyStep, der Zweig
-// 'garetien' des Uebernahme-Verteilers unten. Ohne dieses require ist der match-Arm ein
-// Fatal Error mit LEEREM Rumpf, und der liest sich im Browser als Netzfehler.
-require_once __DIR__ . '/../../_internal/import/garetien-uebernahme.php';
 require_once __DIR__ . '/../../_internal/app/game-literature-resolve.php';
 require_once __DIR__ . '/../../_internal/app/citymaps.php';
 require_once __DIR__ . '/../../_internal/wiki/publication-parsing.php';
@@ -87,7 +83,7 @@ require_once __DIR__ . '/../../_internal/wiki/territory-plan.php';
 require_once __DIR__ . '/../../_internal/wiki/territory-plan-apply.php';
 
 /** The syncs that have a preview. Grows one entry per session (design §7). */
-const AVESMAPS_SYNC_PLAN_KINDS = ['citymap', 'adventure', 'publication', 'lore', 'lore_rule', 'territory_wiki', 'territory', 'garetien'];
+const AVESMAPS_SYNC_PLAN_KINDS = ['citymap', 'adventure', 'publication', 'lore', 'lore_rule', 'territory_wiki', 'territory'];
 
 /**
  * One plan row, shaped for the component. The JSON columns are decoded HERE so the client never
@@ -241,48 +237,6 @@ try {
                 avesmapsErrorResponse(409, 'plan_not_open', 'This plan has already been applied or replaced.');
             }
 
-            // 🔴 SCHADENSFALL 30.08.2026: fuer kind='garetien' ist `ids` PFLICHT und beschraenkt
-            // `apply` auf genau diese Zeilen (avesmapsGaretienApplyStep) -- ohne dieses Feld liest
-            // der Garetien-Zweig sonst den GANZEN Lauf (`selected = 1` quer durch fruehere Klicks
-            // und die Vorbelegung), und „Alle angezeigten einfuegen" hat genau so 3007 statt der
-            // angezeigten rund 100 Objekte uebernommen. Die anderen sieben Objektarten bleiben
-            // UNVERAENDERT beim geteilten Verhalten (AGENTS.md §11: „der Cap ist auf das GEZEIGTE,
-            // nie auf das VORHANDENE" -- dort ist das gewollt, hier war es der Schaden).
-            $garetienItemIds = null;
-            // 🔴 Owner 30.08.2026 (Kasten „Eingefügt wird"): eine Handeingabe reist NUR am
-            // Einzelknopf „Neu einfügen" mit -- fehlt sie, ist das der Grundfall (Vorgabe der Art),
-            // nie ein Fehler. Siehe avesmapsGaretienEinstellungenAusRumpf.
-            $garetienEinstellungen = null;
-            // 🔴 Und die Handeingaben JE ITEM (06.09.2026, Import-Stage). Beide werden
-            // gelesen: `einstellungen` bleibt der Rueckfall fuer jeden Aufrufer, der nur ein
-            // Objekt schickt.
-            $garetienJeItem = null;
-            if ($kind === 'garetien') {
-                $garetienItemIds = avesmapsGaretienApplyIdsAusRumpf($payload);
-                if ($garetienItemIds === []) {
-                    avesmapsErrorResponse(
-                        400,
-                        'missing_ids',
-                        'apply braucht fuer kind=garetien eine ausdrueckliche, nicht-leere id-Liste '
-                        . '("ids") -- ohne sie uebernaehme der Server den ganzen Lauf statt nur die '
-                        . 'angezeigten Objekte (Schadensfall 30.08.2026).'
-                    );
-                }
-                $garetienEinstellungen = avesmapsGaretienEinstellungenAusRumpf($payload);
-                $garetienJeItem = avesmapsGaretienEinstellungenJeItemAusRumpf($payload);
-                // 🔴 DER RIEGEL „BEIDES" (Entwurf 2026-09-14-garetien-import-vereint-design.md §5).
-                // Ein Neu-Item UND ein Ergaenzungs-Item DESSELBEN Objekts in einem `apply` legen eine
-                // Dublette an und haengen die Quelle zugleich an den Bestand -- das geschieht nur auf
-                // die ausdrueckliche Wahl „Auf die Karte -- zusaetzlich zu X" (`beides: true` an jedem
-                // beteiligten Item). Eine Sperre nur im Browser ist keine.
-                // ⚠️ VOR der Pipeline-Sperre: eine Absage darf sie nicht halten. Und NACH dem Lesen der
-                // Handeingaben, sonst prueft der Riegel gegen null.
-                $garetienBeidesGrund = avesmapsGaretienBeidesPruefen($pdo, $runId, $garetienItemIds, $garetienJeItem);
-                if ($garetienBeidesGrund !== null) {
-                    avesmapsErrorResponse(422, 'garetien_beides_unbestaetigt', $garetienBeidesGrund);
-                }
-            }
-
             // 🔴 THE SECOND CONFIRMATION IS A SERVER RULE, NOT A DISABLED BUTTON. A greyed-out button is
             // a suggestion: it lives in the one place an editor cannot be held to. Every step of the
             // apply asks again, so a client that skips the checkbox -- or a second tab, or a replayed
@@ -310,16 +264,6 @@ try {
                 'lore_rule' => avesmapsLoreRuleApplyStep($pdo, $runId, $userId, $currentUser),
                 'territory_wiki' => avesmapsTerritoryWikiApplyStep($pdo, $runId, $userId, $currentUser),
                 'territory' => avesmapsTerritoryApplyStep($pdo, $runId, $userId, $currentUser),
-                // Der Kartenimport aus garetien.de / koschwiki.de. 🔴 Er laeuft ueber DIESE Tuer und
-                // nicht ueber eine eigene: hier haengen der Einzelflug-Riegel, die zweite
-                // Bestaetigung, das Protokoll und der Fortschritt.
-                // 🔴 SCHADENSFALL 30.08.2026: `$garetienItemIds` ist hier oben bereits geprueft und
-                // nicht-leer -- der einzige der acht Zweige, der `apply` auf eine ausdrueckliche
-                // id-Liste beschraenkt statt auf den ganzen Lauf.
-                'garetien' => avesmapsGaretienApplyStep(
-                    $pdo, $runId, $userId, $currentUser, null, $garetienItemIds, $garetienEinstellungen,
-                    $garetienJeItem
-                ),
             };
             $done = ($step['done'] ?? false) === true;
 
@@ -351,31 +295,21 @@ try {
                 // komplett neulade stehts glaub dran". Der Kartenstempel allein heilt das nicht:
                 // die geladene Seite fragt die Kartendaten nicht noch einmal ab.
                 'quellen_neu' => is_array($step['quellen_neu'] ?? null) ? $step['quellen_neu'] : [],
-                // 🔴 WIE `quellen_neu` DARUEBER: GETEILT VON ALLEN ACHT ZWEIGEN, UND NUR DER
-                // GARETIEN-IMPORT FUELLT SIE (06.09.2026, Import-Stage). Die uebrigen sieben
-                // Objektarten kennen weder einen Fehlergrund je Item noch eine Formzaehlung --
-                // ihr `$step` traegt die Schluessel nicht, und der `is_array(...) ? ... : []`-Riegel
-                // liefert ihnen eine leere Liste/ein leeres Array statt eines PHP-Fehlers auf
-                // fehlendem Index. `fehler`: Item-Nummer + der ECHTE Fehlertext je Fehlschlag,
-                // bisher nur in `apply_note` in der Datenbank und nie im Browser. `angelegt_je_form`:
+                // 🔴 WIE `quellen_neu` DARUEBER: GETEILT VON ALLEN SIEBEN ZWEIGEN -- derzeit fuellt
+                // keine Art sie (der Garetien-Import, der einzige Fueller, ist am 26.09.2026
+                // zurueckgebaut). `$step` traegt die Schluessel dann nicht, und der
+                // `is_array(...) ? ... : []`-Riegel liefert eine leere Liste/ein leeres Array statt
+                // eines PHP-Fehlers auf fehlendem Index. Die Form bleibt stehen: `fehler`:
+                // Item-Nummer + der ECHTE Fehlertext je Fehlschlag. `angelegt_je_form`:
                 // Wege/Baeche/Flaechen/Beschriftungen/Orte/Staetten/Ergaenzungen einzeln gezaehlt,
                 // statt einer nackten `applied`-Zahl.
                 // 💣 Kein rohes getMessage() an den Client (Informationsabfluss, Meilenstein M1,
-                // AGENTS.md §10: "several edit endpoints leak getMessage() to clients") -- derselbe
-                // Praezedenzfall wie am Auffang-catch in garetien-import.php
-                // (garetien-endpunkt-test.php prueft ihn dort). ⚠️ Anders als dort ist DIESER
-                // Wert nicht auf Admins beschraenkt: 'apply' laeuft fuer jeden Editor mit
-                // Faehigkeit `edit` (seit 31.08.2026). `fehler[].grund` wird deshalb in
-                // `avesmapsGaretienUebernehmen` bereits auf 300 Zeichen gekappt (`mb_substr`,
-                // wie `apply_note`), bevor er ueberhaupt hierher gereicht wird.
+                // AGENTS.md §10: "several edit endpoints leak getMessage() to clients").
                 'fehler' => is_array($step['fehler'] ?? null) ? $step['fehler'] : [],
                 'angelegt_je_form' => is_array($step['angelegt_je_form'] ?? null) ? $step['angelegt_je_form'] : [],
-                // 🔴 NACHBESSERUNG 1 (W1/G3-2, 14.09.2026): WIE `fehler` DARUEBER -- nur der
-                // Garetien-Import fuellt sie, die uebrigen sieben Zweige kennen den Schluessel
-                // nicht. Ein nicht-fataler Hinweis je Item ("Quelle an X war schon vorhanden"),
-                // damit `garetienImportMeldung` (js/review/review-garetien-importer.js) spaeter
-                // die Wahrheit sagen kann statt „N Quellen ergaenzt" fuer etwas zu behaupten, das
-                // nie neu entstand.
+                // 🔴 WIE `fehler` DARUEBER -- derzeit fuellt keine Art sie (siehe oben). Ein
+                // nicht-fataler Hinweis je Item ("Quelle an X war schon vorhanden") ist die Form,
+                // die bleibt.
                 'hinweise' => is_array($step['hinweise'] ?? null) ? $step['hinweise'] : [],
             ]);
             // no break -- avesmapsJsonResponse exits.
@@ -394,12 +328,11 @@ try {
             // no break -- avesmapsJsonResponse exits.
 
         case 'decline':
-            // 🔴 DIE EINZIGE TUER, DURCH DIE EINE ABLEHNUNG SOFORT GESCHRIEBEN WIRD -- und der
-            // Garetien-Importer ist die erste Art, die sie braucht. Die uebrigen Arten kennen die
-            // Ablehnung nur als NEBENPRODUKT der Uebernahme (eine nicht angehakte LOESCHUNG, siehe
-            // avesmapsCitymapApplyFinish). Dieser Import erzeugt keine Loeschungen: seine Zeilen
-            // sind 'new' und 'changed'. Ohne diesen Ausgang gaebe es fuer „Ablehnen" keinen Weg
-            // und der Reiter „Abgelehnt" bliebe leer (Ruling R10).
+            // 🔴 DIE EINZIGE TUER, DURCH DIE EINE ABLEHNUNG SOFORT GESCHRIEBEN WIRD -- der
+            // (inzwischen zurueckgebaute) Garetien-Importer war die erste Art, die sie brauchte. Die
+            // uebrigen Arten kennen die Ablehnung nur als NEBENPRODUKT der Uebernahme (eine nicht
+            // angehakte LOESCHUNG, siehe avesmapsCitymapApplyFinish). Ohne diesen Ausgang gaebe es
+            // fuer „Ablehnen" keinen Weg und der Reiter „Abgelehnt" bliebe leer (Ruling R10).
             //
             // 💣 KEIN ZWEITER ENDPUNKT. Hier haengen Rechteriegel, CORS, JSON und der Kind-Riegel
             // -- eine eigene Tuer daneben waere die zweite Fassung von all dem.
@@ -420,11 +353,10 @@ try {
             foreach ($ziele as $ziel) {
                 avesmapsSyncPlanRecordDecline($pdo, $kind, $ziel['entity_key'], $userId, $ziel['change_type']);
             }
-            // 💣 EINE ABGELEHNTE ZEILE WIRD AUCH ABGEHAKT, und das ist keine Bequemlichkeit: der
-            // Lesepfad stellt „abgelehnt" VOR „vorgemerkt" (garetien-liste.php), die Zeile saehe
-            // also abgelehnt aus -- und `apply` schriebe sie trotzdem, weil `selected` in der
-            // Datenbank entscheidet, nicht der Reiter. Genau der Fall „ein Knopf, der schreibt,
-            // bevor der Editor es will".
+            // 💣 EINE ABGELEHNTE ZEILE WIRD AUCH ABGEHAKT, und das ist keine Bequemlichkeit: ein
+            // Lesepfad, der „abgelehnt" vor „vorgemerkt" stellt, saehe die Zeile sonst abgelehnt --
+            // und `apply` schriebe sie trotzdem, weil `selected` in der Datenbank entscheidet, nicht
+            // der Reiter. Genau der Fall „ein Knopf, der schreibt, bevor der Editor es will".
             $abgehakt = avesmapsSyncPlanSetSelection($pdo, $runId, $ids, null, 0);
 
             avesmapsJsonResponse(200, [

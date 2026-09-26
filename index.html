@@ -578,15 +578,6 @@
 					<div class="wiki-sync-dump-solo">
 						<button id="wiki-sync-conflicts-open" class="wiki-sync-panel__start" type="button" title="Öffnet die Konfliktlösung: Fälle, bei denen sich Karte und Wiki Aventurica widersprechen — objektartübergreifend.">⚖️ Konflikte</button>
 					</div>
-					<!-- Der Kartenimport aus garetien.de / koschwiki.de. 🔴 ZUNAECHST NUR FUER ADMINS (Owner
-					     27.08.2026) -- deshalb `hidden`, und sichtbar erst, wenn die Sitzungsauskunft `admin`
-					     bestaetigt (js/review/review-garetien-importer.js). Der Riegel faellt geschlossen aus.
-					     🔴 Der Knopf, das Fenster und sein CSS verschwinden beim Abbau des Importers restlos
-					     (Auftrag §5.5) -- deshalb liegen sie in EIGENEN Dateien und nicht verstreut. -->
-					<div class="wiki-sync-dump-solo">
-						<button id="garetien-importer-open" class="wiki-sync-panel__start" type="button" hidden
-							title="Öffnet den Garetien Importer: die Objekte aus garetien.de und koschwiki.de, Stück für Stück ansehen und entscheiden. Es wird nichts geschrieben, bis du „Stage importieren" drückst.">🗺️ Garetien Importer</button>
-					</div>
 					<!-- Kraftlinien sat HERE, among the cross-subject actions, only because a sixth
 					     horizontal tab did not fit. It is not cross-subject at all, so it moved down
 					     into its own section (data-wiki-sync-panel-section="powerlines"). -->
@@ -4208,27 +4199,6 @@
 		     Rechte-Riegel, sonst an nichts -- die Ladereihenfolge hier ist deshalb unkritisch, weil der
 		     Riegel lazy ueber .load() geht und bis dahin geschlossen bleibt. -->
 		<template data-nur-editor><script src="js/review/review-social.js"></script></template><script>avesmapsNurEditorSkripte()</script>
-		<!-- Das Fenster „Garetien Importer" (Aufgabe 10). Haengt zur Laufzeit an window.AvesmapsSession
-		     (js/app/session.js) fuer den Rechte-Riegel, sonst an nichts -- die Ladereihenfolge hier ist
-		     deshalb unkritisch, weil der Riegel lazy ueber .load() geht und bis dahin geschlossen bleibt.
-		     🔴 Diese Datei verschwindet beim Abbau des Importers restlos (Auftrag §5.5). -->
-		<!-- Die reine Regel der Beschriftungs-VORSCHAU (Owner 09.09.2026): was auf der Stage liegt,
-		     zeigt schon seinen kuenftigen Namen. VOR review-garetien-importer.js, weil jener sie beim
-		     Stempeln ruft (garetienVorschauLabelStempeln) -- gefragt wird zwar defensiv per
-		     `typeof`, aber der Stempel laeuft bei JEDEM Kartenlauf, also auch beim ersten.
-		     ⚠️ Sie enthaelt KEIN DOM und KEIN Leaflet; die Bauer der echten Karte
-		     (map-features-labels.js, map-features-location-name-labels.js) ruft der ZEICHNER darunter,
-		     und der steht ohnehin weit hinter ihnen.
-		     🔴 Auch diese Datei verschwindet beim Abbau des Importers restlos (Auftrag §5.5). -->
-		<template data-nur-editor>
-			<script src="js/review/review-garetien-label-vorschau.js"></script>
-			<script src="js/review/review-garetien-importer.js"></script>
-		</template><script>avesmapsNurEditorSkripte()</script>
-		<!-- Der goldgelbe Schein des Importers auf der Karte (Aufgabe 14): was angehakt ist, leuchtet.
-		     Die Ladereihenfolge zu review-garetien-importer.js ist unkritisch -- jenes fragt bei JEDEM
-		     Aufruf `typeof window.avesmapsGaretienKarteZeigen === "function"` ab, nicht einmal beim Laden.
-		     🔴 Auch diese Datei verschwindet beim Abbau des Importers restlos (Auftrag §5.5). -->
-		<template data-nur-editor><script src="js/review/review-garetien-karte.js"></script></template><script>avesmapsNurEditorSkripte()</script>
 		<script src="js/app/perf-trace.js"></script>
 		<script src="js/ui/route-planner-toggle.js"></script>
 		<script src="js/map-features/map-features-infopanel.js"></script>
@@ -4260,114 +4230,5 @@
 		     darin wäre hinter dem Fenster, das es geöffnet hat. Gefüllt wird er erst auf Klick
 		     (js/review/sync-plan-sheet.js). -->
 		<div class="sync-plan-host" id="wikiSyncPlanHost" hidden></div>
-		<!-- Das Fenster „Garetien Importer". 🔴 KEIN mittiges Modal und KEIN Scrim: der Owner will die
-		     Karte SEHEN, waehrend er die Liste durchgeht („ich will eine liste in einem dialog fenster
-		     (zum hin und herschieben)"). .avm-editor-dialog verdeckt sie vollstaendig -- ein Fenster, das
-		     die Karte freigibt, ist eine andere Sache, nicht eine schlechter eingestellte gleiche.
-		     ⭐ Verschiebbar OHNE eine Zeile Verdrahtung: js/ui/dialog-drag.js sucht nach der FORM
-		     ([role=dialog] > [class*="__head"]), nicht nach einer Namensliste.
-		     🔴 In dieser Aufgabe (10) bleibt das Fenster LEER -- Liste, Filter und Einzelansicht sind
-		     Aufgabe 11 ff. -->
-		<div id="garetien-importer" class="gi-win avm-fenster avm-fenster--werkzeug" role="dialog" aria-label="Garetien Importer" hidden>
-			<div class="avm-fenster__kopf">
-				<span class="avm-fenster__griff" aria-hidden="true">⁝⁝</span>
-				<h2 class="avm-fenster__titel">Garetien Importer</h2>
-				<!-- 🔴 EINKLAPPEN wie im Konflikte-Fenster (Owner 04.09.2026, „wie konflikte"): das Fenster
-				     rollt auf diese Titelleiste zusammen und gibt den Platz darunter frei. Es BLEIBT dabei,
-				     wo es steht -- das Konflikte-Fenster springt eingeklappt nach oben mittig, weil es per
-				     Flex in seinem Overlay zentriert sitzt und unten rechts hinter dem Infopanel verschwand;
-				     dieses hier ist verschiebbar (js/ui/dialog-drag.js) und stuende nach einem Sprung
-				     woanders, als der Editor es hingezogen hat.
-				     ⚠️ Kein eigenes Aussehen: der Knopf traegt dieselben Bauteilklassen wie das ✕ daneben. Eine
-				     zweite Klasse ohne eine einzige Regel waere totes Markup. Die Glyphe wechselt zu □
-				     (review-garetien-importer.js), nicht hier. -->
-				<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button" id="garetien-importer-min" aria-label="Fenster einklappen"
-					title="Rollt das Fenster auf seine Titelleiste zusammen. Die Liste und die Auswahl bleiben stehen.">−</button>
-				<button class="avm-fenster__knopf avm-fenster__knopf--gefasst" type="button" id="garetien-importer-close" aria-label="Schließen">✕</button>
-			</div>
-			<!-- 💣 Das Menueband ist ZWEISTUFIG, und die Stufen teilen sich die Arbeit:
-			     `.avm-ribbon-bar` traegt Hintergrund, Innenpolster und die Trennlinie nach unten,
-			     `.avm-ribbon` NUR das Raster (css/components/editor-body.css). So machen es beide
-			     echten Editoren (html/wege-editor.html:55, html/landschaften-editor.html:64).
-			     🪰 Das Mockup zeigt hier nur EIN `.avm-ribbon` -- es ist eine autarke Datei und hat
-			     sich die Polsterung in dieselbe Regel geschrieben. Wer das abschreibt, bekommt ein
-			     Menueband ohne Grund und ohne Trennlinie, und es faellt erst auf, wenn Kacheln
-			     darinstehen. Dieselbe Falle wie bei der abgeschriebenen Listenzeile (AGENTS.md §11). -->
-			<div class="avm-ribbon-bar">
-				<div class="avm-ribbon" id="garetien-ribbon"></div>
-			</div>
-			<!-- 🔴 DIE STATUSZEILE (06.09.2026). Sie ersetzt die stille Laufzeile: in Ruhe die
-			     Bilanz des Laufs, nach jeder Handlung deren Ergebnis, bei einem Fehler den Grund
-			     in Rot — und die Liste bleibt dabei stehen. Bis dahin ersetzte ein Fehler die
-			     ganze Liste durch einen Satz, und eine gelungene Übernahme meldete gar nichts.
-			     ⚠️ `.avm-status` ist die Hausform (css/components/editor-body.css) — dieselbe
-			     Zeile wie im Wege- und Landschaften-Editor, kein eigenes Aussehen.
-			     ⚠️ role="status" + aria-live="polite": die Meldung erscheint ohne Fokuswechsel. -->
-			<div class="avm-status" role="status" aria-live="polite">
-				<span class="avm-status__text" id="garetien-status-text"></span>
-				<button class="gi-status__aktion" type="button" id="garetien-status-aktion" hidden></button>
-			</div>
-			<div class="avm-cols avm-cols--2">
-				<div class="avm-col" id="garetien-listcol"></div>
-				<div class="avm-col" id="garetien-detailcol"></div>
-			</div>
-			<div class="gi-foot avm-fenster__fuss">
-				<!-- 🔴 Die Zählzeile („X vorgemerkt · Y abgelehnt · Z übernommen", #garetien-foot-count)
-				     ist am 30.08.2026 restlos entfernt (Owner: „inkonsistent mit allen anderen Zahlen").
-				     Sie zählte einen SERVERstand, der seit Aufgabe 1 (Markieren ist ein reiner Marker,
-				     kein Bearbeitungsstand mehr) nichts mehr über das Fenster aussagte. -->
-				<!-- 🔴 Umgezogen 29.08.2026 (Owner-Meldung): „Markierte anzeigen" und „Anzeige leeren"
-				     standen vorher oben im Listenskelett (.gi-anzeigebar) -- dann hier, links von der
-				     Haupthandlung. WEICH (`.btn`, kein `--main`): die Haupthandlung des Fensters bleibt
-				     „Stage importieren" (AGENTS.md §12). Verdrahtet in bindFenster()
-				     (js/review/review-garetien-importer.js), nicht in garetienListeSkelettVerdrahten --
-				     was hier steht, steht von Anfang an statisch da, wie #garetien-apply selbst.
-				     ⚠️ Von den beiden ist nur „Stage leeren" geblieben; „Auswahl auf die Stage" ist am
-				     07.09.2026 in die Auswahlleiste gewandert (siehe den Block darunter). -->
-				<!-- 🪴 „Alle wählen" (#garetien-mark-all) stand bis zum 14.09.2026 hier. Es ist als Häkchen
-				     „alle n" in den Listenkopf gewandert (Bauplan 2026-09-14, Aufgabe 12): die Fußleiste
-				     gehört ausnahmslos der GANZEN Stage. -->
-				<!-- 🔴 FIXRUNDE 1 (D2, 07.09.2026): DREI KNÖPFE HABEN DEN FUSS VERLASSEN.
-				     „Auswahl aufheben" (#garetien-mark-none), „Auswahl auf die Stage"
-				     (#garetien-mark-show) und „Import zurücknehmen" (#garetien-ruecknahme-markierte)
-				     stehen jetzt in der AUSWAHLLEISTE unter der Liste -- dort tragen sie ihre Zahl
-				     und ihren Kontext, und dort standen drei von ihnen ohnehin schon zeichengleich
-				     daneben. Der Fuß behält, was der GANZEN STAGE gilt: Stage leeren · Alle zentrieren ·
-				     Stage importieren. „Alle wählen" ist seit dem 14.09.2026 das Häkchen im Listenkopf —
-				     dort steht es VOR der ersten Auswahl, was die Auswahlleiste nicht konnte. -->
-				<button class="btn" type="button" id="garetien-anzeige-clear">Stage leeren</button>
-				<!-- Owner 30.08.2026, wörtlich: „außerdem wär ein button mit 'Alle zentrieren'
-				     hilfreich, wo die ansicht auf alle in 'Anzeigen' gelisteten objekte zoomt
-				     (gemeinsamer mittelpunkt und vermutlich herauszoomt)". Weich wie seine Nachbarn --
-				     die eine gefüllte Handlung des Fensters bleibt „Angehakte übernehmen" (§12).
-				     🔴 Er misst die ANZEIGE-Menge, nicht die gerenderte Liste: er soll auf das zoomen,
-				     was wirklich auf der Karte liegt. Gesperrt, wenn dort nichts liegt. -->
-				<button class="btn" type="button" id="garetien-zentrieren-alle" disabled>Alle zentrieren</button>
-				<!-- 🔴 Umgehängt 30.08.2026, seit die Zählzeile links (die den Hinweis bisher physisch
-				     an den Anfang der Zeile geschoben hat) weg ist: der Grund für den gesperrten
-				     Hauptknopf steht jetzt DIREKT VOR ihm, in einem gemeinsamen Wirt -- man liest ihn,
-				     bevor man den grauen Knopf sucht (garetien-uebernahme-blatt.test.js), und er sitzt
-				     sichtbar neben seinem Knopf statt wie ein Rest der gelöschten Zeile auszusehen.
-				     SICHTBAR, nie nur im `title`: ein deaktivierter Knopf bekommt keine Zeigerereignisse,
-				     sein Tooltip erscheint in Chrome also nie. Dasselbe Mittel wie im Übernahme-Blatt,
-				     wo der Grund als Text in der Fußzeile steht.
-				     💣 Der Wirt (`.gi-foot__main`), nicht der Knopf, trägt den automatischen linken
-				     Rand: er bleibt immer gerendert, während sein Hinweis meist `hidden` ist -- am Knopf
-				     allein risse ein sichtbarer Hinweis eine Lücke zwischen sich und den weit nach
-				     rechts gesprungenen Knopf auf. -->
-				<span class="gi-foot__main">
-					<span class="gi-foot__hint" id="garetien-apply-hint" hidden></span>
-					<button class="btn btn--main" type="button" id="garetien-apply" disabled>Stage importieren · nichts auf der Stage</button>
-				</span>
-			</div>
-		</div>
-		<!-- Der Wirt der Übernahme-Vorschau des Garetien Importers.
-		     ⚠️ AUSSERHALB von .gi-win, und das ist tragend: das Fenster trägt `overflow: hidden` und
-		     ist 800×700 groß — ein Blatt darin wäre abgeschnitten. Der Wirt ist `position: fixed;
-		     inset: 0` auf --z-modal (5000) und legt sich damit über das Fenster (--z-dialog, 1450).
-		     🔴 Ein EIGENER Wirt neben #wikiSyncPlanHost, kein geteilter: das WikiSync-Panel und
-		     dieses Fenster sind zwei Oberflächen, und diese Datei verschwindet restlos beim Abbau
-		     (Auftrag §5.5). Gefüllt wird er erst auf Klick (js/review/sync-plan-sheet.js). -->
-		<div class="sync-plan-host" id="garetien-sheet" hidden></div>
 	</body>
 </html>

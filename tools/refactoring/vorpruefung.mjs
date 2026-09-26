@@ -90,7 +90,7 @@ function klammertiefen(text, maske) {
 }
 
 // GLOBALE Funktionsdeklarationen samt Rumpf -- global heisst Klammertiefe 0, nicht Spalte 0:
-// eine eingerueckte Deklaration im Rumpf einer IIFE (wege-editor.js, review-garetien-importer.js)
+// eine eingerueckte Deklaration im Rumpf einer IIFE (wege-editor.js)
 // ist eine Closure und kein Ziel; eine eingerueckte auf oberster Ebene eines Inline-Scripts ist global.
 // `start` zeigt auf das `function`/`async`-Wort, `ende` hinter die schliessende Klammer (exklusiv).
 export function findeFunktionen(text, sprache) {
