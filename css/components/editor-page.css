@@ -55,11 +55,12 @@
 @import url("wiki-override.css");
 @import url("wiki-weitere-kasten.css");
 
-/* 💣 Und der gemeinsame Editor-KOERPER -- Menüband, Kacheln, Spalten, Reiter, Rollkasten -- dieselbe
-   Bauform, derselbe Grund. Die Regeln standen bis 2026-08-27 weiter unten in DIESER Datei; das
-   Fenster „Garetien Importer" lebt in index.html und braucht sie ebenfalls. Auch dieser @import
-   muss VOR jeder Regel stehen. Begründung und die ersetzten Kurznamen stehen im Kopf jener
-   Datei. */
+/* 💣 Der gemeinsame Editor-KOERPER -- Menüband, Kacheln, Spalten, Reiter, Rollkasten. Die Regeln
+   standen bis 2026-08-27 weiter unten in DIESER Datei; sie zogen nach editor-body.css, weil
+   damals auch das Fenster «Garetien Importer» (in index.html) sie brauchte. Seit dessen Rückbau
+   (26.09.2026) bindet nur noch DIESE Datei editor-body.css -- css/styles.css hat ihren @import
+   verloren. Auch dieser @import muss VOR jeder Regel stehen. Begründung und die ersetzten
+   Kurznamen stehen im Kopf jener Datei. */
 @import url("editor-body.css");
 
 /* 💣 Und die Lizenz-Reihe (Lizenz · Urheber · Kommentar) -- dieselbe Bauform, derselbe Grund. Die
@@ -312,8 +313,10 @@
  * status line either — it moved out on 06.09.2026, see css/components/editor-body.css (imported
  * at the top of this file). This header used to describe all of it in one place; it stayed here
  * because the aliases and the host-scoped button/input rules below are still true and still
- * belong to the SIX EDITOR PAGES specifically (they key off `.avm-editor-body`, which the
- * „Garetien Importer" window does not carry).
+ * belong to the SIX EDITOR PAGES specifically (they key off `.avm-editor-body`, which index.html
+ * never carries -- that used to matter because the Garetien Importer's window loaded this file
+ * via index.html too, without ever carrying the class; since its removal on 2026-09-26 nothing
+ * outside these six pages loads editor-body.css at all).
  *
  * 💣 MOVED HERE ON 2026-08-02, and the reason is the whole point of this file. Every rule below
  *    was written for the SEVENTH editor (css/pages/landschaften-editor.css) and lived there. The
@@ -371,10 +374,11 @@ body.avm-editor-body {
    Statuszeile (.avm-ribbon-bar, .avm-ribbon, .avm-tile samt Modifikatoren, .avm-cols, .avm-col
    samt Modifikatoren, .avm-scroll samt Modifikator, .avm-tabs, .avm-tab, .avm-empty, .avm-error,
    .avm-pill samt Modifikator, .avm-status samt .avm-status__text) stehen NICHT mehr hier, sondern
-   in css/components/editor-body.css (oben per @import gebunden). Grund: das Fenster „Garetien
-   Importer" lebt in index.html, nicht in einem Editor-iframe, und braucht dieselben Formen. Nicht
-   hierher zurueckkopieren -- dann gaebe es sie zweimal, und genau daraus ist die Divergenz vom
-   14.08.2026 gewachsen. Gewacht von js/pages/__tests__/editor-body-single-source.test.js und
+   in css/components/editor-body.css (oben per @import gebunden). Grund: bis zum Rückbau des
+   Garetien-Importers (26.09.2026) brauchte auch dessen Fenster in index.html dieselben Formen;
+   editor-body.css bindet heute nur noch diese Datei. Nicht hierher zurueckkopieren -- dann gaebe
+   es sie zweimal, und genau daraus ist die Divergenz vom 14.08.2026 gewachsen. Gewacht von
+   js/pages/__tests__/editor-body-single-source.test.js und
    js/app/__tests__/statuszeile-geteilt.test.js. */
 
 /* 💣 `:where()` IS LOAD-BEARING HERE, and it cost a measurement to find out. On the seventh

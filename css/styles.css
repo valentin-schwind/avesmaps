@@ -52,13 +52,7 @@
 @import url("components/wiki-override.css");
 @import url("components/wiki-weitere-kasten.css");
 
-/* Der gemeinsame Editor-KOERPER (Menüband, Kacheln, Spalten, Reiter, Rollkasten). Dieselbe Reise
-   wie die drei Zeilen darueber und aus demselben Grund: filter-menu.js und wiki-weitere-kasten.js
-   benutzen die Formen in index.html, nicht nur in einem Editor-iframe. editor-page.css bindet
-   dieselbe Datei fuer die sechs Editorseiten -- die Regel steht also genau einmal. */
-@import url("components/editor-body.css");
-
-/* Die Lizenz-Reihe der Medien-Dialoge (Lizenz · Urheber · Kommentar). Dieselbe Reise wie die vier
+/* Die Lizenz-Reihe der Medien-Dialoge (Lizenz · Urheber · Kommentar). Dieselbe Reise wie die drei
    Zeilen darueber und aus demselben Grund: der sechste Dialog dieser Reihe ist die Wappen-Box des
    Karten-Bearbeiten-Dialogs, und die lebt in index.html, nicht in einem Editor-iframe.
    editor-page.css bindet dieselbe Datei fuer die Editorseiten -- die Regel steht also genau

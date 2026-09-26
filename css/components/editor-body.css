@@ -2,10 +2,13 @@
  * EINE Datei, weil die Formen an ZWEI Orten gebraucht werden.
  *
  * 💣 Sie standen bis 2026-08-27 in css/components/editor-page.css, und die laden nur die sechs
- *    Editor-SEITEN in html/. filter-menu.js und wiki-weitere-kasten.js benutzen diese Formen aber
- *    auch in index.html, nicht nur in einem iframe-Editor. Ohne diesen Umzug hätten sie die Formen
- *    abschreiben müssen, und genau daraus ist die Divergenz gewachsen, die
+ *    Editor-SEITEN in html/. Das Fenster „Garetien Importer" lebte in index.html, nicht in einem
+ *    iframe-Editor, und brauchte dieselben Formen. Ohne diesen Umzug hätte es sie abschreiben
+ *    müssen, und genau daraus ist die Divergenz gewachsen, die
  *    die Vereinheitlichung vom 14.08.2026 beseitigt hat (sieben Zeilenformen, vier Abschriften).
+ *    ✅ Seit dem Rückbau des Importers (26.09.2026, gemessen: kein Selektor dieser Datei kommt
+ *    noch in index.html oder in js/ außerhalb von js/pages/ vor) bindet NUR NOCH editor-page.css
+ *    diese Datei — css/styles.css hat ihren @import verloren.
  *
  * ⭐ Dieselbe Reise wie --avm-* → tokens.css, .avm-row → editor-row.css, der Statuskreis →
  *    map-status-circle.css und der Wiki-Override → wiki-override.css. Die fünfte, aus demselben
@@ -21,8 +24,8 @@
  *    Spalten, Rollkasten, Reiter, Zeilen-Badge. Was in editor-page.css BLEIBT: die :root-Aliase,
  *    `body.avm-editor-body` selbst, die auf `.avm-editor-body` gescopten Knopf-/Feld-Regeln, die
  *    Statuszeile, die Feldspalte (`.dt-*`), die Speicherleiste, `.rb-menu*` und `.type-filter*` —
- *    das ist Editor-SEITEN-Sache, filter-menu.js und wiki-weitere-kasten.js tragen in index.html
- *    keine `body.avm-editor-body`-Klasse.
+ *    reine Editor-SEITEN-Sache: Formen ohne Bezug auf einen Wirt liegen hier, Formen, die
+ *    `.avm-editor-body` brauchen, bleiben dort.
  */
 
 /* ---- Ribbon (Spec §3.3) ---------------------------------------------------------------------
@@ -231,9 +234,11 @@
  * Meldung darf die Spalten nie nach unten drücken.
  *
  * 🔴 SIE STAND BIS ZUM 06.09.2026 IN editor-page.css und war damit den Editor-SEITEN vorbehalten.
- * filter-menu.js und wiki-weitere-kasten.js leben aber in index.html und laden jene Datei nie —
- * dieselbe Reise wie editor-row.css, map-status-circle.css und wiki-override.css, und aus demselben
- * Grund: eine Regel, zwei Welten, EINE Datei, die beide laden.
+ * Das Fenster „Garetien Importer" lebte in index.html und lud jene Datei nie — dieselbe Reise
+ * wie editor-row.css, map-status-circle.css und wiki-override.css, und aus demselben Grund: eine
+ * Regel, zwei Welten, EINE Datei, die beide luden.
+ * ✅ Seit dem Rückbau des Importers (26.09.2026) ist auch die Statuszeile wieder reine
+ * Editor-SEITEN-Sache — nur editor-page.css bindet diese Datei noch.
  * 💣 UND DESHALB DIE ECHTEN TOKENS, NICHT DIE KURZ-ALIASE. `--soft`/`--line`/`--mut`/`--ok`/
  *    `--bad` stehen im `:root` von editor-page.css; in index.html sind sie undefiniert, und
  *    `color: var(--mut)` ohne Rückfall ist dann ungültig — die Zeile erbte still die Textfarbe.
@@ -263,7 +268,6 @@
 }
 
 /* 💣 `--color-success-soft-text`/`--color-danger-soft-text` statt `--color-success`/
-   `--color-danger`: auf `--color-panel-soft` misst `--color-danger` im dunklen Thema unter 4,5 —
-   dieselbe Messung, die `.gi-win .btn--danger` schon trägt. */
+   `--color-danger`: auf `--color-panel-soft` misst `--color-danger` im dunklen Thema unter 4,5. */
 .avm-status__text.ok { color: var(--color-success-soft-text); }
 .avm-status__text.bad { color: var(--color-danger-soft-text); }

@@ -3,12 +3,17 @@
 //
 // 🔴 DIESER TEST EXISTIERT WEGEN DES FUENFTEN UMZUGS. Die Regeln standen bis 2026-08-27 in
 // css/components/editor-page.css, und die laedt NUR die sechs Editor-iframes in html/, nie
-// index.html. filter-menu.js und wiki-weitere-kasten.js benutzen die Formen aber auch in
-// index.html, nicht nur in einem iframe-Editor. Ohne diesen Umzug haetten sie die Formen
-// abschreiben muessen, und genau daraus ist die Divergenz gewachsen, die die
-// Vereinheitlichung vom 14.08.2026 beseitigt hat (sieben Zeilenformen, vier davon Abschriften).
+// index.html. Das Fenster "Garetien Importer" lebte in index.html, nicht in einem iframe-Editor,
+// und brauchte dieselben Formen. Ohne diesen Umzug haette es sie abschreiben muessen, und genau
+// daraus ist die Divergenz gewachsen, die die Vereinheitlichung vom 14.08.2026 beseitigt hat
+// (sieben Zeilenformen, vier davon Abschriften).
 // Dieselbe Reise wie --avm-* -> tokens.css, .avm-row -> editor-row.css, der Statuskreis ->
 // map-status-circle.css und der Wiki-Override -> wiki-override.css.
+//
+// ✅ SEIT DEM RUECKBAU DES IMPORTERS (26.09.2026) bindet NUR NOCH editor-page.css diese Datei --
+// css/styles.css hat ihren @import verloren, gemessen: kein Selektor dieser Datei kommt noch in
+// index.html oder in js/ ausserhalb von js/pages/ vor (chore-Commit desselben Tages). Pruefung 2
+// unten haelt das fest, statt die alte Bindung zu verlangen.
 //
 // Run: node js/pages/__tests__/editor-body-single-source.test.js
 
@@ -67,15 +72,20 @@ for (const sel of gewanderteSelektoren) {
 		+ "css/components/editor-body.css.");
 	checks++;
 	assert.ok(kopf.test(ohneKommentare(editorBody)),
-		`${sel} fehlt in css/components/editor-body.css -- filter-menu.js und wiki-weitere-kasten.js `
-		+ "in index.html haetten dann keine Form dafuer.");
+		`${sel} fehlt in css/components/editor-body.css -- die sechs Editorseiten haetten dann `
+		+ "keine Form dafuer.");
 	checks++;
 }
 
-// ---- 2. BEIDE Wirte binden die Datei: styles.css fuer index.html, editor-page.css fuer die -----
-//         sechs Editor-Seiten.
-assert.ok(styles.includes('@import url("components/editor-body.css")'),
-	"css/styles.css bindet editor-body.css nicht -- das Fenster in index.html haette keine Form.");
+// ---- 2. NUR EIN Wirt bindet die Datei: editor-page.css fuer die sechs Editor-Seiten. ------------
+// 🔴 BIS ZUM 26.09.2026 GALT HIER "BEIDE Wirte" -- css/styles.css band editor-body.css zusaetzlich
+// fuer index.html, weil das Fenster "Garetien Importer" dort dieselben Formen brauchte. Gemessen
+// am selben Tag (chore-Commit): kein Selektor dieser Datei kommt noch in index.html oder in js/
+// ausserhalb von js/pages/ vor -- der @import in styles.css war seither tot und ist gefallen.
+assert.ok(!styles.includes('@import url("components/editor-body.css")'),
+	"css/styles.css bindet editor-body.css wieder -- letzter Nutzer war das Fenster \"Garetien "
+	+ "Importer\" (index.html), das am 26.09.2026 zurueckgebaut wurde. Ohne einen neuen, echten "
+	+ "Nutzer in index.html gehoert der @import nicht zurueck.");
 checks++;
 assert.ok(editorPage.includes('@import url("editor-body.css")'),
 	"editor-page.css bindet editor-body.css nicht -- die sechs Editorseiten verloeren ihr "
@@ -89,11 +99,6 @@ assert.ok(!/[^\s]\s*\{/.test(ohneKommentare(vorImportPage)),
 	"In editor-page.css steht eine Regel VOR dem @import von editor-body.css. Ein @import nach "
 	+ "der ersten Regel wird ignoriert -- die sechs Editorseiten haetten dann kein Menueband, ohne "
 	+ "jede Fehlermeldung.");
-checks++;
-
-const vorImportStyles = styles.slice(0, styles.indexOf('@import url("components/editor-body.css")'));
-assert.ok(!/[^\s]\s*\{/.test(ohneKommentare(vorImportStyles)),
-	"In css/styles.css steht eine Regel VOR dem @import von editor-body.css.");
 checks++;
 
 // ---- 3. KEIN lokaler Alias in der geteilten Datei -----------------------------------------------

@@ -6,17 +6,21 @@ const path = require("path");
 const wurzel = path.join(__dirname, "..", "..", "..");
 const lies = (p) => fs.readFileSync(path.join(wurzel, p), "utf8").replace(/\r\n/g, "\n");
 
-// 🔴 .avm-status gehoert BEIDEN Welten: den sechs Editor-SEITEN (iframes, editor-page.css) und
-// der App (index.html, styles.css). Sie steht deshalb in editor-body.css -- der Datei, die BEIDE
-// laden. Dieselbe Reise wie editor-row.css, map-status-circle.css und wiki-override.css.
+// 🔴 .avm-status stand bis zum 26.09.2026 in editor-body.css, weil BEIDE Welten sie brauchten:
+// die sechs Editor-SEITEN (iframes, editor-page.css) und die App (index.html, styles.css) --
+// dort zuletzt fuer das Fenster "Garetien Importer". Seit dessen Rueckbau (26.09.2026, gemessen:
+// kein Selektor dieser Datei kommt noch in index.html vor) bindet NUR NOCH editor-page.css die
+// Datei; sie bleibt trotzdem in editor-body.css stehen, wie editor-row.css, map-status-circle.css
+// und wiki-override.css ihre Formen behalten.
 const body = lies("css/components/editor-body.css");
 const page = lies("css/components/editor-page.css");
 
 assert.ok(/^\.avm-status \{/m.test(body), ".avm-status muss in editor-body.css stehen");
 assert.ok(!/^\.avm-status \{/m.test(page), ".avm-status darf nicht mehr in editor-page.css stehen");
 assert.ok(page.includes('@import url("editor-body.css")'), "editor-page.css bindet editor-body.css");
-assert.ok(lies("css/styles.css").includes('@import url("components/editor-body.css")'),
-	"styles.css bindet editor-body.css");
+assert.ok(!lies("css/styles.css").includes('@import url("components/editor-body.css")'),
+	"styles.css bindet editor-body.css wieder -- letzter Nutzer war das Fenster \"Garetien "
+	+ "Importer\" (index.html), zurueckgebaut am 26.09.2026");
 
 // 💣 SIE DARF DIE KURZ-ALIASE NICHT MEHR LESEN. --soft/--line/--mut/--ok/--bad stehen im :root
 // von editor-page.css; in index.html sind sie UNDEFINIERT, und `color: var(--mut)` ohne Rueckfall
