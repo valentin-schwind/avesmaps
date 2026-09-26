@@ -507,6 +507,11 @@ function avesmapsUndoColumnsForAuditAction(string $action): array {
         // gesetzt hat. Die Liste spiegelt das UPDATE, nicht die Familie.
         'update_label' => ['name', 'feature_subtype', 'properties_json'],
         'update_region' => ['name', 'properties_json', 'style_json'],
+        // Innerorts (api/_internal/app/innerorts.php): „Von der Karte nehmen"/„Auf die Karte setzen"
+        // aendern GENAU diese zwei Spalten (is_active + der Merker in properties_json), nie den Rest
+        // der Zeile -- anders als delete_feature/dessen Undo, das die GANZE Zeile restauriert.
+        'take_off_map',
+        'put_on_map' => ['is_active', 'properties_json'],
         default => [],
     };
 }
