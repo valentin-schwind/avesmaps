@@ -1523,10 +1523,15 @@ function settlementAssignmentOptions() {
 	];
 }
 
+// 💣 Maskiert AUCH `"` und `'`: das Ergebnis landet in dieser Seite an rund 20 Stellen in
+// Attributen (`value="…"`, `href="…"`, `data-*`) und wird an eingebaute Bauteile als `escape`
+// weitergereicht, die es ebenso einsetzen. Die alte Fassung (textContent -> innerHTML) liess
+// beide Zeichen durch -- ein Ortsname mit `"` brach das Attribut auf. Gewacht von
+// js/pages/__tests__/settlement-escape.test.js.
 function settlementEscape(value) {
-	const holder = document.createElement("div");
-	holder.textContent = value === null || value === undefined ? "" : String(value);
-	return holder.innerHTML;
+	return String(value === null || value === undefined ? "" : value)
+		.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 // Territory display name for a settlement's assignment line: prefer the tree's own name lookup

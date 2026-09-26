@@ -32,10 +32,12 @@ var STAETTEN_KASTEN_API_URL = "/api/edit/map/settlement-places.php";
 // I2: die EINZIGE Maskierung, die dieses Bauteil benutzt -- vollstaendig (& < > " '), weil
 // escape()-Ergebnisse hier auch in ATTRIBUTEN landen (href, data-st-id, title, aria-label,
 // value), nicht nur in Textknoten. `opts.escape` wird deshalb absichtlich NICHT mehr gereicht
-// (siehe mountStaettenKasten): der Ortseditor uebergibt `settlementEscape`
-// (html/wiki-sync-settlement-editor.html), das nur `textContent` -> `innerHTML` maskiert und
-// damit `"` NICHT abdeckt -- ein Name oder eine Wiki-Adresse mit `"` haette ein Attribut
-// aufgebrochen.
+// (siehe mountStaettenKasten): der Ortseditor uebergab `settlementEscape`
+// (html/wiki-sync-settlement-editor.html), das bis zum 26.09.2026 nur `textContent` ->
+// `innerHTML` maskierte und damit `"` NICHT abdeckte -- ein Name oder eine Wiki-Adresse mit `"`
+// haette ein Attribut aufgebrochen. Seither maskiert es vollstaendig; die eigene Maskierung
+// bleibt trotzdem, weil ein Bauteil, das in Attribute schreibt, seine Sicherheit nicht vom Wirt
+// leiht.
 function staettenKastenDefaultEscape(value) {
   return String(value === null || value === undefined ? "" : value)
     .replace(/&/g, "&amp;")

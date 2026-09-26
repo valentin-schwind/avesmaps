@@ -77,9 +77,10 @@ function knoten(tag) {
 		for (let el = n; el; el = el.parentNode) { if (el.classList && el.classList.contains(klasse)) return el; }
 		return null;
 	};
-	// 💣 `settlementEscape` maskiert ueber das DOM (createElement → textContent setzen → innerHTML
-	// lesen). Eine Attrappe mit leerem innerHTML macht daraus eine Funktion, die JEDEN Wert zu ""
-	// maskiert -- dieselbe Falle, die in ort-wiki-override-form.test.js schon gemessen wurde.
+	// 💣 `settlementEscape` maskierte bis zum 26.09.2026 ueber das DOM (createElement → textContent
+	// setzen → innerHTML lesen). Eine Attrappe mit leerem innerHTML machte daraus eine Funktion, die
+	// JEDEN Wert zu "" maskiert -- dieselbe Falle, die in ort-wiki-override-form.test.js schon
+	// gemessen wurde. Seither ersetzt es Zeichen ohne DOM; die Attrappe bleibt fuer die Seite selbst.
 	Object.defineProperty(n, "textContent", { get: () => text, set: (w) => { text = String(w === null || w === undefined ? "" : w); } });
 	Object.defineProperty(n, "innerHTML", {
 		get: () => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"),

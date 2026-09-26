@@ -58,8 +58,10 @@ const kasten = {
 				return elemente[id];
 			},
 			querySelector() { return null; }, querySelectorAll() { return []; },
-			// 💣 `settlementEscape` maskiert ueber das DOM: `createElement("div")`, `textContent`
-			// setzen, `innerHTML` lesen. Eine Attrappe, die `innerHTML` immer leer laesst, macht
+			// ⚠️ Seit 26.09.2026 maskiert `settlementEscape` ohne DOM (Zeichenersetzung, auch `"`/`'`);
+			// die Attrappe bleibt fuer die uebrigen `createElement`-Nutzer der Seite stehen.
+			// 💣 Bis dahin maskierte es ueber das DOM: `createElement("div")`, `textContent`
+			// setzen, `innerHTML` lesen. Eine Attrappe, die `innerHTML` immer leer laesst, machte
 			// daraus eine Funktion, die JEDEN Wert zu "" maskiert -- und der Test misst dann leere
 			// Zellen statt der echten Werte. Gemessen: `data-wiki-reset=""` bei jeder Zeile.
 			createElement() {

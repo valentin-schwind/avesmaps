@@ -803,9 +803,10 @@ async function testSchwacherEscape() {
 	const aufrufe = [];
 	const host = neu("div");
 	const sektion = neu("div");
-	// Wie `settlementEscape` im Ortseditor: nur textContent -> innerHTML, maskiert also NICHT das
-	// doppelte Anfuehrungszeichen, das dieses Bauteil in Attribute setzt (href, data-st-id,
-	// title, aria-label, value).
+	// Wie `settlementEscape` im Ortseditor bis zum 26.09.2026: nur textContent -> innerHTML,
+	// maskiert also NICHT das doppelte Anfuehrungszeichen, das dieses Bauteil in Attribute setzt
+	// (href, data-st-id, title, aria-label, value). Der Ortseditor ist seither repariert
+	// (settlement-escape.test.js) -- der Riegel hier gilt jedem kuenftigen Wirt.
 	const schwacherEscape = (value) => String(value === null || value === undefined ? "" : value)
 		.replace(/&/g, "&amp;")
 		.replace(/</g, "&lt;")
