@@ -135,20 +135,13 @@ function avesmapsInnerortsSetzen(array $properties, string $ortId, string $herku
 }
 
 /**
- * Der WIKI-STAND: die public_id der Stadt, die der zugewiesene Wiki-Artikel nennt -- '' = keiner
- * (Spec §5). Ablauf (jede Unsicherheit -> ''):
- *
- *   1. Artikeltitel aus `properties.wiki_settlement.title`, sonst `properties.name`.
- *   2. `wiki_sync_pages.standort` dieser Seite (bei Stadtteilen setzt der Dump dort `[[Stadt]]`,
- *      siehe api/_internal/wiki/dump-entity-scan.php ~Z. 914).
- *   3. Scope-Klassifikator (`avesmapsPlaceScopeClassifyWithIndex`) -- nur `inside` zaehlt.
- *   4. Der genannte Stadtname muss GENAU EINEN aktiven Kartenpunkt einer Siedlungsklasse
- *      (Dorf...Metropole) treffen, gefaltet wie der Klassifikator (`avesmapsPlaceScopeFoldName`).
- *      Mehrdeutig oder gar keiner -> ''.
+ * Der rohe `|Standort=`-Text der zugewiesenen Wiki-Seite -- '' = keine Seite/kein Standort.
+ * Der TEIL von `avesmapsInnerortsWikiStand`, der sich NICHT ueber viele Kandidaten teilen laesst
+ * (jeder Punkt hat seinen eigenen Titel): eine eigene, kleine Abfrage je Aufruf.
  *
  * ⚠️ Fehlende Tabelle/Spalte faellt OFFEN aus: '' -- dieselbe Regel wie ueberall in diesem Haus.
  */
-function avesmapsInnerortsWikiStand(PDO $pdo, array $properties): string
+function avesmapsInnerortsStandortLesen(PDO $pdo, array $properties): string
 {
     $wikiSettlement = is_array($properties['wiki_settlement'] ?? null) ? $properties['wiki_settlement'] : [];
     $titel = trim((string) ($wikiSettlement['title'] ?? ''));
@@ -169,26 +162,19 @@ function avesmapsInnerortsWikiStand(PDO $pdo, array $properties): string
     if (!is_array($row)) {
         return '';
     }
-    $standort = trim((string) ($row['standort'] ?? ''));
-    if ($standort === '') {
-        return '';
-    }
 
-    try {
-        $index = avesmapsPlaceScopeLoadIndex($pdo);
-    } catch (Throwable) {
-        return '';
-    }
-    $klassifiziert = avesmapsPlaceScopeClassifyWithIndex($standort, $index);
-    if ($klassifiziert['scope'] !== AVESMAPS_PLACE_SCOPE_INSIDE) {
-        return '';
-    }
-    $stadtName = trim((string) $klassifiziert['settlement']);
-    if ($stadtName === '') {
-        return '';
-    }
-    $gefaltet = avesmapsPlaceScopeFoldName($stadtName);
+    return trim((string) ($row['standort'] ?? ''));
+}
 
+/**
+ * Alle aktiven Kartenpunkte einer Siedlungsklasse (Dorf...Metropole) -- der TEIL von
+ * `avesmapsInnerortsWikiStand`, der ueber viele Kandidaten hinweg IDENTISCH ist und darum
+ * vorgeladen werden kann (`avesmapsInnerortsAusWikiLauf`, N+1-Vermeidung).
+ *
+ * @return list<array{public_id:string, name:string}>
+ */
+function avesmapsInnerortsSiedlungsListeLaden(PDO $pdo): array
+{
     $platzhalter = [];
     $werte = [];
     foreach (AVESMAPS_PLACE_SCOPE_SETTLEMENT_SUBTYPES as $i => $subtype) {
@@ -204,18 +190,86 @@ function avesmapsInnerortsWikiStand(PDO $pdo, array $properties): string
         $statement->execute($werte);
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
     } catch (Throwable) {
+        return [];
+    }
+
+    $siedlungen = [];
+    foreach ((array) $rows as $row) {
+        $siedlungen[] = ['public_id' => (string) ($row['public_id'] ?? ''), 'name' => (string) ($row['name'] ?? '')];
+    }
+
+    return $siedlungen;
+}
+
+/**
+ * REIN: aus einem bereits gelesenen `|Standort=`-Text die public_id der Stadt -- mit VORGELADENEM
+ * Scope-Index und VORGELADENER Siedlungsliste (`avesmapsInnerortsSiedlungsListeLaden`). Der Teil
+ * von `avesmapsInnerortsWikiStand`, den ein Lauf ueber viele Kandidaten hinweg NUR EINMAL braucht.
+ *
+ * @param array{settlements:array<string,bool>, regions:array<string,bool>} $scopeIndex
+ * @param list<array{public_id:string, name:string}> $siedlungen
+ */
+function avesmapsInnerortsWikiStandAusStandort(string $standort, array $scopeIndex, array $siedlungen): string
+{
+    if ($standort === '') {
         return '';
     }
 
+    $klassifiziert = avesmapsPlaceScopeClassifyWithIndex($standort, $scopeIndex);
+    if ($klassifiziert['scope'] !== AVESMAPS_PLACE_SCOPE_INSIDE) {
+        return '';
+    }
+    $stadtName = trim((string) $klassifiziert['settlement']);
+    if ($stadtName === '') {
+        return '';
+    }
+    $gefaltet = avesmapsPlaceScopeFoldName($stadtName);
+
     $treffer = [];
-    foreach ((array) $rows as $row) {
-        $name = (string) ($row['name'] ?? '');
-        if (avesmapsPlaceScopeFoldName($name) === $gefaltet) {
-            $treffer[(string) ($row['public_id'] ?? '')] = true;
+    foreach ($siedlungen as $siedlung) {
+        if (avesmapsPlaceScopeFoldName((string) ($siedlung['name'] ?? '')) === $gefaltet) {
+            $treffer[(string) ($siedlung['public_id'] ?? '')] = true;
         }
     }
 
     return count($treffer) === 1 ? (string) array_key_first($treffer) : '';
+}
+
+/**
+ * Der WIKI-STAND: die public_id der Stadt, die der zugewiesene Wiki-Artikel nennt -- '' = keiner
+ * (Spec §5). Ablauf (jede Unsicherheit -> ''):
+ *
+ *   1. Artikeltitel aus `properties.wiki_settlement.title`, sonst `properties.name`.
+ *   2. `wiki_sync_pages.standort` dieser Seite (bei Stadtteilen setzt der Dump dort `[[Stadt]]`,
+ *      siehe api/_internal/wiki/dump-entity-scan.php ~Z. 914).
+ *   3. Scope-Klassifikator (`avesmapsPlaceScopeClassifyWithIndex`) -- nur `inside` zaehlt.
+ *   4. Der genannte Stadtname muss GENAU EINEN aktiven Kartenpunkt einer Siedlungsklasse
+ *      (Dorf...Metropole) treffen, gefaltet wie der Klassifikator (`avesmapsPlaceScopeFoldName`).
+ *      Mehrdeutig oder gar keiner -> ''.
+ *
+ * ⚠️ Fehlende Tabelle/Spalte faellt OFFEN aus: '' -- dieselbe Regel wie ueberall in diesem Haus.
+ *
+ * 💣 FUER EINEN EINZELNEN PUNKT gedacht (update_point, die Editor-Anzeige). Ein Aufrufer, der
+ * VIELE Punkte nacheinander bewertet (der Admin-Lauf), ruft diese Funktion NICHT im Kreis --
+ * jeder Aufruf laedt Scope-Index UND Siedlungsliste neu (N+1). Er nutzt stattdessen
+ * `avesmapsInnerortsStandortLesen` + `avesmapsInnerortsWikiStandAusStandort` mit EINMAL
+ * geladenem `avesmapsPlaceScopeLoadIndex`/`avesmapsInnerortsSiedlungsListeLaden`
+ * (siehe `avesmapsInnerortsAusWikiLauf`). Die oeffentliche Signatur bleibt dieselbe.
+ */
+function avesmapsInnerortsWikiStand(PDO $pdo, array $properties): string
+{
+    $standort = avesmapsInnerortsStandortLesen($pdo, $properties);
+    if ($standort === '') {
+        return '';
+    }
+
+    try {
+        $scopeIndex = avesmapsPlaceScopeLoadIndex($pdo);
+    } catch (Throwable) {
+        return '';
+    }
+
+    return avesmapsInnerortsWikiStandAusStandort($standort, $scopeIndex, avesmapsInnerortsSiedlungsListeLaden($pdo));
 }
 
 /**
@@ -285,27 +339,6 @@ function avesmapsInnerortsFetchFeature(PDO $pdo, string $publicId): ?array
     $row = $statement->fetch(PDO::FETCH_ASSOC);
 
     return is_array($row) ? $row : null;
-}
-
-/**
- * Nur der Name eines Punktes -- ohne Sperre, fuer Vorschauen (Admin-Lauf-Stichprobe). Faellt
- * offen aus: unbekannt/kaputt -> ''.
- */
-function avesmapsInnerortsFeatureName(PDO $pdo, string $publicId): string
-{
-    $publicId = trim($publicId);
-    if ($publicId === '') {
-        return '';
-    }
-    try {
-        $statement = $pdo->prepare('SELECT name FROM map_features WHERE public_id = :pid LIMIT 1');
-        $statement->execute(['pid' => $publicId]);
-        $name = $statement->fetchColumn();
-    } catch (Throwable) {
-        return '';
-    }
-
-    return is_string($name) ? $name : '';
 }
 
 /**
@@ -411,6 +444,25 @@ function avesmapsInnerortsWikiNachziehen(PDO $pdo, string $publicId, int $userId
         $wikiStand = avesmapsInnerortsWikiStand($pdo, $properties);
         $neueProperties = avesmapsInnerortsSetzen($properties, $wikiStand, AVESMAPS_FIELD_ORIGIN_WIKI);
 
+        // 🔴 Dissolviert der Wiki-Stand die Zugehoerigkeit (der Artikel nennt keine Stadt mehr),
+        // bleibt keine Herkunft fuer ein Feld stehen, das es nicht mehr gibt. Das ist NICHT
+        // dasselbe wie ein MANUELLES Loesen (avesmapsInnerortsUpdatePointAnwenden,
+        // api/_internal/app/innerorts-anschluss.php): das bleibt bewusst als Override 'manual'
+        // stehen, weil es eine Entscheidung ist, die den naechsten Wiki-Abgleich abschirmen soll.
+        // Ein automatisches "der Artikel sagt nichts mehr" ist keine Entscheidung -- eine stehen
+        // gebliebene 'wiki'-Herkunft neben einem fehlenden Feld waere nur totes Nest.
+        if ($wikiStand === '') {
+            $herkunftOhneInnerorts = is_array($neueProperties['field_origins'] ?? null)
+                ? $neueProperties['field_origins']
+                : [];
+            unset($herkunftOhneInnerorts['innerorts']);
+            if ($herkunftOhneInnerorts === []) {
+                unset($neueProperties['field_origins']);
+            } else {
+                $neueProperties['field_origins'] = $herkunftOhneInnerorts;
+            }
+        }
+
         if (avesmapsInnerortsEncodeJson($properties) === avesmapsInnerortsEncodeJson($neueProperties)) {
             $pdo->rollBack();
 
@@ -435,6 +487,16 @@ function avesmapsInnerortsWikiNachziehen(PDO $pdo, string $publicId, int $userId
             'feature_subtype' => (string) ($feature['feature_subtype'] ?? ''),
             'properties_json' => $neueProperties,
             'revision' => $revision,
+            // 🔴 M3 (Controller-Fix): OHNE diesen Schluessel faellt
+            // `avesmapsAssertUndoPatchStillCurrent` fuer die STETS mitgepruefte Spalte `is_active`
+            // (avesmapsBuildUndoFeatureUpdates haengt sie an JEDE Nicht-delete_feature-Aktion an)
+            // auf `avesmapsInferUndoAfterColumnValue` zurueck -- und die nimmt fuer jede Aktion
+            // ausser delete_feature BLIND `is_active = 1` an. Ein von der Karte genommener Punkt
+            // (is_active = 0), dessen Wiki-Stand nachgezogen wird, waere damit nie wieder
+            // rueckgaengig zu machen: der Vergleich saehe eine "Aenderung", die nie stattfand, und
+            // wuerfe "wurde inzwischen erneut geaendert". `is_active` AENDERT sich hier nie (nur
+            // properties_json), also traegt der Schnappschuss schlicht den WIRKLICHEN Wert.
+            'is_active' => (int) ($feature['is_active'] ?? 1),
         ]);
 
         $pdo->commit();
@@ -590,9 +652,10 @@ function avesmapsInnerortsAufDieKarteSetzen(PDO $pdo, string $publicId, int $use
 
 /**
  * „Endgueltig entfernen" (Stätten-Kasten `✕` bei einer von-der-Karte-genommenen Zeile, Spec §6.3):
- * nur ein inaktiver Punkt MIT Merker -- der Merker (und damit `innerorts` als Ganzes) verschwindet,
- * der Punkt bleibt inaktiv. 🔴 Unumkehrbar wie ein regulaeres Loeschen: keine neue Undo-Spalte in
- * `avesmapsUndoColumnsForAuditAction`, damit „Rueckgaengig" hier bewusst NICHT angeboten wird.
+ * nur ein inaktiver Punkt MIT Merker -- der Merker (und damit `innerorts` als Ganzes) verschwindet;
+ * der Punkt loescht sich damit auch als Staette seiner Stadt. Ueber „Rueckgaengig" im
+ * Aenderungsverlauf umkehrbar wie jedes Loeschen (`avesmapsUndoColumnsForAuditAction`,
+ * api/_internal/map/features.php, traegt `properties_json` fuer diese Aktion).
  *
  * @return array{ok:true, public_id:string, name:string}|array{ok:false, code:string, message:string}
  */
@@ -641,6 +704,11 @@ function avesmapsInnerortsEndgueltigEntfernen(PDO $pdo, string $publicId, int $u
             'public_id' => $publicId,
             'properties_json' => $neueProperties,
             'revision' => $revision,
+            // 🔴 is_active AENDERT sich hier nie (der Punkt war und bleibt inaktiv) -- der
+            // Schnappschuss traegt trotzdem den WIRKLICHEN Wert, sonst nimmt
+            // `avesmapsAssertUndoPatchStillCurrent` blind `is_active = 1` an (dieselbe Falle wie
+            // bei `avesmapsInnerortsWikiNachziehen`, siehe deren Kommentar).
+            'is_active' => (int) ($feature['is_active'] ?? 1),
         ]);
 
         $pdo->commit();
@@ -785,18 +853,46 @@ function avesmapsInnerortsAusWikiLauf(PDO $pdo, bool $apply, int $limit, int $us
 {
     $limit = max(1, $limit);
 
+    $klassenPlatzhalter = [];
+    $klassenWerte = [];
+    foreach (AVESMAPS_INNERORTS_KLASSEN as $i => $subtype) {
+        $schluessel = 'k' . $i;
+        $klassenPlatzhalter[] = ':' . $schluessel;
+        $klassenWerte[$schluessel] = $subtype;
+    }
+
     try {
-        $statement = $pdo->query(
+        $statement = $pdo->prepare(
             "SELECT public_id, name, properties_json
                FROM map_features
               WHERE feature_type = 'location'
-                AND feature_subtype IN ('gebaeude', 'stadtviertel')
+                AND feature_subtype IN (" . implode(', ', $klassenPlatzhalter) . ")
                 AND is_active = 1
                 AND properties_json LIKE '%wiki_settlement%'"
         );
-        $rows = $statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [];
+        $statement->execute($klassenWerte);
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
     } catch (Throwable) {
         $rows = [];
+    }
+
+    // 🔴 N+1 VERMIEDEN (Controller-Fix): Scope-Index und Siedlungsliste sind ueber ALLE
+    // Kandidaten dieses Laufs hinweg IDENTISCH -- beide werden hier GENAU EINMAL geladen, nie je
+    // Kandidat. `avesmapsInnerortsWikiStand()` (die oeffentliche, einzelpunktige Fassung fuer
+    // update_point/die Editor-Anzeige) bleibt fuer ihre eigenen Aufrufer unveraendert; dieser Lauf
+    // nutzt stattdessen `avesmapsInnerortsStandortLesen` (je Kandidat -- der Titel ist jedesmal ein
+    // anderer, das laesst sich nicht teilen) + `avesmapsInnerortsWikiStandAusStandort` mit dem
+    // vorgeladenen Index/der vorgeladenen Liste. Aus derselben Liste kommt auch der Stadtname der
+    // Stichprobe (`$siedlungsNamen`) -- ohne die vorher noch fuenf zusaetzliche Einzelabfragen.
+    try {
+        $scopeIndex = avesmapsPlaceScopeLoadIndex($pdo);
+    } catch (Throwable) {
+        $scopeIndex = ['settlements' => [], 'regions' => []];
+    }
+    $siedlungen = avesmapsInnerortsSiedlungsListeLaden($pdo);
+    $siedlungsNamen = [];
+    foreach ($siedlungen as $siedlung) {
+        $siedlungsNamen[(string) ($siedlung['public_id'] ?? '')] = (string) ($siedlung['name'] ?? '');
     }
 
     $kandidaten = [];
@@ -814,7 +910,8 @@ function avesmapsInnerortsAusWikiLauf(PDO $pdo, bool $apply, int $limit, int $us
             continue; // manuelle Zuordnung wird nie ueberschrieben
         }
 
-        $wikiStand = avesmapsInnerortsWikiStand($pdo, $properties);
+        $standort = avesmapsInnerortsStandortLesen($pdo, $properties);
+        $wikiStand = avesmapsInnerortsWikiStandAusStandort($standort, $scopeIndex, $siedlungen);
         if ($wikiStand === avesmapsInnerortsOrtVon($properties)) {
             continue; // keine echte Aenderung
         }
@@ -822,7 +919,7 @@ function avesmapsInnerortsAusWikiLauf(PDO $pdo, bool $apply, int $limit, int $us
         $kandidaten[] = [
             'public_id' => (string) ($row['public_id'] ?? ''),
             'name' => (string) ($row['name'] ?? ''),
-            'stadt' => $wikiStand !== '' ? avesmapsInnerortsFeatureName($pdo, $wikiStand) : '',
+            'stadt' => $wikiStand !== '' ? ($siedlungsNamen[$wikiStand] ?? '') : '',
         ];
     }
 

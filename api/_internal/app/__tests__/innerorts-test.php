@@ -42,7 +42,7 @@ $pruefungen = 0;
 /**
  * Die Treiber-Naht: MySQL-eigene Formen auf SQLite uebersetzt, keine Funktion nachgebaut.
  */
-final class AvesmapsInnerortsTestPdo extends PDO
+class AvesmapsInnerortsTestPdo extends PDO
 {
     public function prepare(string $query, array $options = []): PDOStatement|false
     {
@@ -149,6 +149,8 @@ function avesmapsInnerortsTestLetzterAudit(PDO $pdo): array
 }
 
 const AVESMAPS_INNERORTS_TEST_USER = 7;
+// Fuer avesmapsUndoAuditChange(), das einen vollen Nutzer-Datensatz erwartet (nicht nur die id).
+$user = ['id' => AVESMAPS_INNERORTS_TEST_USER, 'username' => 'pruefer'];
 
 // ============================================================================================
 // 1) Konstante und IstKlasse -- deckungsgleich mit AVESMAPS_BAUWERKSKLASSEN
@@ -290,6 +292,19 @@ $standOhneTabelle = avesmapsInnerortsWikiStand($pdoOhneWiki, ['wiki_settlement' 
 assert($standOhneTabelle === '', 'fehlende wiki_sync_pages-Tabelle faellt offen aus: ""');
 $pruefungen++;
 
+// -- Die Tabelle existiert, aber die Spalte `standort` fehlt (eine frische Installation VOR dem
+// naechsten „Siedlungen syncen", siehe die Kopf-Notiz an der ALTER-TABLE-Stelle in
+// api/_internal/wiki/settlements.php) -- faellt ebenso offen aus: ''.
+$pdoOhneSpalte = new AvesmapsInnerortsTestPdo('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$pdoOhneSpalte->exec('CREATE TABLE map_features (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, feature_type TEXT, feature_subtype TEXT, name TEXT,
+    properties_json TEXT, is_active INTEGER DEFAULT 1)');
+$pdoOhneSpalte->exec('CREATE TABLE wiki_sync_pages (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT)');
+$pdoOhneSpalte->exec("INSERT INTO wiki_sync_pages (title) VALUES ('Irgendwas')");
+$standOhneSpalte = avesmapsInnerortsWikiStand($pdoOhneSpalte, ['wiki_settlement' => ['title' => 'Irgendwas']]);
+assert($standOhneSpalte === '', 'fehlende Spalte standort faellt offen aus: ""');
+$pruefungen++;
+
 // ============================================================================================
 // 5) ZielPruefen
 // ============================================================================================
@@ -369,7 +384,8 @@ assert($audAnzahlNachNochmal === $audAnzahlVorNochmal, 'kein zusaetzlicher Proto
 $pruefungen += 2;
 
 // -- Dissolving: der Artikel nennt jetzt keine Stadt mehr -> ein bisher wiki-stammender Wert wird
-// entfernt.
+// entfernt -- UND field_origins.innerorts faellt mit weg (kein totes Nest fuer ein Feld, das es
+// nicht mehr gibt; anders als beim MANUELLEN Loesen, das als Override 'manual' stehen bleibt).
 avesmapsInnerortsTestPunktEinfuegen($pdoWn, 'wn-loesen', 'Wird geloest', 'gebaeude', [
     'wiki_settlement' => ['title' => 'Wn-Artikel-Weg'],
     'innerorts' => ['ort' => 'wn-stadt-gareth'],
@@ -380,7 +396,50 @@ $geschriebenLoesen = avesmapsInnerortsWikiNachziehen($pdoWn, 'wn-loesen', AVESMA
 assert($geschriebenLoesen === true, 'Loesen ist eine echte Aenderung -> true');
 $nachherLoesen = json_decode((string) avesmapsInnerortsTestZeile($pdoWn, 'wn-loesen')['properties_json'], true);
 assert(!array_key_exists('innerorts', $nachherLoesen), 'der wiki-stammende Wert wurde entfernt: ' . json_encode($nachherLoesen));
-$pruefungen += 2;
+assert(
+    !array_key_exists('field_origins', $nachherLoesen) || !array_key_exists('innerorts', $nachherLoesen['field_origins']),
+    'field_origins.innerorts faellt beim Wiki-Loesen mit weg: ' . json_encode($nachherLoesen)
+);
+$pruefungen += 3;
+
+// -- Ein Feld, das NEBEN innerorts in field_origins steht, bleibt beim Wiki-Loesen unberuehrt.
+avesmapsInnerortsTestPunktEinfuegen($pdoWn, 'wn-loesen-fremdfeld', 'Wird auch geloest', 'gebaeude', [
+    'wiki_settlement' => ['title' => 'Wn-Artikel-Weg-2'],
+    'innerorts' => ['ort' => 'wn-stadt-gareth'],
+    'field_origins' => ['innerorts' => 'wiki', 'name' => 'manual'],
+]);
+avesmapsInnerortsWikiNachziehen($pdoWn, 'wn-loesen-fremdfeld', AVESMAPS_INNERORTS_TEST_USER);
+$nachherFremdfeld = json_decode((string) avesmapsInnerortsTestZeile($pdoWn, 'wn-loesen-fremdfeld')['properties_json'], true);
+assert(
+    ($nachherFremdfeld['field_origins'] ?? null) === ['name' => 'manual'],
+    'nur innerorts faellt weg, ein fremdes Herkunftsfeld bleibt: ' . json_encode($nachherFremdfeld['field_origins'] ?? null)
+);
+$pruefungen++;
+
+// -- M3 (Controller-Fix): Nachziehen an einem INAKTIVEN, von der Karte genommenen Punkt bleibt
+// rueckgaengig zu machen. Ohne den `is_active`-Schluessel im Nachher-Schnappschuss faellt
+// `avesmapsAssertUndoPatchStillCurrent` auf die blinde Annahme „is_active=1" zurueck und wirft
+// faelschlich „wurde inzwischen erneut geaendert".
+avesmapsInnerortsTestPunktEinfuegen($pdoWn, 'wn-inaktiv', 'Von der Karte genommen', 'gebaeude', [
+    'wiki_settlement' => ['title' => 'Wn-Artikel'],
+    'innerorts' => ['ort' => 'x-alte-stadt', 'von_der_karte' => true],
+], false);
+$vorherInaktiv = avesmapsInnerortsTestZeile($pdoWn, 'wn-inaktiv');
+$geschriebenInaktiv = avesmapsInnerortsWikiNachziehen($pdoWn, 'wn-inaktiv', AVESMAPS_INNERORTS_TEST_USER);
+assert($geschriebenInaktiv === true, 'der Wiki-Stand aendert sich auch an einem inaktiven Punkt -> true');
+$nachherInaktiv = avesmapsInnerortsTestZeile($pdoWn, 'wn-inaktiv');
+assert((int) $nachherInaktiv['is_active'] === 0, 'bleibt inaktiv');
+$letzterAuditInaktiv = avesmapsInnerortsTestLetzterAudit($pdoWn);
+assert($letzterAuditInaktiv['action'] === 'wiki_sync_update_point', 'Aktion heisst wiki_sync_update_point');
+$rueckgaengigInaktiv = avesmapsUndoAuditChange($pdoWn, ['audit_id' => (int) $letzterAuditInaktiv['id']], $user);
+assert(is_array($rueckgaengigInaktiv), 'Rueckgaengig gelingt an einem inaktiven Punkt: ' . json_encode($rueckgaengigInaktiv));
+$zeileNachUndoInaktiv = avesmapsInnerortsTestZeile($pdoWn, 'wn-inaktiv');
+assert((int) $zeileNachUndoInaktiv['is_active'] === 0, 'is_active bleibt unveraendert (0)');
+assert(
+    $zeileNachUndoInaktiv['properties_json'] === $vorherInaktiv['properties_json'],
+    'die Properties sind wieder wie vor dem Nachziehen: ' . $zeileNachUndoInaktiv['properties_json']
+);
+$pruefungen += 6;
 
 // ============================================================================================
 // 7) VonDerKarteNehmen
@@ -455,7 +514,6 @@ $pruefungen += 6;
 // 8) Rueckgaengig ueber die echte Undo-Maschinerie (avesmapsUndoAuditChange)
 // ============================================================================================
 $auditIdVdk = (int) $letzterAuditVdk['id'];
-$user = ['id' => AVESMAPS_INNERORTS_TEST_USER, 'username' => 'pruefer'];
 $rueckgaengig = avesmapsUndoAuditChange($pdoVdk, ['audit_id' => $auditIdVdk], $user);
 assert(is_array($rueckgaengig), 'Rueckgaengig liefert eine Antwort: ' . json_encode($rueckgaengig));
 $zeileNachRueckgaengig = avesmapsInnerortsTestZeile($pdoVdk, 'vdk-erfolg');
@@ -537,14 +595,34 @@ $zeileEeErfolg = avesmapsInnerortsTestZeile($pdoEe, 'ee-erfolg');
 assert((int) $zeileEeErfolg['is_active'] === 0, 'bleibt inaktiv');
 $propsEeErfolg = json_decode((string) $zeileEeErfolg['properties_json'], true);
 assert(!array_key_exists('innerorts', $propsEeErfolg), 'innerorts ist ganz weg: ' . json_encode($propsEeErfolg));
-assert(avesmapsInnerortsTestLetzterAudit($pdoEe)['action'] === 'innerorts_endgueltig_entfernen', 'Protokolleintrag geschrieben');
-// 🔴 Unumkehrbar: kein Undo-Eintrag registriert diese Aktion (features.php wurde dafuer NICHT
-// erweitert -- siehe Kopf-Notiz der Funktion).
-assert(
-    avesmapsUndoColumnsForAuditAction('innerorts_endgueltig_entfernen') === [],
-    'die Aktion ist bewusst NICHT rueckgaengig zu machen'
-);
+$letzterAuditEe = avesmapsInnerortsTestLetzterAudit($pdoEe);
+assert($letzterAuditEe['action'] === 'innerorts_endgueltig_entfernen', 'Protokolleintrag geschrieben');
 $pruefungen += 4;
+
+// -- Umkehrbar wie jedes Loeschen (Controller-Entscheid, 2. Runde): „endgueltig" heisst „loescht
+// den Punkt auch als Staette", nicht „unumkehrbar" -- ueber Rueckgaengig im Aenderungsverlauf
+// kommt der Merker zurueck, der Punkt bleibt inaktiv.
+assert(
+    avesmapsUndoColumnsForAuditAction('innerorts_endgueltig_entfernen') === ['properties_json'],
+    'die Aktion ist rueckgaengig zu machen -- nur properties_json, is_active aendert sich hier nie: '
+    . json_encode(avesmapsUndoColumnsForAuditAction('innerorts_endgueltig_entfernen'))
+);
+$pruefungen++;
+
+$rueckgaengigEe = avesmapsUndoAuditChange($pdoEe, ['audit_id' => (int) $letzterAuditEe['id']], $user);
+assert(is_array($rueckgaengigEe), 'Rueckgaengig liefert eine Antwort: ' . json_encode($rueckgaengigEe));
+$zeileNachRueckgaengigEe = avesmapsInnerortsTestZeile($pdoEe, 'ee-erfolg');
+assert((int) $zeileNachRueckgaengigEe['is_active'] === 0, 'bleibt inaktiv (is_active hat sich nie geaendert)');
+$propsNachRueckgaengigEe = json_decode((string) $zeileNachRueckgaengigEe['properties_json'], true);
+assert(
+    $propsNachRueckgaengigEe['innerorts'] === ['ort' => 'ee-stadt', 'von_der_karte' => true],
+    'der Merker ist wieder da: ' . json_encode($propsNachRueckgaengigEe)
+);
+assert(
+    avesmapsInnerortsTestLetzterAudit($pdoEe)['action'] === 'undo_innerorts_endgueltig_entfernen',
+    'der Undo-Eintrag heisst undo_innerorts_endgueltig_entfernen'
+);
+$pruefungen += 3;
 
 // ============================================================================================
 // 11) PunkteFuerStaetten
@@ -692,6 +770,79 @@ $pruefungen++;
 avesmapsInnerortsAusWikiLauf($pdoLauf, true, 10, AVESMAPS_INNERORTS_TEST_USER);
 $abschluss = avesmapsInnerortsAusWikiLauf($pdoLauf, false, 10, AVESMAPS_INNERORTS_TEST_USER);
 assert($abschluss['count'] === 0, 'nach zwei Laeufen gibt es keine echten Kandidaten mehr: ' . json_encode($abschluss));
+$pruefungen++;
+
+// ============================================================================================
+// 13) M2 (Controller-Fix): der Admin-Lauf laedt Scope-Index UND Siedlungsliste GENAU EINMAL --
+// nicht je Kandidat (N+1). Belegt per Zaehler in einer PDO-Unterklasse: die beiden teuren
+// Abfragen (`avesmapsPlaceScopeLoadIndex`s Siedlungs-Abfrage mit `?`-Platzhaltern,
+// `avesmapsInnerortsSiedlungsListeLaden`s eigene Abfrage mit `:subN`-Platzhaltern) muessen bei
+// VIER echten Kandidaten trotzdem genau je einmal laufen.
+// ============================================================================================
+final class AvesmapsInnerortsZaehlPdo extends AvesmapsInnerortsTestPdo
+{
+    public int $scopeIndexAbfragen = 0;
+    public int $siedlungsListeAbfragen = 0;
+
+    public function prepare(string $query, array $options = []): PDOStatement|false
+    {
+        // avesmapsPlaceScopeLoadIndex() ohne vorgeladene Zeilen (Admin-Lauf uebergibt keine):
+        // positionelle Platzhalter, nur die Spalte `name`.
+        if (str_contains($query, "feature_type = ? AND is_active = 1 AND feature_subtype IN")) {
+            $this->scopeIndexAbfragen++;
+        }
+        // avesmapsInnerortsSiedlungsListeLaden(): benannte Platzhalter, public_id UND name.
+        if (str_contains($query, 'SELECT public_id, name FROM map_features WHERE feature_type')) {
+            $this->siedlungsListeAbfragen++;
+        }
+
+        return parent::prepare($query, $options);
+    }
+}
+
+function avesmapsInnerortsZaehlPdo(): AvesmapsInnerortsZaehlPdo
+{
+    $pdo = new AvesmapsInnerortsZaehlPdo('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    $pdo->exec('CREATE TABLE map_features (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, public_id TEXT, feature_type TEXT, feature_subtype TEXT,
+        name TEXT, geometry_type TEXT, geometry_json TEXT, properties_json TEXT, style_json TEXT,
+        min_x REAL, min_y REAL, max_x REAL, max_y REAL,
+        is_active INTEGER DEFAULT 1, revision INTEGER DEFAULT 0, sort_order INTEGER DEFAULT 1,
+        updated_by INTEGER NULL
+    )');
+    $pdo->exec('CREATE TABLE map_revision (id INTEGER PRIMARY KEY, revision INTEGER)');
+    $pdo->exec('CREATE TABLE map_audit_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, feature_id INTEGER NULL, action TEXT,
+        actor_user_id INTEGER, before_json TEXT, after_json TEXT,
+        undone_at TEXT NULL, undone_by INTEGER NULL, undo_audit_id INTEGER NULL
+    )');
+    $pdo->exec('CREATE TABLE map_feature_locks (public_id TEXT PRIMARY KEY, user_id INTEGER, username TEXT, locked_until TEXT)');
+    $pdo->exec('CREATE TABLE wiki_sync_pages (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, standort TEXT)');
+    $pdo->exec('CREATE TABLE political_territory (name TEXT)');
+
+    return $pdo;
+}
+
+$pdoN1 = avesmapsInnerortsZaehlPdo();
+avesmapsInnerortsTestPunktEinfuegen($pdoN1, 'n1-stadt', 'Gareth', 'metropole');
+for ($i = 1; $i <= 4; $i++) {
+    $pdoN1->exec("INSERT INTO wiki_sync_pages (title, standort) VALUES ('N1-Artikel-{$i}', '[[Gareth]]')");
+    avesmapsInnerortsTestPunktEinfuegen($pdoN1, "n1-{$i}", "Kandidat {$i}", 'gebaeude',
+        ['wiki_settlement' => ['title' => "N1-Artikel-{$i}"]]);
+}
+
+$ergN1 = avesmapsInnerortsAusWikiLauf($pdoN1, false, 10, AVESMAPS_INNERORTS_TEST_USER);
+assert($ergN1['count'] === 4, 'vier echte Kandidaten fuer die N+1-Probe: ' . json_encode($ergN1));
+$pruefungen++;
+assert(
+    $pdoN1->scopeIndexAbfragen === 1,
+    "der Scope-Index wird GENAU EINMAL geladen, nicht je Kandidat: {$pdoN1->scopeIndexAbfragen} von 4 Kandidaten"
+);
+$pruefungen++;
+assert(
+    $pdoN1->siedlungsListeAbfragen === 1,
+    "die Siedlungsliste wird GENAU EINMAL geladen, nicht je Kandidat: {$pdoN1->siedlungsListeAbfragen} von 4 Kandidaten"
+);
 $pruefungen++;
 
 echo "OK: {$pruefungen} Pruefungen\n";

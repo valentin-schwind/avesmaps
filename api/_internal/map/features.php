@@ -534,6 +534,11 @@ function avesmapsUndoColumnsForAuditAction(string $action): array {
         // der Zeile -- anders als delete_feature/dessen Undo, das die GANZE Zeile restauriert.
         'take_off_map',
         'put_on_map' => ['is_active', 'properties_json'],
+        // „✕" am von-der-Karte-genommenen Punkt (Staetten-Kasten, „endgueltig entfernen"): der
+        // Punkt bleibt inaktiv (is_active aendert sich NIE), nur der Merker in properties_json
+        // verschwindet -- der Punkt loescht sich damit auch als Staette seiner Stadt. Ueber
+        // „Rueckgaengig" umkehrbar wie jedes Loeschen (Controller-Entscheid, 2. Runde).
+        'innerorts_endgueltig_entfernen' => ['properties_json'],
         // „⇄" am innerorts-Punkt (Staetten-Kasten, avesmapsInnerortsOrtSpeichern): nur das Nest.
         'set_innerorts' => ['properties_json'],
         default => [],
