@@ -160,6 +160,14 @@ function applyMapFeatureEditResult(result) {
 				wiki_url: feature.wiki_url || "",
 				is_nodix: Boolean(feature.is_nodix),
 				is_ruined: Boolean(feature.is_ruined),
+				// „Innerorts" -- dieser Zweig baut aus der FLACHEN Punktantwort (z. B. „Rückgängig",
+				// js/review/review-panels-change-log.js) ein eigenes properties-Objekt und reicht es an
+				// applyLiveLocationFeature() weiter, die `properties.innerorts` liest. Ohne diese Zeile
+				// las jenes Feld immer `undefined` -> applyLiveLocationFeature setzt dann `null` (nicht
+				// die Auslassung, die applyFeatureResponseToMarker auf den ALTEN Markerwert zurückfallen
+				// ließe) -- ein „Rückgängig" von take_off_map/put_on_map/set_innerorts nahm der Kachel
+				// „Von der Karte nehmen" so still ihre Grundlage, bis zum nächsten Neuladen.
+				innerorts: feature.innerorts || null,
 				revision: feature.revision || null,
 			},
 		});
