@@ -288,7 +288,9 @@ function avesmapsLandschaftDialogVerdrahten() {
 		knopf.addEventListener("click", tu);
 		neu++;
 	};
-	einmal("landschaft-dialog-save", () => { avesmapsLandschaftDialogSpeichern(); });
+	einmal("landschaft-dialog-save", () => { void avesmapsLandschaftDialogSpeichern(); });
+	// Wer den Kopf anfasst, wird gemerkt -- siehe avesmapsLandschaftDialogKopfMerken.
+	avesmapsLandschaftDialogKopfVerdrahten();
 	// ⚠️ „Abbrechen" und „×" gehen ueber die ALTEN Knoepfe der geladenen Haelften: an ihnen haengt
 	// mehr als ein Schliessen -- die Beschriftung nimmt dabei ihre Sofortvorschau auf der Karte
 	// zurueck (revertLabelDisplayPreview).
@@ -598,11 +600,13 @@ function avesmapsLandschaftDialogTitel(stand, kind) {
 }
 
 /**
- * Welche Formulare „Speichern" abschickt. REIN -- kein DOM.
+ * Welche Haelften „Speichern" schreibt, in welcher Reihenfolge -- benannt nach ihren Formularen. REIN.
  *
- * 🔴 DIE FLAECHE ZUERST. Ihre Aenderung an Name und Art traegt der vorhandene Propagationsweg
- * ohnehin an die Beschriftung (`renameLinkedEcosystemLabel`); andersherum ueberschriebe die
- * Beschriftung den frisch gesetzten Regionsnamen wieder.
+ * 🔴 DIE FLAECHE ZUERST. Sie schreibt die Region (und damit den Kopf: Name, Art, Wiki-Zuweisung), der
+ * Server zieht dabei die Beschriftungen nach, und die Antwort bringt ihnen die frische Revision. Erst
+ * danach schreibt die Beschriftung -- mit dieser Revision, also ohne 409. Seit dem 27.09.2026 laufen
+ * die zwei NACHEINANDER (avesmapsLandschaftDialogSpeichern); vorher stand diese Reihenfolge nur im
+ * Abschicken, und wer zuerst FERTIG war, entschied der Zufall.
  *
  * ⚠️ Wer nur das Formular des OFFENEN Reiters abschickte, verloere die Aenderung im anderen --
  * lautlos, weil das Fenster danach zugeht.
@@ -622,23 +626,245 @@ function avesmapsLandschaftDialogSpeichernAuftraege(stand) {
 	return auftraege;
 }
 
-/** Speichern: die Formulare der geladenen Haelften abschicken, Flaeche zuerst. */
-function avesmapsLandschaftDialogSpeichern() {
+/* ── Speichern: EIN Ablauf, die zwei Haelften NACHEINANDER ─────────────────────────────────────
+ *
+ * 💣 HIER STAND BIS ZUM 27.09.2026 `formular.requestSubmit()` FUER BEIDE FORMULARE -- zwei Ablaeufe,
+ * die GLEICHZEITIG losliefen und einander in die Quere kamen, je nachdem, wer zuerst fertig war:
+ *   - die Beschriftung schloss das Fenster und setzte den gemeinsamen Kopf zurueck (Name, Art,
+ *     Anzeigehaken), waehrend die Flaeche ihn noch lesen wollte -- die Wiki-Zuweisung der Flaeche kam
+ *     nie an („Hochmoor von Waskir", gemeldet 27.09.2026);
+ *   - beide schrieben DIESELBE Beschriftung (die Flaeche ueber renameLinkedEcosystemLabel, die
+ *     Beschriftung selbst) mit derselben `expected_revision` -- der Zweite bekam 409, und seine
+ *     Aenderung war weg, oft in einem schon geschlossenen Fenster;
+ *   - beide schrieben die Region (die Flaeche direkt, die Beschriftung ueber ihren Rueckweg
+ *     ecosystemPushLabelChangesToRegion) und beide die Geschwister-Beschriftungen.
+ * Jetzt gibt es EINEN Ablauf: erst liest jede Haelfte ihren Stand (synchron, im Augenblick des
+ * Klicks -- danach darf sich das Formular aendern, wie es will), dann schreibt die Flaeche, dann die
+ * Beschriftung, dann geht das Fenster EINMAL zu. Was eine Haelfte der anderen abnimmt, schreibt sie
+ * im Verbund nicht doppelt (siehe `verbund` in beiden Auftraegen).
+ *
+ * 🔴 BEIDE submit-ZUHOERER LAUFEN HIERHER, solange es dieses Fenster gibt -- auch Enter in einem
+ * Feld. Vorher speicherte Enter im Namensfeld NUR die Beschriftung (das Feld gehoert per `form=` ihr),
+ * und eine offene Wiki-Zuweisung der Flaeche ging mit dem Schliessen verloren.
+ *
+ * ⚠️ Ein zweiter Klick waehrend des Laufs bekommt DIESELBE Zusage, keinen zweiten Lauf; die Knoepfe
+ * der Leiste sind so lange gesperrt.
+ */
+let avesmapsLandschaftDialogLaufendesSpeichern = null;
+
+const AVESMAPS_LANDSCHAFT_DIALOG_SPERRKNOEPFE = [
+	"landschaft-dialog-save", "landschaft-dialog-cancel", "landschaft-dialog-delete", "landschaft-dialog-close",
+];
+
+/** Die gemeinsame Statuszeile -- sie steht unter allen drei Reitern, also sieht man sie immer. */
+function avesmapsLandschaftDialogMeldung(text, art) {
 	if (typeof document === "undefined") {
-		return [];
+		return;
 	}
-	const getan = [];
-	avesmapsLandschaftDialogSpeichernAuftraege(avesmapsLandschaftDialogStand()).forEach((id) => {
-		const formular = document.getElementById(id);
-		// ⚠️ `requestSubmit` und nicht `submit()`: nur ersteres loest das submit-EREIGNIS aus, an dem
-		// beide Module haengen. `submit()` schickt am Zuhoerer vorbei -- und damit an der ganzen
-		// Nutzlast vorbei, die er baut.
-		if (formular && typeof formular.requestSubmit === "function") {
-			formular.requestSubmit();
-			getan.push(id);
+	const zeile = document.getElementById("landschaft-dialog-status");
+	if (!zeile) {
+		return;
+	}
+	zeile.textContent = String(text || "");
+	if (art) {
+		zeile.dataset.status = art;
+	} else {
+		delete zeile.dataset.status;
+	}
+}
+
+function avesmapsLandschaftDialogKnoepfeSperren(gesperrt) {
+	AVESMAPS_LANDSCHAFT_DIALOG_SPERRKNOEPFE.forEach((id) => {
+		const knopf = document.getElementById(id);
+		if (knopf) {
+			knopf.disabled = Boolean(gesperrt);
 		}
 	});
-	return getan;
+}
+
+/**
+ * Die Auftraege der geladenen Haelften, in Speicher-Reihenfolge. Jeder ist schon VORBEREITET (sein
+ * Stand gelesen, geprueft): `{ haelfte, fehler }` oder `{ haelfte, ausfuehren, abschliessen }`.
+ *
+ * 💣 BEIDE WERDEN VORBEREITET, BEVOR EINER SCHREIBT. Ist die Beschriftung ungueltig (leerer Name),
+ * darf die Flaeche nicht schon gespeichert sein -- sonst stuende ein halbes Speichern da.
+ * ⚠️ Fehlt die Vorbereitung einer geladenen Haelfte (ihr Skript ist nicht da), ist das ein Fehler,
+ * kein stilles Weglassen -- ein Knopf, der die Haelfte uebergeht, sieht aus wie ein gelungenes Speichern.
+ */
+function avesmapsLandschaftDialogAuftraegeVorbereiten(stand) {
+	const verbund = Boolean(stand.hatFlaeche && stand.hatLabel);
+	return avesmapsLandschaftDialogSpeichernAuftraege(stand).map((id) => {
+		if (id === "ecosystem-properties-form") {
+			const vorbereiten = typeof window !== "undefined"
+				&& window.AvesmapsEcosystemProperties
+				&& typeof window.AvesmapsEcosystemProperties.speicherAuftrag === "function"
+				? window.AvesmapsEcosystemProperties.speicherAuftrag
+				: null;
+			return Object.assign({ haelfte: "flaeche" }, vorbereiten
+				? vorbereiten({ verbund })
+				: { fehler: "Die Fläche kann hier nicht gespeichert werden (Modul fehlt)." });
+		}
+		const vorbereiten = typeof avesmapsBeschriftungSpeicherAuftrag === "function"
+			? avesmapsBeschriftungSpeicherAuftrag
+			: null;
+		return Object.assign({ haelfte: "beschriftung" }, vorbereiten
+			? vorbereiten({ formElement: document.getElementById(id), verbund })
+			: { fehler: "Die Beschriftung kann hier nicht gespeichert werden (Modul fehlt)." });
+	});
+}
+
+const AVESMAPS_LANDSCHAFT_DIALOG_HAELFTE_NAME = { flaeche: "Fläche", beschriftung: "Beschriftung" };
+
+/** Speichern: beide Haelften, nacheinander, Flaeche zuerst. Gibt eine Zusage zurueck. */
+function avesmapsLandschaftDialogSpeichern() {
+	if (typeof document === "undefined") {
+		return Promise.resolve({ gespeichert: false });
+	}
+	if (avesmapsLandschaftDialogLaufendesSpeichern) {
+		return avesmapsLandschaftDialogLaufendesSpeichern;
+	}
+	const lauf = (async () => {
+		const auftraege = avesmapsLandschaftDialogAuftraegeVorbereiten(avesmapsLandschaftDialogStand());
+		if (auftraege.length === 0) {
+			return { gespeichert: false };
+		}
+		const ungueltig = auftraege.find((auftrag) => auftrag.fehler);
+		if (ungueltig) {
+			// Nichts geschrieben -- das Fenster bleibt offen, und die Zeile sagt, woran es hing.
+			avesmapsLandschaftDialogMeldung(
+				AVESMAPS_LANDSCHAFT_DIALOG_HAELFTE_NAME[ungueltig.haelfte] + ": " + ungueltig.fehler, "error");
+			return { gespeichert: false, fehler: ungueltig.fehler };
+		}
+		avesmapsLandschaftDialogKnoepfeSperren(true);
+		avesmapsLandschaftDialogMeldung("Wird gespeichert …", "pending");
+		const geschrieben = [];
+		for (const auftrag of auftraege) {
+			try {
+				auftrag.ergebnis = await auftrag.ausfuehren();
+				geschrieben.push(auftrag);
+			} catch (fehler) {
+				// 🔴 Die Folgehaelfte laeuft NICHT: sie baute auf einem Stand auf, den es nicht gibt. Das
+				// Fenster bleibt offen, und die Zeile sagt, was schon steht -- ein erneutes Speichern
+				// schreibt die gespeicherte Haelfte mit denselben Werten noch einmal, und das ist harmlos.
+				const text = String(fehler?.message || "Speichern fehlgeschlagen.");
+				const schon = geschrieben.map((g) => AVESMAPS_LANDSCHAFT_DIALOG_HAELFTE_NAME[g.haelfte]);
+				avesmapsLandschaftDialogMeldung(
+					(schon.length ? schon.join(" und ") + " gespeichert — " : "")
+					+ AVESMAPS_LANDSCHAFT_DIALOG_HAELFTE_NAME[auftrag.haelfte] + " nicht: " + text, "error");
+				if (typeof auftrag.fehlgeschlagen === "function") {
+					auftrag.fehlgeschlagen(fehler);
+				}
+				return { gespeichert: false, fehler: text };
+			}
+		}
+		// 🔴 EINMAL schliessen, erst wenn ALLES steht -- die Beschriftung zuerst (sie nimmt beim Schliessen
+		// ihre Sofortvorschau zurueck, die jetzt gespeichert ist), die Flaeche danach (sie laedt die
+		// Flaechen neu, und das darf erst nach dem Schliessen passieren: ein offenes Fenster schuetzt
+		// seine Flaeche vor frischen Serverwerten).
+		avesmapsLandschaftDialogMeldung("");
+		const leise = auftraege.length > 1;
+		for (const auftrag of auftraege.slice().reverse()) {
+			await auftrag.abschliessen({ leise });
+		}
+		if (leise && typeof showFeedbackToast === "function") {
+			const name = auftraege.map((a) => a.name).find((n) => String(n || "") !== "") || "";
+			showFeedbackToast(name ? "„" + name + "“ gespeichert." : "Gespeichert.", "success");
+		}
+		return { gespeichert: true };
+	})().finally(() => {
+		avesmapsLandschaftDialogLaufendesSpeichern = null;
+		avesmapsLandschaftDialogKnoepfeSperren(false);
+	});
+	avesmapsLandschaftDialogLaufendesSpeichern = lauf;
+	return lauf;
+}
+
+/**
+ * Soll ein submit-Zuhoerer an den Ablauf abgeben? Ja, sobald es das vereinigte Fenster gibt --
+ * dann ist JEDES Speichern ein Speichern beider Haelften.
+ * ⚠️ Ohne das Fenster (eine Pruefseite, ein Test mit nur einem Modul) speichert jede Haelfte allein.
+ */
+function avesmapsLandschaftDialogUebernimmtSpeichern() {
+	return typeof document !== "undefined" && Boolean(document.getElementById("landschaft-dialog-overlay"));
+}
+
+/* ── Der gemeinsame Kopf: was hat der EDITOR angefasst? ─────────────────────────────────────────
+ *
+ * 💣 ZWEI OEFFNER SCHREIBEN IN DENSELBEN KOPF, und der zweite kommt ASYNCHRON: wer eine Beschriftung
+ * anklickt, bekommt ihre Flaeche erst nach einer Suche (avesmapsEcosystemAreaPublicIdOfLabel) --
+ * dazwischen steht das Fenster offen und bedienbar. Wer in dieser Luecke den Namen tippte oder die Art
+ * waehlte, verlor beides, sobald die Flaeche ankam und ihren Stand in den Kopf schrieb.
+ * 🔴 Die Regel: ein Oeffner ueberschreibt nie, was der Editor seit dem Oeffnen angefasst hat.
+ * Programmatische Schreiber loesen weder `input` noch `change` aus -- nur ein Mensch tut das, und
+ * genau daran wird es erkannt, ohne einen zweiten Zustand neben dem Feld.
+ */
+const AVESMAPS_LANDSCHAFT_KOPF_FELDER = [
+	"label-edit-text", "label-edit-type", "ecosystem-properties-showname", "label-edit-is-nodix",
+];
+let avesmapsLandschaftKopfBeruehrt = new Set();
+
+/** Ein neues Oeffnen beginnt unberuehrt. Rufen nur die EINSTIEGE, nie ein Gegenpart. */
+function avesmapsLandschaftDialogKopfNeu() {
+	avesmapsLandschaftKopfBeruehrt = new Set();
+}
+
+/**
+ * Den Stand der angefassten Kopffelder festhalten -- VOR dem Schreiben eines Oeffners.
+ * @returns {Object} je angefasstem Feld `{ value, checked }`
+ */
+function avesmapsLandschaftDialogKopfMerken() {
+	const merk = {};
+	if (typeof document === "undefined") {
+		return merk;
+	}
+	avesmapsLandschaftKopfBeruehrt.forEach((id) => {
+		const feld = document.getElementById(id);
+		if (feld) {
+			merk[id] = { value: feld.value, checked: feld.checked };
+		}
+	});
+	return merk;
+}
+
+/**
+ * Das Festgehaltene zurueckschreiben -- NACH dem Schreiben eines Oeffners.
+ * ⚠️ Eine Auswahl nur, wenn es den Wert dort (noch) gibt: ein anderes Vokabular kann ihn nicht kennen,
+ * und ein gesetzter, aber fehlender Wert liesse das Feld leer stehen.
+ * @param {Object} merk aus avesmapsLandschaftDialogKopfMerken
+ * @param {Function} [uebersetzen] (id, wert) -> wert, fuer ein Vokabular mit anderem Leerwert
+ */
+function avesmapsLandschaftDialogKopfZurueck(merk, uebersetzen) {
+	if (typeof document === "undefined" || !merk) {
+		return;
+	}
+	Object.keys(merk).forEach((id) => {
+		const feld = document.getElementById(id);
+		if (!feld) {
+			return;
+		}
+		if (feld.type === "checkbox") {
+			feld.checked = Boolean(merk[id].checked);
+			return;
+		}
+		const wert = typeof uebersetzen === "function" ? uebersetzen(id, merk[id].value) : merk[id].value;
+		if (feld.tagName === "SELECT" && !Array.from(feld.options || []).some((option) => option.value === wert)) {
+			return;
+		}
+		feld.value = wert;
+	});
+}
+
+function avesmapsLandschaftDialogKopfVerdrahten() {
+	AVESMAPS_LANDSCHAFT_KOPF_FELDER.forEach((id) => {
+		const feld = document.getElementById(id);
+		if (!feld || feld.dataset.landschaftKopf === "1") {
+			return;
+		}
+		feld.dataset.landschaftKopf = "1";
+		const merke = () => avesmapsLandschaftKopfBeruehrt.add(id);
+		feld.addEventListener("input", merke);
+		feld.addEventListener("change", merke);
+	});
 }
 
 if (typeof module !== "undefined" && module.exports) {
@@ -664,6 +890,12 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsLandschaftDialogAnlegenKnopf: avesmapsLandschaftDialogAnlegenKnopf,
 		avesmapsLandschaftDialogSpeichernAuftraege: avesmapsLandschaftDialogSpeichernAuftraege,
 		avesmapsLandschaftDialogSpeichern: avesmapsLandschaftDialogSpeichern,
+		avesmapsLandschaftDialogAuftraegeVorbereiten: avesmapsLandschaftDialogAuftraegeVorbereiten,
+		avesmapsLandschaftDialogUebernimmtSpeichern: avesmapsLandschaftDialogUebernimmtSpeichern,
+		avesmapsLandschaftDialogKopfNeu: avesmapsLandschaftDialogKopfNeu,
+		avesmapsLandschaftDialogKopfMerken: avesmapsLandschaftDialogKopfMerken,
+		avesmapsLandschaftDialogKopfZurueck: avesmapsLandschaftDialogKopfZurueck,
+		AVESMAPS_LANDSCHAFT_KOPF_FELDER: AVESMAPS_LANDSCHAFT_KOPF_FELDER,
 		avesmapsLandschaftDialogLoeschText: avesmapsLandschaftDialogLoeschText,
 		avesmapsLandschaftDialogLoeschKnopf: avesmapsLandschaftDialogLoeschKnopf,
 		avesmapsLandschaftDialogLeertext: avesmapsLandschaftDialogLeertext,

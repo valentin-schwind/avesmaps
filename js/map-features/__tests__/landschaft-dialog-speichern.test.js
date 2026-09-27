@@ -47,12 +47,20 @@ const beide = avesmapsLandschaftDialogSpeichernAuftraege({ hatFlaeche: true, hat
 assert.ok(beide.indexOf("ecosystem-properties-form") < beide.indexOf("label-edit-form"),
 	"die Fläche wird vor der Beschriftung gespeichert"); checks++;
 
-// ── C. `requestSubmit`, nicht `submit()` ─────────────────────────────────────────────────────
-// 💣 Nur `requestSubmit` löst das submit-EREIGNIS aus, an dem beide Module hängen. `submit()`
-// schickt am Zuhörer vorbei — und damit an der ganzen Nutzlast vorbei, die er baut.
+// ── C. EIN ABLAUF, KEIN ABSCHICKEN ───────────────────────────────────────────────────────────
+// 💣 Bis zum 27.09.2026 stand hier „abgeschickt wird per requestSubmit“ — für BEIDE Formulare. Das
+// startete zwei Abläufe gleichzeitig, und wer zuerst fertig war, schloss das Fenster und setzte den
+// gemeinsamen Kopf zurück, während der andere noch las („Hochmoor von Waskir“). Seither schickt die
+// Hülle NICHTS ab: sie holt je Hälfte einen vorbereiteten Auftrag und führt sie nacheinander aus
+// (den Ablauf selbst fährt `landschaft-dialog-ablauf.test.js`).
+// 🪤 Und diese Zusicherung war danach noch grün, OHNE etwas zu prüfen: ihr Muster traf den KOMMENTAR,
+// der die alte Zeile beschreibt. Gesucht wird deshalb im kommentarfreien Quelltext.
 const huelle = lies("js/map-features/landschaft-dialog.js");
-assert.ok(/formular\.requestSubmit\(\)/.test(huelle), "abgeschickt wird per requestSubmit"); checks++;
-assert.ok(!/\.submit\(\)/.test(huelle), "und nie per submit()"); checks++;
+const huelleCode = huelle.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
+assert.ok(!/requestSubmit\(/.test(huelleCode), "die Hülle schickt kein Formular per requestSubmit ab"); checks++;
+assert.ok(!/\.submit\(\)/.test(huelleCode), "…und nie per submit()"); checks++;
+assert.ok(/avesmapsLandschaftDialogAuftraegeVorbereiten\(/.test(huelleCode),
+	"sie bereitet die Aufträge der Hälften vor"); checks++;
 
 // ── D. Jede Hälfte meldet sich SELBST an ─────────────────────────────────────────────────────
 // 🔴 Nur das Modul, dem eine Hälfte gehört, weiß, ob ein Objekt dahintersteht. Fehlt eine der

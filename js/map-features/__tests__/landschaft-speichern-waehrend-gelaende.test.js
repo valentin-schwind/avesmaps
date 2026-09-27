@@ -8,12 +8,15 @@
 //    ein Gebirge zurueck (die Zeile stand hinter `if (!zeigt) return;`). Wer erst ein Gebirge und dann
 //    ein Moor oeffnete, erbte dessen „angefasst" -- und „Speichern" speicherte am Moor zuerst Gelaende
 //    (die Regler der unsichtbaren Falte, samt Hoehenraster), Sekunden lang.
-// 2. DIE FLAECHEN-HAELFTE LAS IHR FORMULAR ERST NACH DIESEM WARTEN. „Speichern" schickt beide Haelften
+// 2. DIE FLAECHEN-HAELFTE LAS IHR FORMULAR ERST NACH DIESEM WARTEN. „Speichern" schickte beide Haelften
 //    gleichzeitig ab; die Beschriftungs-Haelfte ist in der Zeit fertig, schliesst das Fenster und setzt
 //    ihr Formular zurueck -- und Name, Art und Anzeigehaken im gemeinsamen Kopf gehoeren per `form=`
 //    DIESEM Formular. Danach stieg die Flaechen-Haelfte still aus (`currentPropertiesArea() !== area`,
 //    weil der Rueckweg der Beschriftung die Flaechen neu laden liess) oder fand ein leeres Namensfeld.
 //    `update_region` -- der einzige Traeger der Wiki-Zuweisung -- ging nie hinaus.
+//    ⚠️ Seit dem 27.09.2026 laufen die zwei Haelften NACHEINANDER (landschaft-dialog-ablauf.test.js).
+//    Teil 2 bleibt trotzdem: das Fenster kann waehrend des Speicherns auch anders zugehen (Escape),
+//    und die Flaeche schreibt dann weiter den Stand des Klicks.
 //
 // 🔴 Beide Faelle laufen hier ueber das ECHTE Modul (vm-Sandkasten, Dokument-Attrappe, dieselbe Bauart
 // wie js/ui/__tests__/wiki-assign-landschaft.test.js). Gegen den Stand vor dem 27.09.2026 gefahren,

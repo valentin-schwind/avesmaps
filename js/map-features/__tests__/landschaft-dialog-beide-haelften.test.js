@@ -60,10 +60,12 @@ assert.ok(vonE >= 0, "den Flächen-Öffner gibt es"); checks++;
 // 🪤 Und die Grenze ist die nächste Funktion JEDER Art, nicht die nächste `async function`: die
 // folgt erst 29.820 Zeichen später, der Schnitt umfasste also ein halbes Dutzend fremder
 // Funktionen — und eine Zusicherung darin war grün, ohne irgendetwas zu prüfen. Gemessen:
-// 11.643 statt 29.820 Zeichen.
+// 11.643 statt 29.820 Zeichen. ⚠️ Am 27.09.2026 auf 17.545 gewachsen (der Öffner legt seither den
+// Kopf zurück, den der Editor in der Lücke getippt hat) -- die Schranke steht deshalb bei 20.000,
+// weiter deutlich unter dem Modulrest, den sie abfangen soll.
 const nachE = eco.slice(vonE + 10).match(/\n\t(?:async )?function [A-Za-z]/);
 const oeffnerE = nachE ? eco.slice(vonE, vonE + 10 + nachE.index) : eco.slice(vonE);
-assert.ok(oeffnerE.length < 15000, "der Schnitt trifft den Öffner, nicht den halben Modulrest"); checks++;
+assert.ok(oeffnerE.length < 20000, "der Schnitt trifft den Öffner, nicht den halben Modulrest"); checks++;
 assert.ok(/openLabelEditDialog\(/.test(oeffnerE),
 	"…und lädt die Beschriftungs-Hälfte"); checks++;
 // 💣 BEIDE RICHTUNGEN, wie der Server. `avesmapsEcosystemRegionPublicIdOfLabel` liest den Zeiger AM

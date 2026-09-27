@@ -63,7 +63,10 @@
 	let kurveGeladen = null;
 	// Und der beim Oeffnen vorgefundene Stand des Auto-Namens. Er entscheidet, ob dieses Speichern
 	// die Beschriftungen entfernt -- „angehaekelt" ist ein UEBERGANG, kein Zustand.
-	let autoNameGeladen = false;
+	// 💣 `null` heisst UNBEKANNT (list_regions ist noch nicht zurueck): dann wird `auto_name`
+	// GAR NICHT geschickt -- sonst truege ein schneller Klick den Haken der ZULETZT geoeffneten
+	// Flaeche in diese hinein.
+	let autoNameGeladen = null;
 	// Ob die Beschriftungs-Haelfte gerade WEGEN des Auto-Namens abgemeldet ist. Nur fuer den Weg
 	// zurueck: ein Neuladen bei jedem Nachziehen wuerfe ungespeicherte Aenderungen am Label weg.
 	let beschriftungAbgemeldet = false;
@@ -717,7 +720,9 @@
 		// auch wenn der Artikel nur an der Beschriftung hängt (Blauer See, 15.09.2026).
 		const wiki = angezeigteWikiRegion();
 		const wikiName = String(wiki?.name || "").trim();
-		autoNameBox.disabled = wikiName !== "";
+		// ⚠️ Und gesperrt, solange der geladene Stand UNBEKANNT ist (`null` bis `list_regions`): ein Haken
+		// in dieser Lücke hiesse „Beschriftungen entfernen" ohne `auto_name` im Rumpf -- ein halber Übergang.
+		autoNameBox.disabled = wikiName !== "" || autoNameGeladen === null;
 		if (wikiName !== "") {
 			autoNameBox.checked = false;
 			nameInput.readOnly = false;   // der Wiki-Name steht im Feld; „Sync" schreibt ihn hinein
@@ -750,9 +755,11 @@
 				autoNameGeladen, autoNameBox.checked === true, beschriftungenDerRegion(flaeche).length);
 		}
 		// 🪤 UND DIE HAELFTE MELDET SICH AB, SOLANGE DER HAKEN SITZT -- in der Live-Abnahme gefunden,
-		// nicht im Test. Seit das Fenster beide Haelften laedt, schickt „Speichern" BEIDE Formulare ab,
-		// und zwar nebenlaeufig: das Beschriftungs-Formular schrieb seinen Rueckzeiger mitten in die
-		// Entfernung hinein wieder, und das folgende `delete_feature` lief in ein 409.
+		// nicht im Test. Seit das Fenster beide Haelften laedt, speichert „Speichern" BEIDE -- bis zum
+		// 27.09.2026 nebenlaeufig: das Beschriftungs-Formular schrieb seinen Rueckzeiger mitten in die
+		// Entfernung hinein wieder, und das folgende `delete_feature` lief in ein 409. Nacheinander
+		// (avesmapsLandschaftDialogSpeichern) schriebe es eine gerade entfernte Beschriftung -- die
+		// Abmeldung bleibt also noetig.
 		// ⭐ Abgemeldet loest beides auf einmal: „Speichern" schickt nur noch das Flaechen-Formular, und
 		// der Reiter zeigt schon VOR dem Speichern, was danach gilt (Leerzustand samt gesperrtem
 		// Angebot) -- die Ankuendigung am Haken sagt daneben, dass die vorhandene dabei faellt.
@@ -845,6 +852,24 @@
 		// Modulzustand: ein Merker daneben ueberlebte das Oeffnen und liesse beim zweiten Aufruf eine
 		// Haelfte weg -- dieselbe Falle wie beim gemerkten Reiter.
 		const istEinstieg = (optionen || {}).paar !== false;
+		// 💣 ALS GEGENPART KOMMT DIESER ÖFFNER, WÄHREND DER EDITOR SCHON TIPPT: wer eine Beschriftung
+		// anklickt, bekommt ihre Fläche erst nach einer Suche nachgereicht, und bis dahin ist der Kopf
+		// bedienbar. Was er in dieser Lücke angefasst hat (Name, Art, Anzeige-, Nodix-Haken), wird hier
+		// festgehalten und nach jedem eigenen Schreiben zurückgelegt -- vorher schrieb die Fläche ihren
+		// Stand einfach darüber. Der Einstieg beginnt dagegen unberührt.
+		if (istEinstieg && typeof avesmapsLandschaftDialogKopfNeu === "function") {
+			avesmapsLandschaftDialogKopfNeu();
+		}
+		const kopfVomEditor = !istEinstieg && typeof avesmapsLandschaftDialogKopfMerken === "function"
+			? avesmapsLandschaftDialogKopfMerken()
+			: null;
+		const kopfZuruecklegen = () => {
+			if (kopfVomEditor && typeof avesmapsLandschaftDialogKopfZurueck === "function") {
+				// Die Art kommt aus dem Vokabular der Beschriftung (Leerwert `region`) -- hier heisst er "".
+				avesmapsLandschaftDialogKopfZurueck(kopfVomEditor,
+					(id, wert) => (id === "label-edit-type" ? kopfArtAlsRegionsArt(wert) : wert));
+			}
+		};
 
 		bindEcosystemPropertiesDialog();
 		// 🔴 DIE BESCHRIFTUNG ZUERST (avesmapsLandschaftDialogLadeAuftraege): sie schreibt in dieselben
@@ -886,6 +911,20 @@
 		// ⚠️ Beim Oeffnen ist nichts wegen des Auto-Namens abgemeldet -- sonst erbte die naechste
 		// Flaeche den Merker der vorigen und liesse ihre Beschriftung ungespeichert liegen.
 		beschriftungAbgemeldet = false;
+		// 💣 UND DER AUTO-NAME BEGINNT NEUTRAL. Haken und geladener Stand wurden bis zum 27.09.2026 nur
+		// nach `list_regions` gesetzt -- und auch das nur, wenn der Name unberührt war. Wer in der Lücke
+		// tippte, behielt Haken und Merker der ZULETZT geöffneten Fläche, und ein gesetzter Haken reiste
+		// als `auto_name: true` an eine fremde Region.
+		// ⚠️ `null` heisst „noch unbekannt" -- bis `list_regions` antwortet, schickt ein Speichern den
+		// Haken NICHT mit (speicherAuftrag); ein neutrales `false` löschte sonst einen gespeicherten.
+		autoNameGeladen = null;
+		const autoNameNeutral = propertiesElement("autoname");
+		if (autoNameNeutral) {
+			autoNameNeutral.checked = false;
+			// ⚠️ Und VERRIEGELT, bis der Stand da ist (dieselbe Regel steht in syncPropertiesAutoName,
+			// die den Haken nach `list_regions` wieder freigibt).
+			autoNameNeutral.disabled = true;
+		}
 		// 💣 VERRIEGELT, BIS `list_regions` DA IST. Die zwei Kurven-Bedienelemente standen sonst
 		// zwischen Oeffnen und Antwort offen und ohne Ausgangswert: wer in dieser Luecke klickte,
 		// erzeugte keine Aenderung gegenueber `kurveGeladen` (das noch `null` war) -- der Rumpf trug
@@ -941,6 +980,7 @@
 		// Richtung, lieber nichts zeigen als den ganzen Stapel.
 		window.AvesmapsEcosystemHeightRender?.setSolid?.(true, area?.public_id);
 		renderEcosystemPeakRows(area);
+		kopfZuruecklegen();
 		// 🪤 Der Zuweisungskasten kommt ERST nach `list_regions` -- siehe mountWikiAssign. Bis dahin
 		// bleibt sein Platz leer, genauso wie die Artauswahl darüber bis dahin `disabled` ist.
 		propertiesElement("wiki-host")?.replaceChildren?.();
@@ -961,8 +1001,11 @@
 		// mehr, der Fokus blieb also auf der Karte, und die Tastaturbedienung des Fensters lief ins
 		// Leere. Still, wie jeder Zugriff auf eine abgeschaffte Kennung.
 		document.getElementById("landschaft-dialog")?.focus();
-		nameInput?.focus();
-		nameInput?.select();
+		// ⚠️ Nicht markieren, was der Editor gerade tippt -- der nächste Anschlag ersetzte sonst alles.
+		if (!(kopfVomEditor && Object.prototype.hasOwnProperty.call(kopfVomEditor, "label-edit-text"))) {
+			nameInput?.focus();
+			nameInput?.select();
+		}
 
 		// Das Art-Vokabular und die Flächenzahl kommen aus list_regions -- dieselbe Aktion, aus der der
 		// Regionen-Wähler seine Liste zieht, und die einzige Stelle, an der die Arten definiert sind.
@@ -1001,6 +1044,8 @@
 				});
 				typeSelect.value = String(area.region_type || "");
 			}
+			// Die Art des Editors überlebt auch den Neuaufbau mit dem Vokabular der Fläche.
+			kopfZuruecklegen();
 			// HIER STAND `typeSelect.disabled = false;` -- die Zeile, die die Klimazone bedienbar
 			// machte. Der Aufruf ersetzt sie und steht aus demselben Grund an derselben Stelle:
 			// wenn das Feld seine endgültige Gestalt hat.
@@ -1014,7 +1059,15 @@
 			// fälschlich leer. Nur ableiten, solange das Feld unberührt ist -- wer in dieser Millisekunde
 			// schon getippt hat, soll das nicht überschrieben bekommen.
 			const autoNameBox = propertiesElement("autoname");
-			if (autoNameBox && nameInput && nameInput.value === String(area.region_name || "")) {
+			// 🔴 Hat der Editor schon einen Namen getippt, ist das ein echter Name: der Haken bleibt aus,
+			// der GELADENE Stand aber kommt trotzdem aus der Fläche -- er entscheidet beim Speichern, ob ein
+			// Übergang vorliegt (an -> aus entfernt nichts, siehe avesmapsLandschaftDialogAutoNameEntfernt).
+			if (autoNameBox && nameInput && nameInput.value !== String(area.region_name || "")) {
+				autoNameGeladen = avesmapsEcosystemAutoNameAusMerker(
+					area.auto_name, area.region_name, currentPropertiesArtLabel()) === true;
+				autoNameBox.checked = false;
+				syncPropertiesAutoName();
+			} else if (autoNameBox && nameInput) {
 				// 🔴 DER GESPEICHERTE MERKER ENTSCHEIDET, der Name ist nur noch der Rückfall
 				// (Owner 26.08.2026: „ja, speicher den haken").
 				//
@@ -1278,6 +1331,17 @@
 		kurveGeladen = bedienbar ? { an: stand.an === true, max: Number(stand.max || 1) || 1 } : null;
 		haken.checked = bedienbar ? kurveGeladen.an : false;
 		zahl.value = bedienbar ? String(kurveGeladen.max) : "1";
+		// 🔴 UND DIE ABHÄNGIGEN MIT: der Schieber neben der Zahl, die Zeile „Anzahl Kurvenlabel" und der
+		// Bindungssatz. Das tat bis zum 27.09.2026 nur die Beschriftung (syncLabelCurveControls) -- seit
+		// sie sich heraushält, solange die Fläche den Kopf besitzt, muss es hier stehen, sonst zeigten
+		// Schieber und Zeile den Stand der zuletzt geöffneten Beschriftung.
+		const schieber = document.getElementById("label-edit-curve-max-range");
+		if (schieber) {
+			schieber.value = zahl.value;
+		}
+		if (typeof syncLabelCurveMaxControls === "function") {
+			syncLabelCurveMaxControls();
+		}
 	}
 
 	// Was dieses Speichern an der Kurveneinstellung NENNT -- oder null. Dieselbe Regel wie im
@@ -2602,7 +2666,10 @@
 			return;
 		}
 
-		const betroffen = labelData.filter((label) => String(label.publicId || "") !== String(exceptPublicId || "")
+		// ⚠️ Eine Kennung ODER eine Liste: der Flächendialog nimmt im Verbund auch die offene Beschriftung
+		// aus, die ihre eigene Hälfte gleich selbst schreibt.
+		const ausgenommen = new Set([].concat(exceptPublicId || []).map((id) => String(id || "")).filter(Boolean));
+		const betroffen = labelData.filter((label) => !ausgenommen.has(String(label.publicId || ""))
 			&& String(ecosystemRegionOfLabel(label)?.public_id || "") === regionPublicId
 			&& (String(label.labelType || "") !== String(subtype) || String(label.text || "") !== String(name)));
 
@@ -2685,6 +2752,11 @@
 		if (typeof submitMapFeatureEdit !== "function") {
 			return;
 		}
+		// 🔴 IM VERBUND SCHREIBT DIE BESCHRIFTUNGS-HÄLFTE DIESES LABEL SELBST (`s.auslassen`, siehe
+		// speicherAuftrag) -- zwei Schreiber derselben Zeile mit derselben Revision: der Zweite bekäme 409.
+		if (s.auslassen && String(s.auslassen) === String(labelPublicId)) {
+			return;
+		}
 		// 🔴 DIE BOX BEDIENT DIE OFFENE BESCHRIFTUNG, nicht zwangsläufig dieses primäre Label
 		// (syncPropertiesShowName). Ist eine ANDERE offen -- über die Geschwisterwahl erreichbar, sobald
 		// eine Fläche mehrere trägt --, gilt ihr Stand hier NICHT: sonst schriebe der Haken der einen
@@ -2765,17 +2837,38 @@
 	// ---- speichern und löschen ------------------------------------------------------------------------
 
 	/**
+	 * Die Art aus dem gemeinsamen Kopf, gelesen als Art der REGION. REIN bis auf das Vokabular.
+	 *
+	 * 💣 „KEINE ART" HEISST AN DEN ZWEI OBJEKTEN VERSCHIEDEN: an der Region der leere Wert, an der
+	 * Beschriftung der neutrale Subtyp `region` (ein Label ohne Subtyp haette keinen Stil). Beide
+	 * Haelften bauen dasselbe Auswahlfeld mit IHREM Leerwert. Stand dort `region`, weil zuletzt die
+	 * Beschriftung es aufgebaut hatte, schickte die Flaeche `region_type: "region"` -- und der Server
+	 * lehnt das an einer Vegetations- oder Topographieflaeche mit 400 ab
+	 * (avesmapsEcosystemAssertRegionType). Das Aufbauen gehoert seit dem 27.09.2026 der Flaeche allein
+	 * (renderLabelCarrierNote steigt aus, sobald sie geladen ist); diese Uebersetzung ist die zweite
+	 * Haelfte desselben Riegels, am Wert, der geschrieben wird.
+	 * ⚠️ NUR, wenn die Ebene `region` nicht selbst fuehrt -- in der Derographie ist es eine echte Art.
+	 */
+	function kopfArtAlsRegionsArt(wert) {
+		const art = String(wert || "");
+		if (art !== "region") {
+			return art;
+		}
+		const fuehrtRegion = (regionTypesForKind || []).some((typ) => String(typ?.type_key || "") === "region");
+		return fuehrtRegion ? art : "";
+	}
+
+	/**
 	 * Was ein „Speichern" schreibt, EINMAL gelesen -- im Augenblick des Klicks, vor dem ersten `await`.
 	 *
-	 * 💣 DAS FENSTER HAT ZWEI HAELFTEN, UND „Speichern" SCHICKT BEIDE GLEICHZEITIG AB
-	 * (avesmapsLandschaftDialogSpeichern). Name, Art, Anzeige- und Nodix-Haken stehen im GEMEINSAMEN
-	 * Kopf und gehoeren per `form=` dem Beschriftungsformular. Ist dessen Speichern zuerst fertig,
-	 * schliesst es das Fenster und setzt sein Formular zurueck (`resetLabelEditForm` ->
-	 * `form.reset()`): das Namensfeld wird leer, die Art steht auf „region", die Haken fallen.
-	 * Diese Haelfte las bis zum 27.09.2026 NACH ihrem ersten `await` (Gelaende, dann `update_region`)
-	 * -- und fand dann „Bitte einen Namen eingeben." in einem laengst geschlossenen Fenster, oder
-	 * schrieb „ausgeblendet" und „region" an die eigene Beschriftung. Die Wiki-Zuweisung der Flaeche
-	 * kam nie an (gemeldet am „Hochmoor von Waskir", 27.09.2026).
+	 * 💣 DAS FENSTER HAT ZWEI HAELFTEN. Name, Art, Anzeige- und Nodix-Haken stehen im GEMEINSAMEN Kopf
+	 * und gehoeren per `form=` dem Beschriftungsformular; wer sie zuruecksetzt (`form.reset()` beim
+	 * Schliessen der Beschriftung), leert sie fuer beide. Bis zum 27.09.2026 liefen die zwei Haelften
+	 * GLEICHZEITIG, und diese las NACH ihrem ersten `await` (Gelaende, dann `update_region`) -- sie fand
+	 * „Bitte einen Namen eingeben." in einem laengst geschlossenen Fenster, oder schrieb „ausgeblendet"
+	 * und „region" an die eigene Beschriftung. Die Wiki-Zuweisung kam nie an („Hochmoor von Waskir").
+	 * Seither laufen sie nacheinander (avesmapsLandschaftDialogSpeichern) -- und gelesen wird TROTZDEM
+	 * hier, einmal: ein Formular, das nach dem Klick noch jemand anfasst, ist nicht der Stand des Klicks.
 	 * 🔴 Wer hier einen Wert ergaenzt, den das Speichern NACH einem `await` braucht, liest ihn HIER.
 	 */
 	function speicherStandLesen() {
@@ -2784,7 +2877,7 @@
 		return {
 			flaeche: String(propertiesSourcePublicId || ""),
 			name: String(propertiesElement("name")?.value || "").trim(),
-			regionType: String(propertiesElement("type")?.value || ""),
+			regionType: kopfArtAlsRegionsArt(String(propertiesElement("type")?.value || "")),
 			offeneLabelId: String(document.getElementById("label-edit-public-id")?.value || ""),
 			anzeigen: anzeigeBox ? { checked: Boolean(anzeigeBox.checked), disabled: Boolean(anzeigeBox.disabled) } : null,
 			nodix: nodixBox ? { checked: Boolean(nodixBox.checked), disabled: Boolean(nodixBox.disabled) } : null,
@@ -2793,20 +2886,40 @@
 		};
 	}
 
-	async function submitEcosystemPropertiesDialog(event) {
-		event?.preventDefault();
+	/**
+	 * Das Speichern der Fläche als VORBEREITETER AUFTRAG (27.09.2026).
+	 *
+	 * 🔴 ZWEI SCHRITTE, und die Grenze zwischen ihnen ist die ganze Sache: `speicherAuftrag` liest und
+	 * prüft SYNCHRON (Stand des Klicks, Rumpf fertig), `ausfuehren` schreibt. Der Ablauf des Fensters
+	 * (avesmapsLandschaftDialogSpeichern) bereitet BEIDE Hälften vor, bevor eine schreibt -- ist die
+	 * Beschriftung ungültig, steht die Fläche nicht halb gespeichert da.
+	 * ⚠️ `abschliessen` schliesst das Fenster und lädt die Flächen neu -- getrennt, weil der Ablauf das
+	 * erst tut, wenn AUCH die Beschriftung steht. `fehlgeschlagen` zeigt den Grund in dieser Hälfte.
+	 *
+	 * @param {{verbund?: boolean}} optionen `verbund`: die Beschriftungs-Hälfte speichert im selben
+	 *   Ablauf DIREKT DANACH ihre offene Beschriftung selbst -- diese Hälfte schreibt sie dann nicht noch
+	 *   einmal (zwei Schreiber derselben Zeile mit derselben Revision: der Zweite bekäme 409).
+	 * @returns {{fehler: string} | {name: string, ausfuehren: Function, abschliessen: Function, fehlgeschlagen: Function}}
+	 */
+	function speicherAuftrag(optionen) {
+		const verbund = Boolean(optionen && optionen.verbund);
 		const area = currentPropertiesArea();
-		if (propertiesBusy || terrainSaving || !area) {
-			return;
+		if (!area) {
+			return { fehler: "Keine Fläche geladen." };
+		}
+		if (propertiesBusy || terrainSaving) {
+			return { fehler: "Die Fläche wird gerade schon gespeichert." };
 		}
 		// 💣 ERST LESEN, DANN WARTEN -- siehe speicherStandLesen. Der Rumpf unten entsteht deshalb
 		// vollstaendig VOR dem Gelaende, nicht mehr dahinter.
 		const stand = speicherStandLesen();
+		// Im Verbund schreibt die Beschriftungs-Hälfte ihre offene Beschriftung selbst (siehe oben).
+		stand.auslassen = verbund ? stand.offeneLabelId : "";
 		const name = stand.name;
 		if (name === "") {
 			setPropertiesError("Bitte einen Namen eingeben.");
 			propertiesElement("name")?.focus();
-			return;
+			return { fehler: "Bitte einen Namen eingeben." };
 		}
 
 		const payload = {
@@ -2832,7 +2945,8 @@
 		// `false` reist mit: „ausdrücklich kein Auto-Name" ist ein eigener Zustand, sonst käme eine
 		// Region, die „Wald-001" heisst und deren Haken jemand entfernt hat, angehakt zurück.
 		const autoHaken = propertiesElement("autoname");
-		if (autoHaken) {
+		// ⚠️ Nur mit bekanntem Stand (siehe openEcosystemPropertiesDialog: `null` bis `list_regions`).
+		if (autoHaken && autoNameGeladen !== null) {
 			payload.auto_name = autoHaken.checked === true;
 		}
 		// 🔴 „Bestehende labels sollen entfernt werden, sofern ‚Auto-Name' angehaekelt wird" (Owner
@@ -2885,139 +2999,178 @@
 		// (renderTerrainControls setzt ihn bei jedem Aufbau zurück).
 		const gelaendeMit = TERRAIN_FIELDS.some((feld) => terrainTouched[feld.key]);
 
-		propertiesBusy = true;
-		setPropertiesError("");
-		setPropertiesStatus("Wird gespeichert …");
-		const saveButton = propertiesElement("save");
-		if (saveButton) {
-			saveButton.disabled = true;
-		}
-
-		try {
-			// 🔴 KEIN eigener Geländeknopf mehr (Owner 2026-07-28): „ich will kein extra button ‚Gelände
-			// speichern' sondern, dass das gelände gespeichert wird, wenn ich unten auf ‚Speichern' klick."
-			//
-			// 🪤 VOR den Regionsfeldern, und nur wenn wirklich an einem Regler gedreht wurde. Die Reihenfolge
-			// ist bewusst: das Gelände hängt an der FLÄCHE und eigener Aktion, die Felder darunter an der
-			// REGION -- scheitert das Gelände, sagt seine eigene Statuszeile das, und der Rest läuft weiter,
-			// statt eine halb gespeicherte Fläche zu hinterlassen.
-			// 💣 UND DANACH GEHT ES WEITER, OHNE STILLEN AUSSTIEG. Hier stand bis zum 27.09.2026
-			// `if (generation !== terrainSaveGeneration || currentPropertiesArea() !== area) return;` --
-			// ohne Meldung. Beides trat im NORMALFALL ein: das Gelände braucht Sekunden (Speichern,
-			// Höhenraster im Worker, Hochladen), die Beschriftungs-Hälfte ist in der Zeit fertig, schliesst
-			// das Fenster und stösst über ihren Rückweg ein Nachladen der Flächen an -- danach ist
-			// `currentPropertiesArea()` ein NEUES Objekt. Der Rumpf steht seit demselben Tag vollständig
-			// fest, bevor hier gewartet wird; was „Speichern" gedrückt hat, wird geschrieben.
-			if (gelaendeMit) {
-				await saveTerrainSettings(false);
-			}
-			const antwort = await postEcosystemEdit("update_region", payload);
-			// 🔴 DIE BESCHRIFTUNGEN, DIE DER SERVER NACHGEZOGEN HAT, SOFORT AUF DIE KARTE (Owner
-			// 03.09.2026, „Lawaralîr"/„Cronwald"): die Zuweisung geerbt oder -- beim ausdruecklichen
-			// Entfernen -- die Kopie genommen, fuer ALLE Beschriftungen der Flaeche. In der Form von
-			// `update_label`, mit demselben Leser; der Kartenpayload wird nach einem Speichern nicht neu
-			// geholt, und ohne das zeigte die Infobox weiter den Artikel, den die Flaeche gerade verloren
-			// hat. VOR renameLinkedEcosystemLabel, damit das den frischen Stand liest.
-			if (typeof applyLabelFeaturesLocally === "function") {
-				applyLabelFeaturesLocally(antwort?.labels);
-			}
-			// 🔴 UND DAS KANON-ETIKETT DIESER FLAECHE (Owner 10.09.2026: „aktualisierungen sollen
-			// gleich sichtbar sein - ohne dass der browser neu geladen werden muss"). Der Server
-			// bumpt seit demselben Tag `map_revision`, wenn die Zuweisung wirklich wechselt -- damit
-			// erfahren es ALLE ANDEREN wie bei jeder Kartenaenderung. Dem Speichernden reicht das
-			// nicht: der Live-Abgleich holt ein DELTA, und ein Delta traegt keinen Kanon
-			// (avesmapsMapFeaturesIstDeltaAbruf, 03.09.2026). Deshalb reist das Etikett in der
-			// Antwort mit -- wie die Kurve und die Beschriftungen zwei Zeilen darueber.
-			// 💣 EIN Bauer fuer alle drei Nachtragswege (js/ui/popups.js); die zwei aelteren stehen in
-			// review-settlement-wiki.js und review-feature-sources.js. Eine dritte Abschrift derselben
-			// drei Zeilen waere die Divergenz, die dieses Repo bei der Listenzeile siebenmal bezahlt hat.
-			if (typeof avesmapsKanonTafelNachtragen === "function") {
-				avesmapsKanonTafelNachtragen("ecosystem", antwort?.kanon_je_kennung);
-			}
-			// Dieselbe Sofort-Anwendung wie im Beschriftungsdialog (map-features-ecosystem-label-writeback.js):
-			// der Kartenpayload wird nach einem Speichern nicht neu geholt, ohne das aendert sich am Bild
-			// nichts.
-			// 🔴 MIT DER FRISCH GERECHNETEN LINIE (Owner 24.08.2026). Hier stand: „Einschalten zeigt die
-			// Kurve erst nach ‚Kurven rechnen‘" -- und das war seit dem 23.08. nur noch zur Haelfte wahr.
-			// Gerechnet hat der Server beim Speichern laengst; er gab das Ergebnis blos nicht heraus.
-			// Jetzt reist es mit (`curve_label_line`), und das Einschalten faellt sofort ins Bild --
-			// derselbe Weg und dieselben Schluessel wie beim Menueknopf „Labelkurve aktualisieren".
-			// ⚠️ `curve_label_line` fehlt, wenn der Server nicht gerechnet hat (Kurve aus, keine Flaeche).
-			// Dann bleibt das vierte Argument `undefined` -- und der Anwender laesst eine vorhandene Kurve
-			// stehen, statt sie wegen einer nicht gestellten Frage zu entfernen.
-			if (payload.curve_label !== undefined && typeof avesmapsCurveSettingAufLabelsAnwenden === "function") {
-				avesmapsCurveSettingAufLabelsAnwenden(
-					String(payload.public_id || ""),
-					payload.curve_label === true,
-					antwort?.curve_label_max ?? payload.curve_label_max,
-					antwort?.curve_label_line
-				);
-			}
-			// ⚠️ Geleert, sobald der Stempel gesetzt ist -- sonst nennte das NÄCHSTE Speichern dieselben
-			// Felder noch einmal als Wiki-Übernahme, und wer inzwischen von Hand getippt hat, bekäme
-			// „aus dem Wiki“ auf seine eigene Eingabe.
-			// 🔴 Nur, solange das Fenster noch DIESE Fläche zeigt: wer während des Speicherns schon die
-			// nächste geöffnet hat, dessen Merkliste gehört ihm (geschlossen leert sie das Schliessen selbst).
-			const nochDieseFlaeche = String(propertiesSourcePublicId || "") === stand.flaeche;
-			if (nochDieseFlaeche) {
-				wikiUebernommen = new Set();
-			}
-			// Den geladenen Bestand und den Zähler in der Leiste nachziehen. Über das Nachbarmodul,
-			// damit dieser Datei kein zweiter Schreib- und Zählweg gehört.
-			if (payload.is_locked !== undefined) {
-				window.AvesmapsEcosystemStapel?.merkeSperre?.(area.region_public_id, payload.is_locked);
-			}
-			// 🔴 Das verbundene Karten-Label trägt den Namen MIT. Bis heute galt hier der Satz „wer die
-			// Fläche umbenennt, benennt das Label NICHT mit um" -- richtig, solange die beiden nichts
-			// voneinander wussten. Seit eine derographische Region ihr Label automatisch bekommt
-			// (`label_public_id`), wären zwei Namen für dasselbe Ding schlicht ein Fehler.
-			// 🔴 ENTWEDER NACHZIEHEN ODER ENTFERNEN, nie beides. Der Name auf Zeilen zu schreiben, die
-			// im naechsten Schritt geloescht werden, ist bestenfalls Verkehr fuer nichts -- und
-			// schlimmstenfalls bricht sein Fehlschlag das Speichern ab, nachdem die Region schon
-			// steht.
-			let entfernt = 0;
-			if (beschriftungenGehen) {
-				entfernt = await entferneBeschriftungenDerRegion(area);
-			} else {
-				// 💣 MIT DEM STAND DES KLICKS, nie mit dem Formular von jetzt (speicherStandLesen).
-				await renameLinkedEcosystemLabel(area, name, stand);
-				// Und die ÜBRIGEN Labels derselben Fläche: das primäre hat die Zeile darüber schon nachgezogen.
-				await applyRegionToLabels(
-					area,
-					name,
-					stand.regionType || "region",
-					String(area.label_public_id || "")
-				);
-			}
-			// Nur das eigene Fenster schliessen -- zeigt es inzwischen eine andere Fläche, bleibt es offen.
-			if (String(propertiesSourcePublicId || "") === stand.flaeche) {
-				closeEcosystemPropertiesDialog();
-			}
-			await refreshAfterEcosystemPropertiesWrite();
-			if (typeof showFeedbackToast === "function") {
-				// 🔴 Was weg ist, wird GESAGT. Eine stillschweigend geloeschte Beschriftung ist genau
-				// die Sorte Nebenwirkung, die man erst Tage spaeter auf der Karte vermisst.
-				showFeedbackToast(entfernt > 0
-					? `Region „${name}" gespeichert — ${entfernt === 1 ? "die Beschriftung wurde" : entfernt + " Beschriftungen wurden"} entfernt (Auto-Name).`
-					: `Region „${name}" gespeichert.`, "success");
-			}
-		} catch (error) {
-			const meldung = error?.message || "Die Region konnte nicht gespeichert werden.";
-			setPropertiesError(meldung);
-			setPropertiesStatus("");
-			// 🔴 IST DAS FENSTER SCHON ZU, SAGT ES EIN TOAST. Die Beschriftungs-Hälfte schliesst es, sobald
-			// ihr eigenes Speichern fertig ist -- eine Fehlerzeile in einem geschlossenen Fenster liest
-			// niemand, und „Label gespeichert." davor läse sich wie ein vollständiger Erfolg.
-			if ((!isEcosystemPropertiesDialogOpen() || String(propertiesSourcePublicId || "") !== stand.flaeche)
-				&& typeof showFeedbackToast === "function") {
-				showFeedbackToast(`Region „${name}" nicht gespeichert: ${meldung}`, "error");
-			}
-		} finally {
-			propertiesBusy = false;
+		let entfernt = 0;
+		const ausfuehren = async () => {
+			propertiesBusy = true;
+			setPropertiesError("");
+			setPropertiesStatus("Wird gespeichert …");
+			const saveButton = propertiesElement("save");
 			if (saveButton) {
-				saveButton.disabled = false;
+				saveButton.disabled = true;
 			}
+
+			try {
+				// 🔴 KEIN eigener Geländeknopf mehr (Owner 2026-07-28): „ich will kein extra button ‚Gelände
+				// speichern' sondern, dass das gelände gespeichert wird, wenn ich unten auf ‚Speichern' klick."
+				//
+				// 🪤 VOR den Regionsfeldern, und nur wenn wirklich an einem Regler gedreht wurde. Die Reihenfolge
+				// ist bewusst: das Gelände hängt an der FLÄCHE und eigener Aktion, die Felder darunter an der
+				// REGION -- scheitert das Gelände, sagt seine eigene Statuszeile das, und der Rest läuft weiter,
+				// statt eine halb gespeicherte Fläche zu hinterlassen.
+				// 💣 UND DANACH GEHT ES WEITER, OHNE STILLEN AUSSTIEG. Hier stand bis zum 27.09.2026
+				// `if (generation !== terrainSaveGeneration || currentPropertiesArea() !== area) return;` --
+				// ohne Meldung. Beides trat im NORMALFALL ein: das Gelände braucht Sekunden (Speichern,
+				// Höhenraster im Worker, Hochladen), die Beschriftungs-Hälfte ist in der Zeit fertig, schliesst
+				// das Fenster und stösst über ihren Rückweg ein Nachladen der Flächen an -- danach ist
+				// `currentPropertiesArea()` ein NEUES Objekt. Der Rumpf steht seit demselben Tag vollständig
+				// fest, bevor hier gewartet wird; was „Speichern" gedrückt hat, wird geschrieben.
+				if (gelaendeMit) {
+					await saveTerrainSettings(false);
+				}
+				const antwort = await postEcosystemEdit("update_region", payload);
+				// 🔴 DIE BESCHRIFTUNGEN, DIE DER SERVER NACHGEZOGEN HAT, SOFORT AUF DIE KARTE (Owner
+				// 03.09.2026, „Lawaralîr"/„Cronwald"): die Zuweisung geerbt oder -- beim ausdruecklichen
+				// Entfernen -- die Kopie genommen, fuer ALLE Beschriftungen der Flaeche. In der Form von
+				// `update_label`, mit demselben Leser; der Kartenpayload wird nach einem Speichern nicht neu
+				// geholt, und ohne das zeigte die Infobox weiter den Artikel, den die Flaeche gerade verloren
+				// hat. VOR renameLinkedEcosystemLabel, damit das den frischen Stand liest.
+				if (typeof applyLabelFeaturesLocally === "function") {
+					applyLabelFeaturesLocally(antwort?.labels);
+				}
+				// 🔴 UND DAS KANON-ETIKETT DIESER FLAECHE (Owner 10.09.2026: „aktualisierungen sollen
+				// gleich sichtbar sein - ohne dass der browser neu geladen werden muss"). Der Server
+				// bumpt seit demselben Tag `map_revision`, wenn die Zuweisung wirklich wechselt -- damit
+				// erfahren es ALLE ANDEREN wie bei jeder Kartenaenderung. Dem Speichernden reicht das
+				// nicht: der Live-Abgleich holt ein DELTA, und ein Delta traegt keinen Kanon
+				// (avesmapsMapFeaturesIstDeltaAbruf, 03.09.2026). Deshalb reist das Etikett in der
+				// Antwort mit -- wie die Kurve und die Beschriftungen zwei Zeilen darueber.
+				// 💣 EIN Bauer fuer alle drei Nachtragswege (js/ui/popups.js); die zwei aelteren stehen in
+				// review-settlement-wiki.js und review-feature-sources.js. Eine dritte Abschrift derselben
+				// drei Zeilen waere die Divergenz, die dieses Repo bei der Listenzeile siebenmal bezahlt hat.
+				if (typeof avesmapsKanonTafelNachtragen === "function") {
+					avesmapsKanonTafelNachtragen("ecosystem", antwort?.kanon_je_kennung);
+				}
+				// Dieselbe Sofort-Anwendung wie im Beschriftungsdialog (map-features-ecosystem-label-writeback.js):
+				// der Kartenpayload wird nach einem Speichern nicht neu geholt, ohne das aendert sich am Bild
+				// nichts.
+				// 🔴 MIT DER FRISCH GERECHNETEN LINIE (Owner 24.08.2026). Hier stand: „Einschalten zeigt die
+				// Kurve erst nach ‚Kurven rechnen‘" -- und das war seit dem 23.08. nur noch zur Haelfte wahr.
+				// Gerechnet hat der Server beim Speichern laengst; er gab das Ergebnis blos nicht heraus.
+				// Jetzt reist es mit (`curve_label_line`), und das Einschalten faellt sofort ins Bild --
+				// derselbe Weg und dieselben Schluessel wie beim Menueknopf „Labelkurve aktualisieren".
+				// ⚠️ `curve_label_line` fehlt, wenn der Server nicht gerechnet hat (Kurve aus, keine Flaeche).
+				// Dann bleibt das vierte Argument `undefined` -- und der Anwender laesst eine vorhandene Kurve
+				// stehen, statt sie wegen einer nicht gestellten Frage zu entfernen.
+				if (payload.curve_label !== undefined && typeof avesmapsCurveSettingAufLabelsAnwenden === "function") {
+					avesmapsCurveSettingAufLabelsAnwenden(
+						String(payload.public_id || ""),
+						payload.curve_label === true,
+						antwort?.curve_label_max ?? payload.curve_label_max,
+						antwort?.curve_label_line
+					);
+				}
+				// ⚠️ Geleert, sobald der Stempel gesetzt ist -- sonst nennte das NÄCHSTE Speichern dieselben
+				// Felder noch einmal als Wiki-Übernahme, und wer inzwischen von Hand getippt hat, bekäme
+				// „aus dem Wiki“ auf seine eigene Eingabe.
+				// 🔴 Nur, solange das Fenster noch DIESE Fläche zeigt: wer während des Speicherns schon die
+				// nächste geöffnet hat, dessen Merkliste gehört ihm (geschlossen leert sie das Schliessen selbst).
+				const nochDieseFlaeche = String(propertiesSourcePublicId || "") === stand.flaeche;
+				if (nochDieseFlaeche) {
+					wikiUebernommen = new Set();
+				}
+				// Den geladenen Bestand und den Zähler in der Leiste nachziehen. Über das Nachbarmodul,
+				// damit dieser Datei kein zweiter Schreib- und Zählweg gehört.
+				if (payload.is_locked !== undefined) {
+					window.AvesmapsEcosystemStapel?.merkeSperre?.(area.region_public_id, payload.is_locked);
+				}
+				// 🔴 Das verbundene Karten-Label trägt den Namen MIT. Bis heute galt hier der Satz „wer die
+				// Fläche umbenennt, benennt das Label NICHT mit um" -- richtig, solange die beiden nichts
+				// voneinander wussten. Seit eine derographische Region ihr Label automatisch bekommt
+				// (`label_public_id`), wären zwei Namen für dasselbe Ding schlicht ein Fehler.
+				// 🔴 ENTWEDER NACHZIEHEN ODER ENTFERNEN, nie beides. Der Name auf Zeilen zu schreiben, die
+				// im naechsten Schritt geloescht werden, ist bestenfalls Verkehr fuer nichts -- und
+				// schlimmstenfalls bricht sein Fehlschlag das Speichern ab, nachdem die Region schon
+				// steht.
+				if (beschriftungenGehen) {
+					entfernt = await entferneBeschriftungenDerRegion(area);
+				} else {
+					// 💣 MIT DEM STAND DES KLICKS, nie mit dem Formular von jetzt (speicherStandLesen).
+					// ⚠️ Im Verbund lassen beide die offene Beschriftung aus (`stand.auslassen`) -- die schreibt
+					// gleich ihre eigene Hälfte, mit der frischen Revision aus diesem Durchgang.
+					await renameLinkedEcosystemLabel(area, name, stand);
+					// Und die ÜBRIGEN Labels derselben Fläche: das primäre hat die Zeile darüber schon nachgezogen.
+					await applyRegionToLabels(
+						area,
+						name,
+						stand.regionType || "region",
+						[String(area.label_public_id || ""), stand.auslassen]
+					);
+				}
+				return { entfernt };
+			} finally {
+				propertiesBusy = false;
+				if (saveButton) {
+					saveButton.disabled = false;
+				}
+			}
+		};
+
+		return {
+			name,
+			ausfuehren,
+			abschliessen: async ({ leise = false } = {}) => {
+				// Nur das eigene Fenster schliessen -- zeigt es inzwischen eine andere Fläche, bleibt es offen.
+				if (String(propertiesSourcePublicId || "") === stand.flaeche) {
+					closeEcosystemPropertiesDialog();
+				}
+				await refreshAfterEcosystemPropertiesWrite();
+				// 🔴 Was weg ist, wird GESAGT -- auch im Verbund. Eine stillschweigend geloeschte Beschriftung
+				// ist genau die Sorte Nebenwirkung, die man erst Tage spaeter auf der Karte vermisst.
+				if (typeof showFeedbackToast === "function" && (!leise || entfernt > 0)) {
+					showFeedbackToast(entfernt > 0
+						? `Region „${name}" gespeichert — ${entfernt === 1 ? "die Beschriftung wurde" : entfernt + " Beschriftungen wurden"} entfernt (Auto-Name).`
+						: `Region „${name}" gespeichert.`, "success");
+				}
+			},
+			fehlgeschlagen: (error) => {
+				const meldung = error?.message || "Die Region konnte nicht gespeichert werden.";
+				setPropertiesError(meldung);
+				setPropertiesStatus("");
+				// 🔴 IST DAS FENSTER SCHON ZU, SAGT ES EIN TOAST -- eine Fehlerzeile in einem geschlossenen
+				// Fenster liest niemand.
+				if ((!isEcosystemPropertiesDialogOpen() || String(propertiesSourcePublicId || "") !== stand.flaeche)
+					&& typeof showFeedbackToast === "function") {
+					showFeedbackToast(`Region „${name}" nicht gespeichert: ${meldung}`, "error");
+				}
+			},
+		};
+	}
+
+	/**
+	 * Der submit-Zuhörer der Fläche.
+	 *
+	 * 🔴 IM VEREINIGTEN FENSTER GIBT ER AB -- an den EINEN Ablauf, der beide Hälften nacheinander
+	 * speichert (avesmapsLandschaftDialogSpeichern). Das gilt auch für Enter in einem Feld.
+	 * ⚠️ Ohne das Fenster (eine Prüfseite, ein Test mit nur diesem Modul) speichert die Fläche allein.
+	 */
+	async function submitEcosystemPropertiesDialog(event) {
+		event?.preventDefault();
+		if (typeof avesmapsLandschaftDialogUebernimmtSpeichern === "function"
+			&& avesmapsLandschaftDialogUebernimmtSpeichern()
+			&& typeof avesmapsLandschaftDialogSpeichern === "function") {
+			return avesmapsLandschaftDialogSpeichern();
 		}
+		const auftrag = speicherAuftrag({ verbund: false });
+		if (auftrag.fehler) {
+			return undefined;
+		}
+		try {
+			await auftrag.ausfuehren();
+		} catch (error) {
+			auftrag.fehlgeschlagen(error);
+			return undefined;
+		}
+		return auftrag.abschliessen({ leise: false });
 	}
 
 	// 🔴 Eine Region zu löschen nimmt IHRE FLÄCHEN MIT (avesmapsDeleteEcosystemRegion, eine Transaktion).
@@ -3314,6 +3467,8 @@
 	if (typeof window !== "undefined") {
 		window.AvesmapsEcosystemProperties = {
 			open: openEcosystemPropertiesDialog,
+			// Der vorbereitete Speicherauftrag -- ihn ruft der Ablauf des vereinigten Fensters.
+			speicherAuftrag,
 			close: closeEcosystemPropertiesDialog,
 			isOpen: isEcosystemPropertiesDialogOpen,
 			// 🔴 WELCHE FLÄCHE STEHT OFFEN -- die Frage stellt der Loader vor jedem Nachladen

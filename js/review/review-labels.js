@@ -271,13 +271,39 @@ async function renderLabelCarrierNote(label) {
 	// (ihr primaeres). Nur die Regionsrichtung zu lesen hiesse, das zweite und dritte Label einer
 	// Flaeche als heimatlos anzuzeigen -- und genau die sind der Sinn der Sache.
 	const region = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(label) : null;
-	applyLabelTypeVocabulary(region, label);
+	// 💣 DER GEMEINSAME KOPF HAT EINEN BESITZER: die FLÄCHE, sobald sie im Fenster geladen ist. Diese
+	// Stelle läuft ASYNCHRON (nach loadEcosystemRegions), die Fläche baut Art-Auswahl und Kurvenregler
+	// nach IHREM `list_regions` -- wer zuletzt antwortete, gewann. Gewann diese Stelle, stand im
+	// Auswahlfeld das Vokabular der BESCHRIFTUNG („keine Art" = `region`), und die Fläche schickte
+	// `region_type: "region"`, das der Server an einer Vegetations- oder Topographiefläche mit 400
+	// ablehnt; die Kurvenregler kamen aus dem Zwischenspeicher der Regionslisten, und war der älter als
+	// `list_regions`, hielt die Fläche den alten Wert für eine Änderung und schrieb ihn zurück.
+	// 🔴 Seit dem 27.09.2026 steigt diese Stelle für beides aus, solange die Fläche da ist. Ohne Fläche
+	// (freie Beschriftung, oder ihre Fläche liegt in einer anderen Ebene) gehört der Kopf ihr, wie bisher.
+	const flaecheBesitztKopf = typeof avesmapsLandschaftDialogStand === "function"
+		&& avesmapsLandschaftDialogStand().hatFlaeche === true;
+	if (flaecheBesitztKopf) {
+		// Der eigene Kurvenstand gilt dann nicht -- sonst trüge ein späterer Rückweg einen fremden Wert.
+		labelCurveGeladen = null;
+		labelCurveSchnappschuss = null;
+		syncLabelHeightRow();
+	} else {
+		// ⚠️ Was der Editor seit dem Öffnen schon gewählt hat, überlebt den Neuaufbau der Auswahl.
+		const kopf = typeof avesmapsLandschaftDialogKopfMerken === "function" ? avesmapsLandschaftDialogKopfMerken() : null;
+		applyLabelTypeVocabulary(region, label);
+		if (kopf && typeof avesmapsLandschaftDialogKopfZurueck === "function") {
+			avesmapsLandschaftDialogKopfZurueck(kopf);
+			syncLabelHeightRow();
+		}
+	}
 	// Die zweite Stufe des Titels (siehe populateLabelEditForm): jetzt ist die Ebene bekannt.
 	setLabelEditDialogTitle(region?.kind || "", { resolved: true });
 	fillLabelRegionSelect(label, region);
 	// VOR dem fruehen Ausstieg darunter: ohne Region muessen die zwei Bedienelemente
 	// ausdruecklich verriegelt werden, sonst behalten sie den Stand des zuletzt geoeffneten Labels.
-	syncLabelCurveControls(region);
+	if (!flaecheBesitztKopf) {
+		syncLabelCurveControls(region);
+	}
 	if (!region) {
 		return;
 	}
@@ -847,6 +873,11 @@ function openLabelEditDialog(options = {}) {
 	// ⚠️ Leer heisst „den Reiter NICHT anfassen" -- als Gegenpart gerufen gehoert der offene Reiter
 	// dem anderen Oeffner, sonst spraenge „Eigenschaften …" einer Flaeche auf „Beschriftung".
 	labelEditStartReiter = istEinstieg ? String(options.reiter || "beschriftung") : "";
+	// Ein neues Öffnen beginnt mit unberührtem Kopf (avesmapsLandschaftDialogKopfMerken) -- nur der
+	// Einstieg, nie der Gegenpart: der kommt, während der Editor schon tippt.
+	if (istEinstieg && typeof avesmapsLandschaftDialogKopfNeu === "function") {
+		avesmapsLandschaftDialogKopfNeu();
+	}
 	resetLabelEditForm();
 	populateLabelEditForm(options);
 	syncLabelEditGeschwisterwahl(options.labelEntry || null);

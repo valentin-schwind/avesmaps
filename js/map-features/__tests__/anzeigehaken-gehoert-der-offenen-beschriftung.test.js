@@ -131,6 +131,8 @@ const rumpfRename = schneide("async function renameLinkedEcosystemLabel(area, na
 // 🔴 Ohne `stand` liest die Funktion das Formular über speicherStandLesen -- dieselben Felder wie
 // vorher, nur an EINER Stelle (27.09.2026). Deshalb läuft der Leser hier mit.
 const rumpfStand = schneide("function speicherStandLesen() {");
+// …und der Leser übersetzt die Art des Kopfes (`region` ist an einer Vegetationsfläche keine Art).
+const rumpfArt = schneide("function kopfArtAlsRegionsArt(wert) {");
 
 async function schreibe({ offeneId, labels, area }) {
 	const geschrieben = [];
@@ -162,10 +164,11 @@ async function schreibe({ offeneId, labels, area }) {
 		applyLabelFeatureLocally: () => {},
 		setPropertiesStatus: () => {},
 		propertiesSourcePublicId: "flaeche-1",
+		regionTypesForKind: [{ type_key: "wald" }],
 	};
 	kasten.globalThis = kasten;
 	vm.createContext(kasten);
-	vm.runInContext(`${rumpfStand} ${rumpfRename} this.__lauf = renameLinkedEcosystemLabel;`, kasten, { filename: "renameLinkedEcosystemLabel" });
+	vm.runInContext(`${rumpfArt} ${rumpfStand} ${rumpfRename} this.__lauf = renameLinkedEcosystemLabel;`, kasten, { filename: "renameLinkedEcosystemLabel" });
 	await kasten.__lauf(area, "Cronwald");
 	return geschrieben;
 }

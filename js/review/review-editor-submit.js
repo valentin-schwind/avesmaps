@@ -251,76 +251,198 @@ async function handlePowerlineEditFormSubmit(event) {
 	}
 }
 
-async function handleLabelEditFormSubmit(event) {
-	event.preventDefault();
-	const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
-	if (!formElement || !formElement.reportValidity()) {
-		return;
+/**
+ * Warum eine Beschriftung nicht gespeichert werden kann -- in Worten, fuer die gemeinsame Statuszeile.
+ * ⚠️ `reportValidity()` zeigt seine Blase nur an einem SICHTBAREN Feld; steht das ungueltige in einem
+ * anderen Reiter, bliebe es sonst beim wortlosen Nichts.
+ */
+function avesmapsBeschriftungUngueltigText(formElement) {
+	const feld = Array.from(formElement?.elements || []).find((element) => element
+		&& element.willValidate && typeof element.checkValidity === "function" && !element.checkValidity());
+	if (!feld) {
+		return "Bitte die Eingaben prüfen.";
+	}
+	const beschriftung = String(feld.closest?.("label")?.querySelector?.("span")?.textContent
+		|| feld.getAttribute?.("aria-label") || "").trim();
+	return (beschriftung ? beschriftung + ": " : "") + String(feld.validationMessage || "ungültiger Wert");
+}
+
+/**
+ * Im Verbund die Darstellung der neuen Art mitnehmen -- nur für Werte, die niemand angefasst hat.
+ *
+ * 🔴 DIE REGEL GAB ES SCHON (renameLinkedEcosystemLabel): folgt der Subtyp der Art der Region und
+ * WECHSELT er dabei, kommt die Darstellung dieser Art mit (Größe, Ab-Zoom); ein blosses Umbenennen
+ * setzt keine Handarbeit zurück. Im Verbund schreibt seit dem 27.09.2026 die Beschriftungs-Hälfte
+ * ihre offene Beschriftung selbst -- die Regel muss also auch HIER gelten, sonst behielte ein Wald,
+ * der zur Steppe wird, die Größe des Waldes.
+ * ⚠️ Nur, wo der Wert im Formular noch der gespeicherte ist: was der Editor im selben Speichern von Hand
+ * gestellt hat, gewinnt.
+ */
+function avesmapsBeschriftungDarstellungZurArt(payload, label) {
+	if (!payload || payload.action !== "update_label" || !label || typeof ecosystemLabelStyleFor !== "function") {
+		return payload;
+	}
+	const neu = String(payload.feature_subtype || "");
+	if (neu === "" || neu === String(label.labelType || "")) {
+		return payload;
+	}
+	const stil = ecosystemLabelStyleFor(neu);
+	if (!stil) {
+		return payload;
+	}
+	if (Number(payload.size) === (Number(label.size) || 18)) {
+		payload.size = stil.size;
+	}
+	if (Number(payload.min_zoom) === Number(label.minZoom ?? 0)) {
+		payload.min_zoom = stil.minZoom;
+	}
+	return payload;
+}
+
+/**
+ * Das Speichern einer Beschriftung als VORBEREITETER AUFTRAG (27.09.2026) -- das Gegenstück zu
+ * `speicherAuftrag` der Fläche (map-features-ecosystem-properties.js).
+ *
+ * 🔴 `avesmapsBeschriftungSpeicherAuftrag` liest und prüft SYNCHRON, `ausfuehren` schreibt,
+ * `abschliessen` schliesst. Der Ablauf des vereinigten Fensters (avesmapsLandschaftDialogSpeichern)
+ * bereitet beide Hälften vor, schreibt die Fläche, DANN diese -- und schliesst erst, wenn beides steht.
+ * Bis dahin liefen die zwei gleichzeitig: diese Hälfte war meist zuerst fertig, schloss das Fenster und
+ * leerte den gemeinsamen Kopf, während die Fläche ihn noch las, und beide schrieben dieselbe
+ * Beschriftung mit derselben Revision (der Zweite bekam 409).
+ *
+ * 🔴 IM VERBUND KEIN RÜCKWEG ZUR REGION: `ecosystemPushLabelChangesToRegion` schreibt Name, Art und
+ * Kurvenbeschriftung an die Fläche -- genau das hat die Flächen-Hälfte im selben Ablauf gerade aus
+ * demselben Kopf geschrieben. Ein zweiter Schreiber derselben Region wäre das Rennen, das dieser Umbau
+ * beseitigt. Ohne Fläche im Fenster (freie Beschriftung, oder ihre Fläche liegt in einer anderen Ebene)
+ * bleibt er, wie er war.
+ *
+ * @param {{formElement: HTMLFormElement, verbund?: boolean}} optionen
+ */
+function avesmapsBeschriftungSpeicherAuftrag(optionen) {
+	const o = optionen || {};
+	const formElement = o.formElement instanceof HTMLFormElement ? o.formElement : null;
+	const verbund = Boolean(o.verbund);
+	if (!formElement) {
+		return { fehler: "Das Formular der Beschriftung fehlt." };
+	}
+	if (!formElement.reportValidity()) {
+		return { fehler: avesmapsBeschriftungUngueltigText(formElement) };
 	}
 
 	const payload = attachActiveReviewReportContext(buildLabelEditPayload(formElement));
+	// 💣 Der Eintrag des KLICKS, nicht der von später: öffnet jemand während des Speicherns eine andere
+	// Beschriftung, bekäme sonst sie die Antwort dieses Objekts.
 	const editedLabelEntry = labelEditEntry;
-	const shouldStartMoveAfterSave = pendingLabelMoveAfterEditEntry === editedLabelEntry;
-	pendingLabelMoveAfterEditEntry = null;
-	setLabelEditStatus("Label wird gespeichert...", "pending");
-	try {
-		const result = await submitMapFeatureEdit(payload);
-		let savedLabelEntry = editedLabelEntry;
-		if (labelEditEntry) {
-			applyLabelFeatureResponse(labelEditEntry, result.feature);
-		} else {
-			savedLabelEntry = addCreatedLabelFeature(result.feature);
-		}
-		// 🔴 Die Live-Vorschau der Darstellung entwaffnen: ab hier gilt die Antwort des Servers. Ohne
-		// das nähme das Schliessen des Dialogs gleich darauf die eben gespeicherten Werte wieder zurück
-		// -- die Rücknahme hängt bewusst an JEDEM Schliessweg (siehe review-labels.js).
-		if (typeof commitLabelDisplayPreview === "function") {
-			commitLabelDisplayPreview();
-		}
-		updateRevisionFromEditResponse(result);
-		// 🔴 DIE MITGEZOGENEN GESCHWISTER (15.09.2026): hängt dieses Label an einer Fläche und hat sein
-		// Speichern die Wiki-Landschaft geändert, schreibt der Server den Artikel an die REGION, und die
-		// übrigen Beschriftungen der Fläche folgen (api/_internal/app/landschaft-wiki.php). Sie kommen als
-		// `labels` zurück und gehen SOFORT auf die Karte -- derselbe Leser wie bei der Antwort von update_region.
-		if (Array.isArray(result?.labels) && result.labels.length > 0 && typeof applyLabelFeaturesLocally === "function") {
-			applyLabelFeaturesLocally(result.labels);
-		}
-		// 🔴 Die Rückrichtung (Owner 2026-07-28): gehört dieses Label zu einer Landschaftsfläche, bekommt
-		// die Fläche Name, Art und Wiki-Zuweisung mit -- und ihre übrigen Labels gleich hinterher. Ohne
-		// das trug ein umbenanntes Label seinen neuen Namen allein, und das nächste Speichern im
-		// Flächendialog machte ihn wieder rückgängig: die Arbeit war weg, ohne Fehlermeldung.
-		//
-		// 🪤 NACH applyLabelFeatureResponse, damit der gespeicherte Stand weitergereicht wird und nicht
-		// der, mit dem der Dialog aufging. Und nur beim ÄNDERN: ein frisch angelegtes Label hat noch
-		// keine Fläche, an die es etwas zurückzugeben hätte.
-		if (payload.action === "update_label" && savedLabelEntry?.label
-			&& typeof ecosystemPushLabelChangesToRegion === "function") {
-			void ecosystemPushLabelChangesToRegion(savedLabelEntry.label, {
-				// 🔴 Ob die Zuweisung in DIESEM Speichern angefasst wurde, weiss nur der Rumpf: der
-				// Schlüssel steht genau dann drin (buildLabelEditPayload). Aus dem gespeicherten Stand
-				// lässt sich das nicht mehr ablesen -- „kein Nest" sieht nach dem Entfernen genauso aus
-				// wie „nie eines gehabt".
-				wikiGeaendert: Object.prototype.hasOwnProperty.call(payload, "wiki_region"),
-			});
-		}
-		void loadChangeLog();
-		if (payload.action === "create_label" && activeReviewReportId) {
-			await updateReviewReportStatus(activeReviewReportId, "approved", activeReviewReportSource || "map_reports");
-			activeReviewReportId = null;
-			activeReviewReportSource = null;
-			clearReviewReportMarker();
-			await loadReviewReports();
-		}
-		setLabelEditDialogOpen(false, { resetForm: true });
-		if (shouldStartMoveAfterSave && savedLabelEntry) {
-			setLabelMoveActive(savedLabelEntry, true);
-		}
-		showFeedbackToast("Label gespeichert.", "success");
-		if (typeof refreshActiveWikiSyncPanelAfterAssignment === "function") {
-			void refreshActiveWikiSyncPanelAfterAssignment();
-		}
-	} catch (error) {
-		console.error("Label konnte nicht gespeichert werden:", error);
-		setLabelEditStatus(error.message || "Label konnte nicht gespeichert werden.", "error");
+	if (verbund) {
+		avesmapsBeschriftungDarstellungZurArt(payload, editedLabelEntry?.label);
 	}
+	const shouldStartMoveAfterSave = pendingLabelMoveAfterEditEntry === editedLabelEntry;
+	let savedLabelEntry = editedLabelEntry;
+
+	return {
+		name: String(payload.text || ""),
+		ausfuehren: async () => {
+			pendingLabelMoveAfterEditEntry = null;
+			setLabelEditStatus("Label wird gespeichert...", "pending");
+			const result = await submitMapFeatureEdit(payload);
+			if (editedLabelEntry) {
+				applyLabelFeatureResponse(editedLabelEntry, result.feature);
+			} else {
+				savedLabelEntry = addCreatedLabelFeature(result.feature);
+			}
+			// 🔴 Die Live-Vorschau der Darstellung entwaffnen: ab hier gilt die Antwort des Servers. Ohne
+			// das nähme das Schliessen des Dialogs gleich darauf die eben gespeicherten Werte wieder zurück
+			// -- die Rücknahme hängt bewusst an JEDEM Schliessweg (siehe review-labels.js).
+			if (typeof commitLabelDisplayPreview === "function") {
+				commitLabelDisplayPreview();
+			}
+			updateRevisionFromEditResponse(result);
+			// 🔴 DIE MITGEZOGENEN GESCHWISTER (15.09.2026): hängt dieses Label an einer Fläche und hat sein
+			// Speichern die Wiki-Landschaft geändert, schreibt der Server den Artikel an die REGION, und die
+			// übrigen Beschriftungen der Fläche folgen (api/_internal/app/landschaft-wiki.php). Sie kommen als
+			// `labels` zurück und gehen SOFORT auf die Karte -- derselbe Leser wie bei der Antwort von update_region.
+			if (Array.isArray(result?.labels) && result.labels.length > 0 && typeof applyLabelFeaturesLocally === "function") {
+				applyLabelFeaturesLocally(result.labels);
+			}
+			// 🔴 Die Rückrichtung (Owner 2026-07-28): gehört dieses Label zu einer Landschaftsfläche, bekommt
+			// die Fläche Name, Art und Wiki-Zuweisung mit -- und ihre übrigen Labels gleich hinterher. Ohne
+			// das trug ein umbenanntes Label seinen neuen Namen allein, und das nächste Speichern im
+			// Flächendialog machte ihn wieder rückgängig: die Arbeit war weg, ohne Fehlermeldung.
+			//
+			// 🪤 NACH applyLabelFeatureResponse, damit der gespeicherte Stand weitergereicht wird und nicht
+			// der, mit dem der Dialog aufging. Und nur beim ÄNDERN: ein frisch angelegtes Label hat noch
+			// keine Fläche, an die es etwas zurückzugeben hätte.
+			// 💣 UND NICHT IM VERBUND -- die Fläche hat es im selben Ablauf gerade geschrieben (Kopf oben).
+			if (!verbund && payload.action === "update_label" && savedLabelEntry?.label
+				&& typeof ecosystemPushLabelChangesToRegion === "function") {
+				void ecosystemPushLabelChangesToRegion(savedLabelEntry.label, {
+					// 🔴 Ob die Zuweisung in DIESEM Speichern angefasst wurde, weiss nur der Rumpf: der
+					// Schlüssel steht genau dann drin (buildLabelEditPayload). Aus dem gespeicherten Stand
+					// lässt sich das nicht mehr ablesen -- „kein Nest" sieht nach dem Entfernen genauso aus
+					// wie „nie eines gehabt".
+					wikiGeaendert: Object.prototype.hasOwnProperty.call(payload, "wiki_region"),
+				});
+			}
+			void loadChangeLog();
+			if (payload.action === "create_label" && activeReviewReportId) {
+				await updateReviewReportStatus(activeReviewReportId, "approved", activeReviewReportSource || "map_reports");
+				activeReviewReportId = null;
+				activeReviewReportSource = null;
+				clearReviewReportMarker();
+				await loadReviewReports();
+			}
+			return { savedLabelEntry };
+		},
+		abschliessen: async ({ leise = false } = {}) => {
+			// ⚠️ Nur das EIGENE Formular schliessen: wer während des Speicherns mit Escape zugemacht und
+			// schon die nächste Beschriftung geöffnet hat, dessen Fenster gehört ihm (dieselbe Regel wie
+			// beim `abschliessen` der Fläche). Ein Neuaufbau setzt `labelEditEntry` um.
+			if (labelEditEntry === editedLabelEntry) {
+				setLabelEditDialogOpen(false, { resetForm: true });
+			}
+			if (shouldStartMoveAfterSave && savedLabelEntry) {
+				setLabelMoveActive(savedLabelEntry, true);
+			}
+			if (!leise) {
+				showFeedbackToast("Label gespeichert.", "success");
+			}
+			if (typeof refreshActiveWikiSyncPanelAfterAssignment === "function") {
+				void refreshActiveWikiSyncPanelAfterAssignment();
+			}
+		},
+		fehlgeschlagen: (error) => {
+			console.error("Label konnte nicht gespeichert werden:", error);
+			setLabelEditStatus(error?.message || "Label konnte nicht gespeichert werden.", "error");
+		},
+	};
+}
+
+/**
+ * Der submit-Zuhörer der Beschriftung.
+ *
+ * 🔴 IM VEREINIGTEN FENSTER GIBT ER AB -- an den EINEN Ablauf, der beide Hälften nacheinander speichert
+ * (avesmapsLandschaftDialogSpeichern). Das gilt auch für Enter im Namensfeld: das gehört per `form=`
+ * diesem Formular, und bis zum 27.09.2026 speicherte Enter dort NUR die Beschriftung -- eine offene
+ * Wiki-Zuweisung der Fläche ging mit dem Schliessen verloren.
+ * ⚠️ Ohne das Fenster (ein Test mit nur diesem Modul) speichert die Beschriftung allein, wie bisher.
+ */
+async function handleLabelEditFormSubmit(event) {
+	event.preventDefault();
+	if (typeof avesmapsLandschaftDialogUebernimmtSpeichern === "function"
+		&& avesmapsLandschaftDialogUebernimmtSpeichern()
+		&& typeof avesmapsLandschaftDialogSpeichern === "function") {
+		return avesmapsLandschaftDialogSpeichern();
+	}
+	const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
+	const auftrag = avesmapsBeschriftungSpeicherAuftrag({ formElement, verbund: false });
+	if (auftrag.fehler) {
+		return undefined;
+	}
+	try {
+		await auftrag.ausfuehren();
+	} catch (error) {
+		auftrag.fehlgeschlagen(error);
+		return undefined;
+	}
+	return auftrag.abschliessen({ leise: false });
 }
