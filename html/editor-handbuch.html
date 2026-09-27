@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 27.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 28.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -807,10 +807,11 @@
 				<ul class="hb-steps">
 					<li><strong>Position</strong> — die Koordinaten, nur zur Anzeige. Verschieben tust du den Ort, indem du ihn auf der Karte ziehst.</li>
 					<li><strong>Identität</strong> — <em>Ortsname</em>, <em>Ortsgröße</em>, <em>Art</em> und die drei Wiki-Angaben <em>Einwohner</em>, <em>Lage</em> und <em>Herrscher</em>; die drei darfst du auch von Hand überschreiben. Wiki-Werte holt <strong>„Sync"</strong> im <a href="#v-wiki">Zuweisungskasten</a>, mit Vorschau.</li>
+					<li><strong>Innerorts</strong> — nur bei den Ortsgrößen „Besondere Bauwerke/Stätten" und „Stadtviertel". Sagt, zu welcher Stadt der Punkt gehört. <strong>⇄</strong> wählt eine andere Stadt, <strong>✕</strong> löst die Zugehörigkeit, <strong>↺</strong> holt den Wiki-Stand. Einen Wiki-Stand gibt es nur, wenn dem Punkt ein Wiki-Artikel zugewiesen ist. Siehe <a href="#siedlungen-staetten">Stätten</a>.</li>
 					<li><strong>Beschreibung</strong> — ein Textfeld, beschriftet <em>„Beschreibung — öffentlich sichtbar"</em>. Was hier steht, erscheint in der Infobox; bis 1.200 Zeichen.</li>
 					<li><strong>Optionen</strong> — „Seehafen", „Ort ist ein Nodix", „Ruine/zerstört", „Verborgen". Liegt der Ort an einem Seeweg, ist „Seehafen" automatisch gesetzt und gesperrt; sonst setzt du es von Hand. Auf der Karte wirkt es noch nicht.</li>
 					<li><strong>Wiki-Ort</strong> — der <a href="#v-wiki">Zuweisungskasten</a>.</li>
-					<li><strong>Stätten</strong> — Bauwerke ohne eigenen Punkt, die in der Infobox des Ortes stehen. Der Block erscheint nur, wenn der Ort welche hat. Siehe <a href="#siedlungen-staetten">Stätten</a>.</li>
+					<li><strong>Stätten</strong> — Bauwerke und Stadtviertel, die zu diesem Ort gehören. Der Block erscheint nur, wenn der Ort welche hat. Siehe <a href="#siedlungen-staetten">Stätten</a>.</li>
 					<li><strong>Quellen</strong> — womit dieser Ort belegt ist. Mehrere Einträge sind normal; siehe <a href="#v-quellen">Quellen</a>.</li>
 					<li><strong>Wappen</strong> — <strong>„Ersetzen / hochladen"</strong> (Datei oder Bild-Adresse, bis 5&nbsp;MB, SVG erlaubt) und <strong>„Entfernen"</strong>; ein Klick auf das Bild selbst tut dasselbe wie der erste. Daneben steht, woher das gezeigte Wappen stammt. Erscheint erst, <em>nachdem</em> der Ort einmal gespeichert wurde. Beim Hochladen fragt der Dialog <em>Lizenz</em>, <em>Urheber</em> und <em>Kommentar</em> — siehe <a href="#v-lizenzen">Bilder &amp; Lizenzen</a>.</li>
 				</ul>
@@ -819,12 +820,17 @@
 				<div class="hb-note hb-warn"><strong>Ein Wappen ohne freie Lizenz bleibt unsichtbar</strong> — kein Fehler, sondern Absicht. Welche der sieben Einstufungen öffentlich erscheinen, steht unter <a href="#v-lizenzen">Bilder &amp; Lizenzen</a>.</div>
 				<div class="hb-note hb-warn"><strong>Die Karte holt kein Bild vom Wiki.</strong> Gezeigt wird nur, was auf unserem Server liegt — sonst bleibt das Feld leer, auch wenn der Editor daneben <em>„Wiki-Wappen vorhanden, aber nicht übernommen"</em> schreibt. Brauchst du das Wappen, lade es über <strong>„Ersetzen / hochladen"</strong> als Bild-Adresse hoch.</div>
 				<h4 id="siedlungen-staetten">Stätten eines Ortes</h4>
-				<p>Eine Stätte ist ein Bauwerk, das zu einem Ort gehört, aber keinen Punkt auf der Karte hat. Du findest sie im Dialog „Ort bearbeiten" und im Ortseditor, direkt über den Quellen.</p>
+				<p>Eine Stätte gehört zu einem Ort. Es gibt drei Sorten: ein Punkt <em>auf der Karte</em> mit gesetztem „Innerorts", ein Punkt <em>„nicht auf der Karte"</em> und eine Stätte ganz ohne Punkt. Du findest sie in der Infobox des Ortes, im Dialog „Ort bearbeiten" und im Ortseditor, direkt über den Quellen.</p>
 				<table class="hb-table">
 					<tr><th>Knopf</th><th>Was er tut</th></tr>
-					<tr><td><strong>Umhängen</strong></td><td>Hängt die Stätte an einen anderen Ort. Du suchst den Ort im Feld <em>„Neuer Ort …"</em> und bestätigst.</td></tr>
-					<tr><td><strong>Löschen</strong></td><td>Entfernt die Stätte aus der Infobox des Ortes. Ihre Quellen bleiben an ihr hängen. Fragt vorher nach.</td></tr>
+					<tr><td><strong>⊕</strong></td><td>Fliegt zum Punkt und öffnet seine Infobox. Nur bei Punkten auf der Karte. Steht auch in der Infobox-Zeile „Stätten", für Besucher genauso.</td></tr>
+					<tr><td><strong>⇄</strong></td><td>Hängt die Stätte an einen anderen Ort. Du suchst den Ort im Feld <em>„Neuer Ort …"</em> und bestätigst.</td></tr>
+					<tr><td><strong>⦿</strong></td><td>Setzt einen Punkt „nicht auf der Karte" wieder an seine alte Stelle.</td></tr>
+					<tr><td><strong>✕</strong></td><td>Löscht die Stätte. Fragt vorher nach. Ihre Quellen bleiben an ihr hängen. Einen Punkt auf der Karte löschst du auf der Karte.</td></tr>
 				</table>
+				<h5>Einen Punkt von der Karte nehmen</h5>
+				<p>Hat ein Punkt „Innerorts" gesetzt, zeigt seine Infobox die Kachel <strong>„⊖ Von der Karte nehmen"</strong>. Der Punkt verschwindet von der Karte, bleibt aber Stätte seiner Stadt. Zurück holst du ihn mit <strong>⦿</strong> oder über „Rückgängig" im Reiter <a href="#aenderungen">Änderungen</a>.</p>
+				<div class="hb-note hb-warn"><strong>„Ort löschen" nimmt auch die Stätte weg.</strong> Soll das Bauwerk nur nicht mehr auf der Karte stehen, nimm „Von der Karte nehmen".</div>
 				<div class="hb-note hb-tip"><strong>„gleichnamiger Punkt auf der Karte" heißt: das Bauwerk steht wohl doppelt da.</strong> Stätten aus dem Wiki zählt der Block nur mit; bearbeiten kannst du sie hier nicht.</div>
 				<h4>„Verborgen" — ein Ort ohne Punkt auf der Karte</h4>
 				<ul class="hb-steps">
@@ -896,7 +902,7 @@
 				<div class="hb-note hb-tip"><strong>Auch die Variante fürs einzelne Gebiet ordnet in die Tiefe zu.</strong> Klickst du eine Grafschaft an, können ihre Orte trotzdem bei den darunterliegenden Baronien landen — die Regel „tiefste Ebene gewinnt" gilt weiter. Ausgewählt wird nur, <em>welche</em> Orte geprüft werden, nicht, wohin sie kommen.</div>
 
 				<h4>Die rechte Spalte</h4>
-				<p>Sie ist geordnet wie jedes Editorfenster: <strong>„Identität"</strong> (Name, Typ, Einwohner, Lage, Herrscher, Beschreibung), <strong>„Eigenschaften"</strong> (die Häkchen „Seehafen", „Ort ist ein Nodix", „Ruine / zerstört", „Verborgen"), der <a href="#v-wiki">Zuweisungskasten</a>, die <a href="#siedlungen-staetten">Stätten</a>, die <strong>Quellen</strong> — dann die Speicherleiste. <em>Region</em> und <em>Staat</em> zeigt der Zuweisungskasten.</p>
+				<p>Sie ist geordnet wie jedes Editorfenster: <strong>„Identität"</strong> (Name, Typ, bei Bauwerken und Stadtvierteln „Innerorts", Einwohner, Lage, Herrscher, Beschreibung), <strong>„Eigenschaften"</strong> (die Häkchen „Seehafen", „Ort ist ein Nodix", „Ruine / zerstört", „Verborgen"), der <a href="#v-wiki">Zuweisungskasten</a>, die <a href="#siedlungen-staetten">Stätten</a>, die <strong>Quellen</strong> — dann die Speicherleiste. <em>Region</em> und <em>Staat</em> zeigt der Zuweisungskasten.</p>
 				<p>Unter <strong>„Lage &amp; Zugehörigkeit"</strong> — als einzigem Abschnitt <em>unterhalb</em> der Speicherleiste — sitzt das einzige echte Override: das <strong>Territorium</strong>. Daneben steht, woher es stammt — <em>„manuell"</em> oder <em>„Ray-Cast · tiefste Ebene"</em>. Mit <strong>„ändern"</strong> setzt du es selbst; ab dann ist es manuell und kein Massenlauf fasst es mehr an.</p>
 				<div class="hb-note hb-tip"><strong>Zeilen aus dem Reiter „Fehlt" kannst du hier nicht bearbeiten.</strong> Sie stehen nur im Wiki und haben noch keinen Punkt auf der Karte, also auch nichts zu bearbeiten. Der Editor sagt es selbst: „Zum Bearbeiten zuerst auf der Karte platzieren."</div>
 
