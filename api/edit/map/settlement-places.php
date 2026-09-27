@@ -215,7 +215,7 @@ try {
     }
 
     if ($action === 'put_on_map') {
-        // „● Auf die Karte setzen" (Spec §4.2) -- derselbe Server-Weg wie die Kartenaktion
+        // „⦿ Auf die Karte setzen" (Spec §4.2) -- derselbe Server-Weg wie die Kartenaktion
         // `put_on_map` in api/edit/map/features.php (avesmapsInnerortsAufDieKarteSetzen).
         $publicId = trim((string) ($payload['public_id'] ?? ''));
         if ($publicId === '') {

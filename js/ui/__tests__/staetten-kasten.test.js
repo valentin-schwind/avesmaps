@@ -1131,13 +1131,13 @@ async function testDreiSorten() {
 	assert.strictEqual(aktionenErste[0].getAttribute("aria-label"), "Stadt ändern");
 	assert.strictEqual(zeilen[0].querySelectorAll(".fs-row__remove").length, 0);
 
-	// -- Sorte 2: Punkt VON der Karte genommen -- "nicht auf der Karte" (kein ⊕), ● · ⇄ · ✕ -------
+	// -- Sorte 2: Punkt VON der Karte genommen -- "nicht auf der Karte" (kein ⊕), ⦿ · ⇄ · ✕ -------
 	const l2Zweite = zeilen[1].querySelector(".avm-row__l2");
 	assert.strictEqual(l2Zweite.textContent, "nicht auf der Karte");
 	assert.strictEqual(zeilen[1].querySelectorAll(".innerorts-sprung").length, 0, "kein Sprung, solange der Punkt nicht auf der Karte liegt");
 	const aktionenZweite = zeilen[1].querySelector(".st-aktionen").querySelectorAll("button");
-	assert.strictEqual(aktionenZweite.length, 3, "● · ⇄ · ✕");
-	assert.strictEqual(aktionenZweite[0].textContent, "●");
+	assert.strictEqual(aktionenZweite.length, 3, "⦿ · ⇄ · ✕");
+	assert.strictEqual(aktionenZweite[0].textContent, "⦿");
 	assert.strictEqual(aktionenZweite[0].getAttribute("data-st-aktion"), "auf_die_karte");
 	assert.strictEqual(aktionenZweite[0].getAttribute("aria-label"), "Auf die Karte setzen");
 	assert.strictEqual(aktionenZweite[1].textContent, "⇄");
@@ -1149,13 +1149,13 @@ async function testDreiSorten() {
 	const l2Dritte = zeilen[2].querySelector(".avm-row__l2");
 	assert.ok(l2Dritte.querySelector("a"), "Link auf die Wiki-Adresse wie bisher");
 	const aktionenDritte = zeilen[2].querySelector(".st-aktionen").querySelectorAll("button");
-	assert.strictEqual(aktionenDritte.length, 2, "⇄ · ✕ -- kein ●");
+	assert.strictEqual(aktionenDritte.length, 2, "⇄ · ✕ -- kein ⦿");
 	assert.strictEqual(aktionenDritte[1].getAttribute("aria-label"), "Löschen");
 
 	console.log("15. Drei Sorten: OK");
 }
 
-// ══ 16. „● Auf die Karte setzen" -- direkte Handlung, keine Falte (Spec §4.2) ═════════════════════
+// ══ 16. „⦿ Auf die Karte setzen" -- direkte Handlung, keine Falte (Spec §4.2) ═════════════════════
 async function testAufDieKarteSetzen() {
 	const aufrufe = [];
 	const win = winFixtur();
@@ -1181,7 +1181,7 @@ async function testAufDieKarteSetzen() {
 	});
 
 	const aufDieKarteKnopf = host.querySelector('[data-st-aktion="auf_die_karte"]');
-	assert.ok(aufDieKarteKnopf, "der ●-Knopf steht da");
+	assert.ok(aufDieKarteKnopf, "der ⦿-Knopf steht da");
 	assert.strictEqual(host.querySelectorAll(".st-falte").length, 0, "vor dem Klick keine Falte");
 	klicke(aufDieKarteKnopf);
 
@@ -1199,7 +1199,7 @@ async function testAufDieKarteSetzen() {
 	const meldung = host.querySelector(".fs-add-note");
 	assert.ok(meldung.classList.contains("fs-add-note--ok"));
 	assert.strictEqual(meldung.textContent,
-		'„Südquartier“ liegt wieder auf der Karte — an seiner alten Stelle. Verschieben mit „Ort verschieben".');
+		'„Südquartier“ liegt wieder auf der Karte — an seiner alten Stelle. Verschieben mit „Ort verschieben“.');
 
 	assert.strictEqual(angelegteMarker.length, 1, "der Marker wird nachgezogen (kein Marker war schon da)");
 	assert.strictEqual(angelegteMarker[0].feature, punktFeature);
@@ -1214,7 +1214,7 @@ async function testAufDieKarteSetzen() {
 	console.log("16. Auf die Karte setzen: OK");
 }
 
-// ══ 16b. „●": schon ein Marker auf der Karte -- KEIN doppeltes Anlegen ═══════════════════════════
+// ══ 16b. „⦿": schon ein Marker auf der Karte -- KEIN doppeltes Anlegen ═══════════════════════════
 async function testAufDieKarteSetzenMarkerSchonDa() {
 	const aufrufe = [];
 	const win = winFixtur();
@@ -1235,7 +1235,7 @@ async function testAufDieKarteSetzenMarkerSchonDa() {
 	console.log("16b. Auf die Karte setzen, Marker schon da: OK");
 }
 
-// ══ 16c. „●": doppeltes Absenden UND Fehlschlag ═══════════════════════════════════════════════
+// ══ 16c. „⦿": doppeltes Absenden UND Fehlschlag ═══════════════════════════════════════════════
 async function testAufDieKarteSetzenDoppeltUndFehler() {
 	const aufrufe = [];
 	let freigeben;

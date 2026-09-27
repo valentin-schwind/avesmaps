@@ -3,7 +3,7 @@
 > **Für ausführende Agenten:** PFLICHT-SKILL: superpowers:subagent-driven-development. Schritte als Checkbox.
 
 **Ziel:** Stadtviertel und Bauwerke gehören über ein Feld „Innerorts" (Wiki-Stand, Override, ↺) zu einer Stadt;
-„⊖ Von der Karte nehmen" macht einen Punkt zur Stätte seiner Stadt, „● Auf die Karte setzen" holt ihn zurück;
+„⊖ Von der Karte nehmen" macht einen Punkt zur Stätte seiner Stadt, „⦿ Auf die Karte setzen" holt ihn zurück;
 die Stättenliste führt innerorts-Punkte mit `⊕`-Sprung.
 
 **Spec:** `docs/superpowers/specs/2026-09-26-innerorts-praedikat-design.md` (§1–§7, §8 Schritt 1; §4.3 und §7a sind
@@ -142,7 +142,7 @@ Mockup Szenen 1–2), CSS aus dem Mockup-Vertrag in `css/components/staetten-kas
   Rückfrage-/Meldungstexte wörtlich aus Spec §4.1; nach Erfolg Marker lokal entfernen und Stätten-Index verwerfen.
   „Ort löschen" bei innerorts-Punkten mit dem ergänzten Rückfragetext.
 - [x] Stätten-Kasten: drei Sorten (Spec §6.3, Mockup Szene 5/6): `⊕` springt (`findLocationMarkerByPublicId` +
-  Popup), `●` ruft `put_on_map` und fliegt hin, `⇄`/`✕` je Sorte.
+  Popup), `⦿` ruft `put_on_map` und fliegt hin, `⇄`/`✕` je Sorte.
 - [x] Infobox-Zeile „Stätten": Einträge mit `auf_der_karte` bekommen `button.innerorts-sprung` „⊕" hinter dem Namen
   (Besucher sehen es); Klick fliegt auf den Punkt und öffnet seine Infobox.
 - [x] CSS-Vertrag aus `docs/innerorts-mockup.html` zeichengleich in `css/components/staetten-kasten.css` →

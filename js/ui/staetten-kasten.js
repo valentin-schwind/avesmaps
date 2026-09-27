@@ -160,7 +160,7 @@ function staettenKastenHervorhebung(text, suchwort, escape) {
 // Server in avesmapsInnerortsPunkteEinerStadt/avesmapsStaettenEndpunktListe -- eine gespeicherte
 // Staette hat das Feld nicht) und `staette.auf_der_karte` (nur bei einem Punkt sinnvoll):
 //   1. Punkt AUF der Karte           -- "auf der Karte" + ⊕, nur ⇄ (geloescht wird auf der Karte)
-//   2. Punkt VON der Karte genommen  -- "nicht auf der Karte", ● zurueck · ⇄ · ✕ (endgueltig)
+//   2. Punkt VON der Karte genommen  -- "nicht auf der Karte", ⦿ zurueck · ⇄ · ✕ (endgueltig)
 //   3. gespeicherte Staette          -- unveraendert: Link + ⇄ · ✕
 function staettenKastenZeileMarkup(staette, offenId, offenArt, escape, tr, aufDieKarteSendetId) {
   var id = String(staette.public_id);
@@ -228,13 +228,13 @@ function staettenKastenZeileMarkup(staette, offenId, offenArt, escape, tr, aufDi
     // wo man sieht, was man loescht (Spec §6.3).
     aktionen = umhaengenKnopf;
   } else if (istPunkt) {
-    // Sorte 2: von der Karte genommen -- ● zurueck · ⇄ · ✕ (Merker weg, bleibt geloescht; die
+    // Sorte 2: von der Karte genommen -- ⦿ zurueck · ⇄ · ✕ (Merker weg, bleibt geloescht; die
     // Rueckfrage dazu nennt es "Löschen", nicht "Endgültig löschen" -- ueber "Rückgängig" im
     // Aenderungsverlauf umkehrbar, Ruling der Fix-Runde 1).
     var sendetDiese = aufDieKarteSendetId !== null && aufDieKarteSendetId !== undefined && aufDieKarteSendetId === id;
     aktionen = '<button type="button" class="fs-row__edit" data-st-aktion="auf_die_karte"' + (sendetDiese ? " disabled" : "")
       + ' title="' + escape(tr("staetten.row.putOnMapTitle", "Wieder an seiner alten Stelle auf die Karte")) + '"'
-      + ' aria-label="' + escape(tr("staetten.row.putOnMapLabel", "Auf die Karte setzen")) + '">●</button>'
+      + ' aria-label="' + escape(tr("staetten.row.putOnMapLabel", "Auf die Karte setzen")) + '">⦿</button>'
       + umhaengenKnopf
       + '<button type="button" class="fs-row__remove" data-st-aktion="loeschen"' + ariaLoeschen
       + ' title="' + escape(tr("staetten.row.deleteOffMapTitle", "Löschen")) + '"'
@@ -496,7 +496,7 @@ function staettenKastenNutzlastNachziehen(win, art, staette, alterOrt, zielName)
     } else if (art === "umhaengen") {
       liste[index].settlement = zielName;
     } else if (art === "auf_die_karte") {
-      // „● Auf die Karte setzen" (Spec §4.2) -- der Punkt bleibt derselbe Eintrag, nur sein
+      // „⦿ Auf die Karte setzen" (Spec §4.2) -- der Punkt bleibt derselbe Eintrag, nur sein
       // Merker dreht um; die Infobox-Zeile „Stätten" bekommt damit wieder ihren Sprung ⊕.
       liste[index].auf_der_karte = true;
     }
@@ -510,7 +510,7 @@ function staettenKastenNutzlastNachziehen(win, art, staette, alterOrt, zielName)
 }
 
 /**
- * Nach „● Auf die Karte setzen" (Spec §4.2): den Marker der wieder aktiven Kartenposition auf der
+ * Nach „⦿ Auf die Karte setzen" (Spec §4.2): den Marker der wieder aktiven Kartenposition auf der
  * Karte herstellen (falls er dort noch nicht steht -- ein Live-Abgleich koennte ihn zwischenzeitlich
  * schon nachgezogen haben) und hinfliegen. `feature` ist die Punktantwort des Servers
  * (avesmapsBuildFeatureResponseFromStoredFeature), wie sie jeder andere Punkt-Endpunkt liefert.
@@ -635,7 +635,7 @@ function mountStaettenKasten(host, opts) {
     // Abbrechen deaktiviert und ein zweiter Klick auf den Primaerknopf loest keine zweite Anfrage
     // aus -- siehe bestaetigeAktion() und den Ruecksetzer in fuehreLoeschenAus/fuehreUmhaengenAus.
     sendetGerade: false,
-    // Die public_id der Zeile, deren "● Auf die Karte setzen" gerade unterwegs ist -- eigener
+    // Die public_id der Zeile, deren "⦿ Auf die Karte setzen" gerade unterwegs ist -- eigener
     // Riegel, weil diese Handlung KEINE Falte oeffnet (Spec §4.2, direkt statt Rueckfrage).
     aufDieKarteSendetId: null,
   };
@@ -813,7 +813,7 @@ function mountStaettenKasten(host, opts) {
       });
   }
 
-  // „● Auf die Karte setzen" (Spec §4.2) -- eine DIREKTE Handlung ohne Falte (Mockup Szene 6), im
+  // „⦿ Auf die Karte setzen" (Spec §4.2) -- eine DIREKTE Handlung ohne Falte (Mockup Szene 6), im
   // Unterschied zu Loeschen/Umhaengen. Eigener Riegel (state.aufDieKarteSendetId statt
   // state.sendetGerade), weil dafuer kein state.offenId reserviert wird.
   function fuehrePutOnMapAus(staette) {
@@ -839,7 +839,7 @@ function mountStaettenKasten(host, opts) {
         state.note = {
           ok: true,
           text: trFn("staetten.putOnMap.done",
-            '„{name}“ liegt wieder auf der Karte — an seiner alten Stelle. Verschieben mit „Ort verschieben".')
+            '„{name}“ liegt wieder auf der Karte — an seiner alten Stelle. Verschieben mit „Ort verschieben“.')
             .replace("{name}", staette.name),
         };
         render();
@@ -928,7 +928,7 @@ function mountStaettenKasten(host, opts) {
       var zeile = aktionBtn.closest(".avm-row");
       var id = zeile ? zeile.getAttribute("data-st-id") : "";
       var aktion = aktionBtn.getAttribute("data-st-aktion");
-      // „● Auf die Karte setzen" (Spec §4.2) ist eine DIREKTE Handlung, keine Falte -- sie ist
+      // „⦿ Auf die Karte setzen" (Spec §4.2) ist eine DIREKTE Handlung, keine Falte -- sie ist
       // umkehrbar und braucht kein "wirklich?" (anders als Loeschen/Umhaengen). Eigener Riegel
       // gegen Doppel-Absenden, weil kein `state.offenId` dafuer reserviert wird.
       if (aktion === "auf_die_karte") {

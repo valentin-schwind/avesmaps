@@ -3956,7 +3956,7 @@ function avesmapsTakeOffMapFeature(PDO $pdo, array $payload, array $user): array
 }
 
 /**
- * „● Auf die Karte setzen" (Spec §4.2) -- Aktion `put_on_map`. Antwort: der wieder aktive Punkt in
+ * „⦿ Auf die Karte setzen" (Spec §4.2) -- Aktion `put_on_map`. Antwort: der wieder aktive Punkt in
  * der Form jedes anderen Punktes (avesmapsBuildFeatureResponseFromStoredFeature), an seiner alten
  * Position.
  */

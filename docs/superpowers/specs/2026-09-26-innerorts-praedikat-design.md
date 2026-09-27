@@ -72,7 +72,7 @@ Heute: `Ort verschieben ✥ · Bearbeiten ⚙ · Ort löschen ✕`. **Neu**, nur
 | Ort löschen | `✕` | wie bisher (`is_active = 0`, **ohne** Merker) — der Punkt ist dann auch keine Stätte. Die Rückfrage nennt es: „„Neu-Gareth“ wirklich löschen? Es wird auch nicht als Stätte von Gareth geführt." |
 
 - Die neue Kachel steht **vor** „Ort löschen" und ist **nicht** rot (sie ist umkehrbar).
-- 🔴 **`⊖` „von der Karte nehmen" und `⊕` „auf der Karte zeigen"** (das Fadenkreuz des Änderungsverlaufs) sind ein Paar gleicher Breite. Gemessen im Browser: `○` misst zwar 9,7 px, zeichnet aber winzig (dieselbe Falle wie `⌖`); `⊖`/`⊕` je 16,3 px. `●` für „Auf die Karte setzen" ist im Kartenmenü schon „Neuer Ort".
+- 🔴 **`⊖` „von der Karte nehmen" und `⊕` „auf der Karte zeigen"** (das Fadenkreuz des Änderungsverlaufs) sind ein Paar gleicher Breite. Gemessen im Browser: `○` misst zwar 9,7 px, zeichnet aber winzig (dieselbe Falle wie `⌖`); `⊖`/`⊕` je 16,3 px in der Kachelschrift. **„Auf die Karte setzen" trägt `⦿`** (U+29BF): im Stätten-Kasten gemessen 11,9 px wie `⊕`/`⊖` dort (50 Tintenpixel). `●` war zuerst vorgesehen und zeichnet dort winzig (7,3 px, 21 Tintenpixel) — und ist im Kartenmenü ohnehin schon „Neuer Ort".
 - Server: neue Aktion `take_off_map` in `api/edit/map/features.php` (neben `delete_feature`), eigene
   Bibliotheksfunktion; sie verweigert, wenn der Punkt kein `innerorts` trägt, und läuft wie das Löschen durch
   Sperre, Kraftlinien-Riegel und Protokoll (`map_audit_log`, Aktion `take_off_map`, mit Vorher-Schnappschuss —
@@ -80,16 +80,16 @@ Heute: `Ort verschieben ✥ · Bearbeiten ⚙ · Ort löschen ✕`. **Neu**, nur
 
 ### 4.2 Auf die Karte setzen
 
-- Im Stätten-Kasten (siehe §6) trägt ein von der Karte genommener Punkt den Knopf **`●` Auf die Karte setzen**.
+- Im Stätten-Kasten (siehe §6) trägt ein von der Karte genommener Punkt den Knopf **`⦿` Auf die Karte setzen**.
 - Wirkung: `is_active = 1`, Merker `von_der_karte` weg, **an der alten Position** (die Zeile hat sie nie
-  verloren). Danach fliegt die Karte hin; verschieben geht wie immer mit „Ort verschieben".
+  verloren). Danach fliegt die Karte hin; verschieben geht wie immer mit „Ort verschieben“.
   Im Ortseditor-iframe fliegt die Karte des Elternfensters, falls erreichbar; sonst nur die Meldung.
 - Server: Aktion `put_on_map` — nur für Punkte mit `von_der_karte = true`; Protokoll wie oben.
 - Gespeicherte Stätten ohne Position (Garetien): eigener Weg, §4.3.
 
 ### 4.3 Stätte zum Kartenpunkt (gespeicherte Stätten ohne Position)
 
-- Im Stätten-Kasten bekommt eine gespeicherte Stätte (Garetien-Import) ebenfalls **`●` Auf die Karte setzen**.
+- Im Stätten-Kasten bekommt eine gespeicherte Stätte (Garetien-Import) ebenfalls **`⦿` Auf die Karte setzen**.
 - Wirkung (Server, eine Transaktion): neuer Kartenpunkt mit Name, Ortsgröße `gebaeude` (Stadtviertel, wenn die
   Art „Stadtviertel“ ist), `place_kind` aus der Art, Wiki-Adresse, `innerorts.ort` = ihre Stadt
   (Herkunft `manual`), Position = **Punkt der Stadt, leicht versetzt**; die Quellen wandern mit
@@ -160,8 +160,8 @@ Zeigt künftig drei Sorten — dieselbe Zeile (`.avm-row`), andere Knöpfe:
 | Sorte | Zeile 2 | Knöpfe |
 |---|---|---|
 | innerorts-Punkt **auf der Karte** | „Stadtviertel · auf der Karte" + `⊕` | `⇄` (Stadt ändern) |
-| innerorts-Punkt **von der Karte genommen** | „Stadtviertel · nicht auf der Karte" | `●` Auf die Karte setzen · `⇄` · `✕` (endgültig löschen: Merker weg, bleibt gelöscht) |
-| gespeicherte Stätte | Link „garetien.de ↗" | `●` (§4.3) · `⇄` · `✕` |
+| innerorts-Punkt **von der Karte genommen** | „Stadtviertel · nicht auf der Karte" | `⦿` Auf die Karte setzen · `⇄` · `✕` (endgültig löschen: Merker weg, bleibt gelöscht) |
+| gespeicherte Stätte | Link „garetien.de ↗" | `⦿` (§4.3) · `⇄` · `✕` |
 
 - `⇄` bei Punkten setzt `innerorts.ort` um (dieselbe Falte, dieselbe Ortssuche).
 - Ein Punkt auf der Karte hat kein `✕` hier — gelöscht wird auf der Karte, wo man sieht, was man löscht.
@@ -210,4 +210,4 @@ Jeder Schritt geht einzeln live.
 - **JS (ausgeführt):** Feld ein-/ausblenden je Ortsgröße, Vorschlag übernehmen, Kacheln nur bei `innerorts`,
   Stätten-Kasten drei Sorten, `⊕`-Sprung in der Infobox, Suchtreffer-Bauformen.
 - **Live (Owner):** Neu-Gareth → (Wiki zuweisen, Innerorts zeigt Gareth aus dem Wiki) → Override und ↺ → → in Gareths Stätten mit `⊕` → „Von der Karte nehmen" → Suche
-  springt auf Gareth → im Kasten `●` → wieder auf der Karte; „Rückgängig" im Änderungsverlauf je Schritt.
+  springt auf Gareth → im Kasten `⦿` → wieder auf der Karte; „Rückgängig" im Änderungsverlauf je Schritt.
