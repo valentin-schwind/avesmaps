@@ -78,12 +78,12 @@ Regeln:
 - Admin-Lauf: alle `gebaeude`/`stadtviertel`-Punkte mit Wiki-Zuweisung, Herkunft nicht `manual`; Trockenlauf
   liefert Anzahl, Stichprobe (Name → Stadt); `apply` schreibt über `…WikiNachziehen`; gedeckelt.
 
-- [ ] Test (SQLite-Fixture nach `api/_internal/app/__tests__/staetten-editor-test.php`; `wiki_sync_pages` mit
+- [x] Test (SQLite-Fixture nach `api/_internal/app/__tests__/staetten-editor-test.php`; `wiki_sync_pages` mit
   `title, standort`; Punkte, Städte): jede Funktion inkl. Riegel und Fehlercodes; Wiki-Stand für einen Stadtteil
   („[[Gareth]]"), für einen Standort außerhalb (`''`), für eine doppeldeutige Stadt (`''`); `manual` wird nie
   überschrieben; Undo nach `take_off_map` stellt `is_active` und Properties her; Admin-Lauf Trockenlauf schreibt
   nichts.
-- [ ] rot → umsetzen → grün; Commit `feat(innerorts): Bibliothek fuer das Feld Innerorts, Von der Karte nehmen und Auf die Karte setzen`.
+- [x] rot → umsetzen → grün; Commit `feat(innerorts): Bibliothek fuer das Feld Innerorts, Von der Karte nehmen und Auf die Karte setzen`.
 
 ### Task 2: Server-Verdrahtung
 
@@ -91,29 +91,29 @@ Regeln:
 `api/_internal/wiki/settlements.php` (`avesmapsWikiSettlementAssignTo`, `avesmapsWikiSettlementBulkConnect`),
 `api/app/map-features.php`, `api/app/map-search.php`, `api/edit/map/settlement-places.php`; Tests neu.
 
-- [ ] **update_point:** Rumpffeld `innerorts_ort` (string, `''` = keiner) und `innerorts_wiki` (bool, „per ↺ auf
+- [x] **update_point:** Rumpffeld `innerorts_ort` (string, `''` = keiner) und `innerorts_wiki` (bool, „per ↺ auf
   Wiki-Stand") verarbeiten: nur bei Klasse `gebaeude`/`stadtviertel`; Zielprüfung; Herkunft `manual` bzw. `wiki`;
   bei anderer Ortsgröße `innerorts` entfernen. Rumpf ohne diese Felder → Feld unverändert (alte Clients!). Danach
   `avesmapsInnerortsWikiNachziehen`, wenn sich die Wiki-Zuweisung geändert hat.
-- [ ] **Wiki-Zuweisungswege:** nach dem Schreiben von `properties.wiki_settlement` in `AssignTo` und `BulkConnect`
+- [x] **Wiki-Zuweisungswege:** nach dem Schreiben von `properties.wiki_settlement` in `AssignTo` und `BulkConnect`
   (und jedem weiteren Schreiber — **per grep auf `'wiki_settlement'` als Schreibschlüssel vollständig erheben** und
   im Bericht auflisten) `avesmapsInnerortsWikiNachziehen` rufen, NACH der eigenen Transaktion. Wächter-Test: zählt
   die Schreiber repoweit und verlangt je Schreiber den Aufruf.
-- [ ] **Endpunkt features:** Aktionen `take_off_map`, `put_on_map` (Sperre/Fähigkeit wie `delete_feature`).
-- [ ] **Nutzlast:** `avesmapsMapFeaturesInSettlementPlaces` bekommt die dritte Quelle
+- [x] **Endpunkt features:** Aktionen `take_off_map`, `put_on_map` (Sperre/Fähigkeit wie `delete_feature`).
+- [x] **Nutzlast:** `avesmapsMapFeaturesInSettlementPlaces` bekommt die dritte Quelle
   `avesmapsInnerortsPunkteFuerStaetten`; abgeleitete (Wiki-)Stätten, deren Artikel-Schlüssel
   (`avesmapsInnerortsArtikelSchluessel`) einem innerorts-Punkt gehört, fallen weg (`avesmapsInnerortsOhneKartenpunkte`
   mit genau dieser Menge — nicht mit allen Kartenpunkten!). `public_id`/`auf_der_karte` reisen mit.
   `AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION` + 1 mit Kommentar.
-- [ ] **Suche:** von der Karte genommene Punkte erscheinen als `in_settlement`-Treffer ihrer Stadt (dieselbe Bauform);
+- [x] **Suche:** von der Karte genommene Punkte erscheinen als `in_settlement`-Treffer ihrer Stadt (dieselbe Bauform);
   aktive innerorts-Punkte bleiben normale Treffer. Abgeleitete Treffer desselben Artikels fallen weg.
-- [ ] **Stätten-Endpunkt:** `list` liefert zusätzlich die Punkte dieser Stadt als
+- [x] **Stätten-Endpunkt:** `list` liefert zusätzlich die Punkte dieser Stadt als
   `{public_id, name, place_type, wiki_url, origin: 'karte', art: 'punkt', auf_der_karte, gleichnamig_auf_der_karte: false}`;
   `move` bei einem Punkt setzt `innerorts.ort` (Herkunft `manual`); `delete` bei einem Punkt ruft
   `…EndgueltigEntfernen` (nur für von der Karte genommene; aktive → `invalid_state`); neue Aktion `put_on_map`;
   neue Admin-Aktion `innerorts_aus_wiki` (Fähigkeit `admin`, Trockenlauf-Vorgabe).
-- [ ] Tests je Punkt (Endpunkt-Verdrahtung per Tokenizer; Nutzlast-Bauer und Suche mit Fixture AUSGEFÜHRT).
-- [ ] Commit `feat(innerorts): Server kennt das Feld Innerorts, Von der Karte nehmen und die Staettenliste mit Kartenpunkten`.
+- [x] Tests je Punkt (Endpunkt-Verdrahtung per Tokenizer; Nutzlast-Bauer und Suche mit Fixture AUSGEFÜHRT).
+- [x] Commit `feat(innerorts): Server kennt das Feld Innerorts, Von der Karte nehmen und die Staettenliste mit Kartenpunkten`.
 
 ### Task 3: Das Feld „Innerorts" in beiden Editoren
 
@@ -121,16 +121,16 @@ Regeln:
 `js/ui/staetten-kasten.js` bzw. neues kleines Bauteil `js/ui/innerorts-feld.js` (eine Fassung für beide Seiten,
 Mockup Szenen 1–2), CSS aus dem Mockup-Vertrag in `css/components/staetten-kasten.css`; Tests.
 
-- [ ] Zeile „Innerorts" unter Ortsgröße/Art, nur bei `gebaeude`/`stadtviertel`, beim Ortsgrößenwechsel sofort
+- [x] Zeile „Innerorts" unter Ortsgröße/Art, nur bei `gebaeude`/`stadtviertel`, beim Ortsgrößenwechsel sofort
   ein-/ausgeblendet. Anzeige nach Wiki-Override-Muster (`js/ui/wiki-feld-herkunft.js`, `.k.ovr`/`.wiki-alt`/`.dt-old`/
   `.dt-reset` bzw. die Entsprechung des Kartendialogs — so, wie Name/Einwohner dort gebaut sind).
-- [ ] Ändern: Ortssuche (`attachTypeahead`, Stätten-Endpunkt `action: orte`); `✕` löst; `↺` setzt auf Wiki-Stand
+- [x] Ändern: Ortssuche (`attachTypeahead`, Stätten-Endpunkt `action: orte`); `✕` löst; `↺` setzt auf Wiki-Stand
   (sendet `innerorts_wiki: true`). Der Wiki-Stand kommt mit dem Detail des Punkts (vom Server mitliefern:
   `innerorts_wiki_stand` = Stadt-Kennung + Name, berechnet beim LESEN des Editordetails — das ist ein Editor-Lesepfad,
   keine Kartennutzlast).
-- [ ] Speichern über die vorhandenen Wege (`buildLocationEditPayload`, `buildSettlementSavePayload`), Felder aus Task 2.
-- [ ] Tests (ausgeführt): Sichtbarkeit je Ortsgröße, drei Anzeigezustände, Rumpf beim Speichern, ↺.
-- [ ] Commit `feat(innerorts): Feld Innerorts in „Ort bearbeiten" und im Ortseditor`.
+- [x] Speichern über die vorhandenen Wege (`buildLocationEditPayload`, `buildSettlementSavePayload`), Felder aus Task 2.
+- [x] Tests (ausgeführt): Sichtbarkeit je Ortsgröße, drei Anzeigezustände, Rumpf beim Speichern, ↺.
+- [x] Commit `feat(innerorts): Feld Innerorts in „Ort bearbeiten" und im Ortseditor`.
 
 ### Task 4: Gesten, Stätten-Kasten, `⊕`
 
@@ -138,16 +138,16 @@ Mockup Szenen 1–2), CSS aus dem Mockup-Vertrag in `css/components/staetten-kas
 `js/map-features/map-features-location-editing.js` (neben `deleteLocationMarker`), `js/ui/staetten-kasten.js`,
 `js/map-features/map-features-settlement-places.js`, `css/components/staetten-kasten.css`; Tests.
 
-- [ ] Kachel `⊖` „Von der Karte nehmen" (Glyph in `POPUP_ACTION_GLYPHS`) vor „Ort löschen", nur bei `innerorts`;
+- [x] Kachel `⊖` „Von der Karte nehmen" (Glyph in `POPUP_ACTION_GLYPHS`) vor „Ort löschen", nur bei `innerorts`;
   Rückfrage-/Meldungstexte wörtlich aus Spec §4.1; nach Erfolg Marker lokal entfernen und Stätten-Index verwerfen.
   „Ort löschen" bei innerorts-Punkten mit dem ergänzten Rückfragetext.
-- [ ] Stätten-Kasten: drei Sorten (Spec §6.3, Mockup Szene 5/6): `⊕` springt (`findLocationMarkerByPublicId` +
+- [x] Stätten-Kasten: drei Sorten (Spec §6.3, Mockup Szene 5/6): `⊕` springt (`findLocationMarkerByPublicId` +
   Popup), `●` ruft `put_on_map` und fliegt hin, `⇄`/`✕` je Sorte.
-- [ ] Infobox-Zeile „Stätten": Einträge mit `auf_der_karte` bekommen `button.innerorts-sprung` „⊕" hinter dem Namen
+- [x] Infobox-Zeile „Stätten": Einträge mit `auf_der_karte` bekommen `button.innerorts-sprung` „⊕" hinter dem Namen
   (Besucher sehen es); Klick fliegt auf den Punkt und öffnet seine Infobox.
-- [ ] CSS-Vertrag aus `docs/innerorts-mockup.html` zeichengleich in `css/components/staetten-kasten.css` →
+- [x] CSS-Vertrag aus `docs/innerorts-mockup.html` zeichengleich in `css/components/staetten-kasten.css` →
   `mockup-vertrag.test.js` grün.
-- [ ] Tests (ausgeführt) je Punkt. Commit `feat(innerorts): Von der Karte nehmen, Auf die Karte setzen und Sprung aus der Staettenliste`.
+- [x] Tests (ausgeführt) je Punkt. Commit `feat(innerorts): Von der Karte nehmen, Auf die Karte setzen und Sprung aus der Staettenliste`.
 
 ### Task 5: Doku (Controller)
 

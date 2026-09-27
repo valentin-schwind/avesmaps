@@ -60,10 +60,15 @@ Folgeauftrag.
 
 - **`list`** liest `settlement_place WHERE settlement_public_id = ? AND is_active = 1`, sortiert nach Name.
   - `gleichnamig_auf_der_karte`: ein aktiver Kartenpunkt **in der Nähe des Ortes** trägt denselben Namen
-    (Groß/Klein egal). Reiner Hinweis, nichts wird ausgeblendet. Heute genau ein Fall: Burg Weißenstein.
+    (Groß/Klein egal). Reiner Hinweis, nichts wird ausgeblendet.
     ⚠️ „In der Nähe“ heißt: höchstens **5 Karteneinheiten** (= 15 Meilen) vom Punkt des Ortes — eine Stätte
     hat selbst keine Position, ihr Ort schon. Ohne Nähebedingung träfe jede „Burg Weißenstein“ im ganzen
     Kontinent; die Zahl steht als benannte Konstante im Code, nicht als freie Ziffer.
+    🔴 **Korrigiert 27.09.2026:** hier stand „Heute genau ein Fall: Burg Weißenstein" — ungemessen. Gemessen
+    27.09.2026: die gespeicherte Stätte „Burg Weißenstein" gehört zu „Weißenstein (Serrinmoor)"
+    (492,75/555,39), der gleichnamige Kartenpunkt liegt bei (547,41/622,09) — rund **86 Karteneinheiten**
+    entfernt, weit ausserhalb des 5-Einheiten-Umkreises. Der Hinweis trifft heute vermutlich **keinen** Ort;
+    „genau ein Fall" war eine Behauptung ohne Beleg.
 - **`delete`** = vorhandenes `avesmapsSettlementPlaceDeactivate`. Wird zusätzlich `updated_at` gesetzt.
 - **`move`** (neu, `avesmapsSettlementPlaceMove`): in einer Transaktion
   1. Stätte lesen (aktiv), sonst `not_found`;
