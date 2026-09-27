@@ -342,14 +342,26 @@ ioSetzeProps($pdo, IO_NEUGARETH, ['wiki_settlement' => ['title' => 'Neu-Gareth',
     'innerorts' => ['ort' => IO_PUNIN], 'field_origins' => ['innerorts' => 'manual']]);
 $stand = avesmapsInnerortsEditorStand($pdo, ioProps($pdo, IO_NEUGARETH), 'stadtviertel');
 assert($stand === [
-    'wiki_stand' => ['public_id' => IO_GARETH, 'name' => 'Gareth'],
-    'ort' => ['public_id' => IO_PUNIN, 'name' => 'Punin'],
+    // 🔴 `feature_subtype` reist mit -- der Editor zeigt "Gareth · Metropole" (Beschriftung aus
+    // derselben Tafel wie die Ortssuche), nicht nur den Namen.
+    'wiki_stand' => ['public_id' => IO_GARETH, 'name' => 'Gareth', 'feature_subtype' => 'metropole'],
+    'ort' => ['public_id' => IO_PUNIN, 'name' => 'Punin', 'feature_subtype' => 'stadt'],
     'herkunft' => 'manual',
     'von_der_karte' => false,
 ], 'Editor-Stand: ' . json_encode($stand));
 assert(avesmapsInnerortsEditorStand($pdo, ioProps($pdo, IO_NEUGARETH), 'dorf') === ['wiki_stand' => null, 'ort' => null, 'herkunft' => '', 'von_der_karte' => false],
     'ein Dorf hat kein Feld');
 $pruefungen += 2;
+
+// Ein Ort, der nicht (mehr) aktiv ist, faellt auf '' zurueck -- Name UND Ortsklasse gemeinsam,
+// nie eine Ortsklasse ohne Namen (die Zeile "gehoert zu <leer> · Metropole" waere unsinnig).
+ioSetzeProps($pdo, IO_NEUGARETH, ['innerorts' => ['ort' => IO_GELOESCHT], 'field_origins' => ['innerorts' => 'manual']]);
+$standInaktiv = avesmapsInnerortsEditorStand($pdo, ioProps($pdo, IO_NEUGARETH), 'stadtviertel');
+assert($standInaktiv['ort'] === null, 'ein inaktiver Ort traegt weder Namen noch Ortsklasse: ' . json_encode($standInaktiv));
+$pruefungen++;
+// Zurueck auf den Stand vor diesem Einschub, damit die folgenden Abschnitte unveraendert bleiben.
+ioSetzeProps($pdo, IO_NEUGARETH, ['wiki_settlement' => ['title' => 'Neu-Gareth', 'wiki_url' => IO_NG_URL],
+    'innerorts' => ['ort' => IO_PUNIN], 'field_origins' => ['innerorts' => 'manual']]);
 
 // C4. Sperre des Staetten-Kastens.
 assert(avesmapsInnerortsSperreFehler($pdo, [], 'nix', IO_USER)['code'] === 'not_found', 'Sperre: unbekannt -> not_found');

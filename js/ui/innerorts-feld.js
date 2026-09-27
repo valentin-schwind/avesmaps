@@ -111,8 +111,26 @@ function avesmapsInnerortsAltMarkup(stand, opts) {
 }
 
 /**
- * REIN: das Innere von `.innerorts-feld` -- gewaehlter Wert (Name + ⇄ + ✕) oder Suchfeld.
- * state = { ort: {public_id,name}|null, suche: boolean }.
+ * Die Beschriftung einer Ortsklasse fuer die Anzeige "Gareth · Metropole" -- wiederverwendet aus
+ * dem Kasten "Staetten" (staettenKastenOrtsklassenLabel, js/ui/staetten-kasten.js), keine eigene
+ * Tafel. Ohne geladenes staetten-kasten.js (oder ohne Ortsklasse -- ein Ort, den der Server noch
+ * ohne `feature_subtype` liefert) bleibt sie leer, und der Aufhaenger "· …" faellt dann ganz weg,
+ * statt "Gareth · " mit einem Punkt ins Leere zu zeigen.
+ */
+function innerortsFeldOrtsklassenLabel(subtype) {
+	const key = String(subtype || "").trim();
+	if (key === "") {
+		return "";
+	}
+	if (typeof staettenKastenOrtsklassenLabel === "function") {
+		return staettenKastenOrtsklassenLabel(key);
+	}
+	return "";
+}
+
+/**
+ * REIN: das Innere von `.innerorts-feld` -- gewaehlter Wert (Name · Ortsklasse + ⇄ + ✕) oder
+ * Suchfeld. state = { ort: {public_id,name,feature_subtype?}|null, suche: boolean }.
  */
 function innerortsFeldWertHtml(state, opts) {
 	const options = opts || {};
@@ -122,9 +140,10 @@ function innerortsFeldWertHtml(state, opts) {
 	const ort = s.ort || null;
 
 	if (ort && !s.suche) {
+		const klasse = innerortsFeldOrtsklassenLabel(ort.feature_subtype);
 		return (
 			'<div class="innerorts-feld__gewaehlt">'
-			+ "<span><b>" + escape(ort.name) + "</b></span>"
+			+ "<span><b>" + escape(ort.name) + "</b>" + (klasse ? " · " + escape(klasse) : "") + "</span>"
 			+ '<button type="button" class="fs-row__edit" data-io-aendern aria-label="'
 			+ escape(tr("innerorts.change", "Stadt ändern")) + '" title="'
 			+ escape(tr("innerorts.change.title", "Andere Stadt")) + '">⇄</button>'
@@ -136,15 +155,22 @@ function innerortsFeldWertHtml(state, opts) {
 	}
 
 	// Ein "Abbrechen" gibt es nur, wenn ⇄ eine vorhandene Auswahl unterbricht -- beim allerersten
-	// Zuweisen (ort === null) gibt es nichts, wohin man zurueckkehren koennte.
+	// Zuweisen (ort === null) gibt es nichts, wohin man zurueckkehren koennte. Dieselbe Knopfform
+	// wie die Falte "Umhängen" des Kastens "Stätten" (.fs-actions/.fs-actions__sek), nicht eine
+	// eigene Klasse ohne Regel.
 	const abbrechen = ort
-		? '<button type="button" class="innerorts-feld__abbrechen" data-io-abbrechen>'
-			+ escape(tr("innerorts.cancel", "Abbrechen")) + "</button>"
+		? '<div class="fs-actions"><button type="button" class="fs-actions__sek" data-io-abbrechen>'
+			+ escape(tr("innerorts.cancel", "Abbrechen")) + "</button></div>"
 		: "";
+	// 🔴 B2 (Vorbild staetten-kasten.js): `type="text"`, nicht `type="search"` -- ein natives
+	// Loeschkreuz in `type="search"` waere der einzige blaue/native Bedienteil im Kasten
+	// (AGENTS.md §12, kein Blau im Chrome), und die geteilte Ortssuche (attachTypeahead) braucht
+	// keinen bestimmten Feldtyp.
 	return (
 		'<div class="innerorts-feld__suche">'
-		+ '<input type="search" class="innerorts-feld__input" data-io-input autocomplete="off" placeholder="'
-		+ escape(tr("innerorts.search.placeholder", "Stadt suchen …")) + '" />'
+		+ '<input type="text" class="innerorts-feld__input" data-io-input autocomplete="off"'
+		+ ' aria-label="' + escape(tr("innerorts.search.label", "Stadt suchen")) + '"'
+		+ ' placeholder="' + escape(tr("innerorts.search.placeholder", "Stadt suchen …")) + '">'
 		+ abbrechen
 		+ "</div>"
 	);
@@ -182,13 +208,16 @@ async function innerortsFeldSuche(fetchImpl, term, signal) {
  * Montiert das Wert-Feld in `host` (ein leeres Element, direkt neben/unter der Beschriftung
  * "Innerorts" -- die Beschriftung samt Wiki-Override zeichnet der Aufrufer, siehe Kopf der Datei).
  *
- * opts: { ort: {public_id,name}|null, escape?, tr?, fetchImpl?, attachTypeaheadImpl?, suche?,
- *   renderHtml?, itemId?, onChange?({ort}) }
+ * opts: { ort: {public_id,name,feature_subtype?}|null, escape?, tr?, fetchImpl?,
+ *   attachTypeaheadImpl?, suche?, renderHtml?, itemId?, onChange?({ort}) }
+ *
+ * `feature_subtype` ist optional und nur fuer die Anzeige ("Gareth · Metropole") -- verglichen
+ * (avesmapsInnerortsFeldStand) und gespeichert (innerorts_ort) wird weiterhin nur `public_id`.
  *
  * `onChange` feuert NUR bei einer echten Nutzerhandlung (Auswahl aus der Suche, ✕) -- nicht bei
  * `setzeOrt()`, siehe Kopf der Datei.
  *
- * @returns {{ wert(): {ort:{public_id,name}|null}, setzeOrt(ort): void, zerstoeren(): void }}
+ * @returns {{ wert(): {ort:{public_id,name,feature_subtype?}|null}, setzeOrt(ort): void, zerstoeren(): void }}
  */
 function mountInnerortsFeld(host, opts) {
 	if (!host) {
@@ -249,7 +278,14 @@ function mountInnerortsFeld(host, opts) {
 					: innerortsFeldSuche(fetchImpl, term, signal);
 			},
 			onPick(item) {
-				state.ort = { public_id: String(item.public_id || ""), name: String(item.name || "") };
+				// Die Ortssuche (action:"orte") nennt die Ortsklasse `subtype`, der Server-Editor-Stand
+				// (avesmapsInnerortsEditorStand) `feature_subtype` -- hier auf den EINEN Schluessel
+				// vereinheitlicht, den innerortsFeldWertHtml/-OrtsklassenLabel lesen.
+				state.ort = {
+					public_id: String(item.public_id || ""),
+					name: String(item.name || ""),
+					feature_subtype: String(item.subtype || ""),
+				};
 				state.suche = false;
 				render();
 				if (typeof options.onChange === "function") {

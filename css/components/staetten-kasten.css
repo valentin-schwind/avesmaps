@@ -84,3 +84,17 @@
 	color: var(--color-text-muted);
 }
 /* ══ VERTRAG ENDE ══ */
+
+/* Das Suchfeld des Feldes „Innerorts" (js/ui/innerorts-feld.js) -- dieselbe Rezeptur wie
+   .st-falte__suche daneben (box-sizing/Breite): die Optik des Eingabefelds selbst kommt vom
+   Grundstil der Seite, hier nur das Layout. Der Abbrechen-Knopf traegt schon `.fs-actions__sek`
+   (feature-sources.css), braucht also keine eigene Regel. */
+.innerorts-feld__suche {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-6);
+}
+.innerorts-feld__input {
+	box-sizing: border-box;
+	width: 100%;
+}

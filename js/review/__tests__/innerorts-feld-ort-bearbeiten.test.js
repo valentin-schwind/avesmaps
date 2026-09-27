@@ -196,6 +196,13 @@ const innerortsFeld = require(path.join(WURZEL, "js/ui/innerorts-feld.js"));
 global.mountInnerortsFeld = innerortsFeld.mountInnerortsFeld;
 global.avesmapsInnerortsFeldStand = innerortsFeld.avesmapsInnerortsFeldStand;
 global.avesmapsInnerortsAltMarkup = innerortsFeld.avesmapsInnerortsAltMarkup;
+// Attrappe fuer die geteilte Ortssuche (js/ui/source-autocomplete.js) -- damit "⇄" wirklich eine
+// ANDERE Stadt waehlen kann (Review-Runde 1, Punkt 4: "Stadt wählen ... → payload.innerorts_ort").
+let letzteTypeaheadCfg = null;
+global.attachTypeahead = (_inputEl, cfg) => {
+	letzteTypeaheadCfg = cfg;
+	return function abhaengen() { letzteTypeaheadCfg = null; };
+};
 
 const mod = require(path.join(WURZEL, "js/review/review-locations.js"));
 
@@ -271,12 +278,33 @@ const zaehl = () => { pruefungen += 1; };
 	assert.ok(!("innerorts_ort" in payload1));
 	zaehl();
 
-	// ── 4. ↺ (data-innerorts-reset) -- der document-Zuhoerer ──────────────────────────────────
+	// ── 4. Stadt wählen (⇄ → Treffer) → speichern → payload.innerorts_ort ──────────────────────
+	// Review-Runde 1, Punkt 4: dieser Fall MUSS rot werden, wenn der manual-Zweig in
+	// buildLocationEditPayload je verschwindet oder verschluckt wird.
+	klicke(host.querySelector("[data-io-aendern]"));
+	assert.ok(letzteTypeaheadCfg, "die Ortssuche wurde beim Oeffnen nicht angehaengt");
+	letzteTypeaheadCfg.onPick({ public_id: "st-punin", name: "Punin" });
+	const payloadNachAuswahl = mod.buildLocationEditPayload(form);
+	assert.strictEqual(payloadNachAuswahl.innerorts_ort, "st-punin",
+		"eine ausgewaehlte Stadt erreicht den Rumpf nicht: " + JSON.stringify(payloadNachAuswahl));
+	assert.ok(!("innerorts_wiki" in payloadNachAuswahl), "manual UND wiki gleichzeitig im Rumpf");
+	zaehl();
+
+	// ── 5. ✕ (Zugehoerigkeit loesen) → speichern → payload.innerorts_ort === "" ────────────────
+	klicke(host.querySelector("[data-io-loesen]"));
+	const payloadNachLoesen = mod.buildLocationEditPayload(form);
+	assert.strictEqual(payloadNachLoesen.innerorts_ort, "",
+		"✕ erreicht den Rumpf nicht als leerer String: " + JSON.stringify(payloadNachLoesen));
+	assert.ok(!("innerorts_wiki" in payloadNachLoesen));
+	zaehl();
+
+	// ── 6. ↺ (data-innerorts-reset) -- der document-Zuhoerer ──────────────────────────────────
 	const resetKnopf = neu("button");
 	resetKnopf.setAttribute("data-innerorts-reset", "1");
 	(dokumentZuhoerer.click || []).forEach((fn) => fn({ target: resetKnopf, preventDefault() {} }));
 	const payloadNachReset = mod.buildLocationEditPayload(form);
 	assert.strictEqual(payloadNachReset.innerorts_wiki, true, "↺ muss auf den Wiki-Stand zurücksetzen");
+	assert.ok(!("innerorts_ort" in payloadNachReset));
 	zaehl();
 
 	console.log("OK - " + pruefungen + " Zusicherungen (Innerorts in Ort bearbeiten)");

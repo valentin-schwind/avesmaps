@@ -735,6 +735,14 @@ function setLocationEditSize(value) {
 	}
 	select.value = value;
 	syncLocationEditPlaceKindAvailability();
+	// 🔴 DIE EINE STELLE FUER ALLE PROGRAMMATISCHEN SCHREIBER (Review-Runde 1): "Meldung
+	// übernehmen" (review-report-flow.js), die zwei ↺/Sync-Übernahme-Wege in
+	// review-settlement-wiki.js sowie dieser Dialog selbst rufen HIER, statt `select.value =`
+	// eigenhändig zu wiederholen -- vorher setzten drei von vier Schreibern die Ortsgröße direkt
+	// und liessen die Innerorts-Zeile in ihrem alten Sichtbarkeitszustand stehen (z. B. sichtbar,
+	// obwohl die Meldung gerade auf "Dorf" umgestellt hatte). syncLocationEditInnerortsOnTypeChange
+	// selbst haengt keine Handlung an ein bereits montiertes Feld an, siehe dort.
+	syncLocationEditInnerortsOnTypeChange();
 }
 
 // Sperrt/entsperrt das Feld „Art" nach der gewählten Ortsgröße.

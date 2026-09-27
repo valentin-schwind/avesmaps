@@ -95,7 +95,13 @@ function openLocationEditDialogFromChangeReport(report) {
 		: String(report.report_subtype || "");
 	const typeEl = document.getElementById("location-edit-type");
 	if (typeEl && proposedType && proposedType !== String(markerEntry.locationType || "")) {
-		typeEl.value = proposedType;
+		// 🔴 UEBER setLocationEditSize(), NICHT `typeEl.value = ...` -- sonst bleibt die Zeile
+		// "Innerorts" im Sichtbarkeitszustand der ALTEN Ortsgroesse stehen (Review-Runde 1).
+		if (typeof setLocationEditSize === "function") {
+			setLocationEditSize(proposedType);
+		} else {
+			typeEl.value = proposedType;
+		}
 		changed.push("location-edit-type");
 	}
 

@@ -78,13 +78,18 @@ function avesmapsInnerortsSperreFehler(PDO $pdo, array $payload, string $publicI
 }
 
 /**
- * Der Stadtname zu einer public_id -- nur aktive Siedlungspunkte (Dorf...Metropole). '' = keiner.
+ * Name UND Ortsklasse zu einer public_id -- nur aktive Siedlungspunkte (Dorf...Metropole).
+ * `''`/`''` = keiner (bzw. nicht mehr aktiv). EINE Abfrage fuer beide Werte, damit ein Leser, der
+ * nur den Namen braucht (avesmapsInnerortsStadtName), keine zweite Rundreise kostet.
+ *
+ * @return array{name:string, feature_subtype:string}
  */
-function avesmapsInnerortsStadtName(PDO $pdo, string $ortId): string
+function avesmapsInnerortsStadtInfo(PDO $pdo, string $ortId): array
 {
+    $leer = ['name' => '', 'feature_subtype' => ''];
     $ortId = trim($ortId);
     if ($ortId === '') {
-        return '';
+        return $leer;
     }
     $platzhalter = [];
     $werte = ['ort' => $ortId];
@@ -94,16 +99,31 @@ function avesmapsInnerortsStadtName(PDO $pdo, string $ortId): string
     }
     try {
         $statement = $pdo->prepare(
-            "SELECT name FROM map_features WHERE public_id = :ort AND feature_type = 'location' AND is_active = 1
-              AND feature_subtype IN (" . implode(', ', $platzhalter) . ')'
+            "SELECT name, feature_subtype FROM map_features WHERE public_id = :ort AND feature_type = 'location'
+              AND is_active = 1 AND feature_subtype IN (" . implode(', ', $platzhalter) . ')'
         );
         $statement->execute($werte);
-        $name = $statement->fetchColumn();
+        $zeile = $statement->fetch(PDO::FETCH_ASSOC);
     } catch (Throwable) {
-        return '';
+        return $leer;
+    }
+    if (!is_array($zeile)) {
+        return $leer;
     }
 
-    return is_string($name) ? $name : '';
+    return [
+        'name' => is_string($zeile['name'] ?? null) ? $zeile['name'] : '',
+        'feature_subtype' => is_string($zeile['feature_subtype'] ?? null) ? $zeile['feature_subtype'] : '',
+    ];
+}
+
+/**
+ * Der Stadtname zu einer public_id -- Ruecksicht auf die aelteren Aufrufer, die nur den Namen
+ * brauchen (take_off_map-Antwort, `⇄` Umhaengen). '' = keiner.
+ */
+function avesmapsInnerortsStadtName(PDO $pdo, string $ortId): string
+{
+    return avesmapsInnerortsStadtInfo($pdo, $ortId)['name'];
 }
 
 /**
@@ -264,7 +284,13 @@ function avesmapsInnerortsNachZuweisung(PDO $pdo, array $publicIds, int $userId)
  * heute?", die ein Override braucht, um sich neben ihm zu zeigen. Gespeichert wird er nur ueber die
  * Schreiber. Nur fuer die zwei Ortsgroessen; sonst gibt es kein Feld.
  *
- * @return array{wiki_stand: ?array{public_id:string, name:string}, ort: ?array{public_id:string, name:string}, herkunft:string, von_der_karte:bool}
+ * 🔴 `feature_subtype` (Ortsklasse-SCHLUESSEL, z. B. "metropole") reist mit -- der Editor zeigt
+ * daraus "Gareth · Metropole" (Beschriftung kommt clientseitig aus derselben Tafel wie die
+ * Ortssuche, staettenKastenOrtsklassenLabel). Server sendet den Schluessel, nie den Anzeigetext --
+ * dieselbe Regel wie bei jedem uebrigen Schluesselfeld dieses Hauses (AGENTS.md §12-Nachbarschaft:
+ * Uebersetzung bleibt Sache des Lesers, nicht der Ablage).
+ *
+ * @return array{wiki_stand: ?array{public_id:string, name:string, feature_subtype:string}, ort: ?array{public_id:string, name:string, feature_subtype:string}, herkunft:string, von_der_karte:bool}
  */
 function avesmapsInnerortsEditorStand(PDO $pdo, array $properties, string $subtype): array
 {
@@ -274,17 +300,21 @@ function avesmapsInnerortsEditorStand(PDO $pdo, array $properties, string $subty
     }
 
     $wikiId = avesmapsInnerortsWikiStand($pdo, $properties);
-    $wikiName = $wikiId !== '' ? avesmapsInnerortsStadtName($pdo, $wikiId) : '';
+    $wikiInfo = $wikiId !== '' ? avesmapsInnerortsStadtInfo($pdo, $wikiId) : ['name' => '', 'feature_subtype' => ''];
     $ortId = avesmapsInnerortsOrtVon($properties);
-    // Der gespeicherte Ort wird auch dann genannt, wenn er nicht (mehr) aktiv ist -- der Name faellt
-    // dann auf '' und der Editor sieht, dass die Zugehoerigkeit ins Leere zeigt.
-    $ortName = $ortId !== '' ? avesmapsInnerortsStadtName($pdo, $ortId) : '';
+    // Der gespeicherte Ort wird auch dann genannt, wenn er nicht (mehr) aktiv ist -- Name UND
+    // Ortsklasse fallen dann auf '' und der Editor sieht, dass die Zugehoerigkeit ins Leere zeigt.
+    $ortInfo = $ortId !== '' ? avesmapsInnerortsStadtInfo($pdo, $ortId) : ['name' => '', 'feature_subtype' => ''];
     $herkunftKarte = is_array($properties['field_origins'] ?? null) ? $properties['field_origins'] : [];
     $herkunft = (string) ($herkunftKarte['innerorts'] ?? '');
 
     return [
-        'wiki_stand' => $wikiName !== '' ? ['public_id' => $wikiId, 'name' => $wikiName] : null,
-        'ort' => $ortId !== '' ? ['public_id' => $ortId, 'name' => $ortName] : null,
+        'wiki_stand' => $wikiInfo['name'] !== ''
+            ? ['public_id' => $wikiId, 'name' => $wikiInfo['name'], 'feature_subtype' => $wikiInfo['feature_subtype']]
+            : null,
+        'ort' => $ortInfo['name'] !== ''
+            ? ['public_id' => $ortId, 'name' => $ortInfo['name'], 'feature_subtype' => $ortInfo['feature_subtype']]
+            : null,
         'herkunft' => in_array($herkunft, [AVESMAPS_FIELD_ORIGIN_WIKI, AVESMAPS_FIELD_ORIGIN_MANUAL], true) ? $herkunft : '',
         'von_der_karte' => avesmapsInnerortsVonDerKarte($properties),
     ];

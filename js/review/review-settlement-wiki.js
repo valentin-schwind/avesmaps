@@ -440,7 +440,14 @@ function settlementWikiFeldZuruecksetzen(feld) {
 	if (!element || !stand[feld]) {
 		return;
 	}
-	element.value = stand[feld].wikiWert;
+	// 🔴 setLocationEditSize, NICHT `element.value = …`, wenn das ↺ die ORTSGROESSE zurueckholt --
+	// wortgleich zur Sync-Uebernahme weiter unten in dieser Datei (Review-Runde 1). Ohne das blieb
+	// die Zeile „Innerorts" nach einem ↺ auf der Ortsgroesse im Sichtbarkeitszustand des vorigen Werts.
+	if (feld === "feature_subtype" && typeof setLocationEditSize === "function") {
+		setLocationEditSize(stand[feld].wikiWert);
+	} else {
+		element.value = stand[feld].wikiWert;
+	}
 	settlementWikiUebernommen.add(feld);
 	settlementWikiZeichneAbweichungen();
 }

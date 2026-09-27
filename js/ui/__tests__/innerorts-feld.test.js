@@ -20,6 +20,11 @@ const path = require("path");
 
 const WURZEL = path.join(__dirname, "..", "..", "..");
 const modul = require(path.join(WURZEL, "js/ui/innerorts-feld.js"));
+// Die Ortsklassen-Beschriftung ("Gareth · Metropole") wird von staetten-kasten.js wiederverwendet
+// (siehe Kopf von js/ui/innerorts-feld.js) -- im Browser ein globaler Bezeichner, unter Node
+// deshalb hier von Hand gesetzt, sonst faellt jede Zusicherung dazu lautlos auf "" zurueck.
+global.staettenKastenOrtsklassenLabel = require(path.join(WURZEL, "js/ui/staetten-kasten.js"))
+	.staettenKastenOrtsklassenLabel;
 
 // ══ MINI-DOM (nur so viel, wie dieses Bauteil selbst benutzt) ═════════════════════════════════
 
@@ -341,6 +346,24 @@ const zaehl = () => { pruefungen += 1; };
 	zaehl();
 }
 {
+	// Review-Runde 1, Punkt 1: mit Ortsklasse steht "Gareth · Metropole" da, nicht nur der Name --
+	// die Klasse kommt aus staettenKastenOrtsklassenLabel (hier oben global gesetzt).
+	const html = modul.innerortsFeldWertHtml(
+		{ ort: { public_id: "o1", name: "Gareth", feature_subtype: "metropole" }, suche: false }
+	);
+	assert.ok(html.includes("<b>Gareth</b> · Metropole"), "die Ortsklasse fehlt: " + html);
+	zaehl();
+}
+{
+	// Ohne Ortsklasse (aeltere Serverantwort oder unbekannter Schluessel) faellt der Aufhaenger "· "
+	// ganz weg, statt "Gareth · " mit einem Punkt ins Leere zu zeigen.
+	const html = modul.innerortsFeldWertHtml(
+		{ ort: { public_id: "o1", name: "Gareth", feature_subtype: "" }, suche: false }
+	);
+	assert.ok(html.includes("<b>Gareth</b></span>"), "ohne Ortsklasse haengt trotzdem ein '· ' dran: " + html);
+	zaehl();
+}
+{
 	// Zustand 3: eine vorhandene Auswahl wird gerade geaendert (⇄ geklickt) -- Suchfeld MIT Abbrechen.
 	const html = modul.innerortsFeldWertHtml({ ort: { public_id: "o1", name: "Gareth" }, suche: true });
 	assert.ok(html.includes('class="innerorts-feld__suche"'));
@@ -352,6 +375,23 @@ const zaehl = () => { pruefungen += 1; };
 	const html = modul.innerortsFeldWertHtml({ ort: { public_id: "o1", name: 'A & <B>' }, suche: false });
 	assert.ok(!html.includes("A & <B>"));
 	assert.ok(html.includes("&amp;") && html.includes("&lt;"));
+	zaehl();
+}
+{
+	// Review-Runde 1, Punkt 6: ein Apostroph im Namen wird ebenfalls maskiert -- er landet nie in
+	// einem Attribut dieses konkreten Aufrufs, aber die Maskierung ist vollstaendig (& < > " '),
+	// weil dasselbe `escape` auch fuer Attribute (title, aria-label) benutzt wird.
+	const html = modul.innerortsFeldWertHtml({ ort: { public_id: "o1", name: "Ker'Ohnja" }, suche: false });
+	assert.ok(!html.includes("Ker'Ohnja"), "der rohe Apostroph steht ungemaskiert im Markup: " + html);
+	assert.ok(html.includes("Ker&#39;Ohnja"), "der Apostroph wird nicht als &#39; maskiert: " + html);
+	zaehl();
+}
+{
+	// Dieselbe Zusicherung fuer den Wiki-Override (avesmapsInnerortsAltMarkup): der Wiki-Stand
+	// landet auch im `title`-Attribut, wo ein ungemaskierter Apostroph das Attribut aufbraeche.
+	const html = modul.avesmapsInnerortsAltMarkup({ abweicht: true, vonUns: true, wikiName: "Ker'Ohnja" });
+	assert.ok(!html.includes("Ker'Ohnja"), "der Apostroph im Wiki-Stand steht ungemaskiert: " + html);
+	assert.ok(html.includes("Ker&#39;Ohnja"), "avesmapsInnerortsAltMarkup maskiert den Apostroph nicht: " + html);
 	zaehl();
 }
 
@@ -388,12 +428,15 @@ function attachTypeaheadAttrappe(config) {
 	assert.strictEqual(impl.registrierte.length, 1, "Typeahead wurde nicht angehaengt");
 	zaehl();
 
-	// Ein Treffer wird gewaehlt -- onChange feuert, der Zustand wechselt auf "gewaehlt".
-	impl.registrierte[0].cfg.onPick({ public_id: "o1", name: "Gareth" });
+	// Ein Treffer wird gewaehlt -- onChange feuert, der Zustand wechselt auf "gewaehlt". Die
+	// Ortssuche nennt die Ortsklasse `subtype` (action:"orte"), hier auf `feature_subtype`
+	// vereinheitlicht (Review-Runde 1, Punkt 1).
+	impl.registrierte[0].cfg.onPick({ public_id: "o1", name: "Gareth", subtype: "metropole" });
 	assert.strictEqual(onChangeAufrufe.length, 1);
-	assert.deepStrictEqual(onChangeAufrufe[0], { ort: { public_id: "o1", name: "Gareth" } });
-	assert.deepStrictEqual(feld.wert(), { ort: { public_id: "o1", name: "Gareth" } });
+	assert.deepStrictEqual(onChangeAufrufe[0], { ort: { public_id: "o1", name: "Gareth", feature_subtype: "metropole" } });
+	assert.deepStrictEqual(feld.wert(), { ort: { public_id: "o1", name: "Gareth", feature_subtype: "metropole" } });
 	assert.ok(host.innerHTML.includes('class="innerorts-feld__gewaehlt"'));
+	assert.ok(host.innerHTML.includes("<b>Gareth</b> · Metropole"), "die Ortsklasse fehlt nach der Auswahl: " + host.innerHTML);
 	zaehl();
 }
 

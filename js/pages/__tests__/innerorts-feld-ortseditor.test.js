@@ -31,6 +31,77 @@ function oberflaechenQuelle() {
 	return groesster;
 }
 
+// ══ MINI-DOM (nur fuer Abschnitt 6) ══════════════════════════════════════════════════════════
+// Ein echtes `change`-Ereignis muss QUER durch settlementInnerortsZuhoererBinden wirken --
+// dafuer reicht die schein()-Attrappe (addEventListener ist dort ein No-Op) nicht. Dieselbe kleine
+// Rezeptur wie js/ui/__tests__/innerorts-feld.test.js.
+class MiniNode {
+	constructor(nodeType) { this.nodeType = nodeType; this.parentNode = null; this.childNodes = []; }
+	appendChild(k) { k.parentNode = this; this.childNodes.push(k); return k; }
+}
+function matchesEinfach(el, sel) {
+	if (!el || el.nodeType !== 1) { return false; }
+	const parts = sel.match(/(^[a-zA-Z][\w-]*)|(\.[\w-]+)|(\[[^\]]+\])|(#[\w-]+)/g) || [];
+	if (parts.length === 0) { return false; }
+	return parts.every((p) => {
+		if (p[0] === ".") { return el.classList.contains(p.slice(1)); }
+		if (p[0] === "#") { return el.getAttribute("id") === p.slice(1); }
+		return el.tagName === p.toLowerCase();
+	});
+}
+function walk(node, fn) {
+	(node.childNodes || []).forEach((c) => { if (c.nodeType === 1) { fn(c); walk(c, fn); } });
+}
+class MiniElement extends MiniNode {
+	constructor(tag) { super(1); this.tagName = String(tag).toLowerCase(); this.attrs = {}; this._listeners = {}; this._value = ""; }
+	setAttribute(n, v) { this.attrs[String(n).toLowerCase()] = String(v); }
+	getAttribute(n) { const v = this.attrs[String(n).toLowerCase()]; return v === undefined ? null : v; }
+	removeAttribute(n) { delete this.attrs[String(n).toLowerCase()]; }
+	hasAttribute(n) { return Object.prototype.hasOwnProperty.call(this.attrs, String(n).toLowerCase()); }
+	get classList() {
+		const self = this;
+		function liste() { return (self.attrs.class || "").split(/\s+/).filter(Boolean); }
+		return { contains(c) { return liste().indexOf(c) !== -1; } };
+	}
+	get hidden() { return this.hasAttribute("hidden"); }
+	set hidden(v) { if (v) { this.setAttribute("hidden", ""); } else { this.removeAttribute("hidden"); } }
+	// Ein echtes DOM-Element spiegelt `id`/`class` als Eigenschaften -- ereignis.target.id (der
+	// Zuhoerer in settlementInnerortsZuhoererBinden liest genau das) faende sonst nichts.
+	get id() { return this.getAttribute("id") || ""; }
+	set id(v) { this.setAttribute("id", v); }
+	get value() { return this._value; }
+	set value(v) { this._value = String(v); }
+	get innerHTML() { return ""; }
+	set innerHTML(_html) { /* Abschnitt 6 prueft nur Sichtbarkeit/Montage, nicht das Wert-Markup */ }
+	addEventListener(type, fn) { (this._listeners[type] = this._listeners[type] || []).push(fn); }
+	dispatchEvent(event) {
+		event.target = event.target || this;
+		let el = this;
+		while (el) { (el._listeners[event.type] || []).slice().forEach((fn) => fn.call(el, event)); el = el.parentNode; }
+		return true;
+	}
+	querySelector() { return null; }
+	querySelectorAll(sel) { const out = []; walk(this, (el) => { if (matchesEinfach(el, sel)) { out.push(el); } }); return out; }
+	closest(sel) { let el = this; while (el && el.nodeType === 1) { if (matchesEinfach(el, sel)) { return el; } el = el.parentNode; } return null; }
+}
+function neu(tag) { return new MiniElement(tag); }
+
+const miniWurzel = neu("div");
+const miniDtEditType = neu("select");
+miniDtEditType.setAttribute("id", "dtEditType");
+const miniLabel = neu("div");
+miniLabel.setAttribute("id", "dtInnerortsLabel");
+miniLabel.setAttribute("class", "k dt-row-innerorts");
+const miniWertZeile = neu("div");
+miniWertZeile.setAttribute("class", "dt-row-innerorts");
+const miniWert = neu("div");
+miniWert.setAttribute("id", "dtInnerortsWert");
+miniWertZeile.appendChild(miniWert);
+miniWurzel.appendChild(miniDtEditType);
+miniWurzel.appendChild(miniLabel);
+miniWurzel.appendChild(miniWertZeile);
+const miniById = { dtEditType: miniDtEditType, dtInnerortsLabel: miniLabel, dtInnerortsWert: miniWert };
+
 function schein() {
 	return {
 		value: "", checked: false, disabled: false, hidden: false, textContent: "", innerHTML: "",
@@ -53,10 +124,14 @@ const kasten = {
 		return {
 			readyState: "complete",
 			getElementById(id) {
+				if (miniById[id]) { return miniById[id]; }
 				if (!Object.prototype.hasOwnProperty.call(elemente, id)) { elemente[id] = schein(); }
 				return elemente[id];
 			},
-			querySelector() { return null; }, querySelectorAll() { return []; },
+			// Abschnitt 6 braucht die ECHTEN Elemente (dt-row-innerorts) -- der Rest der Seite ist der
+			// schein()-Attrappe egal, sie fragt hier ohnehin nichts nach.
+			querySelector(sel) { return miniWurzel.querySelector(sel); },
+			querySelectorAll(sel) { return miniWurzel.querySelectorAll(sel); },
 			createElement() {
 				const knoten = schein();
 				let text = "";
@@ -229,6 +304,52 @@ function identity(detail) {
 assert.ok(editorQuelle.includes('src="/js/ui/staetten-kasten.js"')
 	&& editorQuelle.includes('src="/js/ui/innerorts-feld.js"'),
 	"html/wiki-sync-settlement-editor.html bindet staetten-kasten.js/innerorts-feld.js nicht");
+zaehl();
+
+// ── 6. Ein ECHTES `change`-Ereignis auf #dtEditType (Review-Runde 1, Punkt 3) ──────────────────
+// 🔴 GEPRUEFT WIRD DIE WIRKUNG DES ZUHOERERS, nicht die Sync-Funktion direkt gerufen -- entfernt
+// jemand `behaelter.addEventListener("change", …)` aus settlementInnerortsZuhoererBinden (oder den
+// Aufruf von settlementInnerortsZuhoererBinden(body) in renderSettlementDetail), bleibt die Zeile
+// verborgen und dieser Abschnitt wird rot.
+vm.runInContext("settlementInnerortsGebunden = false; settlementInnerortsFeld = null;"
+	+ " settlementInnerortsWikiStand = null; settlementInnerortsHerkunft = '';", kasten);
+vm.runInContext("settlementInnerortsZuhoererBinden", kasten)(miniWurzel);
+
+miniDtEditType.value = "dorf";
+miniLabel.hidden = true;
+miniWertZeile.hidden = true;
+assert.strictEqual(miniLabel.hidden, true, "Vorbedingung: bei 'dorf' beginnt die Zeile verborgen");
+zaehl();
+
+miniDtEditType.value = "stadtviertel";
+miniDtEditType.dispatchEvent({ type: "change", target: miniDtEditType });
+
+assert.strictEqual(miniLabel.hidden, false,
+	"ein echtes change-Ereignis blendet die Beschriftungszeile nicht ein");
+assert.strictEqual(miniWertZeile.hidden, false,
+	"ein echtes change-Ereignis blendet die Wert-Zeile nicht ein");
+zaehl();
+// Die Zeile war beim Zeichnen verborgen (kein Feld montiert) -- der Wechsel muss deshalb nachholen,
+// was renderSettlementDetail beim Oeffnen uebersprungen hat.
+const feldNachWechsel = vm.runInContext("settlementInnerortsFeld", kasten);
+assert.ok(feldNachWechsel, "settlementInnerortsFeld bleibt nach dem sichtbar-Werden unmontiert");
+assert.strictEqual(typeof feldNachWechsel.wert, "function", "kein echtes mountInnerortsFeld-Ergebnis");
+zaehl();
+
+// Ein zweiter Wechsel zwischen den ZWEI anwendbaren Ortsgroessen laesst ein bereits montiertes
+// Feld unangetastet (kein zweites Mounten, keine verlorene Auswahl).
+miniDtEditType.value = "gebaeude";
+miniDtEditType.dispatchEvent({ type: "change", target: miniDtEditType });
+assert.strictEqual(vm.runInContext("settlementInnerortsFeld", kasten), feldNachWechsel,
+	"ein Wechsel zwischen Stadtviertel und Bauwerk montiert das Feld unnoetig neu");
+assert.strictEqual(miniLabel.hidden, false);
+zaehl();
+
+// Zurueck auf eine Ortsgroesse ohne Innerorts blendet wieder aus.
+miniDtEditType.value = "dorf";
+miniDtEditType.dispatchEvent({ type: "change", target: miniDtEditType });
+assert.strictEqual(miniLabel.hidden, true, "bei 'dorf' muss die Zeile wieder verschwinden");
+assert.strictEqual(miniWertZeile.hidden, true);
 zaehl();
 
 console.log("OK - " + pruefungen + " Zusicherungen (Innerorts im Ortseditor)");

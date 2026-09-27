@@ -2762,6 +2762,49 @@ function settlementInnerortsZeichneLabel() {
 }
 
 /**
+ * Die Sichtbarkeit der Zeile „Innerorts" nach der AKTUELLEN Ortsgröße richten -- EINE Funktion,
+ * die JEDER Schreiber von `dtEditType` ruft (Review-Runde 1, gefunden per grep: der Nutzerweg
+ * ueber den Zuhoerer unten, das ↺ und "Sync übernehmen" ueber settlementSetzeOrtsgroesse). Ohne
+ * diese Buendelung blieb die Zeile nach einem programmatischen Wechsel im Sichtbarkeitszustand
+ * der VORIGEN Ortsgroesse haengen -- derselbe Fehler wie beim Zwilling im Kartendialog
+ * (syncLocationEditInnerortsOnTypeChange, js/review/review-locations.js).
+ */
+function settlementInnerortsSyncSichtbarkeit() {
+	const sichtbar = SETTLEMENT_INNERORTS_SIZES.indexOf(String($("dtEditType")?.value || "")) !== -1;
+	// Die Beschriftung TRÄGT die Klasse `dt-row-innerorts` selbst (sie steht in derselben Liste
+	// wie die Wert-Zelle) -- ein Durchgang genügt fuer beide.
+	Array.from(document.querySelectorAll(".dt-row-innerorts")).forEach((el) => { el.hidden = !sichtbar; });
+	// War die Zeile beim Zeichnen verborgen, wurde nichts montiert (siehe renderSettlementDetail) --
+	// jetzt sichtbar geworden, holt das nach. Ein Wechsel zwischen den zwei anwendbaren
+	// Ortsgroessen (Stadtviertel ↔ Besondere Bauwerke) laesst ein bereits montiertes Feld stehen.
+	if (sichtbar && !settlementInnerortsFeld && typeof mountInnerortsFeld === "function" && $("dtInnerortsWert")) {
+		settlementInnerortsWikiStand = null;
+		settlementInnerortsHerkunft = "";
+		settlementInnerortsFeld = mountInnerortsFeld($("dtInnerortsWert"), {
+			ort: null,
+			escape: settlementEscape,
+			onChange: () => {
+				settlementInnerortsHerkunft = "manual";
+				settlementInnerortsZeichneLabel();
+			},
+		});
+	}
+}
+
+/**
+ * EINE Stelle, die `dtEditType` PROGRAMMATISCH setzt -- `select.value = x` feuert kein
+ * change-Ereignis, also ruft jeder solche Schreiber diese Funktion statt das Feld selbst zu
+ * setzen (dasselbe Muster wie setLocationEditSize im Kartendialog-Zwilling). Der Nutzerweg (ein
+ * echter Klick in der Auswahl) feuert das Ereignis von selbst und geht weiterhin ueber den
+ * Zuhoerer in settlementInnerortsZuhoererBinden.
+ */
+function settlementSetzeOrtsgroesse(select, wert) {
+	if (!select) { return; }
+	select.value = wert;
+	settlementInnerortsSyncSichtbarkeit();
+}
+
+/**
  * ↺ an der Beschriftung UND die Sichtbarkeit bei einem Ortsgrößenwechsel -- EIN Zuhoerer am
  * Behaelter, genau einmal gebunden, dieselbe Rezeptur wie settlementWikiResetZuhoererBinden
  * darueber (der Behaelter ueberlebt jedes Neuzeichnen, ein Zuhoerer im Zeichenpfad haeufte sich).
@@ -2788,25 +2831,7 @@ function settlementInnerortsZuhoererBinden(behaelter) {
 	});
 	behaelter.addEventListener("change", (ereignis) => {
 		if (!ereignis.target || ereignis.target.id !== "dtEditType") { return; }
-		const sichtbar = SETTLEMENT_INNERORTS_SIZES.indexOf(String(ereignis.target.value || "")) !== -1;
-		// Die Beschriftung TRÄGT die Klasse `dt-row-innerorts` selbst (sie steht in derselben Liste
-		// wie die Wert-Zelle) -- ein Durchgang genügt fuer beide.
-		Array.from(behaelter.querySelectorAll(".dt-row-innerorts")).forEach((el) => { el.hidden = !sichtbar; });
-		// War die Zeile beim Zeichnen verborgen, wurde nichts montiert (siehe renderSettlementDetail) --
-		// jetzt sichtbar geworden, holt das nach. Ein Wechsel zwischen den zwei anwendbaren
-		// Ortsgroessen (Stadtviertel ↔ Besondere Bauwerke) laesst ein bereits montiertes Feld stehen.
-		if (sichtbar && !settlementInnerortsFeld && typeof mountInnerortsFeld === "function" && $("dtInnerortsWert")) {
-			settlementInnerortsWikiStand = null;
-			settlementInnerortsHerkunft = "";
-			settlementInnerortsFeld = mountInnerortsFeld($("dtInnerortsWert"), {
-				ort: null,
-				escape: settlementEscape,
-				onChange: () => {
-					settlementInnerortsHerkunft = "manual";
-					settlementInnerortsZeichneLabel();
-				},
-			});
-		}
+		settlementInnerortsSyncSichtbarkeit();
 	});
 }
 
@@ -2831,7 +2856,14 @@ function settlementWikiFeldZuruecksetzen(feld) {
 		lage: "dtEditLage", oberhaupt: "dtEditOberhaupt" }[feld];
 	const element = eingabe ? $(eingabe) : null;
 	if (!element) { return; }
-	element.value = wert;
+	// 🔴 settlementSetzeOrtsgroesse, NICHT `element.value = …`, wenn das ↺ die ORTSGROESSE
+	// zurueckholt -- sonst bleibt die Zeile „Innerorts" im Sichtbarkeitszustand des vorigen Werts
+	// haengen (Review-Runde 1, wortgleich zum Kartendialog-Zwilling).
+	if (feld === "feature_subtype") {
+		settlementSetzeOrtsgroesse(element, wert);
+	} else {
+		element.value = wert;
+	}
 	settlementWikiUebernommen.add(feld);
 	// ⚠️ Dieselbe Meldung wie die Sync-Uebernahme daneben, wortgleich -- es IST dieselbe Handlung.
 	// Ein eigener Satz fuer den Einzelfall waere die erste Divergenz zwischen den beiden.
@@ -2864,7 +2896,9 @@ function settlementWikiAssignSyncUebernehmen(zeilen) {
 		return [eingabe, werte[feld]];
 	}).filter((eintrag) => eintrag !== null);
 	if (nameInput) nameInput.value = werte.name;
-	if (select) select.value = werte.feature_subtype;
+	// 🔴 settlementSetzeOrtsgroesse, NICHT `select.value = …` (Review-Runde 1) -- sonst bleibt die
+	// Zeile „Innerorts" im Sichtbarkeitszustand der VORIGEN Ortsgroesse haengen.
+	if (select) settlementSetzeOrtsgroesse(select, werte.feature_subtype);
 	textFelder.forEach(([eingabe, wert]) => { eingabe.value = wert; });
 	// 🔴 ZWEITE HAELFTE DER UEBERNAHME: merken, WELCHE Felder aus dem Wiki kamen. Ohne sie stempelt
 	// der Server sie als „von uns", und der naechste Abgleich liesse genau die Felder in Ruhe, die
