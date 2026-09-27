@@ -95,6 +95,17 @@ try {
 
             return avesmapsSeehafenAusSeewegen($pdo, ($payload['apply'] ?? false) !== true);
         })(),
+        // Gipfelhoehen-Korrektur (Owner-Auftrag 27.09.2026, "Gipfelhoehen-Pruefliste"): 25 recherchierte
+        // Berggipfel-Labels bekommen ihre Hoehe bzw. eine korrigierte Art (avesmapsRepairPeakHeights).
+        // NUR Admins; Trockenlauf ist die Vorgabe, scharf erst mit `apply: true` -- dieselbe Bauform
+        // wie `repair_crossing_type`.
+        'repair_peak_heights' => (static function () use ($pdo, $payload, $user): array {
+            if (!avesmapsUserCan($user, 'admin')) {
+                avesmapsErrorResponse(403, 'forbidden', 'Die Gipfelhoehen-Korrektur ist Admins vorbehalten.');
+            }
+
+            return avesmapsRepairPeakHeights($pdo, $user, ($payload['apply'] ?? false) !== true);
+        })(),
         // 🔴 Hier stand `wegname_anzeigen_bestand` -- einmal gefahren am 15.09.2026, danach zurueckgebaut (Review I2; Begruendung und
         // Waechter: api/_internal/map/__tests__/wegname-bestandslauf-zurueckgebaut-test.php). Eine alte Seite, die ihn ruft, faellt in
         // den default-Zweig und bekommt eine klare Absage.

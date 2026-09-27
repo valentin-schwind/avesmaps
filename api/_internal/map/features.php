@@ -541,6 +541,9 @@ function avesmapsUndoColumnsForAuditAction(string $action): array {
         'innerorts_endgueltig_entfernen' => ['properties_json'],
         // „⇄" am innerorts-Punkt (Staetten-Kasten, avesmapsInnerortsOrtSpeichern): nur das Nest.
         'set_innerorts' => ['properties_json'],
+        // Gipfelhoehen-Korrektur (avesmapsRepairPeakHeights, 27.09.2026): das UPDATE fasst genau diese
+        // zwei Spalten an, nie `name` -- anders als update_label bleibt der Labeltext unberuehrt.
+        'repair_peak_heights' => ['feature_subtype', 'properties_json'],
         default => [],
     };
 }
@@ -1985,6 +1988,179 @@ function avesmapsRepairCrossingFeatureType(PDO $pdo, array $user, bool $trockenl
         'repariert' => $repariert,
         'revision' => $revision,
         'stichprobe' => array_slice($stichprobe, 0, 25),
+    ];
+}
+
+// ===== Gipfelhoehen-Korrektur (Owner-Auftrag 27.09.2026, "Gipfelhoehen-Pruefliste") ==============
+// 25 einzeln stehende Berggipfel-Labels trugen die Platzhalterhoehe 5.000 Schritt (oder gar keine).
+// Avesmaps3D baut aus jedem Berggipfel-Label einen Kegel mit 30% Steigung, und die Steigung bremst
+// Reisende auf den Strassen daneben -- die Gipfel im Feidewald bei Hartsteen lenkten so die
+// Reichsstrasse 3 oestlich von Gareth um.
+//
+// 🔴 KEIN ALGORITHMUS -- EINE VON HAND GEPRUEFTE TABELLE. Recherche in Wiki Aventurica und im
+// Garetien-Briefspiel-Wiki, Stand 27.09.2026. `feature_subtype: null` heisst "Art bleibt Berggipfel";
+// `height_schritt: null` heisst "Wert ENTFERNEN, nicht auf 0 setzen" (Chap Tabungapa: keine Quelle
+// nennt eine Zahl, der Platzhalter 5.000 waere falscher als "nicht erfasst" --
+// avesmapsReadOptionalPeakHeight() behandelt beides bewusst verschieden).
+//
+// 💣 Goldenhelm behaelt bewusst seine Art: die Quelle nennt "Huegel UND erloschener Vulkan"
+// gleichzeitig, keine eindeutige Wahl -- nur die belegte Hoehe (60) wird uebernommen. Ebenso Kuri,
+// Zwanfirszahn, Nebelzahn und Ceälan: belegt bzw. geschaetzt ist nur die Hoehe, nicht die Art.
+const AVESMAPS_GIPFELHOEHEN_KORREKTUREN = [
+    // Feidewald bei Hartsteen, an der Reichsstrasse 3 -- nur ueber garetien.de (inoffiziell) belegt,
+    // Hoehe aus der Beschreibung geschaetzt (mittel), ausser Grafenhaupt (Briefspiel-Wert, hoch).
+    ['name' => 'Bassenhorn', 'height_schritt' => 800.0, 'feature_subtype' => null],
+    ['name' => 'Giesenstein', 'height_schritt' => 800.0, 'feature_subtype' => null],
+    ['name' => 'Helmenstein', 'height_schritt' => 800.0, 'feature_subtype' => null],
+    ['name' => 'Hickel', 'height_schritt' => 800.0, 'feature_subtype' => null],
+    ['name' => 'Hohe Minne', 'height_schritt' => 800.0, 'feature_subtype' => null],
+    ['name' => 'Rauschenstein', 'height_schritt' => 800.0, 'feature_subtype' => null],
+    ['name' => 'Rottenstein', 'height_schritt' => 800.0, 'feature_subtype' => null],
+    ['name' => 'Ruthberg', 'height_schritt' => 800.0, 'feature_subtype' => null],
+    ['name' => 'Taurenstein', 'height_schritt' => 800.0, 'feature_subtype' => null],
+    ['name' => 'Grafenhaupt', 'height_schritt' => 1020.0, 'feature_subtype' => null],
+    // Weitere mit 5.000 Schritt -- teils falsche Art (Fels/Huegel/Vulkan statt Berggipfel).
+    ['name' => 'Aytan und Itzach', 'height_schritt' => 5.0, 'feature_subtype' => 'felsformation'],
+    ['name' => 'Molchenberg', 'height_schritt' => 50.0, 'feature_subtype' => 'huegel'],
+    ['name' => 'Goldenhelm', 'height_schritt' => 60.0, 'feature_subtype' => null],
+    ['name' => 'Kuri', 'height_schritt' => 1000.0, 'feature_subtype' => null],
+    ['name' => 'Chap Tabungapa', 'height_schritt' => null, 'feature_subtype' => 'vulkan'],
+    ['name' => 'Ceälan', 'height_schritt' => 300.0, 'feature_subtype' => null],
+    ['name' => 'Felsen der klagenden Ahnen', 'height_schritt' => 50.0, 'feature_subtype' => 'felsformation'],
+    // Ohne Hoehe.
+    ['name' => 'Visra', 'height_schritt' => 1500.0, 'feature_subtype' => 'vulkan'],
+    ['name' => 'Zwanfirszahn', 'height_schritt' => 2000.0, 'feature_subtype' => null],
+    ['name' => 'Nebelzahn', 'height_schritt' => 600.0, 'feature_subtype' => null],
+    ['name' => 'Säulen des Himmels', 'height_schritt' => 150.0, 'feature_subtype' => 'felsformation'],
+    ['name' => 'Oberhartberg', 'height_schritt' => 400.0, 'feature_subtype' => 'huegel'],
+    ['name' => 'Murmelstein', 'height_schritt' => 400.0, 'feature_subtype' => 'huegel'],
+    ['name' => 'Torbelstein', 'height_schritt' => 400.0, 'feature_subtype' => 'huegel'],
+    ['name' => 'Zagroschkuppe', 'height_schritt' => 500.0, 'feature_subtype' => 'huegel'],
+];
+
+// Trockenlauf ist die Vorgabe, wie bei jeder Admin-Aktion dieses Hauses (repair_crossing_type,
+// seehafen_aus_seewegen). Gematcht wird ausschliesslich ueber (feature_type='label',
+// feature_subtype='berggipfel', is_active=1, name=<Eintrag>) -- die Namens-Kollisionen, vor denen die
+// Recherche selbst warnt (gleichnamiges Herrenhaus/Ort/Baronie/Schloss/Siedlung), liegen alle in
+// ANDEREN feature_type/feature_subtype-Kombinationen und werden dadurch nie beruehrt. Traegt derselbe
+// Name mehrere Berggipfel-Labels oder keins, wird die Zeile uebersprungen und GEMELDET statt geraten
+// -- eine Bulk-Korrektur, die bei Mehrdeutigkeit eine beliebige Zeile trifft, ist keine Korrektur.
+//
+// Anders als repair_crossing_type ist diese Aktion ueber "Rueckgaengig" im Fenster "Aenderungen"
+// aufhebbar (avesmapsUndoColumnsForAuditAction): es ist keine Reparatur einer Beschaedigung, sondern
+// eine editorische Wertaenderung mit teils mittlerer/niedriger Sicherheit, die ein Owner einzeln
+// zuruecknehmen koennen soll.
+function avesmapsRepairPeakHeights(PDO $pdo, array $user, bool $trockenlauf = true): array {
+    $lesen = $pdo->prepare(
+        "SELECT id, public_id, name, feature_subtype, properties_json, is_active
+        FROM map_features
+        WHERE feature_type = 'label'
+          AND feature_subtype = 'berggipfel'
+          AND is_active = 1
+          AND name = :name"
+    );
+
+    $treffer = [];
+    $nichtGefunden = [];
+    $mehrdeutig = [];
+
+    foreach (AVESMAPS_GIPFELHOEHEN_KORREKTUREN as $korrektur) {
+        $lesen->execute(['name' => $korrektur['name']]);
+        $zeilen = $lesen->fetchAll(PDO::FETCH_ASSOC);
+        if (count($zeilen) === 0) {
+            $nichtGefunden[] = $korrektur['name'];
+            continue;
+        }
+        if (count($zeilen) > 1) {
+            $mehrdeutig[] = $korrektur['name'];
+            continue;
+        }
+        $treffer[] = ['zeile' => $zeilen[0], 'korrektur' => $korrektur];
+    }
+
+    $stichprobe = [];
+    $repariert = 0;
+    $revision = 0;
+    $schreiben = null;
+
+    if ($treffer !== [] && !$trockenlauf) {
+        $revision = avesmapsNextMapRevision($pdo);
+        $schreiben = $pdo->prepare(
+            'UPDATE map_features
+            SET feature_subtype = :feature_subtype,
+                properties_json = :properties_json,
+                revision = :revision,
+                updated_by = :updated_by
+            WHERE id = :id'
+        );
+    }
+
+    foreach ($treffer as $eintrag) {
+        $zeile = $eintrag['zeile'];
+        $korrektur = $eintrag['korrektur'];
+        $nest = avesmapsDecodeJsonColumnForEdit($zeile['properties_json'] ?? null);
+
+        $subtypeVorher = (string) $zeile['feature_subtype'];
+        $subtypeNachher = $korrektur['feature_subtype'] ?? $subtypeVorher;
+
+        $hoeheVorher = $nest['height_schritt'] ?? null;
+        $hoeheNachher = $korrektur['height_schritt'];
+
+        $nestNachher = $nest;
+        $nestNachher['feature_type'] = 'label';
+        $nestNachher['feature_subtype'] = $subtypeNachher;
+        if ($hoeheNachher === null) {
+            unset($nestNachher['height_schritt']);
+        } else {
+            $nestNachher['height_schritt'] = $hoeheNachher;
+        }
+
+        $stichprobe[] = [
+            'name' => $korrektur['name'],
+            'public_id' => (string) $zeile['public_id'],
+            'feature_subtype_vorher' => $subtypeVorher,
+            'feature_subtype_nachher' => $subtypeNachher,
+            'height_schritt_vorher' => $hoeheVorher,
+            'height_schritt_nachher' => $hoeheNachher,
+        ];
+
+        if ($trockenlauf || $schreiben === null) {
+            continue;
+        }
+
+        $schreiben->execute([
+            'id' => (int) $zeile['id'],
+            'feature_subtype' => $subtypeNachher,
+            'properties_json' => avesmapsEncodeJson($nestNachher),
+            'revision' => $revision,
+            'updated_by' => (int) ($user['id'] ?? 0),
+        ]);
+        $repariert++;
+
+        avesmapsWriteMapAuditLog(
+            $pdo,
+            (int) $zeile['id'],
+            'repair_peak_heights',
+            (int) ($user['id'] ?? 0),
+            avesmapsEncodeAuditJson($zeile),
+            avesmapsEncodeAuditJson([
+                'public_id' => (string) $zeile['public_id'],
+                'feature_subtype' => $subtypeNachher,
+                'properties_json' => $nestNachher,
+                'revision' => $revision,
+            ])
+        );
+    }
+
+    return [
+        'ok' => true,
+        'dry_run' => $trockenlauf,
+        'gefunden' => count($treffer),
+        'repariert' => $repariert,
+        'nicht_gefunden' => $nichtGefunden,
+        'mehrdeutig' => $mehrdeutig,
+        'revision' => $revision,
+        'stichprobe' => $stichprobe,
     ];
 }
 
