@@ -127,7 +127,10 @@ assert.strictEqual(ohne.disabled, false, "und NICHT gesperrt -- Anhaken legt ein
 // Box den Stand einer anderen (offenen) Beschriftung, darf ihr Wert hier NICHT gelten -- sonst
 // schriebe der Haken der einen Beschriftung auf die andere.
 
-const rumpfRename = schneide("async function renameLinkedEcosystemLabel(area, name) {");
+const rumpfRename = schneide("async function renameLinkedEcosystemLabel(area, name, stand) {");
+// 🔴 Ohne `stand` liest die Funktion das Formular über speicherStandLesen -- dieselben Felder wie
+// vorher, nur an EINER Stelle (27.09.2026). Deshalb läuft der Leser hier mit.
+const rumpfStand = schneide("function speicherStandLesen() {");
 
 async function schreibe({ offeneId, labels, area }) {
 	const geschrieben = [];
@@ -158,10 +161,11 @@ async function schreibe({ offeneId, labels, area }) {
 		createEcosystemRegionLabel: async () => {},
 		applyLabelFeatureLocally: () => {},
 		setPropertiesStatus: () => {},
+		propertiesSourcePublicId: "flaeche-1",
 	};
 	kasten.globalThis = kasten;
 	vm.createContext(kasten);
-	vm.runInContext(`${rumpfRename} this.__lauf = renameLinkedEcosystemLabel;`, kasten, { filename: "renameLinkedEcosystemLabel" });
+	vm.runInContext(`${rumpfStand} ${rumpfRename} this.__lauf = renameLinkedEcosystemLabel;`, kasten, { filename: "renameLinkedEcosystemLabel" });
 	await kasten.__lauf(area, "Cronwald");
 	return geschrieben;
 }

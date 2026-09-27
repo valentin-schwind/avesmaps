@@ -168,6 +168,8 @@ const ERLAUBT = {
 		"avesmapsWikiAssignLandschaftAntwortPruefen", "avesmapsWikiAssignLandschaftZustand",
 		"avesmapsWikiAssignLandschaftArtikel", "avesmapsWikiAssignLandschaftSyncWerte",
 		"avesmapsWikiAssignLandschaftSyncLeer", "avesmapsWikiAssignMount", "avesmapsWikiAssignLandschaftTreffer",
+		// wikiAssignZuweisen ist das `zuweisen` des Wiki-Kastens -- es laeuft nur aus dem gemounteten Bauteil
+		"avesmapsWikiAssignLandschaftTrefferMitAdresse",
 		// angezeigteWikiRegion hat genau einen Aufrufer: wikiAssignZustand, das `laden` des Wiki-Kastens im Editordialog
 		"avesmapsWikiAssignLandschaftGespeichert",
 		"mountFeatureSourceEditor",

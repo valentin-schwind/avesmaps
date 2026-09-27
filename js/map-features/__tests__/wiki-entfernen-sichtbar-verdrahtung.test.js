@@ -76,7 +76,7 @@ assert.ok(/applyLabelFeaturesLocally\(result\?\.labels\)/.test(panel),
 // 💣 VOR renameLinkedEcosystemLabel: das liest den GELADENEN Labelzustand und entscheidet daran, ob
 // es noch etwas zu schreiben gibt. Kaeme die Antwort danach, rechnete es mit dem alten Nest.
 const anwendung = flaeche.indexOf("applyLabelFeaturesLocally(antwort?.labels)");
-const nachzug = flaeche.indexOf("await renameLinkedEcosystemLabel(area, name)");
+const nachzug = flaeche.indexOf("await renameLinkedEcosystemLabel(area, name, stand)");
 assert.ok(anwendung > -1 && nachzug > -1 && anwendung < nachzug,
 	"die Antwort wird angewandt, BEVOR das verbundene Label nachgezogen wird"); checks++;
 
@@ -87,7 +87,9 @@ assert.ok(anwendung > -1 && nachzug > -1 && anwendung < nachzug,
 const nachziehStart = flaeche.indexOf("async function renameLinkedEcosystemLabel(");
 const nachziehEnde = flaeche.indexOf("\n\tasync function ", nachziehStart + 1);
 const nachzieh = flaeche.slice(nachziehStart, nachziehEnde === -1 ? undefined : nachziehEnde);
-assert.ok(/const wikiEntfernt = pendingWikiRegion === null && labelWikiKey !== ""/.test(nachzieh),
+// ⚠️ `s.` seit dem 27.09.2026: der Stand kommt aus dem Augenblick des Klicks (speicherStandLesen), nicht
+// aus dem Modulzustand nach einem `await` -- die Regel selbst ist dieselbe.
+assert.ok(/const wikiEntfernt = s\.pendingWikiRegion === null && labelWikiKey !== ""/.test(nachzieh),
 	"„entfernt\" haengt an pendingWikiRegion === null UND einer vorhandenen Kopie am Label"); checks++;
 assert.ok(/wikiEntfernt \? \{ wiki_region: null \} : \{\}/.test(nachzieh),
 	"und schickt dann ausdruecklich `wiki_region: null` -- sonst nichts"); checks++;

@@ -44,14 +44,32 @@ const quelle = roh
 
 // ---- 1. Der Eingangsriegel ---------------------------------------------------------------------
 
+// 🔴 NACHGEZOGEN AM 27.09.2026: der Riegel steht seither EINMAL (js/ui/wiki-assign-landschaft.js), und
+// er WIRFT. Hier stand „SICHTBAR = setPropertiesError(...); return;" -- und genau das war der naechste
+// stille Fehlschlag: das Bauteil liest ein AUFGELOESTES `zuweisen` als Erfolg und malte den Artikel samt
+// „Noch nicht gespeichert", waehrend die Meldung im Reiter „Fläche" stand, den im Reiter „Wiki &
+// Quellen" niemand sieht. Abgelehnt sagt das Bauteil den Grund am Ort des Klicks. Der Ablauf selbst
+// wird in landschaft-speichern-waehrend-gelaende.test.js (Teil 3) gefahren.
 assert.ok(
-	/function wikiAssignZuweisen\([\s\S]{0,600}?if \(String\(roh\.wiki_url \|\| ""\)\.trim\(\) === ""\)/.test(quelle),
+	/function wikiAssignZuweisen\([^)]*\) \{\s*const roh = avesmapsWikiAssignLandschaftTrefferMitAdresse\(/.test(quelle),
 	"1a: wikiAssignZuweisen muss einen Treffer OHNE Adresse ablehnen, bevor er nach "
-	+ "pendingWikiRegion wandert"
+	+ "pendingWikiRegion wandert -- als ERSTE Anweisung, ueber den geteilten Riegel"
 );
+{
+	const teil = fs.readFileSync(path.join(__dirname, "..", "..", "ui", "wiki-assign-landschaft.js"), "utf8");
+	const { avesmapsWikiAssignLandschaftTrefferMitAdresse: riegel } = require("../../ui/wiki-assign-landschaft.js");
+	assert.throws(() => riegel({ wiki_key: "wiki:x", wiki_url: "" }), /keine Wiki-Adresse/,
+		"1b: und zwar SICHTBAR -- durch einen WURF; ein stilles `return` waere derselbe Fehlschlag in neuer Verkleidung");
+	assert.throws(() => riegel(null), /keine Wiki-Adresse/, "1b: auch ohne Zeile");
+	assert.strictEqual(riegel({ wiki_url: " https://x " }).wiki_url, " https://x ", "1b: mit Adresse geht die Zeile durch");
+	assert.ok(/function avesmapsWikiAssignLandschaftTrefferMitAdresse/.test(teil), "1b: der Riegel steht im geteilten Datenweg");
+}
+// ⚠️ Und der Zwilling im Editorfenster fragt DENSELBEN Riegel -- dort schriebe ein adressloser Treffer
+// sonst `wiki_url: ""` und LOESCHTE eine bestehende Zuweisung.
 assert.ok(
-	/if \(String\(roh\.wiki_url \|\| ""\)\.trim\(\) === ""\) \{[\s\S]{0,400}?setPropertiesError\([\s\S]{0,400}?return;/.test(quelle),
-	"1b: und zwar SICHTBAR -- ein stilles `return` waere derselbe Fehlschlag in neuer Verkleidung"
+	/const wikiAssignZuweisen = \(treffer\) => \{[\s\S]{0,400}?const roh = avesmapsWikiAssignLandschaftTrefferMitAdresse\(/
+		.test(fs.readFileSync(path.join(__dirname, "..", "..", "..", "html", "landschaften-editor.html"), "utf8")),
+	"1c: das Landschaften-Editorfenster lehnt adresslose Treffer ebenso ab"
 );
 
 // ---- 2. Der Riegel am Schreibweg, der tragende ---------------------------------------------------

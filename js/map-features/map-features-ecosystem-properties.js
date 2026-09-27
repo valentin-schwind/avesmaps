@@ -311,8 +311,9 @@
 	// Der VOLLE Schnappschuss derselben Zuweisung, wie ihn das Label braucht (Name, Art, Beschreibung,
 	// Bild — davon lebt seine Infobox). Die Region speichert nur Schlüssel und URL, deshalb der Umweg
 	// über dieselbe Staging-Quelle, aus der auch der „Sync"-Knopf im Label-Editor schöpft.
-	async function currentRegionWikiSnapshot() {
-		const wiki = effectiveWikiRegion();
+	// @param wiki die Zuweisung, deren Schnappschuss gebraucht wird -- beim Speichern die des KLICKS
+	// (speicherStandLesen), sonst die jetzige.
+	async function currentRegionWikiSnapshot(wiki = effectiveWikiRegion()) {
 		const key = String(wiki?.wiki_key || "").trim();
 		if (key === "" || typeof ecosystemWikiRegionSnapshot !== "function") {
 			return null;
@@ -418,24 +419,16 @@
 	 * Suchzeile, nicht der aufbereitete Treffer.
 	 */
 	function wikiAssignZuweisen(treffer) {
-		const roh = (treffer && treffer.roh) || {};
-		// 💣 EIN TREFFER OHNE ADRESSE DARF NICHT ZUGEWIESEN WERDEN -- er waere beim Speichern eine
-		// LOESCHUNG. `payload.wiki_url = pendingWikiRegion?.wiki_url || ""` unten schickt fuer einen
-		// solchen Treffer den leeren String, und `avesmapsEcosystemReadRegionFields` liest den als
-		// „Zuweisung entfernen": der Kasten meldet „gewaehlt", das Speichern meldet Erfolg, und
-		// zugewiesen ist nichts. Von aussen ist das nicht von „das Formular ignoriert meine Wahl" zu
-		// unterscheiden -- gemeldet am 10.09.2026 („weigert sich zu speichern", bei Dirak „erst beim
-		// 3.-4. Mal", also je nachdem, welcher Treffer erwischt wurde).
-		// 🔴 KEINE Adresse aus dem Schluessel BAUEN: `wiki_region_key` wird serverseitig aus der
-		// Adresse abgeleitet (AGENTS.md §5), die Gegenrichtung waere eine zweite Ableitung und braeche
-		// jeden Join. Der Treffer wird abgelehnt, laut und sichtbar.
-		if (String(roh.wiki_url || "").trim() === "") {
-			setPropertiesError(
-				"Dieser Treffer trägt keine Wiki-Adresse und kann deshalb nicht zugewiesen werden. "
-				+ "Bitte einen anderen Treffer wählen — oder die Wiki-Seite erst syncen."
-			);
-			return;
-		}
+		// 💣 EIN TREFFER OHNE ADRESSE DARF NICHT ZUGEWIESEN WERDEN -- gemeldet am 10.09.2026 („weigert
+		// sich zu speichern", bei Dirak „erst beim 3.-4. Mal", also je nachdem, welcher Treffer
+		// erwischt wurde). Die Regel steht EINMAL (avesmapsWikiAssignLandschaftTrefferMitAdresse), der
+		// Zwilling im Editorfenster fragt dieselbe.
+		// 🔴 SIE WIRFT, und das ist seit dem 27.09.2026 der ganze Unterschied: hier stand
+		// `setPropertiesError(...); return;`. Ein AUFGELOESTES `zuweisen` liest das Bauteil als
+		// „zugewiesen" -- der Kasten zeigte den Artikel samt „Noch nicht gespeichert", die Meldung
+		// stand im Reiter „Fläche" (unsichtbar im Reiter „Wiki & Quellen"), und „Speichern" liess die
+		// Zuweisung, wie sie war. Abgelehnt sagt das Bauteil den Grund am Ort des Klicks.
+		const roh = avesmapsWikiAssignLandschaftTrefferMitAdresse(treffer && treffer.roh);
 		// 🔴 Es reist die URL, NICHT der Schlüssel: wiki_region_key leitet der Server aus wiki_url ab
 		// (AGENTS.md §5). Ein hier gebauter Schlüssel wäre eine zweite Ableitung und bräche jeden Join.
 		pendingWikiRegion = {
@@ -1865,6 +1858,15 @@
 	}
 
 	function renderTerrainControls(area) {
+		// 💣 ZUERST, VOR JEDEM FRUEHEN AUSSTIEG -- der Merker gehoert der Flaeche, die gerade aufgebaut
+		// wird. Er stand bis zum 27.09.2026 hinter `if (!zeigt) return;` und wurde damit NUR fuer ein
+		// Gebirge zurueckgesetzt: wer erst ein Gebirge und danach eine andere Flaeche oeffnete (live
+		// gemeldet am „Hochmoor von Waskir"), erbte dessen „angefasst". „Speichern" hielt die Regler der
+		// unsichtbaren Falte fuer eine Entscheidung, schrieb die Gebirgswerte samt Hoehenraster an das
+		// Moor -- und wartete dafuer Sekunden, in denen die Beschriftungs-Haelfte das Fenster schloss und
+		// das gemeinsame Namensfeld leerte. Die Wiki-Zuweisung kam nie an. Es hing an der VORGESCHICHTE
+		// der Sitzung, nicht am Objekt: darum „ich konnte speichern, er nicht".
+		terrainTouched = {};
 		renderTerrainGrayscaleToggle();
 		const block = propertiesElement("terrain");
 		if (!block) {
@@ -1878,7 +1880,6 @@
 			return;
 		}
 
-		terrainTouched = {};
 		const vorlagenStand = vorlagenWerte(area);
 		// 🔴 Bei JEDEM Aufbau neu und auf „—": das Auswahlfeld ist eine AKTION. Was gemerkt wird,
 		// steht im Titel der Falte -- ein stehengebliebener Eintrag im Feld laese sich wie eine
@@ -2631,7 +2632,10 @@
 		}
 	}
 
-	async function renameLinkedEcosystemLabel(area, name) {
+	// @param stand der Formularstand des Klicks (speicherStandLesen). 💣 Ohne ihn liest die Funktion das
+	// Formular von JETZT -- nach einem `await` ist das womöglich schon zurückgesetzt.
+	async function renameLinkedEcosystemLabel(area, name, stand) {
+		const s = stand || speicherStandLesen();
 		const labelPublicId = String(area?.label_public_id || "");
 
 		// Zeiger und Label sind ZWEI Fragen: die Region kann auf ein Label zeigen, das es nicht mehr gibt.
@@ -2661,8 +2665,7 @@
 				&& String(area?.region_public_id || "") !== "");
 
 		if (!label) {
-			const box = propertiesElement("showname");
-			if (box && box.checked && !hatIrgendeinLabel && typeof createEcosystemRegionLabel === "function") {
+			if (s.anzeigen && s.anzeigen.checked && !hatIrgendeinLabel && typeof createEcosystemRegionLabel === "function") {
 				const geometry = area?.geometry_geojson || area?.geometry || null;
 				if (geometry) {
 					await createEcosystemRegionLabel(
@@ -2670,9 +2673,9 @@
 						geometry,
 						name,
 						true,
-						String(propertiesElement("type")?.value || ""),
+						s.regionType,
 						// Die Wiki-Landschaft der Region kommt mit: das Label beschreibt dieselbe.
-						await currentRegionWikiSnapshot()
+						await currentRegionWikiSnapshot(s.wiki)
 					);
 				}
 			}
@@ -2682,7 +2685,6 @@
 		if (typeof submitMapFeatureEdit !== "function") {
 			return;
 		}
-		const box = propertiesElement("showname");
 		// 🔴 DIE BOX BEDIENT DIE OFFENE BESCHRIFTUNG, nicht zwangsläufig dieses primäre Label
 		// (syncPropertiesShowName). Ist eine ANDERE offen -- über die Geschwisterwahl erreichbar, sobald
 		// eine Fläche mehrere trägt --, gilt ihr Stand hier NICHT: sonst schriebe der Haken der einen
@@ -2690,14 +2692,13 @@
 		// (`show_name` in buildLabelEditPayload, Meldung #137).
 		// ⚠️ Leeres Feld heisst „keine Beschriftung offen" -- dann gehört die Box diesem Label, und der
 		// Flächen-Knopf ist ihr einziger Schreibweg.
-		const offeneLabelId = String(document.getElementById("label-edit-public-id")?.value || "");
+		const offeneLabelId = s.offeneLabelId;
 		const boxGiltHier = offeneLabelId === "" || offeneLabelId === String(labelPublicId);
-		const showName = box && !box.disabled && boxGiltHier
-			? Boolean(box.checked)
+		const showName = s.anzeigen && !s.anzeigen.disabled && boxGiltHier
+			? Boolean(s.anzeigen.checked)
 			: (label.showName !== false);
-		const nodixBox = propertiesElement("nodix");
-		const nextNodix = nodixBox && !nodixBox.disabled ? Boolean(nodixBox.checked) : Boolean(label.isNodix);
-		const nextSubtype = String(propertiesElement("type")?.value || "") || label.labelType || "region";
+		const nextNodix = s.nodix && !s.nodix.disabled ? Boolean(s.nodix.checked) : Boolean(label.isNodix);
+		const nextSubtype = s.regionType || label.labelType || "region";
 
 		// 🔴 Die Wiki-Landschaft wandert abwärts. Hat die Region eine, bekommt das Label sie -- es
 		// beschreibt dieselbe Landschaft, und zwei Zuweisungen für dasselbe Ding driften auseinander.
@@ -2708,10 +2709,10 @@
 		// Zustand nicht davon abhängt, ob die Antwort das Label erreicht hat. Andersherum -- „die
 		// Region hat keine" als Löschbefehl -- nähme jedes Speichern einer wiki-losen Region die
 		// Zuweisung zurück, die V6c „Label zuweisen" von Hand gesetzt hat.
-		const regionWikiKey = String(effectiveWikiRegion()?.wiki_key || "").trim();
+		const regionWikiKey = String(s.wiki?.wiki_key || "").trim();
 		const labelWikiKey = String(label.wikiRegion?.wiki_key || "");
 		const wikiNeedsPush = regionWikiKey !== "" && regionWikiKey !== labelWikiKey;
-		const wikiEntfernt = pendingWikiRegion === null && labelWikiKey !== "";
+		const wikiEntfernt = s.pendingWikiRegion === null && labelWikiKey !== "";
 
 		if (String(label.text || "") === String(name)
 			&& showName === (label.showName !== false)
@@ -2721,13 +2722,13 @@
 			&& nextSubtype === String(label.labelType || "")) {
 			return;                                  // Name, Anzeige, Nodix, Wiki und Art unverändert
 		}
-		const wikiSnapshot = wikiNeedsPush ? await currentRegionWikiSnapshot() : null;
+		const wikiSnapshot = wikiNeedsPush ? await currentRegionWikiSnapshot(s.wiki) : null;
 
 		// 🔴 Der Subtyp des Labels folgt der ART der Region -- ein Wald soll auch wie ein Waldlabel
 		// aussehen. Und NUR wenn er sich dabei wirklich ändert, kommt die Darstellung dieser Art mit
 		// (Größe, Ab-Zoom, gemessen am Bestand). Sonst behält das Label, was der Editor eingestellt hat:
 		// ein blosses Umbenennen darf keine Handarbeit zurücksetzen.
-		const subtype = String(propertiesElement("type")?.value || "") || label.labelType || "region";
+		const subtype = s.regionType || label.labelType || "region";
 		const typeChanged = subtype !== String(label.labelType || "");
 		const style = typeof ecosystemLabelStyleFor === "function" ? ecosystemLabelStyleFor(subtype) : null;
 
@@ -2763,28 +2764,45 @@
 
 	// ---- speichern und löschen ------------------------------------------------------------------------
 
+	/**
+	 * Was ein „Speichern" schreibt, EINMAL gelesen -- im Augenblick des Klicks, vor dem ersten `await`.
+	 *
+	 * 💣 DAS FENSTER HAT ZWEI HAELFTEN, UND „Speichern" SCHICKT BEIDE GLEICHZEITIG AB
+	 * (avesmapsLandschaftDialogSpeichern). Name, Art, Anzeige- und Nodix-Haken stehen im GEMEINSAMEN
+	 * Kopf und gehoeren per `form=` dem Beschriftungsformular. Ist dessen Speichern zuerst fertig,
+	 * schliesst es das Fenster und setzt sein Formular zurueck (`resetLabelEditForm` ->
+	 * `form.reset()`): das Namensfeld wird leer, die Art steht auf „region", die Haken fallen.
+	 * Diese Haelfte las bis zum 27.09.2026 NACH ihrem ersten `await` (Gelaende, dann `update_region`)
+	 * -- und fand dann „Bitte einen Namen eingeben." in einem laengst geschlossenen Fenster, oder
+	 * schrieb „ausgeblendet" und „region" an die eigene Beschriftung. Die Wiki-Zuweisung der Flaeche
+	 * kam nie an (gemeldet am „Hochmoor von Waskir", 27.09.2026).
+	 * 🔴 Wer hier einen Wert ergaenzt, den das Speichern NACH einem `await` braucht, liest ihn HIER.
+	 */
+	function speicherStandLesen() {
+		const anzeigeBox = propertiesElement("showname");
+		const nodixBox = propertiesElement("nodix");
+		return {
+			flaeche: String(propertiesSourcePublicId || ""),
+			name: String(propertiesElement("name")?.value || "").trim(),
+			regionType: String(propertiesElement("type")?.value || ""),
+			offeneLabelId: String(document.getElementById("label-edit-public-id")?.value || ""),
+			anzeigen: anzeigeBox ? { checked: Boolean(anzeigeBox.checked), disabled: Boolean(anzeigeBox.disabled) } : null,
+			nodix: nodixBox ? { checked: Boolean(nodixBox.checked), disabled: Boolean(nodixBox.disabled) } : null,
+			pendingWikiRegion,
+			wiki: effectiveWikiRegion(),
+		};
+	}
+
 	async function submitEcosystemPropertiesDialog(event) {
 		event?.preventDefault();
 		const area = currentPropertiesArea();
 		if (propertiesBusy || terrainSaving || !area) {
 			return;
 		}
-		// 🔴 KEIN eigener Geländeknopf mehr (Owner 2026-07-28): „ich will kein extra button ‚Gelände
-		// speichern' sondern, dass das gelände gespeichert wird, wenn ich unten auf ‚Speichern' klick."
-		//
-		// 🪤 VOR den Regionsfeldern, und nur wenn wirklich an einem Regler gedreht wurde. Die Reihenfolge
-		// ist bewusst: das Gelände hängt an der FLÄCHE und eigener Aktion, die Felder darunter an der
-		// REGION -- scheitert das Gelände, sagt seine eigene Statuszeile das, und der Rest läuft weiter,
-		// statt eine halb gespeicherte Fläche zu hinterlassen.
-		if (TERRAIN_FIELDS.some((feld) => terrainTouched[feld.key])) {
-			const generation = terrainSaveGeneration + 1;
-			await saveTerrainSettings(false);
-			if (generation !== terrainSaveGeneration || currentPropertiesArea() !== area) {
-				return;
-			}
-		}
-
-		const name = String(propertiesElement("name")?.value || "").trim();
+		// 💣 ERST LESEN, DANN WARTEN -- siehe speicherStandLesen. Der Rumpf unten entsteht deshalb
+		// vollstaendig VOR dem Gelaende, nicht mehr dahinter.
+		const stand = speicherStandLesen();
+		const name = stand.name;
 		if (name === "") {
 			setPropertiesError("Bitte einen Namen eingeben.");
 			propertiesElement("name")?.focus();
@@ -2794,7 +2812,7 @@
 		const payload = {
 			public_id: area.region_public_id,
 			name,
-			region_type: String(propertiesElement("type")?.value || ""),
+			region_type: stand.regionType,
 		};
 		// Die Klick-Sperre (19.08.2026). Sie geht über DIESE Speicherleiste und nicht über einen
 		// eigenen Aufruf daneben: der Dialog schreibt Name, Anzeige, Nodix und Art ohnehin in einem
@@ -2863,6 +2881,10 @@
 		// das seit dem 09.09.2026 nicht mehr je Oberfläche, sondern über den ganzen Baum:
 		// api/_internal/conflicts/__tests__/kein-wiki-eintrag-ist-weg-test.php, Abschnitt 6.
 
+		// Ob das Gelände mitgeht, steht ebenfalls JETZT fest -- der Merker gehört dieser Fläche
+		// (renderTerrainControls setzt ihn bei jedem Aufbau zurück).
+		const gelaendeMit = TERRAIN_FIELDS.some((feld) => terrainTouched[feld.key]);
+
 		propertiesBusy = true;
 		setPropertiesError("");
 		setPropertiesStatus("Wird gespeichert …");
@@ -2872,6 +2894,23 @@
 		}
 
 		try {
+			// 🔴 KEIN eigener Geländeknopf mehr (Owner 2026-07-28): „ich will kein extra button ‚Gelände
+			// speichern' sondern, dass das gelände gespeichert wird, wenn ich unten auf ‚Speichern' klick."
+			//
+			// 🪤 VOR den Regionsfeldern, und nur wenn wirklich an einem Regler gedreht wurde. Die Reihenfolge
+			// ist bewusst: das Gelände hängt an der FLÄCHE und eigener Aktion, die Felder darunter an der
+			// REGION -- scheitert das Gelände, sagt seine eigene Statuszeile das, und der Rest läuft weiter,
+			// statt eine halb gespeicherte Fläche zu hinterlassen.
+			// 💣 UND DANACH GEHT ES WEITER, OHNE STILLEN AUSSTIEG. Hier stand bis zum 27.09.2026
+			// `if (generation !== terrainSaveGeneration || currentPropertiesArea() !== area) return;` --
+			// ohne Meldung. Beides trat im NORMALFALL ein: das Gelände braucht Sekunden (Speichern,
+			// Höhenraster im Worker, Hochladen), die Beschriftungs-Hälfte ist in der Zeit fertig, schliesst
+			// das Fenster und stösst über ihren Rückweg ein Nachladen der Flächen an -- danach ist
+			// `currentPropertiesArea()` ein NEUES Objekt. Der Rumpf steht seit demselben Tag vollständig
+			// fest, bevor hier gewartet wird; was „Speichern" gedrückt hat, wird geschrieben.
+			if (gelaendeMit) {
+				await saveTerrainSettings(false);
+			}
 			const antwort = await postEcosystemEdit("update_region", payload);
 			// 🔴 DIE BESCHRIFTUNGEN, DIE DER SERVER NACHGEZOGEN HAT, SOFORT AUF DIE KARTE (Owner
 			// 03.09.2026, „Lawaralîr"/„Cronwald"): die Zuweisung geerbt oder -- beim ausdruecklichen
@@ -2917,7 +2956,12 @@
 			// ⚠️ Geleert, sobald der Stempel gesetzt ist -- sonst nennte das NÄCHSTE Speichern dieselben
 			// Felder noch einmal als Wiki-Übernahme, und wer inzwischen von Hand getippt hat, bekäme
 			// „aus dem Wiki“ auf seine eigene Eingabe.
-			wikiUebernommen = new Set();
+			// 🔴 Nur, solange das Fenster noch DIESE Fläche zeigt: wer während des Speicherns schon die
+			// nächste geöffnet hat, dessen Merkliste gehört ihm (geschlossen leert sie das Schliessen selbst).
+			const nochDieseFlaeche = String(propertiesSourcePublicId || "") === stand.flaeche;
+			if (nochDieseFlaeche) {
+				wikiUebernommen = new Set();
+			}
 			// Den geladenen Bestand und den Zähler in der Leiste nachziehen. Über das Nachbarmodul,
 			// damit dieser Datei kein zweiter Schreib- und Zählweg gehört.
 			if (payload.is_locked !== undefined) {
@@ -2935,16 +2979,20 @@
 			if (beschriftungenGehen) {
 				entfernt = await entferneBeschriftungenDerRegion(area);
 			} else {
-				await renameLinkedEcosystemLabel(area, name);
+				// 💣 MIT DEM STAND DES KLICKS, nie mit dem Formular von jetzt (speicherStandLesen).
+				await renameLinkedEcosystemLabel(area, name, stand);
 				// Und die ÜBRIGEN Labels derselben Fläche: das primäre hat die Zeile darüber schon nachgezogen.
 				await applyRegionToLabels(
 					area,
 					name,
-					String(propertiesElement("type")?.value || "") || "region",
+					stand.regionType || "region",
 					String(area.label_public_id || "")
 				);
 			}
-			closeEcosystemPropertiesDialog();
+			// Nur das eigene Fenster schliessen -- zeigt es inzwischen eine andere Fläche, bleibt es offen.
+			if (String(propertiesSourcePublicId || "") === stand.flaeche) {
+				closeEcosystemPropertiesDialog();
+			}
 			await refreshAfterEcosystemPropertiesWrite();
 			if (typeof showFeedbackToast === "function") {
 				// 🔴 Was weg ist, wird GESAGT. Eine stillschweigend geloeschte Beschriftung ist genau
@@ -2954,8 +3002,16 @@
 					: `Region „${name}" gespeichert.`, "success");
 			}
 		} catch (error) {
-			setPropertiesError(error?.message || "Die Region konnte nicht gespeichert werden.");
+			const meldung = error?.message || "Die Region konnte nicht gespeichert werden.";
+			setPropertiesError(meldung);
 			setPropertiesStatus("");
+			// 🔴 IST DAS FENSTER SCHON ZU, SAGT ES EIN TOAST. Die Beschriftungs-Hälfte schliesst es, sobald
+			// ihr eigenes Speichern fertig ist -- eine Fehlerzeile in einem geschlossenen Fenster liest
+			// niemand, und „Label gespeichert." davor läse sich wie ein vollständiger Erfolg.
+			if ((!isEcosystemPropertiesDialogOpen() || String(propertiesSourcePublicId || "") !== stand.flaeche)
+				&& typeof showFeedbackToast === "function") {
+				showFeedbackToast(`Region „${name}" nicht gespeichert: ${meldung}`, "error");
+			}
 		} finally {
 			propertiesBusy = false;
 			if (saveButton) {

@@ -2129,7 +2129,10 @@ function wireEditBlocks(host) {
 		};
 
 		const wikiAssignZuweisen = (treffer) => {
-			const roh = (treffer && treffer.roh) || {};
+			// 💣 Ein Treffer ohne Adresse wird ABGELEHNT (Wurf, das Bauteil sagt den Grund am Klick):
+			// hier schriebe das Speichern sonst `wiki_url: ""` und LOESCHTE eine bestehende Zuweisung.
+			// Dieselbe Regel wie im Flaechendialog der Karte, EINMAL gebaut.
+			const roh = avesmapsWikiAssignLandschaftTrefferMitAdresse(treffer && treffer.roh);
 			wikiStand = {
 				wiki_key: String(roh.wiki_key || ""),
 				wiki_url: String(roh.wiki_url || ""),

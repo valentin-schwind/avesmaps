@@ -259,6 +259,35 @@ function avesmapsWikiAssignLandschaftTreffer(zeile, arten) {
 }
 
 /**
+ * Ein Treffer OHNE Adresse wird ABGELEHNT -- durch einen Wurf, nie durch ein stilles `return`.
+ *
+ * 💣 DIE FLAECHE SPEICHERT NUR DIE ADRESSE (`wiki_url`), den Schluessel leitet der Server daraus ab.
+ * Ein adressloser Treffer waere beim Speichern also nichts (der Flaechendialog schickt dann keine
+ * `wiki_url`) oder eine LOESCHUNG (das Editorfenster schickte `wiki_url: ""` ueber eine bestehende
+ * Zuweisung) -- gemeldet am 10.09.2026 bei Dirak („erst beim 3.-4. Mal").
+ * 🔴 UND DER WURF IST TRAGEND: der Flaechendialog wies den Treffer bis zum 27.09.2026 mit
+ * `setPropertiesError(...); return;` ab. Das Bauteil liest ein AUFGELOESTES `zuweisen` aber als
+ * „zugewiesen" (Vertrag im Kopf von js/ui/wiki-assign.js) und malte den Artikel samt „Noch nicht
+ * gespeichert" -- waehrend die Fehlermeldung im Reiter „Fläche" stand, den im Reiter „Wiki &
+ * Quellen" niemand sieht. „Speichern" tat danach nichts an der Zuweisung. Abgelehnt sagt das
+ * Bauteil den Grund dort, wo geklickt wurde, und laesst den Kasten, wie er war.
+ * ⚠️ KEINE Adresse aus dem Schluessel bauen: die Gegenrichtung waere eine zweite Ableitung und
+ * braeche jeden Join (AGENTS.md §5).
+ * Zwei Aufrufer, eine Regel: map-features-ecosystem-properties.js und html/landschaften-editor.html.
+ *
+ * @param {Object|null} roh die rohe Suchzeile (`treffer.roh`)
+ * @returns {Object} dieselbe Zeile, wenn sie eine Adresse traegt
+ */
+function avesmapsWikiAssignLandschaftTrefferMitAdresse(roh) {
+	const zeile = roh || {};
+	if (avesmapsWikiAssignLandschaftText(zeile.wiki_url) === "") {
+		throw new Error("Dieser Treffer trägt keine Wiki-Adresse und kann deshalb nicht zugewiesen werden. "
+			+ "Bitte einen anderen Treffer wählen — oder die Wiki-Seite erst syncen.");
+	}
+	return zeile;
+}
+
+/**
  * REIN: die gespeicherte Zuweisung in die Artikel-Form des Bauteils. `null` heisst „nichts
  * zugewiesen" -- ein gueltiger Zustand, kein Fehler (origin='own': eine Flaeche, die es bei uns
  * gibt und im Wiki nicht).
@@ -572,6 +601,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsWikiAssignLandschaftArt: avesmapsWikiAssignLandschaftArt,
 		avesmapsWikiAssignLandschaftWerte: avesmapsWikiAssignLandschaftWerte,
 		avesmapsWikiAssignLandschaftTreffer: avesmapsWikiAssignLandschaftTreffer,
+		avesmapsWikiAssignLandschaftTrefferMitAdresse: avesmapsWikiAssignLandschaftTrefferMitAdresse,
 		avesmapsWikiAssignLandschaftArtikel: avesmapsWikiAssignLandschaftArtikel,
 		avesmapsWikiAssignLandschaftGespeichert: avesmapsWikiAssignLandschaftGespeichert,
 		avesmapsWikiAssignLandschaftZustand: avesmapsWikiAssignLandschaftZustand,
