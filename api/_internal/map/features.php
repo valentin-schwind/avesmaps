@@ -2040,11 +2040,20 @@ const AVESMAPS_GIPFELHOEHEN_KORREKTUREN = [
 
 // Trockenlauf ist die Vorgabe, wie bei jeder Admin-Aktion dieses Hauses (repair_crossing_type,
 // seehafen_aus_seewegen). Gematcht wird ausschliesslich ueber (feature_type='label',
-// feature_subtype='berggipfel', is_active=1, name=<Eintrag>) -- die Namens-Kollisionen, vor denen die
-// Recherche selbst warnt (gleichnamiges Herrenhaus/Ort/Baronie/Schloss/Siedlung), liegen alle in
-// ANDEREN feature_type/feature_subtype-Kombinationen und werden dadurch nie beruehrt. Traegt derselbe
-// Name mehrere Berggipfel-Labels oder keins, wird die Zeile uebersprungen und GEMELDET statt geraten
-// -- eine Bulk-Korrektur, die bei Mehrdeutigkeit eine beliebige Zeile trifft, ist keine Korrektur.
+// feature_subtype IN <Gipfel-Label-Familie>, is_active=1, name=<Eintrag>) -- die Namens-Kollisionen,
+// vor denen die Recherche selbst warnt (gleichnamiges Herrenhaus/Ort/Baronie/Schloss/Siedlung), liegen
+// alle in ANDEREN feature_type-Werten (location, region) und werden dadurch nie beruehrt. Traegt
+// derselbe Name mehrere passende Labels oder keins, wird die Zeile uebersprungen und GEMELDET statt
+// geraten -- eine Bulk-Korrektur, die bei Mehrdeutigkeit eine beliebige Zeile trifft, ist keine
+// Korrektur.
+//
+// 🔴 DIE FAMILIE IST BREITER ALS 'berggipfel' ALLEIN. Live-Gegenprobe 27.09.2026: "Ceälan" war schon
+// vor dieser Korrektur ein 'vulkan'-Label (nicht mehr 'berggipfel') und blieb bei einem Filter auf
+// genau 'berggipfel' unauffindbar, obwohl nur seine Hoehe noch fehlte -- die Forschungsmomentaufnahme
+// war fuer die ART bereits ueberholt. Gematcht wird deshalb ueber avesmapsReadLabelSubtype()s eigene
+// "Familie von Berggipfel und Vulkan" (berggipfel, vulkan, felsformation, huegel, bergkette); eine
+// gleichnamige LANDSCHAFTSFLAECHE (feature_type='region', z.B. eine Insel namens "Ceälan") bleibt ueber
+// den feature_type-Filter aussen vor -- sie traegt kein height_schritt und gehoert nicht hierher.
 //
 // Anders als repair_crossing_type ist diese Aktion ueber "Rueckgaengig" im Fenster "Aenderungen"
 // aufhebbar (avesmapsUndoColumnsForAuditAction): es ist keine Reparatur einer Beschaedigung, sondern
@@ -2055,7 +2064,7 @@ function avesmapsRepairPeakHeights(PDO $pdo, array $user, bool $trockenlauf = tr
         "SELECT id, public_id, name, feature_subtype, properties_json, is_active
         FROM map_features
         WHERE feature_type = 'label'
-          AND feature_subtype = 'berggipfel'
+          AND feature_subtype IN ('berggipfel', 'vulkan', 'felsformation', 'huegel', 'bergkette')
           AND is_active = 1
           AND name = :name"
     );

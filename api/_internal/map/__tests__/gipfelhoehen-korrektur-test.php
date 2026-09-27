@@ -78,7 +78,11 @@ $punkt = json_encode(['type' => 'Point', 'coordinates' => [463.156, 451.156]]);
  *  - Torbelstein:     ZWEI gleichnamige Berggipfel-Labels -> mehrdeutig, keins wird angefasst.
  *  - Zwanfirszahn:    ein aktiver Treffer (ohne Hoehenwert im Nest) PLUS ein inaktiver Namensvetter
  *                      im Papierkorb -- der inaktive darf weder mitzaehlen noch mitgeschrieben werden.
- * Die uebrigen 19 Namen der Tabelle bleiben ungesetzt und muessen als "nicht gefunden" zurueckkommen.
+ *  - Ceälan:          bereits ein 'vulkan'-Label (NICHT mehr 'berggipfel') NEBEN einer gleichnamigen
+ *                      Landschaftsflaeche (feature_type='region', eine Insel) -- der Live-Befund vom
+ *                      27.09.2026: die Forschungsmomentaufnahme war fuer die ART schon ueberholt, nur
+ *                      die Hoehe fehlte noch. Die Flaeche darf nie als Kollision zaehlen.
+ * Die uebrigen 18 Namen der Tabelle bleiben ungesetzt und muessen als "nicht gefunden" zurueckkommen.
  */
 $seed = static function (PDO $pdo) use ($punkt): void {
     $pdo->exec('DELETE FROM map_features');
@@ -114,6 +118,16 @@ $seed = static function (PDO $pdo) use ($punkt): void {
         json_encode(['name' => 'Zwanfirszahn', 'feature_type' => 'label', 'feature_subtype' => 'berggipfel']), 1]);
     $insert->execute(['66666666-cccc-4666-8666-666666666666', 'Zwanfirszahn', 'label', 'berggipfel', 'Point', $punkt,
         json_encode(['name' => 'Zwanfirszahn', 'feature_type' => 'label', 'feature_subtype' => 'berggipfel', 'height_schritt' => 5000.0]), 0]);
+
+    // Ceälan: bereits 'vulkan' (kein 'berggipfel' mehr) -- die Familie muss ueber avesmapsReadLabelSubtype()s
+    // Berggipfel/Vulkan-Verwandtschaft gehen, nicht ueber 'berggipfel' allein.
+    $insert->execute(['77777777-7777-4777-8777-777777777777', 'Ceälan', 'label', 'vulkan', 'Point', $punkt,
+        json_encode(['name' => 'Ceälan', 'feature_type' => 'label', 'feature_subtype' => 'vulkan', 'height_schritt' => 5000.0]), 1]);
+    // Die gleichnamige Landschaftsflaeche (Insel) -- ein REGION-Objekt, kein Label, traegt kein
+    // height_schritt und darf nie als Kollision zaehlen.
+    $insert->execute(['77777777-dddd-4777-8777-777777777777', 'Ceälan', 'region', 'insel', 'Polygon',
+        json_encode(['type' => 'Polygon', 'coordinates' => [[[584.0, 680.0], [585.0, 680.0], [585.0, 682.0], [584.0, 682.0], [584.0, 680.0]]]]),
+        json_encode(['name' => 'Ceälan', 'feature_type' => 'region', 'feature_subtype' => 'insel']), 1]);
 };
 
 $zeileVon = static function (PDO $pdo, string $publicId): array {
@@ -152,13 +166,15 @@ $trocken = avesmapsRepairPeakHeights($pdo, $user, true);
 
 assert($trocken['dry_run'] === true, '1: der Trockenlauf meldet sich als solcher');
 $checks++;
-assert($trocken['gefunden'] === 5, '1: fuenf eindeutige Treffer (ist: ' . $trocken['gefunden'] . ')');
+assert($trocken['gefunden'] === 6, '1: sechs eindeutige Treffer (ist: ' . $trocken['gefunden'] . ')');
 $checks++;
 assert($trocken['repariert'] === 0, '1: der Trockenlauf schreibt nichts');
 $checks++;
 assert($trocken['mehrdeutig'] === ['Torbelstein'], '1: Torbelstein ist als mehrdeutig gemeldet');
 $checks++;
-assert(count($trocken['nicht_gefunden']) === 19, '1: die uebrigen 19 Namen sind nicht gefunden (ist: ' . count($trocken['nicht_gefunden']) . ')');
+assert(count($trocken['nicht_gefunden']) === 18, '1: die uebrigen 18 Namen sind nicht gefunden (ist: ' . count($trocken['nicht_gefunden']) . ')');
+$checks++;
+assert(!in_array('Ceälan', $trocken['nicht_gefunden'], true), '1: Ceälan steht nicht unter "nicht gefunden" -- die Familie reicht ueber "berggipfel" hinaus');
 $checks++;
 assert(!in_array('Bassenhorn', $trocken['nicht_gefunden'], true), '1: Bassenhorn steht nicht unter "nicht gefunden"');
 $checks++;
@@ -170,14 +186,14 @@ $zeile = $zeileVon($pdo, '11111111-1111-4111-8111-111111111111');
 assert((float) json_decode((string) $zeile['properties_json'], true)['height_schritt'] === 5000.0, '1: Bassenhorn steht im Trockenlauf unveraendert da');
 $checks++;
 
-// ---- 2) SCHARF: repariert genau die fuenf eindeutigen Treffer -----------------------------------
+// ---- 2) SCHARF: repariert genau die sechs eindeutigen Treffer ------------------------------------
 
 $seed($pdo);
 $scharf = avesmapsRepairPeakHeights($pdo, $user, false);
 
 assert($scharf['dry_run'] === false, '2: der scharfe Lauf meldet sich als solcher');
 $checks++;
-assert($scharf['repariert'] === 5, '2: fuenf Zeilen repariert (ist: ' . $scharf['repariert'] . ')');
+assert($scharf['repariert'] === 6, '2: sechs Zeilen repariert (ist: ' . $scharf['repariert'] . ')');
 $checks++;
 
 $bassenhorn = json_decode((string) $zeileVon($pdo, '11111111-1111-4111-8111-111111111111')['properties_json'], true);
@@ -227,22 +243,36 @@ $checks++;
 assert((int) $zwanfirszahnInaktiv['is_active'] === 0, '2: und bleibt inaktiv');
 $checks++;
 
-// ---- 3) Kartenrevision: EINMAL gebumpt, alle fuenf reparierten Zeilen tragen sie ----------------
+// Ceälan: das bereits umgetypte Vulkan-Label bekommt seine Hoehe, die Art bleibt Vulkan (Vorschlag
+// nennt keine Aenderung). Die gleichnamige Landschaftsflaeche bleibt Zeichen fuer Zeichen unberuehrt.
+$ceaelan = $zeileVon($pdo, '77777777-7777-4777-8777-777777777777');
+assert($ceaelan['feature_subtype'] === 'vulkan', '2: Ceälan bleibt ein Vulkan');
+$checks++;
+$ceaelanNest = json_decode((string) $ceaelan['properties_json'], true);
+assert((float) $ceaelanNest['height_schritt'] === 300.0, '2: Ceälan traegt jetzt 300 Schritt');
+$checks++;
+$ceaelanFlaeche = $zeileVon($pdo, '77777777-dddd-4777-8777-777777777777');
+assert($ceaelanFlaeche['feature_type'] === 'region' && $ceaelanFlaeche['feature_subtype'] === 'insel', '2: die gleichnamige Insel-Flaeche bleibt eine Region');
+$checks++;
+assert((int) $ceaelanFlaeche['revision'] === 3, '2: und ihre Revision aendert sich nicht (Ausgangswert 3)');
+$checks++;
+
+// ---- 3) Kartenrevision: EINMAL gebumpt, alle sechs reparierten Zeilen tragen sie ----------------
 
 $revision = (int) $pdo->query('SELECT revision FROM map_revision WHERE id = 1')->fetchColumn();
 assert($revision > 0, '3: die Kartenrevision wurde gebumpt');
 $checks++;
 assert($scharf['revision'] === $revision, '3: der Lauf meldet die Revision, die er gesetzt hat');
 $checks++;
-assert($revision === 2, '3: genau EIN Bump fuer alle fuenf Zeilen (ist: ' . $revision . ')');
+assert($revision === 2, '3: genau EIN Bump fuer alle sechs Zeilen (ist: ' . $revision . ')');
 $checks++;
-foreach (['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-444444444444', '66666666-6666-4666-8666-666666666666'] as $id) {
+foreach (['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-444444444444', '66666666-6666-4666-8666-666666666666', '77777777-7777-4777-8777-777777777777'] as $id) {
     assert((int) $zeileVon($pdo, $id)['revision'] === $revision, '3: reparierte Zeile traegt die neue Revision (' . $id . ')');
     $checks++;
 }
 // Die Unbeteiligten behalten ihren Ausgangswert 3 -- eine Reparatur, die zu viel anfasst, ist
 // schlimmer als der Fehler.
-foreach (['55555555-5555-4555-8555-555555555555', '55555555-bbbb-4555-8555-555555555555', '66666666-cccc-4666-8666-666666666666'] as $id) {
+foreach (['55555555-5555-4555-8555-555555555555', '55555555-bbbb-4555-8555-555555555555', '66666666-cccc-4666-8666-666666666666', '77777777-dddd-4777-8777-777777777777'] as $id) {
     assert((int) $zeileVon($pdo, $id)['revision'] === 3, '3: unbeteiligte Zeile behaelt ihre alte Revision (' . $id . ')');
     $checks++;
 }
@@ -250,7 +280,7 @@ foreach (['55555555-5555-4555-8555-555555555555', '55555555-bbbb-4555-8555-55555
 // ---- 4) Das Protokoll: je reparierter Zeile ein Eintrag, mit dem Stand davor --------------------
 
 $eintraege = $pdo->query("SELECT feature_id, action, actor_user_id, before_json, after_json FROM map_audit_log ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
-assert(count($eintraege) === 5, '4: fuenf Protokolleintraege (ist: ' . count($eintraege) . ')');
+assert(count($eintraege) === 6, '4: sechs Protokolleintraege (ist: ' . count($eintraege) . ')');
 $checks++;
 foreach ($eintraege as $eintrag) {
     assert($eintrag['action'] === 'repair_peak_heights', '4: unter eigenem Namen protokolliert');
