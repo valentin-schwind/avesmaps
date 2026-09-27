@@ -231,8 +231,12 @@ function avesmapsBuildSettlementLocationIndex(array $rows): array
  * gehoert, faellt heraus -- gefiltert wird mit GENAU der Menge der Punkt-Artikel, nie mit allen
  * Kartenpunkten (sonst verschwaende jede Staette, deren Artikel irgendwo auf der Karte liegt).
  * ⚠️ Punkte untereinander werden NICHT entdoppelt: jeder ist ein eigener Datensatz mit eigenem `⊕`
- * (zwei gleichnamige Tempel sind zwei Tempel). Gegenueber gespeicherten und abgeleiteten Zeilen gilt
- * der Name wie bisher -- ein Punkt verdraengt sie, nie umgekehrt.
+ * (zwei gleichnamige Tempel sind zwei Tempel). Gegenueber gespeicherten und abgeleiteten Zeilen
+ * verdraengt ein Punkt eine gleichnamige Zeile IN SEINER STADT, nie umgekehrt.
+ * 🔴 NAME UND STADT, nicht der Name allein (M4 der Gesamtpruefung): der Tempel-Punkt in Gareth darf
+ * den gespeicherten „Tempel" in Punin nicht verschlucken -- das sind zwei Staetten zweier Staedte. Die
+ * gespeicherten und abgeleiteten Zeilen UNTEREINANDER entdoppeln weiter nach dem Namen allein (die
+ * Regel von 02.09.2026, unveraendert).
  *
  * @param list<array{name:string, settlement:string, type:string, wiki_url:string}> $storedPlaces
  * @param list<array{name:string, settlement:string, type:string, wiki_url:string, public_id:string, auf_der_karte:bool}> $innerortsPunkte
@@ -242,6 +246,11 @@ function avesmapsBuildInSettlementPlaceList(array $registryRows, array $scopeInd
 {
     $places = [];
     $seen = [];
+    // Die Punkte merken sich NAME + STADT (M4) -- siehe Docblock. Die Stadt gefaltet wie der
+    // Klassifikator, weil die abgeleitete Zeile ihre Stadt aus dem Wiki-Text liest, der Punkt aus dem
+    // Kartennamen.
+    $punktGesehen = [];
+    $punktSchluessel = static fn(string $name, string $stadt): string => $name . "\x1F" . avesmapsPlaceScopeFoldName($stadt);
 
     $punktArtikel = [];
     foreach ($innerortsPunkte as $punkt) {
@@ -255,7 +264,7 @@ function avesmapsBuildInSettlementPlaceList(array $registryRows, array $scopeInd
             continue;
         }
 
-        $seen[$name] = true;
+        $punktGesehen[$punktSchluessel($name, $settlement)] = true;
         $places[] = [
             'name' => $name,
             'settlement' => $settlement,
@@ -272,7 +281,7 @@ function avesmapsBuildInSettlementPlaceList(array $registryRows, array $scopeInd
     foreach ($storedPlaces as $storedPlace) {
         $name = trim((string) ($storedPlace['name'] ?? ''));
         $settlement = trim((string) ($storedPlace['settlement'] ?? ''));
-        if ($name === '' || $settlement === '' || isset($seen[$name])) {
+        if ($name === '' || $settlement === '' || isset($seen[$name]) || isset($punktGesehen[$punktSchluessel($name, $settlement)])) {
             continue;
         }
 
@@ -294,6 +303,9 @@ function avesmapsBuildInSettlementPlaceList(array $registryRows, array $scopeInd
         $scope = avesmapsPlaceScopeClassifyWithIndex((string) ($registryRow['raw'] ?? ''), $scopeIndex);
         if ($scope['scope'] !== AVESMAPS_PLACE_SCOPE_INSIDE || $scope['settlement'] === '') {
             continue;
+        }
+        if (isset($punktGesehen[$punktSchluessel($title, (string) $scope['settlement'])])) {
+            continue; // ein Punkt DERSELBEN Stadt traegt diesen Namen schon
         }
 
         $seen[$title] = true;

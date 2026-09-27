@@ -1023,6 +1023,15 @@ $(document).on("click", ".innerorts-sprung", function (event) {
  * Iframe heraus ueber `parent.avesmapsSpringeZuInnerortsPunkt(...)` erreichbar bleibt -- dasselbe
  * Muster wie bei den anderen window.parent.start…-Aufrufen dieses Hauses.
  *
+ * 💣 NICHT `markerEntry.marker.openPopup()`. Ortspunkte liegen als Leinwand-Marker
+ * (LOCATION_CANVAS_MARKERS_ENABLED) und die Infobox steht im Infopanel -- der Leaflet-Marker haengt
+ * gar nicht an der Karte, und `openPopup()` tut an ihm STILL nichts: die Karte flog hin, die Infobox
+ * blieb zu (Befund der Gesamtpruefung). Der Hausweg ist derselbe wie beim Spotlight-Treffer
+ * (focusSpotlightLocation, js/ui/spotlight-search-focus.js): Zoom aus dem Zoomband, `flyTo`, dann
+ * `openLocationPopupForMarkerEntry(…, { pan: false })` -- der Trichter fuer Infopanel,
+ * Leinwand-Marker und das Aufdecken verborgener Orte (map-features-location-lookup.js). Beide sind
+ * Besucher-Skripte; der Sprung braucht keinen Editor-Code.
+ *
  * @returns {boolean} true, wenn der Punkt gefunden und angesprungen wurde.
  */
 function avesmapsSpringeZuInnerortsPunkt(publicId) {
@@ -1032,10 +1041,16 @@ function avesmapsSpringeZuInnerortsPunkt(publicId) {
 	}
 	const latlng = markerEntry.marker.getLatLng();
 	if (typeof map !== "undefined" && map && typeof map.flyTo === "function") {
-		map.flyTo(latlng, Math.max(typeof map.getZoom === "function" ? map.getZoom() : 4, 4), { duration: 0.6 });
+		// Dieselbe Zoomregel wie der Spotlight-Treffer (getSpotlightLocationZoom): weit genug hinein,
+		// dass der Punkt seinen Namen traegt -- die Stufe kommt aus dem Zoomband, nie eine feste Zahl.
+		const zielZoom = typeof getSpotlightLocationZoom === "function"
+			? getSpotlightLocationZoom(markerEntry)
+			: Math.max(typeof map.getZoom === "function" ? map.getZoom() : 0, 4);
+		map.flyTo(latlng, zielZoom, { duration: 0.6 });
 	}
-	if (typeof markerEntry.marker.openPopup === "function") {
-		markerEntry.marker.openPopup();
+	if (typeof openLocationPopupForMarkerEntry === "function") {
+		// Wie focusSpotlightLocation: erst nach dem Start des Flugs, ohne eigenes Schwenken.
+		window.setTimeout(() => openLocationPopupForMarkerEntry(markerEntry, { pan: false }), 0);
 	}
 	return true;
 }

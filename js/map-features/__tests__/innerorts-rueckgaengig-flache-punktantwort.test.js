@@ -145,6 +145,85 @@ function testExplizitesLoesenBleibtLoesen() {
 	console.log("Ausdrückliches Lösen bleibt Lösen: OK");
 }
 
+// M8 der Gesamtpruefung: „Rückgängig" von take_off_map/put_on_map zieht die Staettenliste
+// (`window.avesmapsInSettlementPlaces`, Eintrag `auf_der_karte`) und den Staetten-Index nach -- an
+// der Stelle, an der die Punktantwort ankommt, nicht im Aenderungsverlauf selbst.
+function testRueckgaengigVonPutOnMapNimmtDenPunktAusDerListe() {
+	const sandbox = ladeSandbox();
+	let aufgefrischt = 0;
+	sandbox.window.avesmapsRefreshInfopanel = () => { aufgefrischt += 1; };
+	sandbox.window.avesmapsStaettenIndex = "alt";
+	sandbox.window.avesmapsInSettlementPlaces = [
+		{ public_id: "pid-neu-gareth", name: "Neu-Gareth", settlement: "Gareth", auf_der_karte: true },
+		{ public_id: "pid-anderer", name: "Anderer", settlement: "Gareth", auf_der_karte: true },
+	];
+	const markerEntry = {
+		name: "Neu-Gareth", publicId: "pid-neu-gareth", locationType: "stadtviertel",
+		marker: {}, location: { innerorts: { ort: "pid-gareth" } },
+	};
+	sandbox.locationMarkers = [markerEntry];
+	sandbox.locationData = [markerEntry.location];
+	sandbox.map.removeLayer = () => {};
+
+	// „Rückgängig" von put_on_map: der Punkt ist wieder inaktiv -> avesmapsBuildFeatureResponseFromStoredFeature
+	// antwortet mit `deleted: true`.
+	const angewendet = sandbox.applyMapFeatureEditResult({ feature: { deleted: true, public_id: "pid-neu-gareth" } });
+	assert.strictEqual(angewendet, true);
+	assert.strictEqual(sandbox.locationMarkers.length, 0, "der Marker ist von der Karte");
+	assert.strictEqual(sandbox.window.avesmapsInSettlementPlaces[0].auf_der_karte, false,
+		"der Eintrag der Staettenliste steht wieder auf „nicht auf der Karte“");
+	assert.strictEqual(sandbox.window.avesmapsInSettlementPlaces[1].auf_der_karte, true, "der unbeteiligte Eintrag bleibt");
+	assert.strictEqual(sandbox.window.avesmapsStaettenIndex, null, "der Staetten-Index ist verworfen");
+	assert.strictEqual(aufgefrischt, 1, "das Infopanel wurde einmal aufgefrischt");
+	console.log("Rückgängig von put_on_map zieht die Stättenliste nach: OK");
+}
+
+function testRueckgaengigVonTakeOffMapHoltDenPunktZurueck() {
+	const sandbox = ladeSandbox();
+	let aufgefrischt = 0;
+	sandbox.window.avesmapsRefreshInfopanel = () => { aufgefrischt += 1; };
+	sandbox.window.avesmapsStaettenIndex = "alt";
+	sandbox.window.avesmapsInSettlementPlaces = [
+		{ public_id: "pid-neu-gareth", name: "Neu-Gareth", settlement: "Gareth", auf_der_karte: false },
+	];
+	// Der Punkt hat keinen Marker (er war von der Karte) -- applyLiveLocationFeature legt ihn neu an.
+	const angelegt = [];
+	sandbox.createEditablePointMarkerEntry = (location) => ({
+		publicId: location.publicId, name: location.name, locationType: location.locationType, location,
+		marker: { openPopup() {}, isPopupOpen: () => false, setLatLng() {} },
+	});
+	sandbox.addLocationNameLabel = () => {};
+	sandbox.syncLocationMarkerVisibility = () => {};
+	sandbox.refreshLocationMarkerPopup = (entry) => angelegt.push(entry);
+
+	sandbox.applyMapFeatureEditResult({
+		feature: {
+			public_id: "pid-neu-gareth", name: "Neu-Gareth", feature_type: "location",
+			feature_subtype: "stadtviertel", location_type: "stadtviertel",
+			lat: 12, lng: 34, innerorts: { ort: "pid-gareth" }, revision: 101,
+		},
+	});
+	assert.strictEqual(angelegt.length, 1, "der Marker wurde neu angelegt");
+	assert.strictEqual(sandbox.window.avesmapsInSettlementPlaces[0].auf_der_karte, true,
+		"der Eintrag der Staettenliste steht wieder auf „auf der Karte“");
+	assert.strictEqual(sandbox.window.avesmapsStaettenIndex, null, "der Staetten-Index ist verworfen");
+	assert.strictEqual(aufgefrischt, 1);
+
+	// Ein zweiter, unveraenderter Abgleich desselben Punkts frischt NICHT noch einmal auf (Live-Abgleich
+	// laeuft fuer jeden Punkt -- sonst zeichnete jeder Abgleich das Infopanel je Punkt neu).
+	sandbox.window.avesmapsStaettenIndex = "neu gebaut";
+	sandbox.applyLiveLocationFeature({
+		type: "Feature", id: "pid-neu-gareth",
+		geometry: { type: "Point", coordinates: [34, 12] },
+		properties: { public_id: "pid-neu-gareth", name: "Neu-Gareth", feature_subtype: "stadtviertel", innerorts: { ort: "pid-gareth" } },
+	});
+	assert.strictEqual(aufgefrischt, 1, "kein zweites Auffrischen ohne Aenderung");
+	assert.strictEqual(sandbox.window.avesmapsStaettenIndex, "neu gebaut", "der Index bleibt, wenn sich nichts aendert");
+	console.log("Rückgängig von take_off_map zieht die Stättenliste nach: OK");
+}
+
 testMarkerBehaeltInnerortsNachRueckgaengig();
 testExplizitesLoesenBleibtLoesen();
+testRueckgaengigVonPutOnMapNimmtDenPunktAusDerListe();
+testRueckgaengigVonTakeOffMapHoltDenPunktZurueck();
 console.log("innerorts-rueckgaengig-flache-punktantwort: alle Zusicherungen erfüllt");

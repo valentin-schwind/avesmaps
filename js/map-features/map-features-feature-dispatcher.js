@@ -51,6 +51,13 @@ function removeLiveFeature(publicId) {
 		removeLocationNameLabel(markerEntry);
 		locationMarkers = locationMarkers.filter((entry) => entry !== markerEntry);
 		locationData = locationData.filter((location) => location !== markerEntry.location);
+		// Ein innerorts-Punkt, der die Karte verlaesst, ohne dass „Von der Karte nehmen" selbst lief
+		// (z. B. „Rückgängig" von put_on_map, oder die Geste eines anderen Editors im Live-Abgleich):
+		// die Staettenliste zieht nach (innerortsStaettenlisteNachziehen, location-editing.js). Nur ein
+		// Eintrag, der in der Liste steht, wird angefasst; jeder andere Punkt bleibt unberuehrt.
+		if (typeof innerortsStaettenlisteNachziehen === "function") {
+			innerortsStaettenlisteNachziehen(publicId, false);
+		}
 		return;
 	}
 

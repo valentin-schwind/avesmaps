@@ -307,5 +307,84 @@ const zaehl = () => { pruefungen += 1; };
 	assert.ok(!("innerorts_ort" in payloadNachReset));
 	zaehl();
 
+	// ── 7. WETTLAUF (M6 der Gesamtpruefung): die Antwort kommt NACH der Handlung des Editors ──────
+	// Die Antwort `innerorts_wiki_stand` darf Wahl und Herkunft nicht ueberschreiben -- nur den
+	// Wiki-Stand fuer die Beschriftung nachtragen.
+	const verzoegert = () => {
+		let loesen;
+		const antwortVersprechen = new Promise((r) => { loesen = r; });
+		global.fetch = (_url, options) => {
+			letzterFetchRumpf = JSON.parse(options.body);
+			return antwortVersprechen.then((daten) => ({ json: () => Promise.resolve(daten) }));
+		};
+		return loesen;
+	};
+	const garethAntwort = {
+		ok: true,
+		innerorts: {
+			wiki_stand: { public_id: "st-gareth", name: "Gareth", feature_subtype: "metropole" },
+			ort: { public_id: "st-gareth", name: "Gareth", feature_subtype: "metropole" },
+			herkunft: "wiki",
+			von_der_karte: false,
+		},
+	};
+
+	// 7a) Stadt gewaehlt, bevor die Antwort kam -> die Wahl bleibt, manual bleibt.
+	resetFelder();
+	felder["location-edit-type"].value = "stadtviertel";
+	alteBeschriftungszelle.innerHTML = "";
+	let loesen = verzoegert();
+	const montage7a = mod.mountLocationEditInnerorts();
+	await tick();
+	assert.ok(letzteTypeaheadCfg, "ohne Ort steht die Suche sofort bereit");
+	letzteTypeaheadCfg.onPick({ public_id: "st-punin", name: "Punin", subtype: "stadt" });
+	loesen(garethAntwort);
+	await montage7a;
+	await tick();
+	const form7 = { controls: [{ name: "public_id", value: "pt-neugareth", disabled: false }] };
+	const payload7a = mod.buildLocationEditPayload(form7);
+	assert.strictEqual(payload7a.innerorts_ort, "st-punin",
+		"die spaete Antwort hat die Wahl des Editors ueberschrieben: " + JSON.stringify(payload7a));
+	assert.ok(!("innerorts_wiki" in payload7a), "und die Herkunft auf wiki zurueckgesetzt");
+	const host7 = felder["location-edit-innerorts"];
+	assert.ok(host7.innerHTML.includes("Punin") && !host7.innerHTML.includes("<b>Gareth</b>"),
+		"das Feld zeigt weiter die gewaehlte Stadt: " + host7.innerHTML);
+	assert.ok(alteBeschriftungszelle.innerHTML.includes("Gareth"),
+		"der Wiki-Stand kommt trotzdem an -- durchgestrichen neben der Abweichung: " + alteBeschriftungszelle.innerHTML);
+	zaehl();
+
+	// 7b) ↺ gedrueckt, bevor die Antwort kam -> Herkunft bleibt wiki, das Feld zeigt danach den Wiki-Stand.
+	resetFelder();
+	felder["location-edit-type"].value = "stadtviertel";
+	loesen = verzoegert();
+	const montage7b = mod.mountLocationEditInnerorts();
+	await tick();
+	const reset7 = neu("button");
+	reset7.setAttribute("data-innerorts-reset", "1");
+	(dokumentZuhoerer.click || []).forEach((fn) => fn({ target: reset7, preventDefault() {} }));
+	loesen(Object.assign({}, garethAntwort, { innerorts: Object.assign({}, garethAntwort.innerorts, { ort: null, herkunft: "manual" }) }));
+	await montage7b;
+	await tick();
+	const payload7b = mod.buildLocationEditPayload(form7);
+	assert.strictEqual(payload7b.innerorts_wiki, true, "↺ vor der Antwort bleibt ↺: " + JSON.stringify(payload7b));
+	assert.ok(!("innerorts_ort" in payload7b), "die gespeicherte Herkunft (manual) der Antwort hat ↺ nicht ueberstimmt");
+	assert.ok(felder["location-edit-innerorts"].innerHTML.includes("<b>Gareth</b>"),
+		"das Feld zeigt den nachgetragenen Wiki-Stand: " + felder["location-edit-innerorts"].innerHTML);
+	zaehl();
+
+	// 7c) Gegenprobe: ohne Handlung uebernimmt die spaete Antwort Wahl und Herkunft wie bisher.
+	resetFelder();
+	felder["location-edit-type"].value = "stadtviertel";
+	loesen = verzoegert();
+	const montage7c = mod.mountLocationEditInnerorts();
+	await tick();
+	loesen(Object.assign({}, garethAntwort, { innerorts: Object.assign({}, garethAntwort.innerorts, {
+		ort: { public_id: "st-punin", name: "Punin", feature_subtype: "stadt" }, herkunft: "manual" }) }));
+	await montage7c;
+	await tick();
+	const payload7c = mod.buildLocationEditPayload(form7);
+	assert.strictEqual(payload7c.innerorts_ort, "st-punin", "ohne Handlung gilt der gespeicherte Stand: " + JSON.stringify(payload7c));
+	zaehl();
+
 	console.log("OK - " + pruefungen + " Zusicherungen (Innerorts in Ort bearbeiten)");
 })().catch((err) => { console.error(err); process.exit(1); });

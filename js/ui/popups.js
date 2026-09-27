@@ -42,7 +42,7 @@ const POPUP_ACTION_GLYPHS = {
 	zuruecksetzen: "↺",
 	// ⊖ „Von der Karte nehmen" -- ein innerorts-Punkt bleibt Staette seiner Stadt (Entwurf
 	// 2026-09-26-innerorts-praedikat-design.md §4.1). Bewusst NICHT ✕: das Zeichen gehoert dem
-	// Loeschen, und diese Geste ist umkehrbar (ueber „Rueckgaengig" im Aenderungsverlauf oder ●
+	// Loeschen, und diese Geste ist umkehrbar (ueber „Rueckgaengig" im Aenderungsverlauf oder ⦿
 	// im Staetten-Kasten). Gemessen im Browser: ○ zeichnet winzig (dieselbe Falle wie ⌖), ⊖/⊕
 	// (das Fadenkreuz aus dem Aenderungsverlauf) sind ein Paar gleicher Breite.
 	vonDerKarteNehmen: "⊖",
@@ -902,7 +902,13 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 		// „Von der Karte nehmen" -- NUR bei einem Punkt mit gesetztem "Innerorts" (Entwurf §4.1),
 		// und VOR "Ort löschen": sie ist die umkehrbare Handlung, "Ort löschen" die endgültige.
 		// Nicht rot (location-popup__action-button--danger) -- die Farbe gehört dem Unwiderruflichen.
-		if (location?.innerorts?.ort) {
+		// 🔴 UND nur bei einem Stadtviertel/Bauwerk: der Server verweigert die Geste an jeder anderen
+		// Ortsgroesse (avesmapsInnerortsVonDerKarteNehmen). Ein Marker, dessen Ortsgroesse gerade
+		// gewechselt hat, bevor sein `innerorts` nachkam, bekaeme sonst eine Kachel, die nur absagt.
+		// Die Frage „Bauwerk?" hat EINE Antwort im Browser (avesmapsIstBauwerksklasse, ortsklassen.js).
+		const istInnerortsKlasse = typeof avesmapsIstBauwerksklasse === "function"
+			&& avesmapsIstBauwerksklasse(location?.locationType);
+		if (location?.innerorts?.ort && istInnerortsKlasse) {
 			editorButtons.push(
 				popupActionButtonMarkup({
 					label: "Von der Karte nehmen",

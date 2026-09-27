@@ -26,7 +26,13 @@ const MARKER_ERZEUGER = [
 ];
 
 function rumpfOhneKommentare(quelle, funktion) {
-	const start = quelle.indexOf(funktion);
+	// 🪤 Die DEFINITION suchen, nicht das erste Vorkommen des Namens: ein Kommentar, der den Erzeuger
+	// nennt (z. B. der Kopf von innerortsStaettenlisteNachziehen), stand sonst VOR ihm, und der Test
+	// schnitt den Rumpf der falschen Funktion heraus.
+	const treffer = new RegExp("(?:^|\\n)(?:async\\s+)?(?:function\\s+|const\\s+)" + funktion + "\\b").exec(quelle);
+	// Ab dem NAMEN schneiden (wie bisher) -- ab dem Schluesselwort fiele das Ende-Muster darunter
+	// sofort auf die eigene Zeile.
+	const start = treffer ? treffer.index + treffer[0].length - funktion.length : -1;
 	if (start === -1) {
 		return null;
 	}

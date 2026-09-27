@@ -969,10 +969,22 @@ async function mountLocationEditInnerorts() {
 			return;
 		}
 		locationEditInnerortsWikiStand = daten.innerorts.wiki_stand || null;
-		locationEditInnerortsHerkunft = daten.innerorts.herkunft || "";
-		locationEditInnerortsGeladen = true;
-		if (locationEditInnerortsFeld) {
-			locationEditInnerortsFeld.setzeOrt(daten.innerorts.ort || null);
+		// 🔴 WETTLAUF (M6 der Gesamtpruefung): hat der Editor schon GEHANDELT, bevor die Antwort kam
+		// (eine Stadt gewaehlt, ✕ oder ↺ -- beides setzt `geladen`, siehe onChange und den ↺-Zuhoerer),
+		// gewinnt seine Wahl. Die Antwort liefert dann nur noch den Wiki-Stand fuer die Beschriftung;
+		// Wahl und Herkunft ueberschreibt sie NICHT -- sonst verschwaende seine Auswahl lautlos, und das
+		// naechste Speichern schickte den gespeicherten Stand statt seiner Entscheidung.
+		// ⚠️ Die eine Ausnahme ist keine: ↺ heisst „der Wiki-Stand", und der war beim Klick noch
+		// unbekannt (das Feld zeigte leer). Jetzt ist er da -- also zeigt das Feld ihn; die Herkunft
+		// bleibt die gewaehlte (`wiki`).
+		if (!locationEditInnerortsGeladen) {
+			locationEditInnerortsHerkunft = daten.innerorts.herkunft || "";
+			locationEditInnerortsGeladen = true;
+			if (locationEditInnerortsFeld) {
+				locationEditInnerortsFeld.setzeOrt(daten.innerorts.ort || null);
+			}
+		} else if (locationEditInnerortsHerkunft === "wiki" && locationEditInnerortsFeld) {
+			locationEditInnerortsFeld.setzeOrt(locationEditInnerortsWikiStand);
 		}
 		renderLocationEditInnerortsLabel();
 	} catch (fehler) {

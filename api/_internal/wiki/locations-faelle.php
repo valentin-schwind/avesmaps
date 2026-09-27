@@ -6,6 +6,12 @@ declare(strict_types=1);
 // status (open/deferred/archived), resolving a case onto the map, and the "Auf Wiki-Position setzen"
 // move. Split out of locations.php, which requires this file at the point the block used to sit.
 
+// Innerorts (Entwurf 2026-09-26-innerorts-praedikat-design.md §3): wechselt ein Fall die Ortsgroesse
+// eines Punkts, faellt `properties.innerorts` weg, sobald er kein Stadtviertel/Bauwerk mehr ist --
+// dieselbe Invariante wie in update_point (avesmapsInnerortsUpdatePointAnwenden). require_once, weil
+// features.php und wiki/settlements.php dieselbe Datei ebenso laden.
+require_once __DIR__ . '/../app/innerorts-anschluss.php';
+
 function avesmapsWikiSyncListCases(PDO $pdo): array {
     // Scope the "latest completed run" to LOCATION runs specifically. The settlement
     // conflict cases are keyed (first_seen_run_id/last_seen_run_id) to a location run
@@ -255,6 +261,13 @@ function avesmapsWikiSyncUpdateLocationFeature(
     $geometry = avesmapsWikiSyncDecodeJson($feature['geometry_json'] ?? null);
     [$lng, $lat] = avesmapsWikiSyncReadPointCoordinatesFromGeometry($geometry);
     $nextProperties = avesmapsWikiSyncBuildLocationProperties($properties, $name, $subtype, $description, $wikiUrl, $isNodix, $isRuined);
+    // 🔴 M2 der Gesamtpruefung: dieser Schreiber aendert `feature_subtype` -- ein Stadtviertel/Bauwerk,
+    // das hier zum Dorf wird, darf keiner Stadt mehr angehoeren (ein Dorf ist keine Staette). Ohne diese
+    // Zeile blieb `innerorts` stehen, und die Kachel „Von der Karte nehmen" bot eine Geste an, die der
+    // Server verweigert. Dieselbe Hilfe wie update_point (avesmapsInnerortsFeldEntfernen), keine Abschrift.
+    if (!avesmapsInnerortsIstKlasse($subtype)) {
+        $nextProperties = avesmapsInnerortsFeldEntfernen($nextProperties);
+    }
 
     if (!avesmapsWikiSyncLocationFeatureNeedsUpdate($feature, $properties, $name, $subtype, $description, $wikiUrl, $isNodix, $isRuined)) {
         return avesmapsWikiSyncBuildPointFeatureResponse($publicId, $name, $subtype, $lat, $lng, $nextProperties, (int) $feature['revision']);

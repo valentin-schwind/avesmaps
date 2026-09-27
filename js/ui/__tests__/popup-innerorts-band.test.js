@@ -32,6 +32,8 @@ function ladePopups({ editMode }) {
 		findLocationMarkerByPublicId: () => null,
 		findLabelEntryByPublicId: () => null,
 		buildSuggestChangeButtonSpec: () => null,
+		// Die EINE Antwort auf „Bauwerk?" im Browser -- aus der echten Datei, nicht nachgebaut.
+		avesmapsIstBauwerksklasse: require(path.join(ROOT, "js", "ui", "ortsklassen.js")).avesmapsIstBauwerksklasse,
 		console,
 		window: {},
 		document: { querySelector: () => null, querySelectorAll: () => [] },
@@ -54,7 +56,7 @@ function ladePopups({ editMode }) {
 // ---- Mit "Innerorts" steht sie VOR "Ort löschen", trägt die richtigen Attribute -------------------
 {
 	const editor = ladePopups({ editMode: true });
-	const location = { coordinates: [1, 2], innerorts: { ort: "pid-gareth" } };
+	const location = { coordinates: [1, 2], locationType: "stadtviertel", innerorts: { ort: "pid-gareth" } };
 	const markup = editor.locationActionsMarkup("Neu-Gareth", "pid-1", location);
 
 	const nehmenAt = markup.indexOf(">Von der Karte nehmen<");
@@ -77,10 +79,24 @@ function ladePopups({ editMode }) {
 	console.log("mit innerorts: OK");
 }
 
+// ---- M2 der Gesamtpruefung: die Kachel haengt AUCH an der Ortsgroesse -----------------------------
+// Der Server verweigert „Von der Karte nehmen" an jeder Ortsgroesse ausser Stadtviertel/Bauwerk -- ein
+// Dorf mit (liegengebliebenem) innerorts bekaeme sonst eine Kachel, die nur absagt.
+{
+	const editor = ladePopups({ editMode: true });
+	const dorf = editor.locationActionsMarkup("Neu-Gareth", "pid-1", { coordinates: [1, 2], locationType: "dorf", innerorts: { ort: "pid-gareth" } });
+	assert.ok(!dorf.includes("Von der Karte nehmen"), "ein Dorf bekommt die Kachel nicht, auch mit innerorts");
+	const ohneTyp = editor.locationActionsMarkup("Neu-Gareth", "pid-1", { coordinates: [1, 2], innerorts: { ort: "pid-gareth" } });
+	assert.ok(!ohneTyp.includes("Von der Karte nehmen"), "ohne bekannte Ortsgroesse keine Kachel (die sichere Richtung)");
+	const bauwerk = editor.locationActionsMarkup("Tempel", "pid-2", { coordinates: [1, 2], locationType: "gebaeude", innerorts: { ort: "pid-gareth" } });
+	assert.ok(bauwerk.includes(">Von der Karte nehmen<"), "ein Bauwerk bekommt sie");
+	console.log("Kachel haengt an der Ortsgroesse: OK");
+}
+
 // ---- Ein Besucher sieht das ganze Band nicht, auch nicht mit gesetztem Innerorts ------------------
 {
 	const besucher = ladePopups({ editMode: false });
-	const location = { coordinates: [1, 2], innerorts: { ort: "pid-gareth" } };
+	const location = { coordinates: [1, 2], locationType: "stadtviertel", innerorts: { ort: "pid-gareth" } };
 	const markup = besucher.locationActionsMarkup("Neu-Gareth", "pid-1", location);
 	assert.ok(!markup.includes("Von der Karte nehmen"), "kein Bearbeiten-Modus -> keine Kachel");
 	assert.ok(!markup.includes("location-popup__editor-band"), "und gar kein Band");

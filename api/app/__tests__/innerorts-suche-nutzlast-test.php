@@ -181,6 +181,33 @@ $zwillinge = avesmapsBuildInSettlementPlaceList([], $scope, [], [
 assert(array_column($zwillinge, 'public_id') === ['p-a', 'p-b'], 'Punkte werden untereinander nicht entdoppelt');
 $pruefungen += 8;
 
+// 🔴 M4 der Gesamtpruefung: ein Punkt verdraengt eine gleichnamige gespeicherte oder abgeleitete Zeile
+// nur IN SEINER STADT. Bis dahin merkte er sich nur den Namen -- der Tempel-Punkt in Gareth verschluckte
+// die gespeicherte Staette „Tempel" in Punin und die abgeleitete in Havena.
+$scopeDrei = ['settlements' => avesmapsPlaceScopeBuildNameSet(['Gareth', 'Punin', 'Havena']), 'regions' => []];
+$tempelPunkte = [
+    ['name' => 'Tempel', 'settlement' => 'Gareth', 'type' => 'Tempel', 'wiki_url' => '', 'public_id' => 'p-g', 'auf_der_karte' => true],
+    ['name' => 'Tempel', 'settlement' => 'Perricum', 'type' => 'Tempel', 'wiki_url' => '', 'public_id' => 'p-p', 'auf_der_karte' => false],
+];
+$orteVon = static fn(array $liste): array => array_map(static fn(array $e): string => $e['settlement'] . (isset($e['public_id']) ? '*' : ''), $liste);
+// -- gespeicherte Staetten: die in Punin bleibt, die in Gareth weicht dem Punkt.
+$tempelGespeichert = avesmapsBuildInSettlementPlaceList([], $scopeDrei, [
+    ['name' => 'Tempel', 'settlement' => 'Punin', 'type' => 'Tempel', 'wiki_url' => ''],
+    ['name' => 'Tempel', 'settlement' => 'Gareth', 'type' => 'Tempel', 'wiki_url' => ''],
+], $tempelPunkte);
+assert($orteVon($tempelGespeichert) === ['Gareth*', 'Perricum*', 'Punin'],
+    'zwei gleichnamige Punkte bleiben zwei; die gespeicherte Staette in Punin bleibt, die in Gareth weicht: ' . json_encode($orteVon($tempelGespeichert)));
+// -- abgeleitete Staetten: die in Havena bleibt, die in Gareth weicht dem Punkt.
+$tempelAbgeleitet = avesmapsBuildInSettlementPlaceList([
+    ['title' => 'Tempel', 'raw' => '[[Gareth]]', 'type_label' => 'Tempel', 'wiki_url' => 'https://de.wiki-aventurica.de/wiki/Tempel_(Gareth)'],
+    ['title' => 'Tempel', 'raw' => '[[Havena]]', 'type_label' => 'Tempel', 'wiki_url' => 'https://de.wiki-aventurica.de/wiki/Tempel_(Havena)'],
+], $scopeDrei, [], $tempelPunkte);
+assert($orteVon($tempelAbgeleitet) === ['Gareth*', 'Perricum*', 'Havena'],
+    'die abgeleitete Staette in Havena bleibt, die in Gareth weicht: ' . json_encode($orteVon($tempelAbgeleitet)));
+// ⚠️ Gespeicherte und abgeleitete Zeilen UNTEREINANDER entdoppeln weiter nach dem Namen allein
+// (unveraendert): eine gespeicherte „Tempel"-Staette verschluckt die abgeleitete in Havena.
+$pruefungen += 2;
+
 // =============================================================================================
 // B. Die Kartennutzlast -- avesmapsMapFeaturesInSettlementPlaces am echten Code
 // =============================================================================================
@@ -226,10 +253,16 @@ assert($hafenTreffer[0]['kind'] === 'in_settlement' && $hafenTreffer[0]['public_
     && $hafenTreffer[0]['settlement_public_id'] === IOS_GARETH && $hafenTreffer[0]['type_label'] === 'Hafen in Gareth'
     && $hafenTreffer[0]['min_x'] === 30.0 && $hafenTreffer[0]['wiki_url'] === IOS_HAFEN_URL,
     'Bauform der Innerorts-Treffer, Sprung auf die Stadt: ' . json_encode($hafenTreffer[0]));
-$pruefungen += 2;
+// M5 der Gesamtpruefung: der genommene Punkt sagt es selbst (`von_der_karte`), damit die Suchzeile
+// „Hafen in Gareth · nicht auf der Karte" lautet (js/ui/spotlight-search.js, buildInSettlementSpotlightEntry)
+// -- eine abgeleitete Staette traegt die Angabe nicht.
+assert(($hafenTreffer[0]['von_der_karte'] ?? null) === true, 'der genommene Punkt traegt von_der_karte: ' . json_encode($hafenTreffer[0]));
+$pruefungen += 3;
 
 $palast = array_values(array_filter($suchen('Palast der Winde'), static fn(array $e): bool => $e['name'] === 'Palast der Winde'));
 assert(count($palast) === 1 && $palast[0]['kind'] === 'in_settlement', 'eine reine Wiki-Staette bleibt ein Innerorts-Treffer');
+assert(!array_key_exists('von_der_karte', $palast[0]), 'eine abgeleitete Staette traegt kein von_der_karte');
+$pruefungen++;
 assert($suchen('Weggeraeumtes') === [], 'ein normal geloeschter Punkt ist kein Treffer');
 $pruefungen += 2;
 

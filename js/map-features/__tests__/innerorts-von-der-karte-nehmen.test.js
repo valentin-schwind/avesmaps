@@ -97,9 +97,50 @@ function baueMarkerEntry(overrides) {
 	}, overrides || {});
 }
 
+/**
+ * Die Antwort in ihrer ECHTEN Form: api/edit/map/features.php antwortet mit
+ * `{ ok: true, feature: <Handler-Ergebnis> }`, und avesmapsTakeOffMapFeature
+ * (api/_internal/map/features.php) liefert die Antwort eines inaktiven Punkts
+ * (avesmapsBuildFeatureResponseFromStoredFeature: `deleted`, `public_id`, …) PLUS
+ * `name`, `von_der_karte` und `innerorts_ort`. Die erste Fassung dieses Tests legte
+ * `innerorts_ort` auf die OBERSTE Ebene -- dieselbe falsche Form wie der Code, und so blieb
+ * der Lesefehler gruen.
+ */
+function echteTakeOffMapAntwort(stadtName) {
+	return {
+		ok: true,
+		feature: {
+			deleted: true,
+			public_id: "pid-neu-gareth",
+			revision: 42,
+			name: "Neu-Gareth",
+			von_der_karte: true,
+			innerorts_ort: { public_id: "pid-gareth", name: stadtName },
+		},
+	};
+}
+
+// Der Server kennt die Stadt, der Browser (noch) nicht: die Meldung muss den Namen der ANTWORT
+// tragen -- genau das beweist, dass sie gelesen wird (M1 der Gesamtpruefung).
+async function testTakeLocationOffMapStadtNameAusDerAntwort() {
+	const { sandbox, toasts, confirms } = ladeLocationEditing({
+		findLocationMarkerByPublicId: () => null, // die Stadt ist im Browser nicht geladen
+		submitMapFeatureEdit: async () => echteTakeOffMapAntwort("Gareth"),
+	});
+	const markerEntry = baueMarkerEntry();
+	sandbox.locationMarkers = [markerEntry];
+	sandbox.locationData = [markerEntry.location];
+	await sandbox.takeLocationOffMap(markerEntry);
+	assert.strictEqual(confirms.length, 1);
+	assert.strictEqual(toasts.length, 1);
+	assert.strictEqual(toasts[0].message, "„Neu-Gareth“ ist jetzt Stätte von Gareth.",
+		"der Stadtname kommt aus result.feature.innerorts_ort.name, nicht aus dem (hier leeren) lokalen Namen");
+	console.log("takeLocationOffMap Stadtname aus der Antwort: OK");
+}
+
 async function testTakeLocationOffMapErfolg() {
 	const gareth = { name: "Gareth", marker: {} };
-	const antwort = { ok: true, revision: 42, innerorts_ort: { public_id: "pid-gareth", name: "Gareth" } };
+	const antwort = echteTakeOffMapAntwort("Gareth");
 	const { sandbox, toasts, removedLayers, removedLabels, confirms, win } = ladeLocationEditing({
 		findLocationMarkerByPublicId: (id) => (id === "pid-gareth" ? gareth : null),
 		submitMapFeatureEdit: async (payload) => {
@@ -230,6 +271,7 @@ function testMarkiereInnerortsPunktAufDerKarte() {
 
 (async () => {
 	await testTakeLocationOffMapErfolg();
+	await testTakeLocationOffMapStadtNameAusDerAntwort();
 	await testTakeLocationOffMapAbbrechen();
 	await testTakeLocationOffMapKraftlinienRiegel();
 	await testTakeLocationOffMapFehlerVomServer();

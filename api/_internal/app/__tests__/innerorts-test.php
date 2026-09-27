@@ -259,11 +259,15 @@ $standLeer = avesmapsInnerortsWikiStand($pdoWiki, ['wiki_settlement' => ['title'
 assert($standLeer === '', 'leeres Standort-Feld -> ""');
 $pruefungen++;
 
-// -- Titel aus properties.name, wenn wiki_settlement.title fehlt.
+// -- 🔴 M7 (Controller-Entscheid 27.09.2026): KEIN Rueckfall auf properties.name. Nur der ZUGEWIESENE
+// Artikel zaehlt (Spec §5, Owner: „Name allein genügt nicht") -- auch wenn eine Wiki-Seite genau so
+// heisst und eine Stadt nennt. Hier stand bis dahin die umgekehrte Zusicherung („faellt zurueck").
 $pdoWiki->exec("INSERT INTO wiki_sync_pages (title, standort) VALUES ('Namensfall', '[[Gareth]]')");
 $standNamensfall = avesmapsInnerortsWikiStand($pdoWiki, ['name' => 'Namensfall']);
-assert($standNamensfall === 'stadt-gareth', 'Titel faellt auf properties.name zurueck: ' . $standNamensfall);
-$pruefungen++;
+assert($standNamensfall === '', 'ohne Zuweisung kein Wiki-Stand, auch bei passendem Namen: ' . $standNamensfall);
+$standZugewiesen = avesmapsInnerortsWikiStand($pdoWiki, ['name' => 'Anders', 'wiki_settlement' => ['title' => 'Namensfall']]);
+assert($standZugewiesen === 'stadt-gareth', 'mit Zuweisung zaehlt der Artikel, nicht der Name: ' . $standZugewiesen);
+$pruefungen += 2;
 
 // -- Doppeldeutige Stadt: ein zweiter Punkt, dessen gefalteter Name den ersten spiegelt.
 $pdoDoppelt = avesmapsInnerortsTestPdo();
@@ -416,35 +420,63 @@ assert(
 );
 $pruefungen++;
 
-// -- M3 (Controller-Fix): Nachziehen an einem INAKTIVEN, von der Karte genommenen Punkt bleibt
-// rueckgaengig zu machen. Ohne den `is_active`-Schluessel im Nachher-Schnappschuss faellt
-// `avesmapsAssertUndoPatchStillCurrent` auf die blinde Annahme „is_active=1" zurueck und wirft
-// faelschlich „wurde inzwischen erneut geaendert".
-avesmapsInnerortsTestPunktEinfuegen($pdoWn, 'wn-inaktiv', 'Von der Karte genommen', 'gebaeude', [
+// -- 🔴 M9 der Gesamtpruefung: ein INAKTIVER Punkt wird NIE nachgezogen. Ein von der Karte
+// genommener Punkt traegt den Merker `von_der_karte` im Feld `innerorts`; ein leerer Wiki-Stand
+// loeste das ganze Feld und mit ihm den Merker -- der Punkt waere danach ein normal geloeschter,
+// keine Staette mehr. (Hier stand bis dahin der umgekehrte Fall: „auch an einem inaktiven Punkt
+// wird geschrieben, und es bleibt rueckgaengig machbar".)
+// Fall a) der Artikel nennt KEINE Stadt mehr (unbekannter Titel) -- der gefaehrliche Fall.
+avesmapsInnerortsTestPunktEinfuegen($pdoWn, 'wn-inaktiv-leer', 'Von der Karte genommen', 'gebaeude', [
+    'wiki_settlement' => ['title' => 'Wn-Artikel-gibt-es-nicht'],
+    'innerorts' => ['ort' => 'wn-stadt-gareth', 'von_der_karte' => true],
+    'field_origins' => ['innerorts' => 'wiki'],
+], false);
+$vorherInaktivLeer = avesmapsInnerortsTestZeile($pdoWn, 'wn-inaktiv-leer');
+$audVorInaktiv = (int) $pdoWn->query('SELECT COUNT(*) FROM map_audit_log')->fetchColumn();
+assert(avesmapsInnerortsWikiNachziehen($pdoWn, 'wn-inaktiv-leer', AVESMAPS_INNERORTS_TEST_USER) === false,
+    'ein inaktiver Punkt wird nicht nachgezogen -> false');
+$nachherInaktivLeer = avesmapsInnerortsTestZeile($pdoWn, 'wn-inaktiv-leer');
+assert($nachherInaktivLeer['properties_json'] === $vorherInaktivLeer['properties_json'],
+    'der Merker von_der_karte bleibt byte-gleich stehen: ' . $nachherInaktivLeer['properties_json']);
+// Fall b) der Artikel nennt eine ANDERE Stadt -- auch dann wird nicht geschrieben.
+avesmapsInnerortsTestPunktEinfuegen($pdoWn, 'wn-inaktiv', 'Auch von der Karte', 'gebaeude', [
     'wiki_settlement' => ['title' => 'Wn-Artikel'],
     'innerorts' => ['ort' => 'x-alte-stadt', 'von_der_karte' => true],
 ], false);
 $vorherInaktiv = avesmapsInnerortsTestZeile($pdoWn, 'wn-inaktiv');
-$geschriebenInaktiv = avesmapsInnerortsWikiNachziehen($pdoWn, 'wn-inaktiv', AVESMAPS_INNERORTS_TEST_USER);
-assert($geschriebenInaktiv === true, 'der Wiki-Stand aendert sich auch an einem inaktiven Punkt -> true');
-$nachherInaktiv = avesmapsInnerortsTestZeile($pdoWn, 'wn-inaktiv');
-assert((int) $nachherInaktiv['is_active'] === 0, 'bleibt inaktiv');
-$letzterAuditInaktiv = avesmapsInnerortsTestLetzterAudit($pdoWn);
-assert($letzterAuditInaktiv['action'] === 'wiki_sync_update_point', 'Aktion heisst wiki_sync_update_point');
-$rueckgaengigInaktiv = avesmapsUndoAuditChange($pdoWn, ['audit_id' => (int) $letzterAuditInaktiv['id']], $user);
-assert(is_array($rueckgaengigInaktiv), 'Rueckgaengig gelingt an einem inaktiven Punkt: ' . json_encode($rueckgaengigInaktiv));
-$zeileNachUndoInaktiv = avesmapsInnerortsTestZeile($pdoWn, 'wn-inaktiv');
-assert((int) $zeileNachUndoInaktiv['is_active'] === 0, 'is_active bleibt unveraendert (0)');
-assert(
-    $zeileNachUndoInaktiv['properties_json'] === $vorherInaktiv['properties_json'],
-    'die Properties sind wieder wie vor dem Nachziehen: ' . $zeileNachUndoInaktiv['properties_json']
-);
-$pruefungen += 6;
+assert(avesmapsInnerortsWikiNachziehen($pdoWn, 'wn-inaktiv', AVESMAPS_INNERORTS_TEST_USER) === false,
+    'auch mit anderem Wiki-Stand bleibt ein inaktiver Punkt unberuehrt');
+assert(avesmapsInnerortsTestZeile($pdoWn, 'wn-inaktiv')['properties_json'] === $vorherInaktiv['properties_json']);
+$audNachInaktiv = (int) $pdoWn->query('SELECT COUNT(*) FROM map_audit_log')->fetchColumn();
+assert($audNachInaktiv === $audVorInaktiv, 'kein Protokolleintrag fuer einen inaktiven Punkt');
+$pruefungen += 5;
+
+// -- 🔴 M7, Folge 1: clear_assign (die Zuweisung faellt weg, der Name bleibt) LOEST ein wiki-stammendes
+// `innerorts` auf -- auch wenn eine Wiki-Seite genau so heisst wie der Punkt und eine Stadt nennt.
+$pdoWn->exec("INSERT INTO wiki_sync_pages (title, standort) VALUES ('Namensgleich', '[[Gareth]]')");
+avesmapsInnerortsTestPunktEinfuegen($pdoWn, 'wn-clear', 'Namensgleich', 'gebaeude', [
+    'innerorts' => ['ort' => 'wn-stadt-gareth'],
+    'field_origins' => ['innerorts' => 'wiki'],
+]);
+assert(avesmapsInnerortsWikiNachziehen($pdoWn, 'wn-clear', AVESMAPS_INNERORTS_TEST_USER) === true,
+    'ohne Zuweisung loest das Nachziehen die wiki-stammende Stadt -> true');
+$nachherClear = json_decode((string) avesmapsInnerortsTestZeile($pdoWn, 'wn-clear')['properties_json'], true);
+assert(!array_key_exists('innerorts', $nachherClear), 'der Name allein haelt die Stadt nicht: ' . json_encode($nachherClear));
+$pruefungen += 2;
+
+// -- 🔴 M7, Folge 2: ein UNZUGEWIESENES Bauwerk, unveraendert gespeichert (update_point mit
+// `innerorts_wiki: true`, der Normalfall des Dialogs), bekommt KEINE Stadt ueber seinen Namen.
+$ohneZuweisung = avesmapsInnerortsUpdatePointAnwenden($pdoWn, ['name' => 'Namensgleich'], ['innerorts_wiki' => true], 'gebaeude', 'wn-ohne');
+assert(avesmapsInnerortsOrtVon($ohneZuweisung) === '', 'kein Wiki-Stand ohne Zuweisung: ' . json_encode($ohneZuweisung));
+$pruefungen++;
+
 
 // ============================================================================================
 // 7) VonDerKarteNehmen
 // ============================================================================================
 $pdoVdk = avesmapsInnerortsTestPdo();
+// Eine GUELTIGE, aktive Stadt -- seit M2 verlangt die Geste sie (avesmapsInnerortsZielPruefen).
+avesmapsInnerortsTestPunktEinfuegen($pdoVdk, 'vdk-stadt-gareth', 'Gareth', 'metropole');
 
 // -- unbekannter Punkt -> not_found.
 $ergVdkUnbekannt = avesmapsInnerortsVonDerKarteNehmen($pdoVdk, 'gibt-es-nicht', AVESMAPS_INNERORTS_TEST_USER);
@@ -465,9 +497,26 @@ $ergVdkOhneOrt = avesmapsInnerortsVonDerKarteNehmen($pdoVdk, 'vdk-ohne-ort', AVE
 assert($ergVdkOhneOrt['ok'] === false && $ergVdkOhneOrt['code'] === 'invalid_state', json_encode($ergVdkOhneOrt));
 $pruefungen++;
 
+// -- 🔴 M2 der Gesamtpruefung: ein liegengebliebenes innerorts an einer ANDEREN Ortsgroesse -> invalid_state,
+// der Punkt bleibt auf der Karte (sonst verschwaende er und stuende in keiner Staettenliste).
+avesmapsInnerortsTestPunktEinfuegen($pdoVdk, 'vdk-dorf', 'Ein Dorf', 'dorf', ['innerorts' => ['ort' => 'vdk-stadt-gareth']]);
+$ergVdkDorf = avesmapsInnerortsVonDerKarteNehmen($pdoVdk, 'vdk-dorf', AVESMAPS_INNERORTS_TEST_USER);
+assert($ergVdkDorf['ok'] === false && $ergVdkDorf['code'] === 'invalid_state', json_encode($ergVdkDorf));
+assert((int) avesmapsInnerortsTestZeile($pdoVdk, 'vdk-dorf')['is_active'] === 1, 'das Dorf bleibt auf der Karte');
+// -- M2: die Stadt ist nicht (mehr) gueltig -- unbekannt, inaktiv oder keine Siedlung -> invalid_state.
+avesmapsInnerortsTestPunktEinfuegen($pdoVdk, 'vdk-stadt-weg', 'Weggefallen', 'stadt', [], false);
+avesmapsInnerortsTestPunktEinfuegen($pdoVdk, 'vdk-anderes-bauwerk', 'Turm', 'gebaeude', []);
+foreach (['gibt-es-nicht', 'vdk-stadt-weg', 'vdk-anderes-bauwerk'] as $i => $ungueltig) {
+    avesmapsInnerortsTestPunktEinfuegen($pdoVdk, 'vdk-ungueltig-' . $i, 'Ohne gueltige Stadt ' . $i, 'gebaeude', ['innerorts' => ['ort' => $ungueltig]]);
+    $ergUngueltig = avesmapsInnerortsVonDerKarteNehmen($pdoVdk, 'vdk-ungueltig-' . $i, AVESMAPS_INNERORTS_TEST_USER);
+    assert($ergUngueltig['ok'] === false && $ergUngueltig['code'] === 'invalid_state', $ungueltig . ': ' . json_encode($ergUngueltig));
+    assert((int) avesmapsInnerortsTestZeile($pdoVdk, 'vdk-ungueltig-' . $i)['is_active'] === 1, $ungueltig . ': der Punkt bleibt auf der Karte');
+}
+$pruefungen += 8;
+
 // -- Kraftlinien-Riegel: eine Kraftlinie haengt am Punkt -> wirft, keine Aenderung.
 avesmapsInnerortsTestPunktEinfuegen($pdoVdk, 'vdk-kraftlinie', 'Kraftlinienanker', 'gebaeude',
-    ['innerorts' => ['ort' => 'irgendeine-stadt']]);
+    ['innerorts' => ['ort' => 'vdk-stadt-gareth']]);
 $pdoVdk->prepare(
     "INSERT INTO map_features (public_id, feature_type, feature_subtype, name, properties_json, is_active, revision)
      VALUES ('kraftlinie-1', 'powerline', 'powerline', 'Testlinie', :props, 1, 1)"
@@ -492,7 +541,6 @@ $pruefungen += 3;
 // -- Erfolg: is_active=0, Merker gesetzt, Ort unveraendert, ein Protokolleintrag 'take_off_map'.
 avesmapsInnerortsTestPunktEinfuegen($pdoVdk, 'vdk-erfolg', 'Neu-Gareth', 'stadtviertel',
     ['innerorts' => ['ort' => 'vdk-stadt-gareth'], 'field_origins' => ['innerorts' => 'wiki']]);
-avesmapsInnerortsTestPunktEinfuegen($pdoVdk, 'vdk-stadt-gareth', 'Gareth', 'metropole');
 $audAnzahlVorErfolg = (int) $pdoVdk->query('SELECT COUNT(*) FROM map_audit_log')->fetchColumn();
 $ergVdkErfolg = avesmapsInnerortsVonDerKarteNehmen($pdoVdk, 'vdk-erfolg', AVESMAPS_INNERORTS_TEST_USER);
 assert($ergVdkErfolg === ['ok' => true, 'public_id' => 'vdk-erfolg', 'name' => 'Neu-Gareth'], json_encode($ergVdkErfolg));
@@ -844,5 +892,26 @@ assert(
     "die Siedlungsliste wird GENAU EINMAL geladen, nicht je Kandidat: {$pdoN1->siedlungsListeAbfragen} von 4 Kandidaten"
 );
 $pruefungen++;
+
+// -- 🔴 M3 der Gesamtpruefung: dasselbe fuer den SCHARFEN Lauf. Bis dahin reichte der Lauf seinen
+// Vorrat nicht weiter -- jeder geschriebene Punkt lud ueber avesmapsInnerortsWikiNachziehen Scope-Index
+// und Siedlungsliste neu (4 Kandidaten -> 5 + 5 Abfragen).
+$pdoN1->scopeIndexAbfragen = 0;
+$pdoN1->siedlungsListeAbfragen = 0;
+$ergN1Scharf = avesmapsInnerortsAusWikiLauf($pdoN1, true, 10, AVESMAPS_INNERORTS_TEST_USER);
+assert($ergN1Scharf['written'] === 4, 'der scharfe Lauf schreibt alle vier: ' . json_encode($ergN1Scharf));
+assert(
+    $pdoN1->scopeIndexAbfragen === 1,
+    "scharf: der Scope-Index wird GENAU EINMAL geladen, nicht je geschriebenem Punkt: {$pdoN1->scopeIndexAbfragen}"
+);
+assert(
+    $pdoN1->siedlungsListeAbfragen === 1,
+    "scharf: die Siedlungsliste wird GENAU EINMAL geladen, nicht je geschriebenem Punkt: {$pdoN1->siedlungsListeAbfragen}"
+);
+foreach ([1, 2, 3, 4] as $i) {
+    $propsN1 = json_decode((string) avesmapsInnerortsTestZeile($pdoN1, "n1-{$i}")['properties_json'], true);
+    assert(avesmapsInnerortsOrtVon($propsN1) === 'n1-stadt', "n1-{$i} traegt die Stadt aus dem Vorrat: " . json_encode($propsN1));
+}
+$pruefungen += 7;
 
 echo "OK: {$pruefungen} Pruefungen\n";

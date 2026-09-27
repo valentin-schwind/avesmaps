@@ -456,6 +456,37 @@ function markiereInnerortsPunktAufDerKarte(publicId, wert) {
 	}
 }
 
+/**
+ * Die Staettenliste nachziehen, wenn eine PUNKTANTWORT einen innerorts-Punkt auf die Karte bringt oder
+ * von ihr nimmt, ohne dass eine der zwei Gesten selbst lief -- „Rückgängig" im Änderungsverlauf von
+ * take_off_map/put_on_map, oder der Live-Abgleich einer fremden Geste. Gerufen von den zwei Stellen,
+ * an denen jede Punktantwort ankommt: die Live-Übernahme eines Punkts weiter unten in dieser Datei
+ * (der Punkt ist aktiv → true) und removeLiveFeature (map-features-feature-dispatcher.js, der Punkt
+ * ist weg → false).
+ * 🪤 Der Name der Live-Übernahme steht hier bewusst NICHT: zwei Quelltext-Tests
+ * (wiki-assign-ort.test.js, innerorts-marker-feld.test.js) schneiden ihren Rumpf ab dem ERSTEN
+ * Vorkommen des Namens -- ein Kommentar davor lenkte sie auf die falsche Funktion.
+ *
+ * ⚠️ Fasst NUR einen Eintrag an, der in der Liste steht UND einen anderen Wert traegt: beide Stellen
+ * laufen fuer JEDEN Punkt jedes Live-Abgleichs, und markiereInnerortsPunktAufDerKarte frischt das
+ * Infopanel auf -- ohne diese Pruefung zeichnete jeder Abgleich es je Punkt neu.
+ */
+function innerortsStaettenlisteNachziehen(publicId, aufDerKarte) {
+	try {
+		const liste = window.avesmapsInSettlementPlaces;
+		if (!publicId || !Array.isArray(liste)) {
+			return;
+		}
+		const eintrag = liste.find((e) => e && e.public_id === publicId);
+		if (!eintrag || eintrag.auf_der_karte === aufDerKarte) {
+			return;
+		}
+	} catch (fehler) {
+		return;
+	}
+	markiereInnerortsPunktAufDerKarte(publicId, aufDerKarte);
+}
+
 async function deleteLocationMarker(markerEntry) {
 	const locationTypeLabel = markerEntry.locationType === CROSSING_LOCATION_TYPE ? "Kreuzung" : "Ort";
 	// 💣 JEDER Punkt, nicht nur eine Kreuzung. Kraftlinien verbinden Nodix-Orte, Kreuzungen ODER
@@ -509,7 +540,7 @@ async function deleteLocationMarker(markerEntry) {
  * „⊖ Von der Karte nehmen" (Entwurf §4.1) -- der Gegenpart zu deleteLocationMarker: der Punkt
  * bleibt derselbe Datensatz (Bibliothek: is_active = 0, Merker `von_der_karte`), nur wandert er wie
  * ein geloeschter Marker von der Karte, ohne seine Stadt-Zugehoerigkeit zu verlieren. Umkehrbar
- * ueber "●" im Staetten-Kasten oder "Rueckgaengig" im Aenderungsverlauf.
+ * ueber "⦿" im Staetten-Kasten oder "Rueckgaengig" im Aenderungsverlauf.
  */
 async function takeLocationOffMap(markerEntry) {
 	if (refusePowerlineAnchoredDeletion(markerEntry.name, markerEntry.publicId)) {
@@ -538,9 +569,12 @@ async function takeLocationOffMap(markerEntry) {
 		if (markerEntry.locationType !== CROSSING_LOCATION_TYPE && typeof settlementListItems !== "undefined" && settlementListItems.length > 0 && typeof loadSettlementList === "function") {
 			void loadSettlementList();
 		}
-		// Der Server nennt die Stadt in der Antwort (`innerorts_ort.name`) -- er weiss sie sicher,
-		// die lokale ortName-Bestimmung oben ist nur die Vorbedingung fuer die synchrone Rueckfrage.
-		const staetteVonName = String(result?.innerorts_ort?.name || ortName || "");
+		// Der Server nennt die Stadt in der Antwort -- er weiss sie sicher, die lokale ortName-Bestimmung
+		// oben ist nur die Vorbedingung fuer die synchrone Rueckfrage.
+		// 💣 UNTER `feature`: der Endpunkt (api/edit/map/features.php) antwortet mit
+		// `{ ok, feature: avesmapsTakeOffMapFeature(…) }`, erst DARIN steht `innerorts_ort`. Die erste
+		// Fassung las `result.innerorts_ort` -- immer undefined, der Satz fiel still auf den lokalen Namen.
+		const staetteVonName = String(result?.feature?.innerorts_ort?.name || ortName || "");
 		showFeedbackToast(`„${markerEntry.name}“ ist jetzt Stätte von ${staetteVonName}.`, "success");
 	} catch (error) {
 		console.error("Ort konnte nicht von der Karte genommen werden:", error);
@@ -635,10 +669,12 @@ function applyLiveLocationFeature(feature) {
 	};
 	if (markerEntry) {
 		applyFeatureResponseToMarker(markerEntry, payload);
-		return;
+	} else {
+		addCreatedLocationMarker(payload, { openPopup: false });
 	}
-
-	addCreatedLocationMarker(payload, { openPopup: false });
+	// Der Punkt ist aktiv -- steht er als von der Karte genommene Staette in der Liste (z. B. nach
+	// „Rückgängig" von take_off_map), gilt er dort ab jetzt wieder als „auf der Karte".
+	innerortsStaettenlisteNachziehen(publicId, true);
 }
 
 async function createLocationAt(latlng) {

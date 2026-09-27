@@ -140,14 +140,19 @@ function avesmapsInnerortsSetzen(array $properties, string $ortId, string $herku
  * (jeder Punkt hat seinen eigenen Titel): eine eigene, kleine Abfrage je Aufruf.
  *
  * ⚠️ Fehlende Tabelle/Spalte faellt OFFEN aus: '' -- dieselbe Regel wie ueberall in diesem Haus.
+ *
+ * 🔴 NUR DER ZUGEWIESENE ARTIKEL (`wiki_settlement.title`) zaehlt -- KEIN Rueckfall auf
+ * `properties.name` (Spec §5, Owner: „Name allein genügt nicht"; Controller-Entscheid 27.09.2026).
+ * Bis dahin stand hier der Namensrueckfall: ein unzugewiesenes Bauwerk, das zufaellig wie eine
+ * Wiki-Seite hiess, bekam deren Stadt, und das Loesen einer Zuweisung (clear_assign) liess die Stadt
+ * stehen, weil der Name weiter auf denselben Artikel zeigte. Folgen, gewollt: ein unzugewiesener
+ * Punkt hat keinen Wiki-Stand (er bekommt seine Stadt von Hand oder mit der Zuweisung, Schritt 3),
+ * und clear_assign loest ein wiki-stammendes `innerorts` auf.
  */
 function avesmapsInnerortsStandortLesen(PDO $pdo, array $properties): string
 {
     $wikiSettlement = is_array($properties['wiki_settlement'] ?? null) ? $properties['wiki_settlement'] : [];
     $titel = trim((string) ($wikiSettlement['title'] ?? ''));
-    if ($titel === '') {
-        $titel = trim((string) ($properties['name'] ?? ''));
-    }
     if ($titel === '') {
         return '';
     }
@@ -239,7 +244,8 @@ function avesmapsInnerortsWikiStandAusStandort(string $standort, array $scopeInd
  * Der WIKI-STAND: die public_id der Stadt, die der zugewiesene Wiki-Artikel nennt -- '' = keiner
  * (Spec §5). Ablauf (jede Unsicherheit -> ''):
  *
- *   1. Artikeltitel aus `properties.wiki_settlement.title`, sonst `properties.name`.
+ *   1. Artikeltitel aus `properties.wiki_settlement.title` -- nur der zugewiesene Artikel, kein
+ *      Namensrueckfall (siehe avesmapsInnerortsStandortLesen).
  *   2. `wiki_sync_pages.standort` dieser Seite (bei Stadtteilen setzt der Dump dort `[[Stadt]]`,
  *      siehe api/_internal/wiki/dump-entity-scan.php ~Z. 914).
  *   3. Scope-Klassifikator (`avesmapsPlaceScopeClassifyWithIndex`) -- nur `inside` zaehlt.
@@ -415,9 +421,32 @@ function avesmapsInnerortsWriteAuditLog(PDO $pdo, int $featureId, string $action
  * ist, nur bei echter Aenderung (Spec §5, Schreiber 2). Loest den bisherigen Wert, wenn der
  * Artikel jetzt keine Stadt mehr eindeutig nennt.
  *
+ * 🔴 NUR AKTIVE PUNKTE (M9 der Gesamtpruefung). Ein von der Karte genommener Punkt ist inaktiv und
+ * traegt den Merker `von_der_karte` IM Feld `innerorts` -- ein leerer Wiki-Stand loeste das ganze
+ * Feld (avesmapsInnerortsSetzen mit ''), und damit den Merker: der Punkt waere danach ein normal
+ * geloeschter, keine Staette mehr, und niemand haette es angeordnet. Ein inaktiver Punkt wird hier
+ * also nie angefasst (der Admin-Lauf liest ohnehin nur aktive, avesmapsInnerortsAusWikiLauf).
+ *
  * @return bool true = es wurde wirklich geschrieben
  */
 function avesmapsInnerortsWikiNachziehen(PDO $pdo, string $publicId, int $userId): bool
+{
+    return avesmapsInnerortsWikiNachziehenMitVorrat($pdo, $publicId, $userId, null);
+}
+
+/**
+ * Dieselbe Regel wie avesmapsInnerortsWikiNachziehen -- mit einem VORGELADENEN Vorrat aus Scope-Index
+ * und Siedlungsliste, fuer einen Aufrufer, der viele Punkte nacheinander nachzieht (der scharfe
+ * Admin-Lauf, M3 der Gesamtpruefung). Ohne Vorrat (`null`) laedt avesmapsInnerortsWikiStand beides je
+ * Aufruf neu -- richtig fuer einen einzelnen Punkt, ein N+1 im Kreis.
+ *
+ * ⚠️ Der `|Standort=` wird TROTZDEM je Punkt frisch gelesen, innerhalb der Transaktion: der Titel
+ * gehoert dem Punkt und kann sich seit der Kandidatenwahl geaendert haben. Das ist die eine kleine
+ * Abfrage je Punkt, die sich nicht teilen laesst.
+ *
+ * @param array{scope_index: array{settlements:array<string,bool>, regions:array<string,bool>}, siedlungen: list<array{public_id:string, name:string}>}|null $vorrat
+ */
+function avesmapsInnerortsWikiNachziehenMitVorrat(PDO $pdo, string $publicId, int $userId, ?array $vorrat): bool
 {
     $publicId = trim($publicId);
     if ($publicId === '') {
@@ -427,7 +456,8 @@ function avesmapsInnerortsWikiNachziehen(PDO $pdo, string $publicId, int $userId
     $pdo->beginTransaction();
     try {
         $feature = avesmapsInnerortsFetchFeature($pdo, $publicId);
-        if ($feature === null || !avesmapsInnerortsIstKlasse((string) ($feature['feature_subtype'] ?? ''))) {
+        if ($feature === null || !avesmapsInnerortsIstKlasse((string) ($feature['feature_subtype'] ?? ''))
+            || (int) ($feature['is_active'] ?? 0) !== 1) {
             $pdo->rollBack();
 
             return false;
@@ -441,7 +471,13 @@ function avesmapsInnerortsWikiNachziehen(PDO $pdo, string $publicId, int $userId
             return false;
         }
 
-        $wikiStand = avesmapsInnerortsWikiStand($pdo, $properties);
+        $wikiStand = $vorrat === null
+            ? avesmapsInnerortsWikiStand($pdo, $properties)
+            : avesmapsInnerortsWikiStandAusStandort(
+                avesmapsInnerortsStandortLesen($pdo, $properties),
+                $vorrat['scope_index'],
+                $vorrat['siedlungen']
+            );
         $neueProperties = avesmapsInnerortsSetzen($properties, $wikiStand, AVESMAPS_FIELD_ORIGIN_WIKI);
 
         // 🔴 Dissolviert der Wiki-Stand die Zugehoerigkeit (der Artikel nennt keine Stadt mehr),
@@ -496,6 +532,9 @@ function avesmapsInnerortsWikiNachziehen(PDO $pdo, string $publicId, int $userId
             // rueckgaengig zu machen: der Vergleich saehe eine "Aenderung", die nie stattfand, und
             // wuerfe "wurde inzwischen erneut geaendert". `is_active` AENDERT sich hier nie (nur
             // properties_json), also traegt der Schnappschuss schlicht den WIRKLICHEN Wert.
+            // ⚠️ Seit M9 erreicht ein inaktiver Punkt diese Stelle nicht mehr (siehe Kopf der
+            // Funktion) -- der Schluessel bleibt trotzdem: er sagt die Wahrheit, statt sie der
+            // Undo-Maschinerie raten zu lassen, und kostet nichts.
             'is_active' => (int) ($feature['is_active'] ?? 1),
         ]);
 
@@ -546,6 +585,21 @@ function avesmapsInnerortsVonDerKarteNehmen(PDO $pdo, string $publicId, int $use
             $pdo->rollBack();
 
             return avesmapsInnerortsFehler('invalid_state', 'Dieser Punkt gehört keiner Stadt an.');
+        }
+        // 🔴 M2 der Gesamtpruefung: ein liegengebliebenes `innerorts` reicht nicht. Nur ein
+        // Stadtviertel/Bauwerk kann Staette sein (ein Punkt, dessen Ortsgroesse ein Schreiber ohne
+        // den Innerorts-Riegel gewechselt hat, traegt das Feld womoeglich noch), und nur an einer
+        // GUELTIGEN, aktiven Stadt -- sonst verschwaende der Punkt von der Karte und stuende in keiner
+        // Staettenliste (avesmapsInnerortsPunkteFuerStaetten laesst Punkte ohne aktive Stadt weg).
+        if (!avesmapsInnerortsIstKlasse((string) ($feature['feature_subtype'] ?? ''))) {
+            $pdo->rollBack();
+
+            return avesmapsInnerortsFehler('invalid_state', 'Nur ein Stadtviertel oder Bauwerk kann Stätte einer Stadt sein.');
+        }
+        if (avesmapsInnerortsZielPruefen($pdo, $ort, $publicId) !== null) {
+            $pdo->rollBack();
+
+            return avesmapsInnerortsFehler('invalid_state', 'Die Stadt dieses Punkts ist nicht mehr auf der Karte.');
         }
 
         // Refuse rather than repair -- dieselbe Haltung wie beim regulaeren Loeschen: der Editor
@@ -931,8 +985,13 @@ function avesmapsInnerortsAusWikiLauf(PDO $pdo, bool $apply, int $limit, int $us
 
     $geschrieben = 0;
     if ($apply) {
+        // 🔴 M3 der Gesamtpruefung: der SCHARFE Lauf reicht denselben Vorrat weiter, den der
+        // Trockenlauf oben schon geladen hat -- sonst laedt avesmapsInnerortsWikiNachziehen je Punkt
+        // Scope-Index und Siedlungsliste neu, und das N+1, das die Kandidatenwahl vermeidet, kaeme
+        // beim Schreiben zurueck. Der Zaehler-Test (innerorts-test.php §13) prueft beide Laeufe.
+        $vorrat = ['scope_index' => $scopeIndex, 'siedlungen' => $siedlungen];
         foreach (array_slice($kandidaten, 0, $limit) as $kandidat) {
-            if (avesmapsInnerortsWikiNachziehen($pdo, $kandidat['public_id'], $userId)) {
+            if (avesmapsInnerortsWikiNachziehenMitVorrat($pdo, $kandidat['public_id'], $userId, $vorrat)) {
                 $geschrieben++;
             }
         }

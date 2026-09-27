@@ -630,6 +630,10 @@ function avesmapsBuildInnerortsVonDerKarteSearchEntries(array $vonDerKarteRows, 
             'max_x' => (float) ($stadt['max_x'] ?? 0),
             'max_y' => (float) ($stadt['max_y'] ?? 0),
             'search_texts' => [$name],
+            // Der eine Unterschied zur abgeleiteten Staette (M5 der Gesamtpruefung): dieser Treffer WAR ein
+            // Kartenpunkt. Der Browser sagt daraus „· nicht auf der Karte" statt „Innerorts"
+            // (buildInSettlementSpotlightEntry, js/ui/spotlight-search.js; Spec §7).
+            'von_der_karte' => true,
         ];
     }
 

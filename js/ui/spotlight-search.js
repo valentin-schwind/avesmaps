@@ -529,6 +529,11 @@ function buildInSettlementSpotlightEntry(result) {
 		inSettlementName: String(result.settlement_name || ""),
 		wikiUrl: String(result.wiki_url || ""),
 		notOnMap: true,
+		// Ein innerorts-Punkt, der von der Karte genommen wurde (`von_der_karte`, Entwurf
+		// 2026-09-26-innerorts-praedikat-design.md §7), liest sich „Hafen in Gareth · nicht auf der
+		// Karte" -- er WAR ein Kartenpunkt, das sagt die zweite Zeile statt „Innerorts". placeHint geht
+		// in spotlightResultMarkup vor; „Innerorts" wird damit NICHT zusätzlich angehängt.
+		...(result.von_der_karte === true ? { placeHint: tr("spotlight.notOnMap", "nicht auf der Karte") } : {}),
 	};
 }
 

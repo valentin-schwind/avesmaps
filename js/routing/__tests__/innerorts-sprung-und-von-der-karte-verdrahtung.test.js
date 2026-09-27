@@ -45,7 +45,7 @@ assert.ok(routing.includes('$(document).on("click", ".innerorts-sprung"'),
 }
 
 // ── C) avesmapsSpringeZuInnerortsPunkt: ECHT ausgefuehrt ──────────────────────────────────────
-// Die Funktion selbst braucht kein jQuery/Leaflet -- nur `findLocationMarkerByPublicId` und `map`.
+// Die Funktion selbst braucht kein jQuery/Leaflet -- nur `findLocationMarkerByPublicId`, `map`, die Zoomregel und den Infobox-Trichter.
 // Extrahiert aus der Datei (dieselbe Technik wie cutDeclaration in
 // js/app/__tests__/dubletten-verweis.test.js), damit der ECHTE Funktionskoerper laeuft, ohne den
 // riesigen Rest von routing.js (jQuery-Dispatcher, Leaflet-Zustand, …) mit aufzubauen.
@@ -58,53 +58,83 @@ function extrahiere(quelle, start) {
 }
 const springFnQuelle = extrahiere(routing, "function avesmapsSpringeZuInnerortsPunkt(publicId) {");
 
-function baueSandbox(findLocationMarkerByPublicId, mapAttrappe) {
-	const sandbox = { findLocationMarkerByPublicId, map: mapAttrappe, console };
+// 💣 GEPRUEFT WIRD DER HAUSWEG, NICHT `marker.openPopup()`. Die erste Fassung rief `openPopup()` am
+// Marker -- an einem Leinwand-Marker (LOCATION_CANVAS_MARKERS_ENABLED) mit Infopanel tut das STILL
+// nichts, und ihr Test faelschte genau dieses `openPopup` und war gruen. Die Attrappen unten TRAGEN
+// deshalb ein `openPopup`, das den Test rot macht, sobald es gerufen wird. Geprueft wird, dass der
+// Trichter openLocationPopupForMarkerEntry (Infopanel, Leinwand-Marker, verborgene Orte) gerufen
+// wird und die Zoomstufe aus der Regel des Spotlight-Treffers kommt (getSpotlightLocationZoom).
+function baueSandbox({ findLocationMarkerByPublicId, map, getSpotlightLocationZoom, openLocationPopupForMarkerEntry }) {
+	const zeitgeber = [];
+	const sandbox = { findLocationMarkerByPublicId, map, getSpotlightLocationZoom, openLocationPopupForMarkerEntry, console };
+	sandbox.window = { setTimeout: (fn) => { zeitgeber.push(fn); return zeitgeber.length; } };
 	sandbox.globalThis = sandbox;
 	vm.createContext(sandbox);
 	vm.runInContext(springFnQuelle, sandbox, { filename: "avesmapsSpringeZuInnerortsPunkt.js" });
+	sandbox.zeitgeberAusfuehren = () => zeitgeber.splice(0).forEach((fn) => fn());
 	return sandbox;
 }
 
-// -- gefunden: fliegt hin (mit Mindestzoom 4) und oeffnet das Popup --
+function markerOhneOpenPopup(latlng) {
+	return {
+		getLatLng: () => latlng,
+		openPopup: () => { throw new Error("marker.openPopup() gerufen -- an einem Leinwand-Marker tut das still nichts"); },
+	};
+}
+
+// -- gefunden: fliegt auf die Zoomstufe des Spotlight-Treffers und oeffnet die Infobox ueber den Trichter --
 {
 	const flyToAufrufe = [];
-	let popupGeoeffnet = false;
-	const marker = {
-		getLatLng: () => ({ lat: 12, lng: 34 }),
-		openPopup: () => { popupGeoeffnet = true; },
-	};
-	const mapAttrappe = {
-		getZoom: () => 2,
-		flyTo: (latlng, zoom, opts) => flyToAufrufe.push({ latlng, zoom, opts }),
-	};
-	const sandbox = baueSandbox((id) => (id === "pid-1" ? { marker } : null), mapAttrappe);
+	const trichterAufrufe = [];
+	const zoomFragen = [];
+	const markerEntry = { marker: markerOhneOpenPopup({ lat: 12, lng: 34 }), locationType: "stadtviertel", publicId: "pid-1" };
+	const sandbox = baueSandbox({
+		findLocationMarkerByPublicId: (id) => (id === "pid-1" ? markerEntry : null),
+		map: { getZoom: () => 2, flyTo: (latlng, zoom, opts) => flyToAufrufe.push({ latlng, zoom, opts }) },
+		getSpotlightLocationZoom: (entry) => { zoomFragen.push(entry); return 6; },
+		openLocationPopupForMarkerEntry: (entry, opts) => trichterAufrufe.push({ entry, opts }),
+	});
 	const ergebnis = sandbox.avesmapsSpringeZuInnerortsPunkt("pid-1");
 	assert.strictEqual(ergebnis, true, "gefunden -> true");
 	assert.strictEqual(flyToAufrufe.length, 1, "genau ein flyTo");
 	assert.deepStrictEqual(flyToAufrufe[0].latlng, { lat: 12, lng: 34 });
-	assert.strictEqual(flyToAufrufe[0].zoom, 4, "Mindestzoom 4, auch wenn die Karte niedriger steht");
-	assert.strictEqual(popupGeoeffnet, true, "die Infobox wird geoeffnet");
+	assert.strictEqual(zoomFragen[0], markerEntry, "die Zoomstufe kommt aus der Regel des Spotlight-Treffers (Zoomband)");
+	assert.strictEqual(flyToAufrufe[0].zoom, 6, "und genau diese Stufe wird angeflogen");
+	assert.strictEqual(trichterAufrufe.length, 0, "die Infobox oeffnet erst nach dem Start des Flugs (wie focusSpotlightLocation)");
+	sandbox.zeitgeberAusfuehren();
+	assert.strictEqual(trichterAufrufe.length, 1, "die Infobox oeffnet ueber openLocationPopupForMarkerEntry");
+	assert.strictEqual(trichterAufrufe[0].entry, markerEntry, "mit dem Marker-Eintrag des Punkts");
+	assert.strictEqual(trichterAufrufe[0].opts.pan, false, "ohne eigenes Schwenken -- der Flug hat das schon getan");
 }
 
-// -- gefunden, aktueller Zoom hoeher als 4: der HOEHERE gewinnt --
+// -- ohne die Zoomregel (Rueckfall): mindestens 4, der hoehere Zoom gewinnt --
 {
 	const flyToAufrufe = [];
-	const marker = { getLatLng: () => ({ lat: 1, lng: 1 }), openPopup: () => {} };
-	const mapAttrappe = { getZoom: () => 6, flyTo: (l, z) => flyToAufrufe.push(z) };
-	const sandbox = baueSandbox(() => ({ marker }), mapAttrappe);
+	const sandbox = baueSandbox({
+		findLocationMarkerByPublicId: () => ({ marker: markerOhneOpenPopup({ lat: 1, lng: 1 }) }),
+		map: { getZoom: () => 6, flyTo: (l, z) => flyToAufrufe.push(z) },
+		getSpotlightLocationZoom: undefined,
+		openLocationPopupForMarkerEntry: () => {},
+	});
 	sandbox.avesmapsSpringeZuInnerortsPunkt("egal");
 	assert.strictEqual(flyToAufrufe[0], 6, "der bestehende Zoom gewinnt, wenn er hoeher als 4 ist");
 }
 
-// -- nicht gefunden: kein flyTo, kein Wurf, false --
+// -- nicht gefunden: kein flyTo, keine Infobox, kein Wurf, false --
 {
 	const flyToAufrufe = [];
-	const mapAttrappe = { getZoom: () => 4, flyTo: (l, z) => flyToAufrufe.push(z) };
-	const sandbox = baueSandbox(() => null, mapAttrappe);
+	const trichterAufrufe = [];
+	const sandbox = baueSandbox({
+		findLocationMarkerByPublicId: () => null,
+		map: { getZoom: () => 4, flyTo: (l, z) => flyToAufrufe.push(z) },
+		getSpotlightLocationZoom: () => 5,
+		openLocationPopupForMarkerEntry: (e) => trichterAufrufe.push(e),
+	});
 	const ergebnis = sandbox.avesmapsSpringeZuInnerortsPunkt("verschwunden");
+	sandbox.zeitgeberAusfuehren();
 	assert.strictEqual(ergebnis, false, "kein Marker -> false");
 	assert.strictEqual(flyToAufrufe.length, 0, "kein flyTo ohne Marker");
+	assert.strictEqual(trichterAufrufe.length, 0, "keine Infobox ohne Marker");
 }
 
 console.log("innerorts-sprung-und-von-der-karte-verdrahtung: alle Zusicherungen erfüllt");
