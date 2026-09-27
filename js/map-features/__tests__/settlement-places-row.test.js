@@ -33,6 +33,12 @@ function payload(eintraege) {
 	window.avesmapsInSettlementPlaces = eintraege;
 }
 const ort = (name, settlement, type, wiki_url) => ({ name, settlement, type, wiki_url: wiki_url || "" });
+// Ein innerorts-PUNKT (Task 4, Entwurf 2026-09-26-innerorts-praedikat-design.md §6.1/§6.2): traegt
+// zusaetzlich `public_id` und `auf_der_karte` -- eine gespeicherte/abgeleitete Staette (ort() oben)
+// hat beides nicht.
+const punkt = (name, settlement, type, publicId, aufDerKarte) => ({
+	name, settlement, type, wiki_url: "", public_id: publicId, auf_der_karte: aufDerKarte,
+});
 
 // ---- kein Eintrag: KEINE Zeile ----------------------------------------------------------------
 // 🔴 Eine Zeile „0 besondere Stätten" waere eine Aussage ueber unseren Datenbestand, die niemanden
@@ -149,5 +155,51 @@ assert.ok(gemischt.indexOf("Herzog-Cusimo-Aquädukt") >= 0, "die Namen stehen tr
 const loreBlock = avesmapsLoreNamesBlockMarkup([{ name: "Alrik", wiki_url: "" }]);
 assert.ok(loreBlock.indexOf("avesmaps-lore__buchstabe") >= 0,
 	"die Vorkommen behalten ihre Marken auch bei EINEM Namen");
+
+// ---- innerorts-PUNKTE: Sprung ⊕ NUR bei auf_der_karte === true (Task 4, §6.1/§6.2) ---------------
+// 🔴 Auch fuer Besucher sichtbar -- diese Zeile traegt keinen IS_EDIT_MODE-Riegel.
+// ⚠️ Der Index-Cache haengt an der LAENGE der Liste (siehe Kommentar an avesmapsStaettenBaueIndex
+// oben) -- vier Eintraege, damit dieser Payload sich von der vorigen (drei) Liste unterscheidet und
+// wirklich neu gebaut wird.
+payload([
+	punkt("Neu-Gareth", "Gareth", "Stadtviertel", "pid-neu-gareth", true),
+	punkt("Südquartier", "Gareth", "Stadtviertel", "pid-suedquartier", false),
+	ort("Praios-Tempel", "Gareth", "Tempel"),
+	ort("Alt-Gareth", "Gareth", "Sonstiges"),
+]);
+const gareth = avesmapsStaettenRowMarkup("Gareth");
+const sprungMatch = /<button type="button" class="innerorts-sprung"[^>]*>⊕<\/button>/.exec(gareth);
+assert.ok(sprungMatch, "Neu-Gareth (auf_der_karte) traegt den Sprung ⊕: " + gareth.slice(0, 400));
+assert.ok(sprungMatch[0].includes('data-public-id="pid-neu-gareth"'), "der Sprung traegt die publicId");
+assert.ok(gareth.indexOf("Neu-Gareth") < gareth.indexOf(sprungMatch[0]),
+	"der Sprung steht HINTER dem Namen (Mockup Szene 4)");
+// Nur EIN Sprung -- Südquartier (nicht auf der Karte) und der Praios-Tempel (keine public_id)
+// bekommen keinen.
+assert.strictEqual((gareth.match(/innerorts-sprung/g) || []).length, 1, "genau ein Sprung-Knopf");
+assert.ok(gareth.indexOf("Südquartier") >= 0, "Südquartier steht trotzdem in der Liste");
+
+// ---- die reine Datenfunktion traegt publicId/aufDerKarte durch --------------------------------
+const garethListe = avesmapsStaettenFuerOrt("Gareth");
+const neuGareth = garethListe.find((e) => e.name === "Neu-Gareth");
+assert.strictEqual(neuGareth.publicId, "pid-neu-gareth");
+assert.strictEqual(neuGareth.aufDerKarte, true);
+const praiosTempel = garethListe.find((e) => e.name === "Praios-Tempel");
+assert.strictEqual(praiosTempel.publicId, "", "eine gespeicherte/abgeleitete Staette hat keine publicId");
+assert.strictEqual(praiosTempel.aufDerKarte, false);
+
+// ---- avesmapsLoreNameMarkup: item.suffixMarkup steht HINTER dem (ggf. verlinkten) Namen --------
+// 🔴 Kein anderer Aufrufer setzt das Feld -- der Rueckfall bleibt exakt der alte String.
+assert.strictEqual(avesmapsLoreNameMarkup({ name: "Ohne Zusatz", wiki_url: "" }), "Ohne Zusatz",
+	"ohne suffixMarkup bleibt der alte, unveraenderte String");
+assert.strictEqual(
+	avesmapsLoreNameMarkup({ name: "Mit Zusatz", wiki_url: "", suffixMarkup: '<b>x</b>' }),
+	"Mit Zusatz<b>x</b>",
+	"mit suffixMarkup haengt es direkt hinter den (unverlinkten) Namen"
+);
+assert.strictEqual(
+	avesmapsLoreNameMarkup({ name: "Verlinkt", wiki_url: "https://de.wiki-aventurica.de/wiki/Verlinkt", suffixMarkup: '<b>x</b>' }),
+	'<a class="avesmaps-lore__name" href="https://de.wiki-aventurica.de/wiki/Verlinkt" target="_blank" rel="noopener">Verlinkt</a><b>x</b>',
+	"…auch hinter einem verlinkten Namen, ausserhalb des <a>"
+);
 
 console.log("settlement-places-row: alle Zusicherungen erfuellt");

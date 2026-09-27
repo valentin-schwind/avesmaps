@@ -40,6 +40,12 @@ const POPUP_ACTION_GLYPHS = {
 	// gehoert dem Verschieben, und ein Zeichen mit zwei Bedeutungen ist genau das, was diese
 	// Liste verhindert.
 	zuruecksetzen: "↺",
+	// ⊖ „Von der Karte nehmen" -- ein innerorts-Punkt bleibt Staette seiner Stadt (Entwurf
+	// 2026-09-26-innerorts-praedikat-design.md §4.1). Bewusst NICHT ✕: das Zeichen gehoert dem
+	// Loeschen, und diese Geste ist umkehrbar (ueber „Rueckgaengig" im Aenderungsverlauf oder ●
+	// im Staetten-Kasten). Gemessen im Browser: ○ zeichnet winzig (dieselbe Falle wie ⌖), ⊖/⊕
+	// (das Fadenkreuz aus dem Aenderungsverlauf) sind ein Paar gleicher Breite.
+	vonDerKarteNehmen: "⊖",
 };
 
 function popupActionGlyphMarkup(key) {
@@ -893,6 +899,22 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 				},
 			})
 		);
+		// „Von der Karte nehmen" -- NUR bei einem Punkt mit gesetztem "Innerorts" (Entwurf §4.1),
+		// und VOR "Ort löschen": sie ist die umkehrbare Handlung, "Ort löschen" die endgültige.
+		// Nicht rot (location-popup__action-button--danger) -- die Farbe gehört dem Unwiderruflichen.
+		if (location?.innerorts?.ort) {
+			editorButtons.push(
+				popupActionButtonMarkup({
+					label: "Von der Karte nehmen",
+					iconMarkup: popupActionGlyphMarkup("vonDerKarteNehmen"),
+					attributes: {
+						"data-popup-action": "take-location-off-map",
+						"data-location-name": name,
+						"data-public-id": publicId,
+					},
+				})
+			);
+		}
 		editorButtons.push(
 			popupActionButtonMarkup({
 				label: "Ort löschen",

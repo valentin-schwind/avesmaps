@@ -64,6 +64,11 @@ function avesmapsStaettenBaueIndex() {
 			// (in-settlement-search.php). Eine leere Gruppenüberschrift wäre schlimmer.
 			art: String((eintrag && eintrag.type) || "").trim() || "Bauwerk",
 			wiki_url: String((eintrag && eintrag.wiki_url) || "").trim(),
+			// Die dritte Quelle (Entwurf 2026-09-26-innerorts-praedikat-design.md §6.1): innerorts-
+			// Punkte tragen zusätzlich eine `public_id` und `auf_der_karte`; eine gespeicherte
+			// Stätte (Garetien) oder eine aus dem Wiki abgeleitete hat beides nicht (undefined/false).
+			publicId: String((eintrag && eintrag.public_id) || ""),
+			aufDerKarte: (eintrag && eintrag.auf_der_karte) === true,
 		});
 	});
 	avesmapsStaettenIndex = index;
@@ -93,9 +98,27 @@ function avesmapsStaettenFuerOrt(ortsname) {
 // ⚠️ Sie stammt aus map-features-lore.js -- diese Datei wird in index.html DANACH geladen.
 var AVESMAPS_STAETTEN_BUCHSTABEN_AB = 2;
 
+// Die Namen einer Art -- ⭐ ÜBER DIE LORE-FUNKTION, nicht abgeschrieben (siehe der Kopf dieser
+// Datei). Ein innerorts-Punkt AUF der Karte bekommt zusätzlich den Sprung ⊕ (Entwurf
+// 2026-09-26-innerorts-praedikat-design.md §6.2) direkt hinter seinem Namen (`item.suffixMarkup`,
+// avesmapsLoreNameMarkup) -- auch für Besucher sichtbar; der Klick hängt document-weit an
+// js/routing/routing.js (`.innerorts-sprung`), NICHT hier: diese Datei baut nur das Markup, keinen
+// eigenen Zuhörer (dieselbe Trennung wie beim politischen Link).
 function avesmapsStaettenNamenMarkup(items) {
+	var mitSprung = (items || []).map(function (item) {
+		if (!item || !item.aufDerKarte || !item.publicId) {
+			return item;
+		}
+		var titel = (typeof tr === "function") ? tr("popup.staetten.jumpTitle", "Auf der Karte zeigen") : "Auf der Karte zeigen";
+		var ariaLabel = (typeof tr === "function")
+			? tr("popup.staetten.jumpLabel", "{name} auf der Karte zeigen").replace("{name}", item.name)
+			: item.name + " auf der Karte zeigen";
+		var sprung = '<button type="button" class="innerorts-sprung" data-public-id="' + escapeHtml(item.publicId) + '"'
+			+ ' title="' + escapeHtml(titel) + '" aria-label="' + escapeHtml(ariaLabel) + '">⊕</button>';
+		return Object.assign({}, item, { suffixMarkup: sprung });
+	});
 	if (typeof avesmapsLoreNamesBlockMarkup === "function") {
-		return avesmapsLoreNamesBlockMarkup(items, AVESMAPS_STAETTEN_BUCHSTABEN_AB);
+		return avesmapsLoreNamesBlockMarkup(mitSprung, AVESMAPS_STAETTEN_BUCHSTABEN_AB);
 	}
 	// Rückfall, falls die Lore-Datei fehlt: blanke Namen, ohne Link. Lieber schlicht als leer.
 	return '<span class="avesmaps-lore__names">'

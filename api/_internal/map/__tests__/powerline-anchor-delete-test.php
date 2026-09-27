@@ -197,9 +197,15 @@ assert(
     preg_match('/if \(refusePowerlineAnchoredDeletion\([^)]*\)\) \{\s*\n\s*return;\s*\n\s*\}/', $locationSource) === 1,
     'the caller returns on a refusal'
 );
+// 🪤 Bis zum 27.09.2026 (Task 4, innerorts-Praedikat) stand hier der WOERTLICHE Aufruf
+// 'window.confirm(`${markerEntry.name} wirklich löschen?`)' -- deleteLocationMarker fragt seither
+// bei einem innerorts-Punkt eine ERGAENZTE Rueckfrage ab (Entwurf
+// 2026-09-26-innerorts-praedikat-design.md §4.1), der Text steckt also in einer Variablen
+// (`confirmText`) statt direkt im Aufruf. Das Muster bleibt dasselbe -- der Riegel VOR der
+// Rueckfrage --, nur der Anker folgt der Umbenennung.
 assert(
     strpos($locationSource, 'refusePowerlineAnchoredDeletion(markerEntry.name')
-        < strpos($locationSource, 'window.confirm(`${markerEntry.name} wirklich löschen?`)'),
+        < strpos($locationSource, 'window.confirm(confirmText)'),
     'and does so before asking for confirmation'
 );
 

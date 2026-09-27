@@ -204,6 +204,10 @@ const prepareLocationData = (data) => {
 				// Der Anzeigename steht einmal im Payload-Vokabular, nicht 4.650-mal hier.
 				climateZone: String(feature.properties.climate_zone || ""),
 				coat: feature.properties.coat || null,
+				// „Innerorts" (Entwurf 2026-09-26-innerorts-praedikat-design.md §3): {ort, von_der_karte?}
+				// oder null -- properties_json reicht das Nest unveraendert durch. Traegt die Kachel
+				// "Von der Karte nehmen" (js/ui/popups.js) und den Sprung ⊕ aus dem Aenderungsverlauf.
+				innerorts: feature.properties.innerorts || null,
 				// Eigene Editor-Bilder (Owner) -- ueberschreiben das generische Header-Bild; Lightbox im Infopanel.
 				images: Array.isArray(feature.properties.images) ? feature.properties.images : [],
 				isNodix: Boolean(feature.properties.is_nodix),
@@ -994,6 +998,48 @@ $(document).on("click", ".location-popup__station-link", function (event) {
 	}
 });
 
+// „⊕" -- der Sprung auf einen innerorts-Punkt (Entwurf 2026-09-26-innerorts-praedikat-design.md
+// §6.2): aus der Infobox-Zeile „Stätten" einer Stadt (js/map-features/map-features-settlement-places.js),
+// auch fuer Besucher -- deshalb hier, NICHT hinter IS_EDIT_MODE, und unbedingt registriert wie die
+// zwei Handler darueber.
+//
+// 🔴 Der Staetten-Kasten des Editors (js/ui/staetten-kasten.js) traegt DENSELBEN Knopf, haengt aber
+// oft in einem IFRAME (html/wiki-sync-settlement-editor.html) -- ein eigenes `document` und damit
+// fuer DIESE Delegation unerreichbar. Er ruft deshalb dieselbe Funktion direkt (ueber sein
+// Zielfenster), statt auf dieses Dokument zu warten.
+$(document).on("click", ".innerorts-sprung", function (event) {
+	event.preventDefault();
+	event.stopPropagation();
+	const publicId = this.dataset.publicId || "";
+	if (!publicId || !avesmapsSpringeZuInnerortsPunkt(publicId)) {
+		showFeedbackToast("Objekt ist nicht mehr aktiv oder wurde noch nicht neu geladen.", "warning");
+	}
+});
+
+/**
+ * Auf einen innerorts-Punkt fliegen und seine Infobox oeffnen -- EIN Weg fuer beide Aufrufer (die
+ * Infobox-Zeile „Stätten" oben und der Staetten-Kasten des Editors). Plain function statement
+ * (kein const/let), damit sie als `window.avesmapsSpringeZuInnerortsPunkt` steht und aus einem
+ * Iframe heraus ueber `parent.avesmapsSpringeZuInnerortsPunkt(...)` erreichbar bleibt -- dasselbe
+ * Muster wie bei den anderen window.parent.start…-Aufrufen dieses Hauses.
+ *
+ * @returns {boolean} true, wenn der Punkt gefunden und angesprungen wurde.
+ */
+function avesmapsSpringeZuInnerortsPunkt(publicId) {
+	const markerEntry = typeof findLocationMarkerByPublicId === "function" ? findLocationMarkerByPublicId(publicId) : null;
+	if (!markerEntry || !markerEntry.marker || typeof markerEntry.marker.getLatLng !== "function") {
+		return false;
+	}
+	const latlng = markerEntry.marker.getLatLng();
+	if (typeof map !== "undefined" && map && typeof map.flyTo === "function") {
+		map.flyTo(latlng, Math.max(typeof map.getZoom === "function" ? map.getZoom() : 4, 4), { duration: 0.6 });
+	}
+	if (typeof markerEntry.marker.openPopup === "function") {
+		markerEntry.marker.openPopup();
+	}
+	return true;
+}
+
 $(document).on("click", ".location-popup__action-button", function (event) {
 	event.preventDefault();
 	event.stopPropagation();
@@ -1281,6 +1327,17 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		}
 
 		void deleteLocationMarker(markerEntry);
+		return;
+	}
+
+	if (action === "take-location-off-map") {
+		const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
+		if (!markerEntry) {
+			showFeedbackToast("Ort konnte nicht für die Bearbeitung gefunden werden.", "warning");
+			return;
+		}
+
+		void takeLocationOffMap(markerEntry);
 		return;
 	}
 

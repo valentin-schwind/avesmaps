@@ -241,7 +241,16 @@ function neu(tag) { return new MiniElement(tag); }
 
 function klicke(el) {
 	assert.ok(el, "klicke() ohne Element");
-	el.dispatchEvent({ type: "click", target: el, preventDefault() { this.defaultPrevented = true; } });
+	el.dispatchEvent({
+		type: "click",
+		target: el,
+		preventDefault() { this.defaultPrevented = true; },
+		// Task 4: der Sprung ⊕ ruft stopPropagation() (er verhindert die doppelte Behandlung,
+		// wenn derselbe Kasten im HAUPTDOKUMENT haengt und dort auch die document-weite
+		// Delegation aus routing.js zuhoert) -- das Mini-DOM bubblet ohnehin nicht ueber `host`
+		// hinaus, ein no-op reicht hier aus.
+		stopPropagation() { this.propagationStopped = true; },
+	});
 }
 
 // Flush aller ausstehenden Promises/Microtasks -- ein echter Timer garantiert, dass Node erst
@@ -261,6 +270,16 @@ function staettenFixtur() {
 		{ public_id: "sp-3", name: "Burg Weißenstein", place_type: "Burg",
 			wiki_url: "https://garetien.de/wiki/Burg_Weissenstein", origin: "manual", gleichnamig_auf_der_karte: true },
 	];
+}
+
+// innerorts-PUNKTE (Task 4, Spec §6.3) -- die dritte Quelle der Staettenliste, `art: "punkt"`.
+function punktAufDerKarteFixtur() {
+	return { public_id: "pkt-neu-gareth", name: "Neu-Gareth", place_type: "Stadtviertel",
+		wiki_url: "", origin: "karte", art: "punkt", auf_der_karte: true, gleichnamig_auf_der_karte: false };
+}
+function punktVonDerKarteFixtur() {
+	return { public_id: "pkt-suedquartier", name: "Südquartier", place_type: "Stadtviertel",
+		wiki_url: "", origin: "karte", art: "punkt", auf_der_karte: false, gleichnamig_auf_der_karte: false };
 }
 
 function winFixtur() {
@@ -1083,6 +1102,223 @@ async function testNichtParsebareAdresse() {
 	console.log("14. Nicht parsebare/leere Adresse: OK");
 }
 
+// ══ 15. DREI SORTEN (Task 4, Spec §6.3 / Mockup Szene 5) ═════════════════════════════════════════
+async function testDreiSorten() {
+	const aufrufe = [];
+	const host = neu("div");
+	const sektion = neu("div");
+	const fetchImpl = baueFetch({
+		list: () => ({ ok: true, staetten: [punktAufDerKarteFixtur(), punktVonDerKarteFixtur(), staettenFixtur()[0]] }),
+	}, aufrufe);
+	await modul.mountStaettenKasten(host, {
+		ortPublicId: "ort-1", ortName: "Gareth", sektion, fetchImpl, win: winFixtur(),
+	});
+
+	const zeilen = host.querySelectorAll(".avm-row");
+	assert.strictEqual(zeilen.length, 3);
+
+	// -- Sorte 1: Punkt AUF der Karte -- "auf der Karte" + ⊕, nur ⇄ ------------------------------
+	const l2Erste = zeilen[0].querySelector(".avm-row__l2");
+	assert.strictEqual(l2Erste.textContent, "auf der Karte⊕",
+		"Text + Sprung-Knopf zusammen (textContent zaehlt Kindtext mit)");
+	const sprung = l2Erste.querySelector(".innerorts-sprung");
+	assert.ok(sprung, "der Sprung ⊕ steht in Zeile 2");
+	assert.strictEqual(sprung.textContent, "⊕");
+	assert.strictEqual(sprung.getAttribute("data-public-id"), "pkt-neu-gareth");
+	const aktionenErste = zeilen[0].querySelector(".st-aktionen").querySelectorAll("button");
+	assert.strictEqual(aktionenErste.length, 1, "nur ⇄ -- kein ✕ (geloescht wird auf der Karte)");
+	assert.strictEqual(aktionenErste[0].textContent, "⇄");
+	assert.strictEqual(aktionenErste[0].getAttribute("aria-label"), "Stadt ändern");
+	assert.strictEqual(zeilen[0].querySelectorAll(".fs-row__remove").length, 0);
+
+	// -- Sorte 2: Punkt VON der Karte genommen -- "nicht auf der Karte" (kein ⊕), ● · ⇄ · ✕ -------
+	const l2Zweite = zeilen[1].querySelector(".avm-row__l2");
+	assert.strictEqual(l2Zweite.textContent, "nicht auf der Karte");
+	assert.strictEqual(zeilen[1].querySelectorAll(".innerorts-sprung").length, 0, "kein Sprung, solange der Punkt nicht auf der Karte liegt");
+	const aktionenZweite = zeilen[1].querySelector(".st-aktionen").querySelectorAll("button");
+	assert.strictEqual(aktionenZweite.length, 3, "● · ⇄ · ✕");
+	assert.strictEqual(aktionenZweite[0].textContent, "●");
+	assert.strictEqual(aktionenZweite[0].getAttribute("data-st-aktion"), "auf_die_karte");
+	assert.strictEqual(aktionenZweite[0].getAttribute("aria-label"), "Auf die Karte setzen");
+	assert.strictEqual(aktionenZweite[1].textContent, "⇄");
+	assert.strictEqual(aktionenZweite[2].textContent, "✕");
+	assert.strictEqual(aktionenZweite[2].getAttribute("aria-label"), "Löschen",
+		"Ruling Fix-Runde 1: 'Löschen', nicht 'Endgültig löschen' -- über Rückgängig umkehrbar");
+
+	// -- Sorte 3: gespeicherte Staette -- unveraendert (Link + ⇄ · ✕) ------------------------------
+	const l2Dritte = zeilen[2].querySelector(".avm-row__l2");
+	assert.ok(l2Dritte.querySelector("a"), "Link auf die Wiki-Adresse wie bisher");
+	const aktionenDritte = zeilen[2].querySelector(".st-aktionen").querySelectorAll("button");
+	assert.strictEqual(aktionenDritte.length, 2, "⇄ · ✕ -- kein ●");
+	assert.strictEqual(aktionenDritte[1].getAttribute("aria-label"), "Löschen");
+
+	console.log("15. Drei Sorten: OK");
+}
+
+// ══ 16. „● Auf die Karte setzen" -- direkte Handlung, keine Falte (Spec §4.2) ═════════════════════
+async function testAufDieKarteSetzen() {
+	const aufrufe = [];
+	const win = winFixtur();
+	win.avesmapsInSettlementPlaces.push({ name: "Südquartier", settlement: "Gareth", public_id: "pkt-suedquartier", auf_der_karte: false });
+	const angelegteMarker = [];
+	const sprungAufrufe = [];
+	win.findLocationMarkerByPublicId = () => null; // noch kein Marker auf der Karte
+	win.addCreatedLocationMarker = (feature, opts) => { angelegteMarker.push({ feature, opts }); return { marker: {} }; };
+	win.avesmapsSpringeZuInnerortsPunkt = (id) => { sprungAufrufe.push(id); return true; };
+
+	const host = neu("div");
+	const sektion = neu("div");
+	const punktFeature = { public_id: "pkt-suedquartier", name: "Südquartier", lat: 12, lng: 34 };
+	const fetchImpl = baueFetch({
+		list: () => ({ ok: true, staetten: [punktVonDerKarteFixtur()] }),
+		put_on_map: (body) => {
+			assert.strictEqual(body.public_id, "pkt-suedquartier");
+			return { ok: true, staetten: [punktAufDerKarteFixtur()], feature: punktFeature };
+		},
+	}, aufrufe);
+	await modul.mountStaettenKasten(host, {
+		ortPublicId: "ort-1", ortName: "Gareth", sektion, fetchImpl, win,
+	});
+
+	const aufDieKarteKnopf = host.querySelector('[data-st-aktion="auf_die_karte"]');
+	assert.ok(aufDieKarteKnopf, "der ●-Knopf steht da");
+	assert.strictEqual(host.querySelectorAll(".st-falte").length, 0, "vor dem Klick keine Falte");
+	klicke(aufDieKarteKnopf);
+
+	// Direkt eine Handlung, KEINE Falte -- anders als Loeschen/Umhaengen.
+	assert.strictEqual(host.querySelectorAll(".st-falte").length, 0, "auch nach dem Klick keine Falte");
+	await tick();
+
+	const letzterAufruf = aufrufe[aufrufe.length - 1];
+	assert.strictEqual(letzterAufruf.action, "put_on_map");
+	assert.strictEqual(letzterAufruf.public_id, "pkt-suedquartier");
+
+	// Liste aus der Serverantwort (jetzt "auf der Karte"), Meldung, Marker angelegt + Sprung.
+	assert.strictEqual(host.querySelectorAll(".avm-row").length, 1);
+	assert.ok(host.querySelector(".innerorts-sprung"), "die Zeile zeigt jetzt den Sprung ⊕");
+	const meldung = host.querySelector(".fs-add-note");
+	assert.ok(meldung.classList.contains("fs-add-note--ok"));
+	assert.strictEqual(meldung.textContent,
+		'„Südquartier“ liegt wieder auf der Karte — an seiner alten Stelle. Verschieben mit „Ort verschieben".');
+
+	assert.strictEqual(angelegteMarker.length, 1, "der Marker wird nachgezogen (kein Marker war schon da)");
+	assert.strictEqual(angelegteMarker[0].feature, punktFeature);
+	assert.strictEqual(angelegteMarker[0].opts.openPopup, false);
+	assert.deepStrictEqual(sprungAufrufe, ["pkt-suedquartier"], "und die Karte fliegt zum Punkt");
+
+	// Nutzlast nachgezogen: der Eintrag ist jetzt "auf der Karte".
+	const eintrag = win.avesmapsInSettlementPlaces.find((e) => e.public_id === "pkt-suedquartier");
+	assert.strictEqual(eintrag.auf_der_karte, true);
+	assert.strictEqual(win.avesmapsStaettenIndex, null);
+
+	console.log("16. Auf die Karte setzen: OK");
+}
+
+// ══ 16b. „●": schon ein Marker auf der Karte -- KEIN doppeltes Anlegen ═══════════════════════════
+async function testAufDieKarteSetzenMarkerSchonDa() {
+	const aufrufe = [];
+	const win = winFixtur();
+	const angelegteMarker = [];
+	win.findLocationMarkerByPublicId = () => ({ marker: {} }); // schon da (Live-Abgleich einer anderen Sitzung)
+	win.addCreatedLocationMarker = (feature) => { angelegteMarker.push(feature); return { marker: {} }; };
+	win.avesmapsSpringeZuInnerortsPunkt = () => true;
+	const host = neu("div");
+	const sektion = neu("div");
+	const fetchImpl = baueFetch({
+		list: () => ({ ok: true, staetten: [punktVonDerKarteFixtur()] }),
+		put_on_map: () => ({ ok: true, staetten: [punktAufDerKarteFixtur()], feature: { public_id: "pkt-suedquartier" } }),
+	}, aufrufe);
+	await modul.mountStaettenKasten(host, { ortPublicId: "ort-1", ortName: "Gareth", sektion, fetchImpl, win });
+	klicke(host.querySelector('[data-st-aktion="auf_die_karte"]'));
+	await tick();
+	assert.strictEqual(angelegteMarker.length, 0, "kein zweiter Marker fuer denselben Punkt");
+	console.log("16b. Auf die Karte setzen, Marker schon da: OK");
+}
+
+// ══ 16c. „●": doppeltes Absenden UND Fehlschlag ═══════════════════════════════════════════════
+async function testAufDieKarteSetzenDoppeltUndFehler() {
+	const aufrufe = [];
+	let freigeben;
+	const wartend = new Promise((resolve) => { freigeben = resolve; });
+	const fetchImpl = async (url, init) => {
+		const body = JSON.parse(init.body);
+		aufrufe.push(body);
+		if (body.action === "list") {
+			return { ok: true, json: async () => ({ ok: true, staetten: [punktVonDerKarteFixtur()] }) };
+		}
+		if (body.action === "put_on_map") {
+			await wartend;
+			return { ok: true, json: async () => ({ ok: false, error: { code: "conflict", message: "Der Punkt wird gerade von jemand anderem bearbeitet." } }) };
+		}
+		throw new Error("unerwartete Aktion " + body.action);
+	};
+	const host = neu("div");
+	const sektion = neu("div");
+	await modul.mountStaettenKasten(host, { ortPublicId: "ort-1", ortName: "Gareth", sektion, fetchImpl, win: {} });
+
+	const knopf = () => host.querySelector('[data-st-aktion="auf_die_karte"]');
+	klicke(knopf());
+	assert.strictEqual(knopf().disabled, true, "waehrend des Sendens deaktiviert");
+	klicke(knopf()); // zweiter, rascher Klick -- darf keine zweite Anfrage ausloesen
+	assert.strictEqual(aufrufe.filter((a) => a.action === "put_on_map").length, 1, "genau EINE put_on_map-Anfrage");
+
+	freigeben();
+	await tick();
+	assert.strictEqual(knopf().disabled, false, "nach dem Fehlschlag wieder aktiv");
+	const meldung = host.querySelector(".fs-add-note");
+	assert.ok(!meldung.classList.contains("fs-add-note--ok"));
+	assert.strictEqual(meldung.textContent, "Der Punkt wird gerade von jemand anderem bearbeitet.");
+	assert.strictEqual(host.querySelectorAll(".avm-row").length, 1, "Liste bleibt unveraendert (Fehlschlag)");
+
+	console.log("16c. Auf die Karte setzen, doppelt + Fehler: OK");
+}
+
+// ══ 17. „⊕" im Staetten-Kasten selbst -- ueber das Zielfenster, nicht die document-Delegation ════
+async function testInnerortsSprungImKasten() {
+	const aufrufe = [];
+	const win = winFixtur();
+	const sprungAufrufe = [];
+	win.avesmapsSpringeZuInnerortsPunkt = (id) => { sprungAufrufe.push(id); return true; };
+	const host = neu("div");
+	const sektion = neu("div");
+	const fetchImpl = baueFetch({ list: () => ({ ok: true, staetten: [punktAufDerKarteFixtur()] }) }, aufrufe);
+	await modul.mountStaettenKasten(host, { ortPublicId: "ort-1", ortName: "Gareth", sektion, fetchImpl, win });
+
+	klicke(host.querySelector(".innerorts-sprung"));
+	assert.deepStrictEqual(sprungAufrufe, ["pkt-neu-gareth"],
+		"der Kasten ruft avesmapsSpringeZuInnerortsPunkt am ZIELFENSTER selbst auf (iframe-Faehigkeit)");
+
+	console.log("17. Sprung ⊕ im Kasten: OK");
+}
+
+// ══ 18. LÖSCHEN eines innerorts-Punkts (von der Karte genommen): eigene Rueckfrage ═══════════════
+async function testLoeschenInnerortsPunkt() {
+	const aufrufe = [];
+	const win = winFixtur();
+	const host = neu("div");
+	const sektion = neu("div");
+	const fetchImpl = baueFetch({
+		list: () => ({ ok: true, staetten: [punktVonDerKarteFixtur()] }),
+		delete: () => ({ ok: true, staetten: [] }),
+	}, aufrufe);
+	await modul.mountStaettenKasten(host, { ortPublicId: "ort-1", ortName: "Gareth", sektion, fetchImpl, win });
+
+	klicke(host.querySelector(".fs-row__remove"));
+	const falte = host.querySelector(".st-falte");
+	assert.strictEqual(falte.textContent,
+		"„Südquartier“ löschen? Es wird auch nicht mehr als Stätte von Gareth geführt.Abbrechen" + "Löschen",
+		"die Ruling-Rueckfrage der Fix-Runde 1, wörtlich");
+
+	klicke(falte.querySelector(".fs-actions__prim"));
+	await tick();
+	const letzterAufruf = aufrufe[aufrufe.length - 1];
+	assert.strictEqual(letzterAufruf.action, "delete");
+	assert.strictEqual(letzterAufruf.public_id, "pkt-suedquartier");
+	assert.strictEqual(host.querySelectorAll(".avm-row").length, 0);
+
+	console.log("18. Löschen (innerorts-Punkt): OK");
+}
+
 (async () => {
 	await testRuhezustand();
 	await testFalteUmhaengen();
@@ -1101,6 +1337,12 @@ async function testNichtParsebareAdresse() {
 	await testDoppeltesAbsenden();
 	await testLinkProtokoll();
 	await testNichtParsebareAdresse();
+	await testDreiSorten();
+	await testAufDieKarteSetzen();
+	await testAufDieKarteSetzenMarkerSchonDa();
+	await testAufDieKarteSetzenDoppeltUndFehler();
+	await testInnerortsSprungImKasten();
+	await testLoeschenInnerortsPunkt();
 	console.log("staetten-kasten: alle Zusicherungen erfüllt");
 })().catch((fehler) => {
 	console.error(fehler);

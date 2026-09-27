@@ -155,38 +155,98 @@ function staettenKastenHervorhebung(text, suchwort, escape) {
   return out + escape(roh.slice(cursor));
 }
 
-// ── Rein: das Markup einer Stätten-Zeile ──────────────────────────────────────────────────────
-function staettenKastenZeileMarkup(staette, offenId, offenArt, escape, tr) {
+// ── Rein: das Markup einer Stätten-Zeile -- DREI Sorten (Spec §6.3, Mockup Szene 5/6) ────────────
+// 🔴 „Sorte" entscheidet `staette.art` (nur ein innerorts-PUNKT traegt `art: "punkt"`, gesetzt vom
+// Server in avesmapsInnerortsPunkteEinerStadt/avesmapsStaettenEndpunktListe -- eine gespeicherte
+// Staette hat das Feld nicht) und `staette.auf_der_karte` (nur bei einem Punkt sinnvoll):
+//   1. Punkt AUF der Karte           -- "auf der Karte" + ⊕, nur ⇄ (geloescht wird auf der Karte)
+//   2. Punkt VON der Karte genommen  -- "nicht auf der Karte", ● zurueck · ⇄ · ✕ (endgueltig)
+//   3. gespeicherte Staette          -- unveraendert: Link + ⇄ · ✕
+function staettenKastenZeileMarkup(staette, offenId, offenArt, escape, tr, aufDieKarteSendetId) {
   var id = String(staette.public_id);
   var offenFuerDiese = offenId !== null && offenId === id;
+  var istPunkt = staette.art === "punkt";
+  var aufDerKarte = istPunkt && staette.auf_der_karte === true;
   // B1: `.fs-row--open` hebt nur das ⇄ hervor (`.fs-row--open .fs-row__edit`,
   // feature-sources.css) -- bei offener LOESCHEN-Rueckfrage waere das falsch benannt: es gibt
   // dort nichts zum Umhaengen zu betonen. `aria-expanded` bleibt unabhaengig davon am jeweils
   // oeffnenden Knopf stehen.
   var alsUmhaengenHervorgehoben = offenFuerDiese && offenArt === "umhaengen";
-  var wikiUrl = String(staette.wiki_url || "");
-  var wirtText = staettenKastenWirt(wikiUrl);
-  // 🔴 NUR http/https wird zu einem <a href> -- alles andere (nicht parsebar, ohne Host, oder ein
-  // anderes Protokoll wie "javascript:") zeigt hoechstens den Wirtstext, nie einen Link und nie
-  // den Pfeil (Review-Vorgabe, Task 4 Punkte 3+4). Ist auch der Text leer, traegt die Zeile 2
-  // NICHTS aus dieser Haelfte -- kein "nur ↗" und kein fuehrendes " · " vor dem Namensnachbar-Hinweis.
-  var verlinkbar = wirtText !== "" && staettenKastenIstVerlinkbareAdresse(wikiUrl);
-  var gleichnamig = staette.gleichnamig_auf_der_karte === true;
-  var warnText = gleichnamig ? tr("staetten.row.duplicateOnMap", "gleichnamiger Punkt auf der Karte") : "";
-  var teile = [];
-  if (wirtText !== "") {
-    teile.push(verlinkbar
-      ? '<a href="' + escape(wikiUrl) + '" target="_blank" rel="noopener noreferrer">' + escape(wirtText) + " ↗</a>"
-      : escape(wirtText));
+
+  var l2;
+  if (istPunkt) {
+    var punktText = aufDerKarte
+      ? tr("staetten.row.onMap", "auf der Karte")
+      : tr("staetten.row.notOnMap", "nicht auf der Karte");
+    // ⊕ nur, solange der Punkt wirklich auf der Karte liegt -- von der Karte genommen springt
+    // nichts an (die Suche fuehrt dann auf die Stadt, Spec §6.2).
+    var sprung = aufDerKarte
+      ? '<button type="button" class="innerorts-sprung" data-public-id="' + escape(id) + '"'
+        + ' title="' + escape(tr("staetten.row.jumpTitle", "Auf der Karte zeigen")) + '"'
+        + ' aria-label="' + escape(tr("staetten.row.jumpLabel", "Auf der Karte zeigen")) + '">⊕</button>'
+      : "";
+    l2 = '<div class="avm-row__l2">' + escape(punktText) + sprung + "</div>";
+  } else {
+    var wikiUrl = String(staette.wiki_url || "");
+    var wirtText = staettenKastenWirt(wikiUrl);
+    // 🔴 NUR http/https wird zu einem <a href> -- alles andere (nicht parsebar, ohne Host, oder ein
+    // anderes Protokoll wie "javascript:") zeigt hoechstens den Wirtstext, nie einen Link und nie
+    // den Pfeil (Review-Vorgabe, Task 4 Punkte 3+4). Ist auch der Text leer, traegt die Zeile 2
+    // NICHTS aus dieser Haelfte -- kein "nur ↗" und kein fuehrendes " · " vor dem Namensnachbar-Hinweis.
+    var verlinkbar = wirtText !== "" && staettenKastenIstVerlinkbareAdresse(wikiUrl);
+    var gleichnamig = staette.gleichnamig_auf_der_karte === true;
+    var warnText = gleichnamig ? tr("staetten.row.duplicateOnMap", "gleichnamiger Punkt auf der Karte") : "";
+    var teile = [];
+    if (wirtText !== "") {
+      teile.push(verlinkbar
+        ? '<a href="' + escape(wikiUrl) + '" target="_blank" rel="noopener noreferrer">' + escape(wirtText) + " ↗</a>"
+        : escape(wirtText));
+    }
+    if (gleichnamig) {
+      teile.push(escape(warnText));
+    }
+    l2 = teile.length > 0
+      ? '<div class="avm-row__l2' + (gleichnamig ? " warn" : "") + '">' + teile.join(" · ") + "</div>"
+      : "";
   }
-  if (gleichnamig) {
-    teile.push(escape(warnText));
-  }
-  var l2 = teile.length > 0
-    ? '<div class="avm-row__l2' + (gleichnamig ? " warn" : "") + '">' + teile.join(" · ") + "</div>"
-    : "";
+
   var ariaUmhaengen = offenFuerDiese && offenArt === "umhaengen" ? ' aria-expanded="true"' : "";
   var ariaLoeschen = offenFuerDiese && offenArt === "loeschen" ? ' aria-expanded="true"' : "";
+  var umhaengenKnopf = istPunkt
+    // Ein Punkt haengt an einer STADT, keiner "Staette" -- eigene Beschriftung, dieselbe Aktion
+    // (data-st-aktion="umhaengen") und dieselbe Falte wie bei einer gespeicherten Staette.
+    ? '<button type="button" class="fs-row__edit" data-st-aktion="umhaengen"' + ariaUmhaengen
+      + ' title="' + escape(tr("staetten.row.moveCityTitle", "Zu einer anderen Stadt")) + '"'
+      + ' aria-label="' + escape(tr("staetten.row.moveCityLabel", "Stadt ändern")) + '">⇄</button>'
+    : '<button type="button" class="fs-row__edit" data-st-aktion="umhaengen"' + ariaUmhaengen
+      + ' title="' + escape(tr("staetten.row.moveTitle", "An einen anderen Ort hängen")) + '"'
+      + ' aria-label="' + escape(tr("staetten.row.moveLabel", "Umhängen")) + '">⇄</button>';
+
+  var aktionen;
+  if (istPunkt && aufDerKarte) {
+    // Sorte 1: nur ⇄ -- ein Punkt auf der Karte hat hier kein ✕, geloescht wird auf der Karte,
+    // wo man sieht, was man loescht (Spec §6.3).
+    aktionen = umhaengenKnopf;
+  } else if (istPunkt) {
+    // Sorte 2: von der Karte genommen -- ● zurueck · ⇄ · ✕ (Merker weg, bleibt geloescht; die
+    // Rueckfrage dazu nennt es "Löschen", nicht "Endgültig löschen" -- ueber "Rückgängig" im
+    // Aenderungsverlauf umkehrbar, Ruling der Fix-Runde 1).
+    var sendetDiese = aufDieKarteSendetId !== null && aufDieKarteSendetId !== undefined && aufDieKarteSendetId === id;
+    aktionen = '<button type="button" class="fs-row__edit" data-st-aktion="auf_die_karte"' + (sendetDiese ? " disabled" : "")
+      + ' title="' + escape(tr("staetten.row.putOnMapTitle", "Wieder an seiner alten Stelle auf die Karte")) + '"'
+      + ' aria-label="' + escape(tr("staetten.row.putOnMapLabel", "Auf die Karte setzen")) + '">●</button>'
+      + umhaengenKnopf
+      + '<button type="button" class="fs-row__remove" data-st-aktion="loeschen"' + ariaLoeschen
+      + ' title="' + escape(tr("staetten.row.deleteOffMapTitle", "Löschen")) + '"'
+      + ' aria-label="' + escape(tr("staetten.row.deleteOffMapLabel", "Löschen")) + '">✕</button>';
+  } else {
+    // Sorte 3: gespeicherte Staette -- unveraendert.
+    aktionen = umhaengenKnopf
+      + '<button type="button" class="fs-row__remove" data-st-aktion="loeschen"' + ariaLoeschen
+      + ' title="' + escape(tr("staetten.row.deleteTitle", "Stätte löschen")) + '"'
+      + ' aria-label="' + escape(tr("staetten.row.deleteLabel", "Löschen")) + '">✕</button>';
+  }
+
   return (
     '<div class="avm-row' + (alsUmhaengenHervorgehoben ? " fs-row--open" : "") + '" data-st-id="' + escape(id) + '">'
     + '<div class="avm-row__text">'
@@ -194,14 +254,7 @@ function staettenKastenZeileMarkup(staette, offenId, offenArt, escape, tr) {
     + '<span class="avm-row__kind">' + escape(staette.place_type) + "</span></div>"
     + l2
     + "</div>"
-    + '<div class="st-aktionen">'
-    + '<button type="button" class="fs-row__edit" data-st-aktion="umhaengen"' + ariaUmhaengen
-    + ' title="' + escape(tr("staetten.row.moveTitle", "An einen anderen Ort hängen")) + '"'
-    + ' aria-label="' + escape(tr("staetten.row.moveLabel", "Umhängen")) + '">⇄</button>'
-    + '<button type="button" class="fs-row__remove" data-st-aktion="loeschen"' + ariaLoeschen
-    + ' title="' + escape(tr("staetten.row.deleteTitle", "Stätte löschen")) + '"'
-    + ' aria-label="' + escape(tr("staetten.row.deleteLabel", "Löschen")) + '">✕</button>'
-    + "</div></div>"
+    + '<div class="st-aktionen">' + aktionen + "</div></div>"
   );
 }
 
@@ -243,8 +296,13 @@ function staettenKastenFalteUmhaengenMarkup(staette, suchtext, ziel, falteFehler
 
 // ── Rein: die Falte "Löschen" -- Rückfrage ─────────────────────────────────────────────────────
 function staettenKastenFalteLoeschenMarkup(staette, ortName, falteFehler, sendetGerade, escape, tr) {
-  var vorlage = tr("staetten.delete.confirm",
-    "Stätte „{name}“ löschen? Sie verschwindet aus der Infobox von {ort}; ihre Quellen bleiben an ihr hängen.");
+  // Ein innerorts-PUNKT, der schon von der Karte genommen ist, bekommt die Rueckfrage aus dem
+  // Ruling der Fix-Runde 1 -- "Löschen", nicht "Endgültig löschen", weil "Rückgängig" im
+  // Aenderungsverlauf es zurueckholt (avesmapsInnerortsEndgueltigEntfernen ist Undo-faehig).
+  var istPunkt = staette.art === "punkt";
+  var vorlage = istPunkt
+    ? tr("staetten.delete.confirmPoint", "„{name}“ löschen? Es wird auch nicht mehr als Stätte von {ort} geführt.")
+    : tr("staetten.delete.confirm", "Stätte „{name}“ löschen? Sie verschwindet aus der Infobox von {ort}; ihre Quellen bleiben an ihr hängen.");
   var satz = "<div>" + vorlage
     .replace("{name}", escape(staette.name))
     .replace("{ort}", escape(ortName)) + "</div>";
@@ -409,10 +467,21 @@ function staettenKastenNutzlastNachziehen(win, art, staette, alterOrt, zielName)
     var schluesselFn = staettenKastenSchluesselFn(fenster);
     var namensSchluessel = schluesselFn(staette && staette.name);
     var ortSchluessel = schluesselFn(alterOrt);
+    // Ein innerorts-PUNKT traegt eine public_id -- ueber SIE zu suchen ist eindeutig (Task 4);
+    // eine gespeicherte Staette hat in dieser Liste keine, dort bleibt Name+Ort der einzige Weg.
+    var istPunkt = staette && staette.art === "punkt";
+    var staettePublicId = String((staette && staette.public_id) || "");
     var liste = fenster.avesmapsInSettlementPlaces;
     var index = -1;
     for (var i = 0; i < liste.length; i += 1) {
       var eintrag = liste[i];
+      if (istPunkt) {
+        if (staettePublicId !== "" && String((eintrag && eintrag.public_id) || "") === staettePublicId) {
+          index = i;
+          break;
+        }
+        continue;
+      }
       if (schluesselFn(eintrag && eintrag.name) === namensSchluessel
         && schluesselFn(eintrag && eintrag.settlement) === ortSchluessel) {
         index = i;
@@ -426,10 +495,47 @@ function staettenKastenNutzlastNachziehen(win, art, staette, alterOrt, zielName)
       liste.splice(index, 1);
     } else if (art === "umhaengen") {
       liste[index].settlement = zielName;
+    } else if (art === "auf_die_karte") {
+      // „● Auf die Karte setzen" (Spec §4.2) -- der Punkt bleibt derselbe Eintrag, nur sein
+      // Merker dreht um; die Infobox-Zeile „Stätten" bekommt damit wieder ihren Sprung ⊕.
+      liste[index].auf_der_karte = true;
     }
     fenster.avesmapsStaettenIndex = null;
     if (typeof fenster.avesmapsRefreshInfopanel === "function") {
       fenster.avesmapsRefreshInfopanel();
+    }
+  } catch (fehler) {
+    // Ein Fehler hier darf den Schreiberfolg nicht als Fehler melden (siehe Kommentar oben).
+  }
+}
+
+/**
+ * Nach „● Auf die Karte setzen" (Spec §4.2): den Marker der wieder aktiven Kartenposition auf der
+ * Karte herstellen (falls er dort noch nicht steht -- ein Live-Abgleich koennte ihn zwischenzeitlich
+ * schon nachgezogen haben) und hinfliegen. `feature` ist die Punktantwort des Servers
+ * (avesmapsBuildFeatureResponseFromStoredFeature), wie sie jeder andere Punkt-Endpunkt liefert.
+ *
+ * 🔴 IM ORTSEDITOR-IFRAME "falls erreichbar" (Spec §4.2): `staettenKastenZielfenster` findet nur ein
+ * Fenster, das die Kartennutzlast wirklich traegt -- gibt es keins, passiert hier nichts weiter als
+ * die Meldung, die `fuehrePutOnMapAus` ohnehin zeigt.
+ */
+function staettenKastenAufDieKarteFliegen(win, feature) {
+  try {
+    var fenster = staettenKastenZielfenster(win);
+    if (!fenster || !feature) {
+      return;
+    }
+    var publicId = String(feature.public_id || "");
+    if (publicId === "") {
+      return;
+    }
+    var schonDa = typeof fenster.findLocationMarkerByPublicId === "function"
+      && fenster.findLocationMarkerByPublicId(publicId);
+    if (!schonDa && typeof fenster.addCreatedLocationMarker === "function") {
+      fenster.addCreatedLocationMarker(feature, { openPopup: false });
+    }
+    if (typeof fenster.avesmapsSpringeZuInnerortsPunkt === "function") {
+      fenster.avesmapsSpringeZuInnerortsPunkt(publicId);
     }
   } catch (fehler) {
     // Ein Fehler hier darf den Schreiberfolg nicht als Fehler melden (siehe Kommentar oben).
@@ -443,7 +549,7 @@ function staettenKastenKastenHtml(state, ortName, escape, tr) {
   }
   var zeilen = "";
   state.staetten.forEach(function (staette) {
-    zeilen += staettenKastenZeileMarkup(staette, state.offenId, state.offenArt, escape, tr);
+    zeilen += staettenKastenZeileMarkup(staette, state.offenId, state.offenArt, escape, tr, state.aufDieKarteSendetId);
     if (state.offenId !== null && state.offenId === String(staette.public_id)) {
       zeilen += state.offenArt === "umhaengen"
         ? staettenKastenFalteUmhaengenMarkup(staette, state.suchtext, state.ziel, state.falteFehler, state.sendetGerade, escape, tr)
@@ -529,6 +635,9 @@ function mountStaettenKasten(host, opts) {
     // Abbrechen deaktiviert und ein zweiter Klick auf den Primaerknopf loest keine zweite Anfrage
     // aus -- siehe bestaetigeAktion() und den Ruecksetzer in fuehreLoeschenAus/fuehreUmhaengenAus.
     sendetGerade: false,
+    // Die public_id der Zeile, deren "● Auf die Karte setzen" gerade unterwegs ist -- eigener
+    // Riegel, weil diese Handlung KEINE Falte oeffnet (Spec §4.2, direkt statt Rueckfrage).
+    aufDieKarteSendetId: null,
   };
 
   var detachTypeahead = null;
@@ -704,6 +813,41 @@ function mountStaettenKasten(host, opts) {
       });
   }
 
+  // „● Auf die Karte setzen" (Spec §4.2) -- eine DIREKTE Handlung ohne Falte (Mockup Szene 6), im
+  // Unterschied zu Loeschen/Umhaengen. Eigener Riegel (state.aufDieKarteSendetId statt
+  // state.sendetGerade), weil dafuer kein state.offenId reserviert wird.
+  function fuehrePutOnMapAus(staette) {
+    return staettenKastenPost(fetchImpl, { action: "put_on_map", public_id: staette.public_id })
+      .catch(function () {
+        state.aufDieKarteSendetId = null;
+        state.note = { ok: false, text: netzFehlerText() };
+        render();
+        return null;
+      })
+      .then(function (antwort) {
+        if (antwort === null) {
+          return; // Netzfehler bereits behandelt
+        }
+        if (!antwort || antwort.ok !== true) {
+          state.aufDieKarteSendetId = null;
+          state.note = { ok: false, text: serverFehlerText(antwort) };
+          render();
+          return;
+        }
+        state.aufDieKarteSendetId = null;
+        state.staetten = Array.isArray(antwort.staetten) ? antwort.staetten : [];
+        state.note = {
+          ok: true,
+          text: trFn("staetten.putOnMap.done",
+            '„{name}“ liegt wieder auf der Karte — an seiner alten Stelle. Verschieben mit „Ort verschieben".')
+            .replace("{name}", staette.name),
+        };
+        render();
+        staettenKastenNutzlastNachziehen(win, "auf_die_karte", staette, ortName, null);
+        staettenKastenAufDieKarteFliegen(win, antwort.feature);
+      });
+  }
+
   // Wie schliesseFalte(), aber ohne eigenes render() -- der Aufrufer zeichnet gleich darauf
   // ohnehin neu (mitsamt der neuen Liste und der Meldung), ein Zwischenschritt waere ein
   // sichtbares Flackern ohne Aussage.
@@ -745,6 +889,23 @@ function mountStaettenKasten(host, opts) {
     if (!target || typeof target.closest !== "function") {
       return;
     }
+    // „⊕" -- der Sprung auf einen innerorts-Punkt (Spec §6.3). Dieser Kasten kann in einem IFRAME
+    // haengen (html/wiki-sync-settlement-editor.html) -- die document-weite Delegation aus
+    // js/routing/routing.js erreicht ihn dort nicht, deshalb bedient er den Knopf selbst, ueber
+    // sein Zielfenster (dieselbe Aufloesung wie beim Nachziehen der Nutzlast).
+    // 🔴 `stopPropagation`, weil derselbe Kasten auch im HAUPTDOKUMENT haengt ("Ort bearbeiten") --
+    // dort wuerde sonst ZUSAETZLICH der document-weite Zuhoerer aus routing.js feuern (Doppelklick).
+    var sprungBtn = target.closest(".innerorts-sprung");
+    if (sprungBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      var sprungId = sprungBtn.getAttribute("data-public-id") || "";
+      var sprungFenster = staettenKastenZielfenster(win);
+      if (sprungId && sprungFenster && typeof sprungFenster.avesmapsSpringeZuInnerortsPunkt === "function") {
+        sprungFenster.avesmapsSpringeZuInnerortsPunkt(sprungId);
+      }
+      return;
+    }
     var confirmBtn = target.closest("[data-st-confirm]");
     if (confirmBtn) {
       event.preventDefault();
@@ -764,15 +925,41 @@ function mountStaettenKasten(host, opts) {
     var aktionBtn = target.closest("[data-st-aktion]");
     if (aktionBtn) {
       event.preventDefault();
+      var zeile = aktionBtn.closest(".avm-row");
+      var id = zeile ? zeile.getAttribute("data-st-id") : "";
+      var aktion = aktionBtn.getAttribute("data-st-aktion");
+      // „● Auf die Karte setzen" (Spec §4.2) ist eine DIREKTE Handlung, keine Falte -- sie ist
+      // umkehrbar und braucht kein "wirklich?" (anders als Loeschen/Umhaengen). Eigener Riegel
+      // gegen Doppel-Absenden, weil kein `state.offenId` dafuer reserviert wird.
+      if (aktion === "auf_die_karte") {
+        if (state.sendetGerade || state.aufDieKarteSendetId) {
+          return;
+        }
+        var staetteFuerKarte = findeStaette(id);
+        if (!staetteFuerKarte) {
+          return;
+        }
+        // Eine offene Falte (⇄/✕) DERSELBEN Zeile wird mitgeschlossen -- sonst haenge eine
+        // Rueckfrage ueber einer Zeile, die nach dem Erfolg gar keinen dieser Knoepfe mehr traegt
+        // (Sorte 1 hat kein ✕).
+        if (state.offenId === id) {
+          state.offenId = null;
+          state.offenArt = null;
+          state.ziel = null;
+          state.suchtext = "";
+          state.falteFehler = null;
+        }
+        state.aufDieKarteSendetId = id;
+        render();
+        fuehrePutOnMapAus(staetteFuerKarte);
+        return;
+      }
       if (state.sendetGerade) {
         // Keine andere Falte oeffnen/wechseln, solange eine Anfrage laeuft: sonst raeumt
         // schliesseFalteOhneRender() beim Eintreffen der Antwort eine inzwischen andere, gerade
         // geoeffnete Falte weg.
         return;
       }
-      var zeile = aktionBtn.closest(".avm-row");
-      var id = zeile ? zeile.getAttribute("data-st-id") : "";
-      var aktion = aktionBtn.getAttribute("data-st-aktion");
       if (state.offenId === id && state.offenArt === aktion) {
         schliesseFalte();
       } else {
@@ -853,6 +1040,7 @@ if (typeof module !== "undefined" && module.exports) {
     mountStaettenKasten: mountStaettenKasten,
     staettenKastenWikiZahl: staettenKastenWikiZahl,
     staettenKastenNutzlastNachziehen: staettenKastenNutzlastNachziehen,
+    staettenKastenAufDieKarteFliegen: staettenKastenAufDieKarteFliegen,
     staettenKastenOrtsklassenLabel: staettenKastenOrtsklassenLabel,
     staettenKastenWirt: staettenKastenWirt,
     staettenKastenIstVerlinkbareAdresse: staettenKastenIstVerlinkbareAdresse,

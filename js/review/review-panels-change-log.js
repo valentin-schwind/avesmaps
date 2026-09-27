@@ -430,6 +430,13 @@ function formatChangeAction(action) {
 		update_region: "Region geändert",
 		update_region_geometry: "Regionsgrenze geändert",
 		delete_feature: "Objekt gelöscht",
+		// Innerorts-Gesten (Entwurf 2026-09-26-innerorts-praedikat-design.md §4.1/§4.2/§6.3):
+		// "Rückgängig" braucht dafür KEINEN Sonderfall (§4.4) -- derselbe generische
+		// undo_-Rückfall wie bei den Zeilen oben gibt "Rückgängig: …" von selbst.
+		take_off_map: "Von der Karte genommen",
+		put_on_map: "Auf die Karte gesetzt",
+		set_innerorts: "Innerorts-Zugehörigkeit geändert",
+		innerorts_endgueltig_entfernen: "Stätte endgültig gelöscht",
 		update_geometry: "Herrschaftsgebiet-Geometrie geändert",
 		split_geometry: "Herrschaftsgebiet zerschnitten",
 		delete_geometry: "Herrschaftsgebiet-Geometrie gelöscht",

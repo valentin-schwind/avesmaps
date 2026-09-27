@@ -367,6 +367,10 @@ function applyFeatureResponseToMarker(markerEntry, feature) {
 		// Ortsart. Die Antwort trägt sie IMMER (auch leer), also darf sie hier bedingungslos
 		// gewinnen -- sonst liesse sich eine geleerte Art am Marker nie wieder loswerden.
 		placeKind: String(feature.place_kind || ""),
+		// „Innerorts" -- avesmapsBuildPointFeatureResponse traegt das Feld IMMER (auch `null`), also
+		// darf es bedingungslos gewinnen; ohne diese Zeile verlöre der neu gebaute Marker-Eintrag
+		// nach jedem Speichern seine Stadt, und die Kachel „Von der Karte nehmen" verschwaende.
+		innerorts: feature.innerorts !== undefined ? feature.innerorts : (markerEntry.location.innerorts || null),
 		revision: Number(feature.revision) || markerEntry.location.revision || null,
 	};
 	const locationIndex = locationData.indexOf(previousLocation);
@@ -409,6 +413,49 @@ async function convertCrossingToLocation(markerEntry) {
 	showFeedbackToast("Ort bearbeiten und speichern, um die Konvertierung abzuschließen.", "info");
 }
 
+/**
+ * Der Name der Stadt zu einer public_id -- fuer die Rueckfragen/Meldungen von „Von der Karte
+ * nehmen" und „Ort löschen" an einem innerorts-Punkt (Entwurf 2026-09-26-innerorts-praedikat-
+ * design.md §4.1). Nur lokal nachgeschlagen (kein Server-Roundtrip vor einem synchronen
+ * window.confirm) -- eine Stadt (Dorf … Metropole) liegt praktisch immer selbst auf der Karte.
+ * Leer, wenn sie es (Ausnahmefall) nicht tut: die sichere Richtung, ein Satz ohne Stadtnamen ist
+ * besser als ein Satz mit "undefined".
+ */
+function innerortsStadtName(ortId) {
+	if (!ortId) {
+		return "";
+	}
+	const stadt = findLocationMarkerByPublicId(ortId);
+	return stadt ? stadt.name : "";
+}
+
+/**
+ * Den `avesmapsInSettlementPlaces`-Eintrag EINES innerorts-Punkts nachziehen (Suche, Infobox-Zeile
+ * „Stätten" und die graue Zeile des Staetten-Kastens lesen alle dieselbe Liste) und den Staetten-
+ * Index verwerfen, damit die naechste Anzeige ihn neu baut. Anders als eine gespeicherte Staette
+ * (staettenKastenNutzlastNachziehen, js/ui/staetten-kasten.js) traegt ein Punkt eine `public_id` --
+ * ueber SIE wird gesucht, nicht ueber Name+Ort.
+ *
+ * 🔴 ALLES IN `try` -- ein Fehler hier (z. B. weil die Liste einmal fehlt) darf den Schreiberfolg,
+ * den der Server laengst bestaetigt hat, nicht nachtraeglich als Fehler melden.
+ */
+function markiereInnerortsPunktAufDerKarte(publicId, wert) {
+	try {
+		if (Array.isArray(window.avesmapsInSettlementPlaces)) {
+			const eintrag = window.avesmapsInSettlementPlaces.find((e) => e && e.public_id === publicId);
+			if (eintrag) {
+				eintrag.auf_der_karte = wert;
+			}
+		}
+		window.avesmapsStaettenIndex = null;
+		if (typeof window.avesmapsRefreshInfopanel === "function") {
+			window.avesmapsRefreshInfopanel();
+		}
+	} catch (fehler) {
+		// Ein Fehler hier darf den Schreiberfolg nicht als Fehler melden (siehe Kommentar oben).
+	}
+}
+
 async function deleteLocationMarker(markerEntry) {
 	const locationTypeLabel = markerEntry.locationType === CROSSING_LOCATION_TYPE ? "Kreuzung" : "Ort";
 	// 💣 JEDER Punkt, nicht nur eine Kreuzung. Kraftlinien verbinden Nodix-Orte, Kreuzungen ODER
@@ -420,7 +467,15 @@ async function deleteLocationMarker(markerEntry) {
 	if (refusePowerlineAnchoredDeletion(markerEntry.name, markerEntry.publicId)) {
 		return;
 	}
-	if (!window.confirm(`${markerEntry.name} wirklich löschen?`)) {
+	// Ein innerorts-Punkt bekommt die ergänzte Rückfrage (Entwurf §4.1, wörtlich): "Ort löschen"
+	// heisst fuer ihn auch, dass er keine Staette seiner Stadt mehr ist -- anders als "Von der
+	// Karte nehmen" (siehe takeLocationOffMap unten), das genau das erhaelt.
+	const innerortsOrt = markerEntry.location?.innerorts?.ort || "";
+	const ortName = innerortsStadtName(innerortsOrt);
+	const confirmText = innerortsOrt
+		? `„${markerEntry.name}“ wirklich löschen? Es wird auch nicht als Stätte von ${ortName} geführt.`
+		: `${markerEntry.name} wirklich löschen?`;
+	if (!window.confirm(confirmText)) {
 		return;
 	}
 
@@ -447,6 +502,49 @@ async function deleteLocationMarker(markerEntry) {
 	} catch (error) {
 		console.error(`${locationTypeLabel} konnte nicht gelöscht werden:`, error);
 		showFeedbackToast(error.message || `${locationTypeLabel} konnte nicht gelöscht werden.`, "warning");
+	}
+}
+
+/**
+ * „⊖ Von der Karte nehmen" (Entwurf §4.1) -- der Gegenpart zu deleteLocationMarker: der Punkt
+ * bleibt derselbe Datensatz (Bibliothek: is_active = 0, Merker `von_der_karte`), nur wandert er wie
+ * ein geloeschter Marker von der Karte, ohne seine Stadt-Zugehoerigkeit zu verlieren. Umkehrbar
+ * ueber "●" im Staetten-Kasten oder "Rueckgaengig" im Aenderungsverlauf.
+ */
+async function takeLocationOffMap(markerEntry) {
+	if (refusePowerlineAnchoredDeletion(markerEntry.name, markerEntry.publicId)) {
+		return;
+	}
+	const innerortsOrt = markerEntry.location?.innerorts?.ort || "";
+	const ortName = innerortsStadtName(innerortsOrt);
+	const confirmText = `„${markerEntry.name}“ von der Karte nehmen? Es bleibt als Stätte von ${ortName} erhalten und kann dort wieder auf die Karte gesetzt werden.`;
+	if (!window.confirm(confirmText)) {
+		return;
+	}
+
+	try {
+		const result = await submitMapFeatureEdit({
+			action: "take_off_map",
+			public_id: markerEntry.publicId,
+		});
+		map.removeLayer(markerEntry.marker);
+		removeLocationNameLabel(markerEntry);
+		locationMarkers = locationMarkers.filter((entry) => entry !== markerEntry);
+		locationData = locationData.filter((location) => location !== markerEntry.location);
+		const didClearWaypoint = clearWaypointLocationName(markerEntry.name);
+		updateRevisionFromEditResponse(result);
+		refreshPlannerAfterFeatureChange({ updateRoute: didClearWaypoint });
+		markiereInnerortsPunktAufDerKarte(markerEntry.publicId, false);
+		if (markerEntry.locationType !== CROSSING_LOCATION_TYPE && typeof settlementListItems !== "undefined" && settlementListItems.length > 0 && typeof loadSettlementList === "function") {
+			void loadSettlementList();
+		}
+		// Der Server nennt die Stadt in der Antwort (`innerorts_ort.name`) -- er weiss sie sicher,
+		// die lokale ortName-Bestimmung oben ist nur die Vorbedingung fuer die synchrone Rueckfrage.
+		const staetteVonName = String(result?.innerorts_ort?.name || ortName || "");
+		showFeedbackToast(`„${markerEntry.name}“ ist jetzt Stätte von ${staetteVonName}.`, "success");
+	} catch (error) {
+		console.error("Ort konnte nicht von der Karte genommen werden:", error);
+		showFeedbackToast(error.message || "Ort konnte nicht von der Karte genommen werden.", "warning");
 	}
 }
 
@@ -478,6 +576,9 @@ function addCreatedLocationMarker(feature, { openPopup = true } = {}) {
 		isHidden: Boolean(feature.is_hidden),
 		isSeaport: Boolean(feature.is_seaport),
 		placeKind: String(feature.place_kind || ""),
+		// „Innerorts" -- derselbe Grund wie in applyFeatureResponseToMarker: ohne sie startet die
+		// Kachel „Von der Karte nehmen" fuer einen frisch (re-)angelegten Punkt immer leer.
+		innerorts: feature.innerorts || null,
 		revision: Number(feature.revision) || null,
 	};
 	locationData.push(location);
@@ -526,6 +627,10 @@ function applyLiveLocationFeature(feature) {
 		is_ruined: Boolean(properties.is_ruined),
 		is_hidden: Boolean(properties.is_hidden),
 		is_seaport: Boolean(properties.is_seaport),
+		// „Innerorts" gehoert in dieselbe Reihe wie die drei Wiki-Textfelder oben: ohne sie setzt
+		// die Live-Synchronisierung eines FREMDEN Editors die Stadt-Zugehoerigkeit auf meinem
+		// Marker still zurueck.
+		innerorts: properties.innerorts || null,
 		revision: properties.revision || null,
 	};
 	if (markerEntry) {

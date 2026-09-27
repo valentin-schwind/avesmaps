@@ -295,12 +295,20 @@ var AVESMAPS_LORE_ROWS = [
 
 // Ein Name als Markup -- verlinkt, wo es einen Wiki-Artikel gibt. EINE Stelle, damit ein Eintrag im
 // statischen Deckel nicht anders aussieht als im aufgeklappten.
+//
+// 🔴 `item.suffixMarkup` ist ein optionales, bereits FERTIGES HTML-Stück direkt hinter dem Namen --
+// heute genutzt vom Sprung ⊕ der Infobox-Zeile „Stätten" (Entwurf 2026-09-26-innerorts-praedikat-
+// design.md §6.2, js/map-features/map-features-settlement-places.js). Kein anderer Aufrufer setzt
+// es, das Feld bleibt fuer sie also unveraendert `undefined` -- keine zweite Namens-Rezeptur (siehe
+// den Kopf von map-features-settlement-places.js: „es gibt ZWEI, und das ist die Obergrenze").
 function avesmapsLoreNameMarkup(item) {
 	var href = avesmapsLoreSafeUrl(item && item.wiki_url);
 	var name = avesmapsLoreEscape(item && item.name);
-	return href
+	var basis = href
 		? '<a class="avesmaps-lore__name" href="' + avesmapsLoreEscape(href) + '" target="_blank" rel="noopener">' + name + "</a>"
 		: name;
+	var suffix = (item && typeof item.suffixMarkup === "string") ? item.suffixMarkup : "";
+	return basis + suffix;
 }
 
 // Die Gliederung des aufgeklappten Inhalts (Owner 2026-08-12: „geht das nicht überall?").
