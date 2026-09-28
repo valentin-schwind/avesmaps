@@ -111,6 +111,7 @@ function huelle(haelften) {
 	const log = [];
 	const toasts = [];
 	const elemente = { "landschaft-dialog-overlay": scheinFeld("") };
+	const gesperrtId = (id) => Boolean(elemente[id] && elemente[id].disabled);
 	const macheHaelfte = (name, einstellung) => (optionen) => {
 		log.push("vorbereiten:" + name + ":" + (optionen && optionen.verbund === true ? "verbund" : "allein"));
 		if (einstellung.fehler) {
@@ -125,6 +126,12 @@ function huelle(haelften) {
 				log.push("ende:" + name);
 				return {};
 			},
+			nachlauf: einstellung.nachlauf ? async () => {
+				log.push("nachlauf:" + name);
+				einstellung.nachlauf.imLauf = { speichern: gesperrtId("landschaft-dialog-save"), abbrechen: gesperrtId("landschaft-dialog-cancel") };
+				await einstellung.nachlauf.zusage;
+				log.push("nachlauf-ende:" + name);
+			} : undefined,
 			abschliessen: async ({ leise = false } = {}) => { log.push("abschluss:" + name + ":" + (leise ? "leise" : "laut")); },
 			fehlgeschlagen: () => { log.push("fehlgeschlagen:" + name); },
 		};
@@ -188,6 +195,27 @@ function huelle(haelften) {
 			"sie nennt den Namen: " + h.toasts[0].text); checks++;
 		assert.strictEqual(h.gesperrt(), false, "danach ist die Leiste wieder frei"); checks++;
 		assert.strictEqual(h.status().text, "", "und die Zeile leer"); checks++;
+	}
+
+	// ── A1b. Der Nachlauf (Höhenraster) kommt NACH beiden Hälften, VOR dem Schliessen ───────────────
+	{
+		const nachlauf = aufgeschoben();
+		const h = huelle({ flaeche: { nachlauf, name: "Finsterkamm" }, beschriftung: {} });
+		const zusage = h.lauf("avesmapsLandschaftDialogSpeichern()");
+		await ruhig();
+		assert.deepStrictEqual(h.log.slice(), [
+			"vorbereiten:flaeche:verbund", "vorbereiten:beschriftung:verbund",
+			"start:flaeche", "ende:flaeche", "start:beschriftung", "ende:beschriftung", "nachlauf:flaeche",
+		], "💣 erst stehen Fläche UND Beschriftung, dann rechnet das Raster: " + h.log.join(", ")); checks++;
+		assert.deepStrictEqual(nachlauf.imLauf, { speichern: true, abbrechen: false },
+			"während des Rasters: Speichern gesperrt, Abbrechen frei -- wer nicht warten will, schliesst"); checks++;
+		assert.ok(/Höhenfeld/.test(h.status().text) && h.status().art === "pending",
+			"die Zeile sagt, dass gespeichert ist und das Höhenfeld rechnet: " + h.status().text); checks++;
+		nachlauf.erfuellen();
+		await zusage;
+		assert.deepStrictEqual(h.log.slice(-3), ["nachlauf-ende:flaeche", "abschluss:beschriftung:leise", "abschluss:flaeche:leise"],
+			"geschlossen wird erst nach dem Raster: " + h.log.join(", ")); checks++;
+		assert.strictEqual(h.gesperrt(), false, "danach ist die Leiste frei"); checks++;
 	}
 
 	// ── A2. Ungültig heisst: NICHTS geschrieben ────────────────────────────────────────────────────
@@ -268,6 +296,8 @@ function huelle(haelften) {
 	await teilB();
 	// ══ TEIL C: DER GEMEINSAME KOPF ══════════════════════════════════════════════════════════════
 	await teilC();
+	// ══ TEIL D: DAS HÖHENRASTER HÄLT NICHTS MEHR AUF (Finsterkamm) ═════════════════════════════════
+	await teilD();
 
 	console.log("landschaft-dialog-ablauf: " + checks + " Zusicherungen gruen");
 })().catch((fehler) => {
@@ -284,6 +314,13 @@ const MOOR = {
 	public_id: "m1", region_public_id: "rm", region_name: "Moor-001", kind: "vegetation",
 	region_type: "suempfe_moore", wiki_region_key: null, wiki_url: null, label_public_id: "lbl-m",
 	auto_name: false,
+};
+// 🚩 Der Finsterkamm (27.09.2026): ein Gebirge MIT gespeicherten Reglern -- jedes Speichern rechnet
+// dort das Höhenraster (Worker, bis zu fünf Minuten), und die Wiki-Zuweisung wartete dahinter.
+const GEBIRGE = {
+	public_id: "g1", region_public_id: "rg", region_name: "Finsterkamm", kind: "topographie",
+	region_type: "gebirge", wiki_region_key: null, wiki_url: null, label_public_id: "lbl-g",
+	terrain_grain: 3.2, terrain_levels: 3, terrain_avg_height: 2000, auto_name: false,
 };
 const HEIDE = {
 	public_id: "h1", region_public_id: "rh", region_name: "Waskirer Heide", kind: "vegetation",
@@ -325,6 +362,7 @@ function echteHaelften(flaechen) {
 		"lbl-m": { publicId: "lbl-m", regionPublicId: "rm", text: "Moor-001", showName: true, labelType: "suempfe_moore", isNodix: false, wikiRegion: null, size: 18, minZoom: 0 },
 		"lbl-m2": { publicId: "lbl-m2", regionPublicId: "rm", text: "Moor-001", showName: true, labelType: "suempfe_moore", isNodix: false, wikiRegion: null, size: 18, minZoom: 0 },
 		"lbl-h": { publicId: "lbl-h", regionPublicId: "rh", text: "Waskirer Heide", showName: true, labelType: "suempfe_moore", isNodix: false, wikiRegion: null, size: 18, minZoom: 0 },
+		"lbl-g": { publicId: "lbl-g", regionPublicId: "rg", text: "Finsterkamm", showName: true, labelType: "gebirge", isNodix: false, wikiRegion: null, size: 18, minZoom: 0 },
 	};
 	const eintraege = {};
 	Object.keys(labels).forEach((id) => { eintraege[id] = { label: labels[id], marker: { getLatLng: () => ({ lat: 1, lng: 2 }) } }; });
@@ -346,7 +384,9 @@ function echteHaelften(flaechen) {
 			if (aktion === "list_regions") {
 				return Promise.resolve({
 					ok: true,
-					region_types: [{ type_key: "suempfe_moore", label: "Sümpfe und Moore" }, { type_key: "wald", label: "Wald" }]
+					region_types: (nutzlast.kind === "topographie"
+						? [{ type_key: "gebirge", label: "Gebirge" }]
+						: [{ type_key: "suempfe_moore", label: "Sümpfe und Moore" }, { type_key: "wald", label: "Wald" }])
 						.map((t) => Object.assign({ kind: nutzlast.kind }, t)),
 					regions: flaechen.filter((f) => f.kind === nutzlast.kind).map((f) => ({
 						public_id: f.region_public_id, name: f.region_name, kind: f.kind, region_type: f.region_type,
@@ -367,6 +407,9 @@ function echteHaelften(flaechen) {
 				regionLaeuft: protokoll.some((z) => z.wer === "region" && z.laeuft) });
 			if (steuerung.labelWirft && rumpf.public_id === steuerung.labelWirft) {
 				return Promise.reject(new Error("Konflikt (409)."));
+			}
+			if (steuerung.labelHalt && rumpf.public_id === steuerung.labelHalt.id && rumpf.size !== undefined) {
+				return steuerung.labelHalt.zusage.then(() => ({ ok: true, feature: null }));
 			}
 			return Promise.resolve({ ok: true, feature: null });
 		},
@@ -402,6 +445,28 @@ function echteHaelften(flaechen) {
 		setLabelMoveActive: () => {},
 		ecosystemPushLabelChangesToRegion: (label) => { rueckwege.push(label.publicId); return Promise.resolve(); },
 	});
+	// Der Höhenzeichner: `hochladen` antwortet erst, wenn der Test es sagt (steuerung.raster); `abbrechen`
+	// bricht eine laufende Berechnung ab wie der echte (die Zusage wird abgelehnt).
+	let rasterLaeuft = null;
+	kasten.AvesmapsEcosystemHeightRender = {
+		hochladen: () => {
+			protokoll.push({ wer: "raster" });
+			if (!steuerung.raster) {
+				return Promise.resolve({ hochgeladen: true, bytes: 2048 });
+			}
+			rasterLaeuft = steuerung.raster;
+			return rasterLaeuft.zusage;
+		},
+		abbrechen: () => {
+			if (rasterLaeuft) {
+				const laufend = rasterLaeuft;
+				rasterLaeuft = null;
+				laufend.ablehnen(new Error("Höhenberechnung abgebrochen."));
+			}
+		},
+		invalidate() {}, redraw() {}, setSolid() {},
+		gewaesserBeruehrt: () => false, whitePoint: () => 0, onPaint: () => () => {},
+	};
 	kasten.window = kasten;
 	kasten.globalThis = kasten;
 	vm.createContext(kasten);
@@ -646,5 +711,97 @@ async function teilC() {
 		await oeffnen;
 		await ruhig();
 		assert.strictEqual(haken.disabled, false, "mit dem Stand wird der Haken bedienbar"); checks++;
+	}
+}
+
+async function teilD() {
+	// ── D1. Verbund: Region, Gelände und Beschriftung stehen, WÄHREND das Raster noch rechnet ──────────
+	{
+		const k = echteHaelften([GEBIRGE]);
+		await flaecheOeffnen(k, "g1");
+		k.beschriftungOffen("lbl-g");
+		await artikelWaehlen(k);
+		const raster = aufgeschoben();
+		k.steuerung.raster = raster;
+		const lauf = vm.runInContext("avesmapsLandschaftDialogSpeichern()", k.kasten);
+		await ruhig(6);
+		const stelle = (pruefer) => k.protokoll.findIndex(pruefer);
+		const iRegion = stelle((z) => z.aktion === "update_region");
+		const iWerte = stelle((z) => z.aktion === "update_area_terrain");
+		const iLabel = stelle((z) => z.wer === "label" && z.public_id === "lbl-g");
+		const iRaster = stelle((z) => z.wer === "raster");
+		assert.ok(iRaster !== -1, "Aufbau: das Raster wird gerechnet -- die Fläche trägt gespeicherte Regler: "
+			+ JSON.stringify(k.protokoll.map((z) => z.wer + ":" + (z.aktion || "")))); checks++;
+		// 💣 DER KERN: die Wiki-Zuweisung ist draussen, bevor das Raster fertig ist.
+		assert.ok(iRegion !== -1 && iRegion < iRaster,
+			"💣 update_region (samt Wiki-Zuweisung) geht VOR dem Raster hinaus, nicht dahinter"); checks++;
+		assert.strictEqual(k.protokoll[iRegion].nutzlast.wiki_url, SUCHZEILE.wiki_url, "…mit der Zuweisung"); checks++;
+		assert.ok(iWerte > iRegion && iWerte < iRaster,
+			"die Reglerwerte stehen nach der Region und VOR dem Raster (sein Fingerabdruck liest sie)"); checks++;
+		assert.ok(iLabel !== -1 && iLabel < iRaster, "die Beschriftung ist geschrieben, während das Raster rechnet"); checks++;
+		assert.strictEqual(k.elemente["landschaft-dialog-overlay"].hidden, false, "das Fenster wartet auf das Raster"); checks++;
+		raster.erfuellen({ hochgeladen: true, bytes: 4096 });
+		const ergebnis = await lauf;
+		await ruhig();
+		assert.strictEqual(ergebnis.gespeichert, true, "gespeichert"); checks++;
+		assert.strictEqual(k.elemente["landschaft-dialog-overlay"].hidden, true, "danach geht das Fenster zu"); checks++;
+		assert.ok(!k.toasts.some((t) => t.ton === "warning"), "ein hochgeladenes Raster meldet nichts nach: " + JSON.stringify(k.toasts)); checks++;
+	}
+
+	// ── D2. Wer während des Rasters schliesst, verliert NUR das Raster -- und erfährt es ──────────────
+	{
+		const k = echteHaelften([GEBIRGE]);
+		await flaecheOeffnen(k, "g1");
+		k.beschriftungOffen("lbl-g");
+		await artikelWaehlen(k);
+		k.steuerung.raster = aufgeschoben();
+		const lauf = vm.runInContext("avesmapsLandschaftDialogSpeichern()", k.kasten);
+		await ruhig(6);
+		assert.ok(k.protokoll.some((z) => z.wer === "raster"), "Aufbau: das Raster rechnet");
+		vm.runInContext("window.AvesmapsEcosystemProperties.close()", k.kasten);
+		const ergebnis = await lauf;
+		await ruhig();
+		assert.strictEqual(ergebnis.gespeichert, true, "Region und Beschriftung sind gespeichert"); checks++;
+		assert.strictEqual(k.protokoll.filter((z) => z.aktion === "update_region").length, 1, "die Zuweisung ist geschrieben"); checks++;
+		const warnung = k.toasts.filter((t) => t.ton === "warning");
+		assert.ok(warnung.length === 1 && /nicht hochgeladen/.test(warnung[0].text),
+			"das fehlende Raster wird GESAGT -- die Statuszeile im Gelände-Block ist mit dem Fenster weg: "
+			+ JSON.stringify(k.toasts)); checks++;
+	}
+
+	// ── D2b. Wer schon VOR dem Raster schliesst (während die Beschriftung schreibt), rechnet keines ────
+	{
+		const k = echteHaelften([GEBIRGE]);
+		await flaecheOeffnen(k, "g1");
+		k.beschriftungOffen("lbl-g");
+		const halt = aufgeschoben();
+		k.steuerung.labelHalt = { id: "lbl-g", zusage: halt.zusage };
+		const lauf = vm.runInContext("avesmapsLandschaftDialogSpeichern()", k.kasten);
+		await ruhig(6);
+		assert.ok(k.protokoll.some((z) => z.aktion === "update_area_terrain"), "Aufbau: die Reglerwerte sind geschrieben");
+		vm.runInContext("window.AvesmapsEcosystemProperties.close()", k.kasten);
+		halt.erfuellen();
+		await lauf;
+		await ruhig();
+		assert.ok(!k.protokoll.some((z) => z.wer === "raster"),
+			"ein geschlossenes Fenster startet keine Rasterberechnung mehr (Minuten Arbeit für niemanden)"); checks++;
+		assert.ok(k.toasts.some((t) => t.ton === "warning" && /nicht hochgeladen/.test(t.text)),
+			"…und sagt, dass das Raster fehlt: " + JSON.stringify(k.toasts)); checks++;
+	}
+
+	// ── D3. Das Gebirge ohne Beschriftung (nur die Fläche im Fenster) -- dieselbe Regel ─────────────────
+	{
+		const k = echteHaelften([GEBIRGE]);
+		await flaecheOeffnen(k, "g1");
+		await artikelWaehlen(k);
+		k.steuerung.raster = aufgeschoben();
+		const lauf = vm.runInContext("avesmapsLandschaftDialogSpeichern()", k.kasten);
+		await ruhig(6);
+		const iRegion = k.protokoll.findIndex((z) => z.aktion === "update_region");
+		const iRaster = k.protokoll.findIndex((z) => z.wer === "raster");
+		assert.ok(iRegion !== -1 && iRaster !== -1 && iRegion < iRaster,
+			"auch allein: die Region geht vor dem Raster hinaus"); checks++;
+		k.steuerung.raster.erfuellen({ hochgeladen: true, bytes: 1024 });
+		await lauf;
 	}
 }

@@ -264,11 +264,28 @@ pruefe("ein Zuruecksetzen auf Automatik laedt NICHTS hoch", () => {
 	// ⚠️ Auf Automatik zurueck heisst: die Flaeche hat keine eigenen Werte mehr. Ein Raster dazu
 	// hochzuladen waere ein Widerspruch -- es traegt genau die Einstellung, die gerade zurueckgenommen
 	// wurde.
+	// 🔴 Seit dem 27.09.2026 steht der Upload in EINER Funktion (gelaendeRasterHochladen), und sie hat
+	// genau zwei Aufrufer: saveTerrainSettings -- dort HINTER dem reset-Riegel -- und den Nachlauf des
+	// Flaechen-Speicherns, dessen Rumpf nie ein Zuruecksetzen ist (terrainPayloadLesen(area, false)).
 	const quelle = ohneKommentare(lies("js/map-features/map-features-ecosystem-properties.js"));
-	const hochladen = quelle.indexOf(".hochladen?.(area)");
-	const riegel = quelle.lastIndexOf("if (reset)", hochladen);
-	assert.ok(riegel > 0 && riegel < hochladen,
-		"vor dem Upload steht kein reset-Riegel -- ein Zuruecksetzen laedt ein Raster hoch");
+	const aufrufe = quelle.split(".hochladen?.(area)").length - 1;
+	assert.strictEqual(aufrufe, 1, "der Upload steht an " + aufrufe + " Stellen, erwartet: eine");
+	const upload = quelle.indexOf("async function gelaendeRasterHochladen(");
+	assert.ok(upload > 0 && quelle.indexOf(".hochladen?.(area)") > upload,
+		"der Upload steht nicht in gelaendeRasterHochladen");
+	const s = quelle.indexOf("async function saveTerrainSettings(");
+	const sEnde = quelle.indexOf("\n\t}", s);
+	const speichern = quelle.slice(s, sEnde);
+	const riegel = speichern.indexOf("if (reset)");
+	const ruf = speichern.indexOf("gelaendeRasterHochladen(");
+	assert.ok(riegel > 0 && ruf > riegel,
+		"in saveTerrainSettings steht vor dem Upload kein reset-Riegel -- ein Zuruecksetzen laedt ein Raster hoch");
+	const alleRufe = quelle.split("gelaendeRasterHochladen(").length - 1;
+	assert.strictEqual(alleRufe, 3, "gelaendeRasterHochladen: Definition + zwei Aufrufer erwartet, gezaehlt "
+		+ (alleRufe - 1) + " Aufrufer");
+	assert.ok(quelle.includes("terrainPayloadLesen(area, false)"),
+		"das Flaechen-Speichern baut seinen Gelaende-Rumpf nicht ohne reset");
+	assert.ok(!/terrainPayloadLesen\(area, true\)/.test(quelle), "ein Zuruecksetzen fuehrt zum Nachlauf-Upload");
 });
 
 /* ══════════════════════════════════════════════════════════════════════════════════════════════

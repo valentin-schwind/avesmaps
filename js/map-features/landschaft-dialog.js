@@ -673,8 +673,8 @@ function avesmapsLandschaftDialogMeldung(text, art) {
 	}
 }
 
-function avesmapsLandschaftDialogKnoepfeSperren(gesperrt) {
-	AVESMAPS_LANDSCHAFT_DIALOG_SPERRKNOEPFE.forEach((id) => {
+function avesmapsLandschaftDialogKnoepfeSperren(gesperrt, nur) {
+	(Array.isArray(nur) ? nur : AVESMAPS_LANDSCHAFT_DIALOG_SPERRKNOEPFE).forEach((id) => {
 		const knopf = document.getElementById(id);
 		if (knopf) {
 			knopf.disabled = Boolean(gesperrt);
@@ -755,6 +755,26 @@ function avesmapsLandschaftDialogSpeichern() {
 					auftrag.fehlgeschlagen(fehler);
 				}
 				return { gespeichert: false, fehler: text };
+			}
+		}
+		// 🔴 DANN DIE NACHLÄUFE -- das Höhenraster eines Gebirges (bis zu fünf Minuten im Worker). Was der
+		// Editor gemeint hat, steht jetzt schon (Region samt Wiki-Zuweisung, Gelände, Beschriftung); das
+		// Raster darf deshalb nichts mehr davon aufhalten. Bis zum 27.09.2026 lief es VOR der Region, und
+		// wer am Finsterkamm nicht wartete, verlor die Zuweisung.
+		// ⚠️ Abbrechen und × sind währenddessen wieder frei: wer nicht warten will, schliesst -- das bricht
+		// nur das Raster ab, und die Meldung am Ende sagt, dass es fehlt.
+		const nachlaeufe = auftraege.filter((auftrag) => typeof auftrag.nachlauf === "function");
+		if (nachlaeufe.length > 0) {
+			avesmapsLandschaftDialogMeldung("Gespeichert — Höhenfeld wird berechnet und hochgeladen …", "pending");
+			avesmapsLandschaftDialogKnoepfeSperren(false);
+			avesmapsLandschaftDialogKnoepfeSperren(true, ["landschaft-dialog-save", "landschaft-dialog-delete"]);
+			for (const auftrag of nachlaeufe) {
+				try {
+					await auftrag.nachlauf();
+				} catch (fehler) {
+					// Ein Nachlauf wirft nicht -- falls doch, ist gespeichert, was gespeichert ist.
+					console.error("Nachlauf des Speicherns fehlgeschlagen:", fehler);
+				}
 			}
 		}
 		// 🔴 EINMAL schliessen, erst wenn ALLES steht -- die Beschriftung zuerst (sie nimmt beim Schliessen

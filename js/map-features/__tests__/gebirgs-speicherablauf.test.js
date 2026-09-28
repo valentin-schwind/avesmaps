@@ -28,6 +28,9 @@ function umgebung(post, upload) {
 	vm.runInContext(`let terrainSaving = false, terrainSaveGeneration = 0, terrainTouched = {};
 		const TERRAIN_FIELDS = []; let propertiesSourcePublicId, pendingWikiRegion, wikiSchnappschuss,
 		regionKeinArtikel, regionFieldOrigins, wikiUebernommen, wikiAssign;
+		${funktion("terrainPayloadLesen")}
+		${funktion("gelaendeWerteSchreiben")}
+		${funktion("gelaendeRasterHochladen")}
 		${funktion("saveTerrainSettings")}
 		${funktion("buildTerrainRaster")}
 		${funktion("closeEcosystemPropertiesDialog")}`, context);

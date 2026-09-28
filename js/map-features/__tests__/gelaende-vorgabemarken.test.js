@@ -144,8 +144,15 @@ pruefe("die Vorgabe kommt aus der GEMERKTEN Vorlage, nicht aus den Modulvorgaben
 pruefe("beide Vorlagen-Schlüssel reisen beim Speichern mit -- und beim Zurücksetzen als leer", () => {
 	// 💣 Ohne das behielte eine auf Automatik zurückgesetzte Fläche ihren Vorlagennamen -- und damit
 	// ↺-Knöpfe, die auf Werte zeigen, die sie nicht mehr hat.
-	const i = properties.indexOf("async function saveTerrainSettings(");
-	assert.ok(i > 0, "saveTerrainSettings fehlt");
+	// ⚠️ Seit dem 27.09.2026 baut EINE Funktion den Rumpf (terrainPayloadLesen) -- das Speichern der
+	// Fläche liest ihn synchron beim Klick und schreibt ihn erst nach der Region. Beide Schreiber gehen
+	// durch sie; geprüft wird deshalb dort, und dass saveTerrainSettings sie ruft.
+	const s = properties.indexOf("async function saveTerrainSettings(");
+	assert.ok(s > 0, "saveTerrainSettings fehlt");
+	assert.ok(properties.slice(s, s + 800).includes("terrainPayloadLesen(area, reset)"),
+		"saveTerrainSettings baut seinen Rumpf nicht über terrainPayloadLesen");
+	const i = properties.indexOf("function terrainPayloadLesen(");
+	assert.ok(i > 0, "terrainPayloadLesen fehlt");
 	const rumpf = properties.slice(i, i + 1200);
 	assert.ok(rumpf.includes("payload.terrain_preset_morph") && rumpf.includes("payload.terrain_preset_hoehe"),
 		"die gemerkten Vorlagen reisen nicht mit");

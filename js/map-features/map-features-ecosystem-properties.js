@@ -2191,14 +2191,12 @@
 		}
 	}
 
-	async function saveTerrainSettings(reset) {
-		if (terrainSaving) {
-			return { hochgeladen: false, grund: "Eine Geländespeicherung läuft bereits." };
-		}
-		const area = currentPropertiesArea();
-		if (!area || typeof postEcosystemEdit !== "function") {
-			return;
-		}
+	/**
+	 * Was „Gelände speichern" schreibt -- SYNCHRON gelesen, aus demselben Grund wie speicherStandLesen:
+	 * das Speichern der Fläche schreibt die Werte erst nach `update_region`, und ein Regler, den jemand
+	 * nach dem Klick noch zieht, ist nicht der Stand des Klicks.
+	 */
+	function terrainPayloadLesen(area, reset) {
 		const payload = { public_id: String(area.public_id || "") };
 		// 🔴 Die gemerkte Vorlage reist mit -- bei „Auf Automatik zurueck" als leerer String, der
 		// serverseitig zu NULL wird. Sonst behielte eine zurueckgesetzte Flaeche ihren Vorlagennamen
@@ -2212,62 +2210,87 @@
 				? ""
 				: String(propertiesElement(feld.element)?.value || "");
 		});
+		return payload;
+	}
+
+	/** Die Regler festschreiben -- nur die Werte, kein Raster. Wirft bei einem Fehlschlag. */
+	async function gelaendeWerteSchreiben(area, payload) {
+		const ergebnis = await postEcosystemEdit("update_area_terrain", payload);
+		TERRAIN_FIELDS.forEach((feld) => {
+			area[feld.key] = ergebnis?.[feld.key] ?? null;
+		});
+		area.terrain_preset_morph = ergebnis?.terrain_preset_morph ?? null;
+		area.terrain_preset_hoehe = ergebnis?.terrain_preset_hoehe ?? null;
+		// ⚠️ Nur, solange das Fenster noch DIESE Fläche zeigt -- sonst bekäme eine andere ihre Regler.
+		if (String(propertiesSourcePublicId || "") === String(area.public_id || "")) {
+			renderTerrainControls(area);
+		}
+		// Das Feld dieser Fläche ist veraltet -- dieselbe Kante wie bei einer Gipfeländerung.
+		if (window.AvesmapsEcosystemHeightRender?.invalidate) {
+			window.AvesmapsEcosystemHeightRender.invalidate();
+			window.AvesmapsEcosystemHeightRender.redraw();
+		}
+		return ergebnis;
+	}
+
+	/**
+	 * Das Raster rechnen und hochladen -- der LANGSAME Teil (Worker, bis zu fünf Minuten). Wirft nie.
+	 *
+	 * 🔴 UND DAS RASTER GEHT MIT -- „du kannst beim ‚speichern' des gebirges hochladen" (Owner
+	 * 04.09.2026). Was der Editor eben gesehen hat, wird damit zu dem, womit die Wegfindung rechnet.
+	 * 💣 NACH `update_area_terrain`, nie davor: der Server stempelt das Raster mit einem Fingerabdruck
+	 * aus den Reglern, die IN DER DATENBANK stehen. Ginge es zuerst hinaus, traege es den Abdruck der
+	 * alten Werte und gaelte im selben Moment als veraltet.
+	 * ⚠️ Und es faellt OFFEN aus: die Regler sind gespeichert, auch wenn der Upload scheitert (ein
+	 * grosses Gebirge kann an `post_max_size` scheitern). Die Meldung sagt dann, was wirklich passiert ist.
+	 */
+	async function gelaendeRasterHochladen(area, generation) {
+		setTerrainStatus("Gelände gespeichert — Höhenfeld wird berechnet und hochgeladen …", false);
+		try {
+			const ergebnisRaster = await window.AvesmapsEcosystemHeightRender?.hochladen?.(area);
+			if (generation !== terrainSaveGeneration) {
+				return { hochgeladen: false, grund: "Höhenberechnung abgebrochen." };
+			}
+			setTerrainStatus(ergebnisRaster?.hochgeladen
+				? "Gelände gespeichert, Höhenfeld hochgeladen ("
+					+ Math.round((ergebnisRaster.bytes || 0) / 1024) + " KB)."
+				: "Gelände gespeichert — das Höhenfeld wurde NICHT hochgeladen.",
+			!ergebnisRaster?.hochgeladen);
+			return ergebnisRaster;
+		} catch (fehler) {
+			if (generation === terrainSaveGeneration) {
+				setTerrainStatus("Gelände gespeichert, aber das Höhenfeld konnte nicht hochgeladen "
+					+ "werden: " + (fehler?.message || "unbekannter Fehler"), true);
+			}
+			return { hochgeladen: false, grund: fehler?.message || "Upload fehlgeschlagen." };
+		}
+	}
+
+	async function saveTerrainSettings(reset) {
+		if (terrainSaving) {
+			return { hochgeladen: false, grund: "Eine Geländespeicherung läuft bereits." };
+		}
+		const area = currentPropertiesArea();
+		if (!area || typeof postEcosystemEdit !== "function") {
+			return;
+		}
+		const payload = terrainPayloadLesen(area, reset);
 
 		setTerrainStatus("Wird gespeichert …", false);
 		terrainSaving = true;
 		const generation = ++terrainSaveGeneration;
 		window.AvesmapsEcosystemHeightRender?.abbrechen?.();
 		try {
-			const ergebnis = await postEcosystemEdit("update_area_terrain", payload);
+			await gelaendeWerteSchreiben(area, payload);
 			if (generation !== terrainSaveGeneration) {
 				return { hochgeladen: false, grund: "Höhenberechnung abgebrochen." };
 			}
-			TERRAIN_FIELDS.forEach((feld) => {
-				area[feld.key] = ergebnis?.[feld.key] ?? null;
-			});
-			area.terrain_preset_morph = ergebnis?.terrain_preset_morph ?? null;
-			area.terrain_preset_hoehe = ergebnis?.terrain_preset_hoehe ?? null;
-			renderTerrainControls(area);
-			// Das Feld dieser Fläche ist veraltet -- dieselbe Kante wie bei einer Gipfeländerung.
-			if (window.AvesmapsEcosystemHeightRender?.invalidate) {
-				window.AvesmapsEcosystemHeightRender.invalidate();
-				window.AvesmapsEcosystemHeightRender.redraw();
-			}
-			// 🔴 UND DAS RASTER GEHT MIT -- „du kannst beim ‚speichern' des gebirges hochladen"
-			// (Owner 04.09.2026). Was der Editor eben gesehen hat, wird damit zu dem, womit die
-			// Wegfindung rechnet; ohne diesen Schritt bliebe das gespeicherte Feld die alte
-			// Bergsumme, und die Regler waeren eine Anzeige ohne Wirkung.
-			//
-			// 💣 NACH `update_area_terrain`, nie davor: der Server stempelt das Raster mit einem
-			// Fingerabdruck aus den Reglern, die IN DER DATENBANK stehen. Ginge es zuerst hinaus,
-			// traege es den Abdruck der alten Werte und gaelte im selben Moment als veraltet.
-			// ⚠️ Und es faellt OFFEN aus: die Regler sind gespeichert, auch wenn der Upload scheitert
-			// (ein grosses Gebirge kann an `post_max_size` scheitern). Die Meldung sagt dann, was
-			// wirklich passiert ist -- „Gelaende gespeichert" allein waere eine halbe Wahrheit.
-			setTerrainStatus(reset ? "Zurück auf Automatik." : "Gelände gespeichert — Höhenfeld wird berechnet und hochgeladen …", false);
 			if (reset) {
 				setTerrainStatus("Zurück auf Automatik.", false);
 
 				return;
 			}
-			try {
-				const ergebnisRaster = await window.AvesmapsEcosystemHeightRender?.hochladen?.(area);
-				if (generation !== terrainSaveGeneration) {
-					return { hochgeladen: false, grund: "Höhenberechnung abgebrochen." };
-				}
-				setTerrainStatus(ergebnisRaster?.hochgeladen
-					? "Gelände gespeichert, Höhenfeld hochgeladen ("
-						+ Math.round((ergebnisRaster.bytes || 0) / 1024) + " KB)."
-					: "Gelände gespeichert — das Höhenfeld wurde NICHT hochgeladen.",
-				!ergebnisRaster?.hochgeladen);
-				return ergebnisRaster;
-			} catch (fehler) {
-				if (generation === terrainSaveGeneration) {
-					setTerrainStatus("Gelände gespeichert, aber das Höhenfeld konnte nicht hochgeladen "
-						+ "werden: " + (fehler?.message || "unbekannter Fehler"), true);
-				}
-				return { hochgeladen: false, grund: fehler?.message || "Upload fehlgeschlagen." };
-			}
+			return await gelaendeRasterHochladen(area, generation);
 		} catch (error) {
 			if (generation === terrainSaveGeneration) {
 				setTerrainStatus(error?.message || "Das Gelände konnte nicht gespeichert werden.", true);
@@ -2998,8 +3021,16 @@
 		// Ob das Gelände mitgeht, steht ebenfalls JETZT fest -- der Merker gehört dieser Fläche
 		// (renderTerrainControls setzt ihn bei jedem Aufbau zurück).
 		const gelaendeMit = TERRAIN_FIELDS.some((feld) => terrainTouched[feld.key]);
+		// Und WAS geschrieben wird, ebenfalls jetzt (terrainPayloadLesen) -- geschrieben wird es erst
+		// nach der Region.
+		const gelaendePayload = gelaendeMit ? terrainPayloadLesen(area, false) : null;
 
 		let entfernt = 0;
+		// Die Generation des Geländes, das dieses Speichern geschrieben hat -- `null`, solange keines.
+		// Schliesst jemand das Fenster, zählt `closeEcosystemPropertiesDialog` sie weiter, und das Raster
+		// im Nachlauf wird nicht mehr gerechnet.
+		let gelaendeGeneration = null;
+		let rasterErgebnis = null;
 		const ausfuehren = async () => {
 			propertiesBusy = true;
 			setPropertiesError("");
@@ -3010,23 +3041,14 @@
 			}
 
 			try {
-				// 🔴 KEIN eigener Geländeknopf mehr (Owner 2026-07-28): „ich will kein extra button ‚Gelände
-				// speichern' sondern, dass das gelände gespeichert wird, wenn ich unten auf ‚Speichern' klick."
-				//
-				// 🪤 VOR den Regionsfeldern, und nur wenn wirklich an einem Regler gedreht wurde. Die Reihenfolge
-				// ist bewusst: das Gelände hängt an der FLÄCHE und eigener Aktion, die Felder darunter an der
-				// REGION -- scheitert das Gelände, sagt seine eigene Statuszeile das, und der Rest läuft weiter,
-				// statt eine halb gespeicherte Fläche zu hinterlassen.
-				// 💣 UND DANACH GEHT ES WEITER, OHNE STILLEN AUSSTIEG. Hier stand bis zum 27.09.2026
-				// `if (generation !== terrainSaveGeneration || currentPropertiesArea() !== area) return;` --
-				// ohne Meldung. Beides trat im NORMALFALL ein: das Gelände braucht Sekunden (Speichern,
-				// Höhenraster im Worker, Hochladen), die Beschriftungs-Hälfte ist in der Zeit fertig, schliesst
-				// das Fenster und stösst über ihren Rückweg ein Nachladen der Flächen an -- danach ist
-				// `currentPropertiesArea()` ein NEUES Objekt. Der Rumpf steht seit demselben Tag vollständig
-				// fest, bevor hier gewartet wird; was „Speichern" gedrückt hat, wird geschrieben.
-				if (gelaendeMit) {
-					await saveTerrainSettings(false);
-				}
+				// 🔴 DIE REGION ZUERST -- sie trägt Name, Art und die WIKI-ZUWEISUNG. Hier stand bis zum
+				// 27.09.2026 das Gelände davor, samt Höhenraster: bei einem Gebirge mit gespeicherten Reglern
+				// rechnete JEDES Speichern das Raster im Worker neu (Zeitlimit fünf Minuten) und lud es hoch,
+				// und erst danach ging `update_region` hinaus. Am Finsterkamm hiess das: „ich speicher
+				// Finsterkamm und er weist es nicht zu" (Owner 27.09.2026) -- wer nicht wartete, schloss oder
+				// neu lud, verlor die Zuweisung; auf dem alten Stand stieg die Hälfte danach sogar still aus.
+				// Jetzt: Region, dann die Reglerwerte (schnell), dann die Beschriftungen -- und das Raster erst
+				// im NACHLAUF (siehe unten), wenn alles andere steht.
 				const antwort = await postEcosystemEdit("update_region", payload);
 				// 🔴 DIE BESCHRIFTUNGEN, DIE DER SERVER NACHGEZOGEN HAT, SOFORT AUF DIE KARTE (Owner
 				// 03.09.2026, „Lawaralîr"/„Cronwald"): die Zuweisung geerbt oder -- beim ausdruecklichen
@@ -3083,6 +3105,27 @@
 				if (payload.is_locked !== undefined) {
 					window.AvesmapsEcosystemStapel?.merkeSperre?.(area.region_public_id, payload.is_locked);
 				}
+				// 🔴 KEIN eigener Geländeknopf mehr (Owner 2026-07-28): „ich will kein extra button ‚Gelände
+				// speichern' sondern, dass das gelände gespeichert wird, wenn ich unten auf ‚Speichern' klick."
+				// Nur wenn wirklich an einem Regler gedreht wurde (oder die Fläche gespeicherte Werte trägt).
+				// ⚠️ Scheitert das, bleibt das Fenster offen (der Ablauf meldet es) -- die Region steht dann
+				// schon, und ein zweites Speichern schreibt sie mit denselben Werten noch einmal.
+				if (gelaendePayload) {
+					setTerrainStatus("Wird gespeichert …", false);
+					terrainSaving = true;
+					const generation = ++terrainSaveGeneration;
+					window.AvesmapsEcosystemHeightRender?.abbrechen?.();
+					try {
+						await gelaendeWerteSchreiben(area, gelaendePayload);
+						gelaendeGeneration = generation;
+					} catch (fehler) {
+						const grund = fehler?.message || "Das Gelände konnte nicht gespeichert werden.";
+						setTerrainStatus(grund, true);
+						throw new Error("Region gespeichert, Gelände nicht: " + grund);
+					} finally {
+						terrainSaving = false;
+					}
+				}
 				// 🔴 Das verbundene Karten-Label trägt den Namen MIT. Bis heute galt hier der Satz „wer die
 				// Fläche umbenennt, benennt das Label NICHT mit um" -- richtig, solange die beiden nichts
 				// voneinander wussten. Seit eine derographische Region ihr Label automatisch bekommt
@@ -3115,9 +3158,32 @@
 			}
 		};
 
+		// 🔴 DER NACHLAUF: das Höhenraster, wenn dieses Speichern Gelände geschrieben hat. Er läuft, wenn
+		// Region, Gelände und BEIDE Hälften stehen (avesmapsLandschaftDialogSpeichern) -- ein Raster, das
+		// Minuten braucht, hält damit nichts mehr auf, was der Editor gemeint hat. Wirft nie.
+		// ⚠️ Ist das Fenster inzwischen zu (Abbrechen, ×, Escape), wird nicht mehr gerechnet: das Schliessen
+		// bricht jede Höhenberechnung ab, und die Meldung am Ende sagt, dass das Raster fehlt.
+		const nachlauf = async () => {
+			if (gelaendeGeneration === null) {
+				return null;
+			}
+			if (gelaendeGeneration !== terrainSaveGeneration) {
+				rasterErgebnis = { hochgeladen: false, grund: "Höhenberechnung abgebrochen." };
+				return rasterErgebnis;
+			}
+			terrainSaving = true;
+			try {
+				rasterErgebnis = await gelaendeRasterHochladen(area, gelaendeGeneration);
+			} finally {
+				terrainSaving = false;
+			}
+			return rasterErgebnis;
+		};
+
 		return {
 			name,
 			ausfuehren,
+			nachlauf,
 			abschliessen: async ({ leise = false } = {}) => {
 				// Nur das eigene Fenster schliessen -- zeigt es inzwischen eine andere Fläche, bleibt es offen.
 				if (String(propertiesSourcePublicId || "") === stand.flaeche) {
@@ -3130,6 +3196,10 @@
 					showFeedbackToast(entfernt > 0
 						? `Region „${name}" gespeichert — ${entfernt === 1 ? "die Beschriftung wurde" : entfernt + " Beschriftungen wurden"} entfernt (Auto-Name).`
 						: `Region „${name}" gespeichert.`, "success");
+				}
+				// 🔴 Und ein fehlendes Raster ebenso -- die Statuszeile im Gelände-Block ist mit dem Fenster weg.
+				if (typeof showFeedbackToast === "function" && rasterErgebnis && rasterErgebnis.hochgeladen !== true) {
+					showFeedbackToast(`Höhenfeld für „${name}" nicht hochgeladen: ${rasterErgebnis.grund || "unbekannter Grund"}`, "warning");
 				}
 			},
 			fehlgeschlagen: (error) => {
@@ -3170,6 +3240,7 @@
 			auftrag.fehlgeschlagen(error);
 			return undefined;
 		}
+		await auftrag.nachlauf();
 		return auftrag.abschliessen({ leise: false });
 	}
 
