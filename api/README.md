@@ -481,6 +481,7 @@ The following endpoints are used by the Avesmaps app. They are reachable, but no
 /api/app/coat.php
 /api/app/contact.php
 /api/app/ecosystem-areas.php
+/api/app/ecosystem-regions.php
 /api/app/feature-sources.php
 /api/app/link-status.php
 /api/app/location-reviews.php
@@ -501,6 +502,37 @@ The following endpoints are used by the Avesmaps app. They are reachable, but no
 **Two of them need a sign-in (since 2026-09-14).** `political-territories.php` answers `GET action=layer` for everyone; every other GET action needs an editor session (401 without a session, 403 for a reviewer), except `change_log`, `geometry_inventory` and `geometry_collision`, which stay at reviewer level. The public set is an allow-list, so a new GET action is protected by default. `political-territory-wiki.php` needs an editor session altogether. Both used to hand out raw coat-of-arms URLs past the licence gate and the coat kill switch.
 
 Legacy root wrappers such as /api/map-features.php, /api/map-search.php, /api/report-location.php and /api/wiki-proxy.php are no longer maintained as canonical paths.
+
+### `GET /api/app/ecosystem-regions.php` — the landscape region list
+
+Public and read-only since 2026-09-28, built for the Avesmaps3D importer (`legacy:update`). It
+answers exactly like the editor action `list_regions` of `POST /api/edit/map/ecosystem.php` —
+same fields per region, same order — plus the two revision stamps at the top. No session, no
+CSRF, nothing written.
+
+```text
+GET /api/app/ecosystem-regions.php[?kind=derographisch|vegetation|topographie|klima]
+-> { "ok": true, "map_revision": 812, "ecosystem_revision": 40,
+     "regions": [ { public_id, name, kind, region_type, wiki_region_key, wiki_url, area_count,
+                    label_public_id, auto_name, field_origins, curve_label, curve_label_max,
+                    stack_order, is_locked, first_area_public_id, bounds, updated_at } ],
+     "region_types": [ { kind, type_key, label, terrain_grain, terrain_levels,
+                         terrain_avg_height, terrain_mean_height } ] }
+```
+
+- `map_revision` is the number `map-features.php` carries as `revision`; `ecosystem_revision`
+  is the one `ecosystem-areas.php` carries as `revision`. If both match the other two files,
+  the three were read from the same state. The stamps are read before and after the list; if
+  an edit lands in between, the list is read again, and after three moving attempts the
+  answer is `503 data_changing` (with `Retry-After`) rather than a stamp that does not
+  describe the data.
+- The row fields are an allow-list (`api/_internal/app/ecosystem-regions-export.php`). A field
+  added to `list_regions` later does **not** become public on its own; a test fails until
+  someone decides whether it may.
+- Conditional requests work like on `map-features.php`: a weak ETag, sent also as
+  `X-Avesmaps-ETag` (see above for why), `Cache-Control: no-cache, must-revalidate`, `304` on a
+  match. The ETag is a hash of the content, not of the stamps.
+- An unknown `kind` is `400 invalid_request`; without `kind` all four layers come back.
 
 ## Machine access: the semantic SVG export
 

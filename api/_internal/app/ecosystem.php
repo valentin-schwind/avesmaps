@@ -2354,10 +2354,13 @@ function avesmapsEcosystemWikiRegionKey(string $wikiUrl): ?string
     return $slug === '' ? null : $slug;
 }
 
-// ---- read path: regions (editor only, via api/edit/map/ecosystem.php) ---------------------------------
-// 🔴 Deliberately NOT hung onto the public read path. The region list is an EDITOR need (which region does
-// the next drawn area go into), and putting it in the public payload would widen the public surface for
-// nothing -- the dead-man switch has six stations already (plan, global rule 4).
+// ---- read path: regions (api/edit/map/ecosystem.php `list_regions` AND api/app/ecosystem-regions.php) --
+// Written as an EDITOR need (which region does the next drawn area go into) and kept off the public read
+// path for that reason until 2026-09-28. 🔴 Since then the SAME list is also public, via
+// api/app/ecosystem-regions.php (owner decision for Avesmaps3D: „ja klar" -- the data is on the map
+// anyway). That endpoint calls THIS function and then cuts every row down to an allow-list
+// (api/_internal/app/ecosystem-regions-export.php). 💣 A field added here therefore does NOT go public by
+// itself -- ecosystem-regions-export-test.php turns red until someone decides whether it may.
 function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
 {
     avesmapsEcosystemEnsureTables($pdo);

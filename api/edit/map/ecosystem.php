@@ -57,9 +57,10 @@ try {
 
     $result = match ($action) {
         // The region picker's list (V3.0b): active regions of one kind plus the region-type vocabulary
-        // for that kind. It sits HERE, behind the capability check, and not on the public read path --
-        // "which region does my next area go into" is an editor question and does not widen the public
-        // surface. Optional filter: kind.
+        // for that kind. Optional filter: kind. It sits HERE, behind the capability check, because
+        // "which region does my next area go into" is an editor question. 🔴 Since 2026-09-28 the same
+        // list is ALSO public read-only, via api/app/ecosystem-regions.php (owner decision, Avesmaps3D) --
+        // that endpoint calls the same function; this action stays exactly as it was.
         'list_regions' => avesmapsListEcosystemRegions($pdo, $payload),
         // Task 5/6 (Vorkommen-Regelkarte): dieselbe Art-Vokabel wie list_regions, aber ohne die
         // Regionenliste -- eine Beschriftungskarte für 26 Arten muss nicht 777 Regionen mitladen.
