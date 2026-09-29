@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 29.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 30.09.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -780,15 +780,25 @@
 				<p>Die <strong>Zugehörigkeit</strong> („führt durch") steht im Editor nur zum <em>Lesen</em>. Gerechnet wird sie im <a href="#regionen">Landschaften</a>-Editor unter <em>„Rechnen ▾"</em> → <em>Zugehörigkeit</em>.</p>
 
 				<h4>„Tempowerte" — die Zahlen hinter jeder Reisezeit</h4>
-				<p>Die Kachel <strong>„Tempowerte"</strong> öffnet das Fenster <strong>„Tempowerte — die Zahlen der Geographia Aventurica"</strong>. Darin stehen die Werte, aus denen die Reiseplanung <em>jede</em> Dauer rechnet: die Tagesleistung je Reisemittel, der Geländefaktor je Wegtyp, das Tempo querfeldein je Landschaft, die Bodenabzüge nach Jahreszeit. Sie sind einstellbar, und neben deinem Wert steht der <strong>Wert der Quelle</strong>, damit sichtbar bleibt, wo jemand bewusst abgewichen ist. Steht dort ein <strong>„—"</strong>, kennt die <em>Geographia Aventurica</em> zu dieser Zeile überhaupt keinen Wert — dann ist es unsere eigene Regel und es gibt nichts zu vergleichen.</p>
-				<div class="hb-note hb-warn"><strong>Eine Zahl hier verschiebt jede Route auf der ganzen Karte.</strong> Das ist keine Einstellung deiner Ansicht, sondern eine Angabe der Karte selbst: Was du speicherst, gilt sofort für jeden Besucher und für jede geplante Reise. Anders als sonst im Editor arbeitest du hier nicht an <em>einem</em> Weg, sondern an der Rechnung hinter allen. Im Zweifel nichts speichern — <strong>„Abbrechen"</strong> verwirft deine Eingaben und schließt.</div>
-				<p>Das Fenster hat acht Abschnitte. Der erste, <strong>„Raster: Reisemittel × Wegtyp"</strong>, ist der eigentliche Speicher — die beiden Listen darunter zeigen nur, was daraus folgt. Es folgen <strong>„Reisetag: Stunden am Tag"</strong>, <strong>„Landschaften querfeldein"</strong>, <strong>„Boden nach Jahreszeit"</strong>, <strong>„Fluss und Eichung"</strong> und <strong>„Querfeldein-Aufschlag"</strong>, dann zwei reine Auskünfte: <strong>„Was von der Quelle abweicht"</strong> listet jede Abweichung auf, und <strong>„Nicht aus der Quelle — unsere Rechnung"</strong> nennt die Werte, die gar nicht aus der <em>Geographia Aventurica</em> stammen und deshalb <em>nicht</em> einstellbar sind.</p>
+				<p>Die Kachel <strong>„Tempowerte"</strong> öffnet das Fenster <strong>„Tempowerte — die Zahlen der Geographia Aventurica"</strong>. Aus diesen Werten rechnet die Reiseplanung <em>jede</em> Dauer. Neben deinem Wert steht der <strong>Wert der Quelle</strong>. Ein <strong>„—"</strong> heißt: Die Quelle kennt dazu keinen Wert, es ist unsere eigene Regel.</p>
+				<div class="hb-note hb-warn"><strong>Eine Zahl hier verschiebt jede Route auf der ganzen Karte.</strong> Was du speicherst, gilt sofort für jeden Besucher. Im Zweifel nichts speichern — <strong>„Abbrechen"</strong> verwirft deine Eingaben.</div>
+				<table class="hb-table">
+					<tr><th>Abschnitt</th><th>Was er enthält</th></tr>
+					<tr><td>Raster: Reisemittel × Wegtyp</td><td>der eigentliche Speicher; die beiden Listen darunter zeigen nur die Folgen</td></tr>
+					<tr><td>Reisetag: Stunden am Tag</td><td>an Land 8 h, Fluss und See 12 h, Schnellsegler 24 h (fährt durch)</td></tr>
+					<tr><td>Landschaften querfeldein</td><td>das Tempo je Landschaft</td></tr>
+					<tr><td>Boden nach Jahreszeit</td><td>die Bodenabzüge</td></tr>
+					<tr><td>Fluss und Eichung</td><td>Strömung und Eichfaktor</td></tr>
+					<tr><td>Querfeldein-Aufschlag</td><td>Steigung je Meile und Höchstaufschlag</td></tr>
+					<tr><td>Was von der Quelle abweicht</td><td>nur Auskunft: jede Abweichung</td></tr>
+					<tr><td>Nicht aus der Quelle — unsere Rechnung</td><td>nur Auskunft: nicht einstellbar</td></tr>
+				</table>
 				<ul class="hb-steps">
-					<li><strong>Krumme Zahlen sind Absicht.</strong> Die Quelle nennt nie eine Geschwindigkeit, immer eine Tagesleistung; das Tempo wird daraus umgerechnet. Wer eine Zahl glattzieht, kappt die Zuordnung zur Quelle.</li>
-					<li><strong>Der „Querfeldein-Aufschlag" ist keine Geschwindigkeit, sondern eine Regel</strong>: Eine Etappe ohne Weg wird mit ihrer <em>eigenen Länge</em> langsamer — eine kurze Abkürzung kostet fast nichts, ein Gewaltmarsch quer durchs Land viel. Zwei Zeilen: die <strong>Steigung je Meile</strong> (0 schaltet sie ab) und der <strong>Höchstaufschlag</strong>, ab dem sie nicht weiter wächst. Beide gehören zusammen — verdoppelst du die Steigung und lässt den Deckel stehen, verschiebst du unbemerkt die Grenze, ab der sie wirkt. Gemessen wird die <em>Luftlinie</em> der Etappe, nicht die gelaufene Strecke. Ein Stück Weg dazwischen setzt den Aufschlag zurück: Wer einen Ort berührt, rastet dort.</li>
-					<li><strong>Der „Reisetag" ist der Nenner des Rasters darüber</strong> — drei Zeilen: <em>an Land</em> (8 h), <em>Fluss und See</em> (12 h), <em>Schnellsegler</em> (24 h, fährt durch). Der Rest des Tages ist Rast. Verstellst du die Stunden, <strong>zieht das Raster mit</strong>: Die Tagesleistung bleibt, was die Quelle sagt, und das Tempo folgt — 8 Stunden zu 4,61 Meilen/h sind dieselben 30 Meilen am Tag wie 12 Stunden zu 3,07. <strong>Stunden und Rasterzellen aber nicht im selben Zug:</strong> „Speichern" schickt das Raster dann nicht mit, weil es unter den alten Stunden gezeichnet wurde. Erst speichern, dann Zellen anfassen.</li>
-					<li><strong>„auf unseren Wegen"</strong> ist die gemessene Gegenprobe: was auf den tatsächlich gezeichneten Wegen dieser Art herauskommt. <em>„nicht vermessen"</em> heißt, dass dort kein Höhenprofil vorliegt — es heißt <strong>nicht</strong> „ebenes Gelände".</li>
-					<li><strong>Der kleine ↩ steht nur an einer geänderten Zeile</strong> und nimmt deine eigene Eingabe zurück, ohne etwas zu schreiben. Die größeren Rücksetzer am Fuß eines Abschnitts ziehen dagegen auf die Quellenwerte und <strong>schreiben sofort</strong>; was sie bewegt haben, steht danach als <em>„war 3,45"</em> hinter jedem betroffenen Feld.</li>
+					<li><strong>Krumme Zahlen sind Absicht.</strong> Die Quelle nennt eine Tagesleistung, das Tempo wird daraus umgerechnet. Wer glattzieht, kappt die Zuordnung zur Quelle.</li>
+					<li><strong>Der Reisetag ist der Nenner des Rasters.</strong> Verstellst du die Stunden, zieht das Raster mit: Die Tagesleistung bleibt, das Tempo folgt. Stunden und Rasterzellen änderst du nicht im selben Zug. Erst speichern, dann Zellen anfassen.</li>
+					<li><strong>Der Querfeldein-Aufschlag ist eine Regel, keine Geschwindigkeit.</strong> Eine Etappe ohne Weg wird mit ihrer eigenen Länge langsamer. Gemessen wird die Luftlinie. Ein Stück Weg dazwischen setzt den Aufschlag zurück. Steigung 0 schaltet ihn ab. Ändere Steigung und Höchstaufschlag gemeinsam.</li>
+					<li><strong>„auf unseren Wegen"</strong> ist die gemessene Gegenprobe. <em>„nicht vermessen"</em> heißt: kein Höhenprofil vorhanden — nicht „ebenes Gelände".</li>
+					<li><strong>Der kleine ↩</strong> steht nur an einer geänderten Zeile und nimmt deine Eingabe zurück, ohne zu schreiben. Die größeren Rücksetzer am Fuß eines Abschnitts ziehen auf die Quellenwerte und <strong>schreiben sofort</strong>.</li>
 				</ul>
 
 				<h4>Kleinigkeiten, die Zeit sparen</h4>
