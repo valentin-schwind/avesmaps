@@ -488,6 +488,7 @@ The following endpoints are used by the Avesmaps app. They are reachable, but no
 /api/app/map-features.php
 /api/app/map-search.php
 /api/app/political-derived-geometry-debug.php
+/api/app/political-territories-export.php
 /api/app/political-territories.php
 /api/app/political-territory-display-sync.php
 /api/app/political-territory-wiki.php
@@ -533,6 +534,62 @@ GET /api/app/ecosystem-regions.php[?kind=derographisch|vegetation|topographie|kl
   `X-Avesmaps-ETag` (see above for why), `Cache-Control: no-cache, must-revalidate`, `304` on a
   match. The ETag is a hash of the content, not of the stamps.
 - An unknown `kind` is `400 invalid_request`; without `kind` all four layers come back.
+
+### `GET /api/app/political-territories-export.php` — the territory source data
+
+Public and read-only since 2026-09-29, built for the Avesmaps3D importer (`legacy:update`). It
+hands out the political territories as **source data** — the tree, the source areas and the
+contested claims — not the rendered layer (`political-territories.php?action=layer`, per zoom
+and year, with derived hulls). No session, no CSRF, nothing written, no derived hulls.
+
+```text
+GET /api/app/political-territories-export.php
+-> { "ok": true, "map_revision": 812, "territories_revision": "pt-0123456789abcdef",
+     "territories": [ { public_id, name, short_name, type, wiki_type, parent_public_id (null for
+                          roots), status, color, opacity, min_zoom, max_zoom, valid_from_bf,
+                          valid_to_bf (null or 9999 = open), valid_label, wiki_key, wiki_url,
+                          capital_place_public_id, seat_place_public_id, sort_order, updated_at,
+                          coat_of_arms_url, coat_license_status, coat_origin } ],
+     "geometries": [ { public_id, territory_public_id, geometry (GeoJSON Polygon/MultiPolygon,
+                        [x, y], or null if unreadable), valid_from_bf, valid_to_bf, min_zoom,
+                        max_zoom, updated_at } ],
+     "claims": [ { territory_public_id, claimant_public_id, sort_order, source } ] }
+```
+
+- **Same territories and areas as the editor actions** `list` and `geometries`, minus what does
+  not belong on a public page: only active territories of the default continent (Aventurien),
+  only active areas of those, no recycle-bin rows and no orphan areas. The values come from the
+  same row mappers as the editor actions; a test compares both.
+- **References are as stored, not healed.** A parent, capital or seat that points to a deactivated row
+  is still named (`list` does the same); an area whose GeoJSON cannot be read comes with `geometry: null`.
+  The export does not hide such findings. `valid_to_bf` has two encodings of "open" in the data,
+  `null` and the sentinel `9999`; both are passed on as stored.
+- **Allow-list, not pass-through.** `editor_notes`, the raw coat URL, the wiki raw texts, an area's
+  `style` and `source` and every internal numeric id stay out. A field added to `list` later does
+  **not** become public on its own; a test fails until someone decides whether it may
+  (`api/_internal/app/political-territories-export.php`).
+- **Coats** go through the same chain as the map payload: the licence gate first, then the two
+  origin switches. A coat under a non-public licence is `""` with an empty licence and origin — it never
+  goes out. With a switch on "off" the placeholder URL stands in (as on the map); the origin and
+  licence stay named. Own coats are relative to the Legacy root (`/uploads/wappen/…`); a wiki-origin coat
+  comes as the gate returns it, possibly an absolute wiki URL — exactly what the map payload has.
+  ⚠️ Unlike the map, the switches are read **strictly**: if `app_setting` cannot be read the answer is
+  `500`, never "coats on" — a consumer that stores the answer must not import coats past a pressed
+  kill switch because of one failed read.
+- **Stamps.** `map_revision` is the number `map-features.php` carries as `revision`; territory
+  edits do **not** raise it. `territories_revision` is a fingerprint of the territory, area and claim
+  tables plus the wiki mirror (row count, highest id and newest `updated_at` — `synced_at` for the mirror —
+  of each), so it also changes when a row is hard-deleted. It does not cover the coat switches, the
+  licence catalogue and the places (capital/seat ids) — the content ETag does. ⚠️ Known limit: the
+  timestamp part follows the database server clock; in the one hour a year when the clock is set back an
+  edit can hide behind an earlier, newer timestamp (the content ETag still moves). The stamps
+  are read before and after the data; if an edit lands in between, the data is read again, and
+  after three moving attempts the answer is `503 data_changing` (with `Retry-After`).
+- Conditional requests work like on `ecosystem-regions.php`: a weak ETag over the content, also sent
+  as `X-Avesmaps-ETag`, `Cache-Control: no-cache, must-revalidate`, `304` on a match. ⚠️ The answer
+  is large (several MB) and a `304` still costs one full read — fetch it on demand, never in a loop.
+- The old endpoint is unchanged: `political-territories.php?action=export` does not exist and would be
+  editor-only like every GET action outside the public allow-list.
 
 ## Machine access: the semantic SVG export
 
