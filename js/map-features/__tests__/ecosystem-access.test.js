@@ -473,14 +473,7 @@ assert(editorFlaeche.gezaehlt.menu === 1, "der Editor bekommt sein Flaechenmenue
 editorFlaeche.gesten.get("dblclick")(ereignis());
 assert(editorFlaeche.gezaehlt.ecken === 1, "und seine Eckengriffe");
 
-// ---- der Gipfel ist ein ARBEITSPUNKT, kein Ortsschild -----------------------------------------------
-// 💣 Dieselbe Wurzel wie die zwei Gesten oben, nur unauffälliger: `map-label--eco-peak` gibt dem Label
-// `cursor: grab`, und syncEcosystemPeakDragging schaltet daraufhin sein Ziehen frei. Beides hing allein
-// an „Ebene sichtbar + Topographie" -- also bekam es auch der gewöhnliche Besucher.
-//
-// 🪤 `draggable: false` beim Anlegen schützt NICHT: Leaflet 1.9.4 legt `marker.dragging` an jedem
-// anklickbaren Marker an (`this.dragging = new pi(this)` in `_initInteraction`) und lässt es nur
-// abgeschaltet. Ein späteres enable() greift deshalb sofort. Genau das ist hier nachgebaut.
+// Gipfel bleiben anklickbar, ohne beim Ebenenwechsel automatisch ziehbar zu werden.
 function gipfelWelt({ recht, editor }) {
 	const gezogen = { ein: 0, aus: 0 };
 	const marker = {
@@ -512,14 +505,14 @@ function gipfelWelt({ recht, editor }) {
 const gipfelBesucher = gipfelWelt({ recht: false, editor: false });
 assert(!gipfelBesucher.context.isEcosystemPeakActive("lbl-1"),
 	"💣 fuer den Besucher ist ein Gipfel kein Arbeitspunkt -- kein Greifzeiger, keine Ausnahme");
-gipfelBesucher.context.syncEcosystemPeakDragging();
-assert(gipfelBesucher.gezogen.ein === 0 && gipfelBesucher.gezogen.aus === 1,
-	"💣 und sein Ziehen wird ausdruecklich ABGESCHALTET, nicht bloss nicht eingeschaltet");
+gipfelBesucher.context.syncEcosystemLabelMuting();
+assert(gipfelBesucher.gezogen.ein === 0 && gipfelBesucher.gezogen.aus === 0,
+	"Der Ebenenwechsel aktiviert keinen Verschiebemodus.");
 
 const gipfelEditor = gipfelWelt({ recht: true, editor: true });
 assert(gipfelEditor.context.isEcosystemPeakActive("lbl-1"), "der Editor behaelt seinen Arbeitspunkt");
-gipfelEditor.context.syncEcosystemPeakDragging();
-assert(gipfelEditor.gezogen.ein === 1, "und zieht ihn ohne Zwischenschritt (V8)");
+gipfelEditor.context.syncEcosystemLabelMuting();
+assert(gipfelEditor.gezogen.ein === 0 && gipfelEditor.gezogen.aus === 0, "Nur das Kachelmenü steuert den Verschiebemodus.");
 
 // ---- die Naht zwischen Server und Karte: was der SCHREIBWEG antwortet -------------------------------
 //

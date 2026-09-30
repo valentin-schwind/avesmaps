@@ -236,22 +236,9 @@ function isEcosystemPeakLabel(labelPublicId) {
 		&& isEcosystemPeakSubtype(label?.labelType));
 }
 
-// Ein Gipfel in der Topographie-Ebene: sichtbar, anklickbar und direkt ziehbar. Die Klasse hebt für
-// ihn die Klickdurchlässigkeit der Labels-Pane wieder auf (css/features/ecosystem-layer.css).
+// Gipfel bleiben in der Topographie anklickbar; Verschieben beginnt nur über das Kachelmenü.
 function isEcosystemPeakActive(labelPublicId) {
 	return typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
-		// 💣 UND DAS BEDIENRECHT (Owner 2026-08-05). Ein Gipfel ist der ARBEITSPUNKT dieser Ebene: die
-		// Klasse gibt ihm `cursor: grab`, und syncEcosystemPeakDragging schaltet daraufhin sein Ziehen
-		// frei. Ohne diese Zeile bekam der gewöhnliche Besucher in der Topographie beides -- Leaflet legt
-		// `marker.dragging` an JEDEM anklickbaren Marker an, `draggable: false` unterdrückt nur das
-		// Einschalten. Gespeichert hätte er nichts (der `dragend`-Schreiber hängt an IS_EDIT_MODE), aber
-		// die Beschriftung wäre ihm unter der Maus weggerutscht und hätte Bearbeiten versprochen.
-		//
-		// 🪤 Die Pane-Ausnahme darunter verliert er nicht: `ecosystem-labels-dimmed` wird für ihn seit
-		// 2026-08-04 gar nicht mehr gesetzt, es gibt also nichts mehr aufzuheben.
-		//
-		// 🔴 UND NICHT IN „ALLE“ (23.08.2026). Die gemerkte Ebene sagt dort weiterhin „topographie“, der
-		// Gipfel bliebe also ziehbar — in einer Ansicht, die sonst nichts bearbeitet.
 		&& canEditEcosystemOnMap()
 		&& getActiveEcosystemLayerKind() === "topographie"
 		&& isEcosystemPeakLabel(labelPublicId);
@@ -325,33 +312,6 @@ function ecosystemLabelMutedClass(label) {
 		+ (isEcosystemPeakActive(label?.publicId) ? " map-label--eco-peak" : "");
 }
 
-// 🔴 Ziehen ohne Zwischenschritt (V8). Ausserhalb der Topographie braucht ein Label erst den
-// Verschiebemodus, damit ein Fehlgriff beim Kartenziehen nicht gleich etwas verrückt. In dieser Ebene
-// ist das Verschieben der Gipfel aber die Hauptarbeit -- dort jedes Mal erst ein Menü aufzumachen wäre
-// dieselbe Zumutung wie ein Zeichenmodus, den man vor jedem Strich einschaltet.
-//
-// 💣 Nicht in setLabelMoveActive einhängen: das nimmt eine Sperre und wirft eine Toast-Meldung. Beim
-// Ebenenwechsel liefen daraus so viele Sperren und Meldungen, wie Gipfel im Bild sind.
-function syncEcosystemPeakDragging() {
-	if (typeof labelMarkers === "undefined" || !Array.isArray(labelMarkers)) {
-		return;
-	}
-	labelMarkers.forEach((entry) => {
-		const dragging = entry?.marker?.dragging;
-		// 🪤 Nur Gipfel anfassen. Ein anderes Label kann gerade im gewöhnlichen Verschiebemodus stehen
-		// (setLabelMoveActive, mit Sperre); es hier mit abzuschalten risse dem Editor das Label unter
-		// der Maus weg, bloss weil er nebenbei die Ebene gewechselt hat.
-		if (!dragging || !isEcosystemPeakLabel(entry.label?.publicId)) {
-			return;
-		}
-		if (isEcosystemPeakActive(entry.label?.publicId)) {
-			dragging.enable();
-		} else {
-			dragging.disable();
-		}
-	});
-}
-
 // Und der Weg andersherum: beim Ebenenwechsel sollen die schon gezeichneten Labels sofort umschalten,
 // ohne auf einen Icon-Neubau zu warten.
 function syncEcosystemLabelMuting() {
@@ -365,7 +325,6 @@ function syncEcosystemLabelMuting() {
 			element.classList.toggle("map-label--eco-peak", isEcosystemPeakActive(entry.label?.publicId));
 		}
 	});
-	syncEcosystemPeakDragging();
 }
 
 // ---- underground opacity (Owner 2026-07-26) --------------------------------------------------------

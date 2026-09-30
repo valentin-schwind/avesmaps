@@ -786,9 +786,6 @@ function createLabelMarkerEntry(label) {
 			void selectEcosystemAreaOfLabel(label);
 		});
 		marker.on("dragend", () => {
-			// 🪤 V8: einen Gipfel, der in der Topographie-Ebene DAUERHAFT ziehbar ist, hier nicht
-			// stillzulegen. setLabelMoveActive(false) beendet den einmaligen Verschiebemodus -- auf ihn
-			// angewandt liesse es sich genau einmal verschieben, danach klebte er fest.
 			const isPeak = typeof isEcosystemPeakActive === "function" && isEcosystemPeakActive(label.publicId);
 			// 💣 Die Invalidierung gehört ANS ENDE der Speicherkette, nicht daneben. saveLabelPosition ist
 			// asynchron und schreibt die neue Lage erst in `label.coordinates`, wenn die Antwort da ist
@@ -801,7 +798,6 @@ function createLabelMarkerEntry(label) {
 						invalidateEcosystemHeightForPeak(label);
 					}
 				});
-				return;
 			}
 			setLabelMoveActive(entry, false);
 		});
@@ -872,16 +868,6 @@ function createLabelMarkerEntry(label) {
 		}
 	}
 	syncLabelMarkerVisibility(entry);
-	// V8: ein Gipfel, der in die schon aktive Topographie-Ebene hineingeboren wird (frisch angelegt oder
-	// beim Nachladen), ist sofort ziehbar. syncEcosystemLabelMuting läuft nur beim EbenenWECHSEL --
-	// ohne diese Zeile bliebe genau der neue Punkt der einzige unbewegliche.
-	//
-	// 💣 NACH syncLabelMarkerVisibility, nicht davor: `marker.dragging` entsteht bei Leaflet erst in
-	// `onAdd`. Davor ist es `undefined`, und `marker.dragging?.enable()` wäre eine stille Nulloperation --
-	// ohne Fehler, ohne Wirkung, und der Gipfel klebte fest, bis jemand die Ebene wechselt.
-	if (IS_EDIT_MODE && typeof isEcosystemPeakActive === "function" && isEcosystemPeakActive(label.publicId)) {
-		marker.dragging?.enable();
-	}
 	return entry;
 }
 
@@ -1238,10 +1224,10 @@ function isLabelOfActiveEcosystemLayer(label) {
 	// isEcosystemLabelMuted nimmt Gipfel in der Topographie vom BLASSMACHEN aus (mit derselben
 	// Begründung), der Sichtbarkeitsfilter kam am 04.08.2026 dazu und hat sie wieder zugemacht. Der
 	// Gipfel war seither nicht blass, sondern gar nicht da -- und damit auch nicht ziehbar, obwohl
-	// syncEcosystemPeakDragging ihn freischaltet. Wer eine der beiden Stellen ändert, prüft die andere.
+	// das Kachelmenü seinen Verschiebemodus freischaltet.
 	//
 	// 🔴 ROLLENFREI. Diese Zeile fragt kein Recht: Besucher und Editor sehen denselben Gipfel. Das Recht
-	// entscheidet über das ZIEHEN (isEcosystemPeakActive), nie über das Sehen.
+	// entscheidet über die Bearbeitung, nie über das Sehen.
 	//
 	// 🪤 Über den `labelType`, nicht über isEcosystemPeakLabel(publicId): jenes scannt `labelData`
 	// linear, und diese Funktion läuft pro Label pro Zoom und pro Move. Welche Subtypen Gipfel sind,
