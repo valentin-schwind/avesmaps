@@ -860,6 +860,12 @@
 		if (istEinstieg && typeof avesmapsLandschaftDialogKopfNeu === "function") {
 			avesmapsLandschaftDialogKopfNeu();
 		}
+		const ladegeneration = typeof avesmapsLandschaftDialogLadegeneration === "function"
+			? avesmapsLandschaftDialogLadegeneration() : null;
+		const istAktuellerLadeauftrag = () => isEcosystemPropertiesDialogOpen()
+			&& propertiesSourcePublicId === String(publicId || "")
+			&& (typeof avesmapsLandschaftDialogLadegeneration !== "function"
+				|| ladegeneration === avesmapsLandschaftDialogLadegeneration());
 		const kopfVomEditor = !istEinstieg && typeof avesmapsLandschaftDialogKopfMerken === "function"
 			? avesmapsLandschaftDialogKopfMerken()
 			: null;
@@ -1011,7 +1017,7 @@
 		// Regionen-Wähler seine Liste zieht, und die einzige Stelle, an der die Arten definiert sind.
 		try {
 			const result = await postEcosystemEdit("list_regions", { kind: area.kind });
-			if (!isEcosystemPropertiesDialogOpen() || propertiesSourcePublicId !== String(publicId || "")) {
+			if (!istAktuellerLadeauftrag()) {
 				return;                              // zwischenzeitlich geschlossen oder andere Fläche
 			}
 			regionTypesForKind = Array.isArray(result.region_types) ? result.region_types : [];
@@ -1097,7 +1103,9 @@
 			// Vokabular DIESER Ebene, und `laden` läuft genau einmal (siehe mountWikiAssign).
 			mountWikiAssign();
 		} catch (error) {
-			setPropertiesError(error?.message || "Das Art-Vokabular konnte nicht geladen werden.");
+			if (istAktuellerLadeauftrag()) {
+				setPropertiesError(error?.message || "Das Art-Vokabular konnte nicht geladen werden.");
+			}
 		}
 	}
 

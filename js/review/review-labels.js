@@ -250,6 +250,8 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 // ecosystemLayers hält nur, was gerade im Bild ist, und würde bei einer Region, die halb aus dem
 // Ausschnitt ragt, zu wenig zählen.
 async function renderLabelCarrierNote(label) {
+	const ladegeneration = typeof avesmapsLandschaftDialogLadegeneration === "function"
+		? avesmapsLandschaftDialogLadegeneration() : null;
 	const note = document.getElementById("label-edit-carriers");
 	if (!note) {
 		return;
@@ -262,6 +264,10 @@ async function renderLabelCarrierNote(label) {
 
 	const kinds = typeof ECOSYSTEM_KINDS !== "undefined" ? ECOSYSTEM_KINDS : ["derographisch", "vegetation", "topographie"];
 	await Promise.all(kinds.map((kind) => loadEcosystemRegions(kind)));
+	if (typeof avesmapsLandschaftDialogLadegeneration === "function"
+		&& ladegeneration !== avesmapsLandschaftDialogLadegeneration()) {
+		return;
+	}
 	// Der Dialog kann inzwischen ein anderes Label zeigen -- dann gehört diese Antwort nicht mehr hierher.
 	if (String(document.getElementById("label-edit-public-id")?.value || "") !== publicId) {
 		return;
@@ -329,13 +335,13 @@ async function renderLabelCarrierNote(label) {
 // 💣 Die volle Liste EINMAL wegheben. Das Auswahlfeld ist über alle Dialoge dasselbe Element: wer es
 // für ein Vegetationslabel eindampft und danach ein Label OHNE Fläche öffnet, bekäme dessen sieben
 // Vegetations-Arten vorgesetzt -- ein Kontinent hätte plötzlich zwischen Wald und Tundra zu wählen.
-let labelTypeFullMarkup = "";
+// Das unveränderte Markup sichern, bevor eine Fläche die gemeinsame Auswahl einschränkt.
+const labelTypeFullMarkup = typeof document !== "undefined"
+	? document.getElementById("label-edit-type")?.innerHTML || ""
+	: "";
 
 function applyLabelTypeVocabulary(region, label) {
 	const select = document.getElementById("label-edit-type");
-	if (select && labelTypeFullMarkup === "") {
-		labelTypeFullMarkup = select.innerHTML;
-	}
 	const kind = String(region?.kind || "");
 	if (!select) {
 		return;
@@ -878,6 +884,11 @@ function openLabelEditDialog(options = {}) {
 	if (istEinstieg && typeof avesmapsLandschaftDialogKopfNeu === "function") {
 		avesmapsLandschaftDialogKopfNeu();
 	}
+	const ladegeneration = typeof avesmapsLandschaftDialogLadegeneration === "function"
+		? avesmapsLandschaftDialogLadegeneration() : null;
+	if (istEinstieg && typeof avesmapsLandschaftDialogHaelfte === "function") {
+		avesmapsLandschaftDialogHaelfte("flaeche", false);
+	}
 	resetLabelEditForm();
 	populateLabelEditForm(options);
 	syncLabelEditGeschwisterwahl(options.labelEntry || null);
@@ -949,6 +960,10 @@ function openLabelEditDialog(options = {}) {
 					// Speichern schriebe dann auf ein fremdes Objekt.
 					flaechePublicId = "";
 				}
+			}
+			if (typeof avesmapsLandschaftDialogLadegeneration === "function"
+				&& ladegeneration !== avesmapsLandschaftDialogLadegeneration()) {
+				return;
 			}
 			if (flaechePublicId !== "" && typeof window.AvesmapsEcosystemProperties?.open === "function") {
 				await window.AvesmapsEcosystemProperties.open(flaechePublicId, { paar: false });

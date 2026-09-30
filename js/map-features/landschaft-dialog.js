@@ -99,6 +99,9 @@ function avesmapsLandschaftDialogReiterName() {
  * Ein Overlay-<div> erbt nichts.
  */
 function avesmapsLandschaftDialogSichtbar(offen) {
+	if (!offen) {
+		avesmapsLandschaftLadegeneration += 1;
+	}
 	if (typeof document === "undefined") {
 		return false;
 	}
@@ -822,9 +825,16 @@ const AVESMAPS_LANDSCHAFT_KOPF_FELDER = [
 	"label-edit-text", "label-edit-type", "ecosystem-properties-showname", "label-edit-is-nodix",
 ];
 let avesmapsLandschaftKopfBeruehrt = new Set();
+let avesmapsLandschaftLadegeneration = 0;
+
+// Eine Antwort gehört zu genau einem Öffnen, auch beim Wechsel A → B → A.
+function avesmapsLandschaftDialogLadegeneration() {
+	return avesmapsLandschaftLadegeneration;
+}
 
 /** Ein neues Oeffnen beginnt unberuehrt. Rufen nur die EINSTIEGE, nie ein Gegenpart. */
 function avesmapsLandschaftDialogKopfNeu() {
+	avesmapsLandschaftLadegeneration += 1;
 	avesmapsLandschaftKopfBeruehrt = new Set();
 }
 

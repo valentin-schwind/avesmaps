@@ -298,6 +298,7 @@ function huelle(haelften) {
 	await teilC();
 	// ══ TEIL D: DAS HÖHENRASTER HÄLT NICHTS MEHR AUF (Finsterkamm) ═════════════════════════════════
 	await teilD();
+	await teilE();
 
 	console.log("landschaft-dialog-ablauf: " + checks + " Zusicherungen gruen");
 })().catch((fehler) => {
@@ -803,5 +804,57 @@ async function teilD() {
 			"auch allein: die Region geht vor dem Raster hinaus"); checks++;
 		k.steuerung.raster.erfuellen({ hochgeladen: true, bytes: 1024 });
 		await lauf;
+	}
+}
+
+// Verzögerte Antworten dürfen weder die Artenliste noch einen Fehler in einen neuen Kopf schreiben.
+async function teilE() {
+	for (const wechsel of ["andere-flaeche", "gleiche-flaeche-erneut", "label", "schliessen"]) {
+		for (const fehlschlag of [false, true]) {
+			const k = echteHaelften([MOOR, GEBIRGE]);
+			k.elemente["ecosystem-properties-error"] = scheinFeld("");
+			const antworten = [];
+			const originalPost = k.kasten.postEcosystemEdit;
+			k.kasten.postEcosystemEdit = (aktion, nutzlast) => {
+				if (aktion !== "list_regions") {
+					return originalPost(aktion, nutzlast);
+				}
+				const antwort = aufgeschoben();
+				antworten.push({ antwort, nutzlast });
+				return antwort.zusage;
+			};
+			const alt = k.kasten.AvesmapsEcosystemProperties.open("m1");
+			assert.strictEqual(antworten.length, 1, "der erste Flächenauftrag wartet auf list_regions");
+			const weitere = [];
+			if (wechsel === "andere-flaeche" || wechsel === "gleiche-flaeche-erneut") {
+				weitere.push(k.kasten.AvesmapsEcosystemProperties.open("g1"));
+				if (wechsel === "gleiche-flaeche-erneut") {
+					weitere.push(k.kasten.AvesmapsEcosystemProperties.open("m1"));
+				}
+			} else if (wechsel === "label") {
+				k.kasten.avesmapsLandschaftDialogKopfNeu();
+				k.kasten.avesmapsLandschaftDialogHaelfte("flaeche", false);
+				k.beschriftungOffen("lbl-g");
+			} else {
+				k.kasten.AvesmapsEcosystemProperties.close();
+			}
+			// Die aktuelle Fläche antwortet zuerst; frühere Antworten kommen später.
+			for (let i = antworten.length - 1; i >= 1; i--) {
+				antworten[i].antwort.erfuellen(await originalPost("list_regions", antworten[i].nutzlast));
+			}
+			await Promise.all(weitere);
+			k.elemente["label-edit-type"].innerHTML = "aktuelle-artenliste";
+			k.elemente["label-edit-type"].value = "aktuelle-art";
+			k.elemente["ecosystem-properties-error"].textContent = "aktueller-fehler";
+			if (fehlschlag) {
+				antworten[0].antwort.ablehnen(new Error("veralteter Ladefehler"));
+			} else {
+				antworten[0].antwort.erfuellen(await originalPost("list_regions", antworten[0].nutzlast));
+			}
+			await alt;
+			assert.strictEqual(k.elemente["label-edit-type"].innerHTML, "aktuelle-artenliste", wechsel); checks++;
+			assert.strictEqual(k.elemente["label-edit-type"].value, "aktuelle-art", wechsel); checks++;
+			assert.strictEqual(k.elemente["ecosystem-properties-error"].textContent, "aktueller-fehler", wechsel); checks++;
+		}
 	}
 }
