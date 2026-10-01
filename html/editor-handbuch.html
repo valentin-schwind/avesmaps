@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 30.09.2026</span>
+		<span class="hb-topbar__meta">Stand: 02.10.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -811,7 +811,7 @@
 				<h3 id="siedlungen" class="hb-sub">Orte</h3>
 				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick → Infopanel → „Bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neuer Ort" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Orte</p>
 				<p>Orte sind Dörfer, Städte, Metropolen und besondere Bauwerke. Sie sind der häufigste Bearbeitungsfall.</p>
-				<div class="hb-note hb-tip"><strong>Ortsnamen müssen eindeutig bleiben.</strong> Legst du einen zweiten Ort mit einem schon vergebenen Namen an, nennt dir der Editor den blockierenden Ort; <strong>„Ort anzeigen"</strong> springt hin, dein Formular bleibt stehen. Der Ausweg ist der des Wikis: ein <strong>Zusatz in Klammern</strong>, also <em>„Ortsname (Region)"</em>. Grund: die Reiseplanung führt ihre Orte über den Namen — zwei gleiche fallen darin zu einem Punkt zusammen.</div>
+				<div class="hb-note hb-tip"><strong>Ortsnamen müssen eindeutig bleiben.</strong> Gibt es den Namen schon, nennt dir der Editor den blockierenden Ort; <strong>„Ort anzeigen"</strong> springt hin, dein Formular bleibt stehen. Hänge einen <strong>Zusatz in Klammern</strong> an, wie im Wiki: <em>„Ortsname (Region)"</em>.</div>
 
 				<h4>Der Dialog „Ort bearbeiten"</h4>
 				<ul class="hb-steps">
@@ -823,12 +823,10 @@
 					<li><strong>Wiki-Ort</strong> — der <a href="#v-wiki">Zuweisungskasten</a>.</li>
 					<li><strong>Stätten</strong> — Bauwerke und Stadtviertel, die zu diesem Ort gehören. Der Block erscheint nur, wenn der Ort welche hat. Siehe <a href="#siedlungen-staetten">Stätten</a>.</li>
 					<li><strong>Quellen</strong> — womit dieser Ort belegt ist. Mehrere Einträge sind normal; siehe <a href="#v-quellen">Quellen</a>.</li>
-					<li><strong>Wappen</strong> — <strong>„Ersetzen / hochladen"</strong> (Datei oder Bild-Adresse, bis 5&nbsp;MB, SVG erlaubt) und <strong>„Entfernen"</strong>; ein Klick auf das Bild selbst tut dasselbe wie der erste. Daneben steht, woher das gezeigte Wappen stammt. Erscheint erst, <em>nachdem</em> der Ort einmal gespeichert wurde. Beim Hochladen fragt der Dialog <em>Lizenz</em>, <em>Urheber</em> und <em>Kommentar</em> — siehe <a href="#v-lizenzen">Bilder &amp; Lizenzen</a>.</li>
+					<li><strong>Wappen</strong> — erscheint erst, <em>nachdem</em> der Ort einmal gespeichert wurde. Die Zeile daneben sagt, woher das gezeigte Wappen stammt. Knöpfe: <strong>„Übernehmen"</strong> (nimmt ein gemeinfreies Wiki-Wappen), <strong>„Ersetzen / hochladen"</strong> (Datei oder Bild-Adresse, bis 5&nbsp;MB, SVG erlaubt) und <strong>„Entfernen"</strong>. Beim Hochladen fragt der Dialog <em>Lizenz</em>, <em>Urheber</em> und <em>Kommentar</em> — siehe <a href="#v-lizenzen">Bilder &amp; Lizenzen</a>.</li>
 				</ul>
-				<div class="hb-note hb-tip"><strong>„Ortsgröße" und „Art" beantworten zwei verschiedene Fragen.</strong> Die <em>Ortsgröße</em> entscheidet, <strong>wie</strong> der Punkt gezeichnet wird — Symbol, Größe, ab welchem Zoom sein Name erscheint. Die <em>Art</em> sagt, <strong>was</strong> er ist: Brücke, Festung, Turm, Kloster … Sie ändert an der Karte nichts, sondern ersetzt nur die Typzeile in der Infobox. Tipp einfach los, der Editor schlägt aus dem Wiki-Katalog vor („brü" findet „Brücke"); <strong>leer lassen ist erlaubt</strong>, wenn du es nicht sicher weißt.</div>
-				<div class="hb-note hb-tip"><strong>„Art" ist grau? Dann steht die Ortsgröße nicht auf „Besondere Bauwerke/Stätten".</strong> Nur dort ist das Feld freigeschaltet — ein Dorf ist eben ein Dorf, da gibt es keine zweite Art. Stellst du die Ortsgröße wieder auf eine Siedlungsstufe zurück, wird die Art <em>geleert</em>, nicht bloß gesperrt: Gespeichert würde sie ohnehin nicht mehr, und ein stehengebliebener Text behauptete etwas Falsches.</div>
-				<div class="hb-note hb-warn"><strong>Ein Wappen ohne freie Lizenz bleibt unsichtbar</strong> — kein Fehler, sondern Absicht. Welche der sieben Einstufungen öffentlich erscheinen, steht unter <a href="#v-lizenzen">Bilder &amp; Lizenzen</a>.</div>
-				<div class="hb-note hb-warn"><strong>Die Karte holt kein Bild vom Wiki.</strong> Gezeigt wird nur, was auf unserem Server liegt — sonst bleibt das Feld leer, auch wenn der Editor daneben <em>„Wiki-Wappen vorhanden, aber nicht übernommen"</em> schreibt. Brauchst du das Wappen, lade es über <strong>„Ersetzen / hochladen"</strong> als Bild-Adresse hoch.</div>
+				<div class="hb-note hb-tip"><strong>„Ortsgröße" und „Art" sind zweierlei.</strong> Die <em>Ortsgröße</em> bestimmt, <strong>wie</strong> der Punkt gezeichnet wird: Symbol, Größe, Zoomstufe des Namens. Die <em>Art</em> sagt, <strong>was</strong> er ist (Brücke, Festung, Kloster …) und ersetzt nur die Typzeile in der Infobox. Der Editor schlägt aus dem Wiki-Katalog vor; <strong>leer lassen ist erlaubt</strong>. Das Feld ist nur bei „Besondere Bauwerke/Stätten" frei; wechselst du zurück auf eine Siedlungsstufe, wird die Art geleert.</div>
+				<div class="hb-note hb-warn"><strong>Ein Wappen ohne freie Lizenz bleibt für Besucher unsichtbar.</strong> Welche Einstufungen öffentlich erscheinen, steht unter <a href="#v-lizenzen">Bilder &amp; Lizenzen</a>. Steht beim Wiki-Wappen <em>„nicht gemeinfrei — nicht übernehmbar"</em>, lade ein eigenes hoch.</div>
 				<h4 id="siedlungen-staetten">Stätten eines Ortes</h4>
 				<p>Eine Stätte gehört zu einem Ort. Es gibt drei Sorten: ein Punkt <em>auf der Karte</em> mit gesetztem „Innerorts", ein Punkt <em>„nicht auf der Karte"</em> und eine Stätte ganz ohne Punkt. Du findest sie in der Infobox des Ortes, im Dialog „Ort bearbeiten" und im Ortseditor, direkt über den Quellen.</p>
 				<table class="hb-table">
