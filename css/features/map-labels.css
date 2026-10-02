@@ -38,8 +38,14 @@
 body.edit-mode .map-label,
 body.edit-mode .map-label span,
 body.edit-mode .map-label img {
-	cursor: move;
+	cursor: pointer;
 	pointer-events: auto;
+}
+
+body.edit-mode .map-label.leaflet-marker-draggable,
+body.edit-mode .map-label.leaflet-marker-draggable span,
+body.edit-mode .map-label.leaflet-marker-draggable img {
+	cursor: move;
 }
 
 .map-label.is-colliding,
