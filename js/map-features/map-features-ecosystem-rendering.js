@@ -1133,7 +1133,7 @@ function buildEcosystemAreaLayer(area) {
 			setHighlightedEcosystemRegion(area.region_public_id || "");
 		}
 		// Auch auf einer Nachbarfläche gehören die ersten beiden Klicks der aktiven Kante.
-		if (typeof ecosystemEditHoveredEdge === "function" && ecosystemEditHoveredEdge(event?.latlng)) {
+		if (typeof ecosystemEditNearestSessionEdge === "function" && ecosystemEditNearestSessionEdge(event?.latlng)) {
 			return;
 		}
 		const zeigtPanel = showEcosystemAreaInfopanel(area);

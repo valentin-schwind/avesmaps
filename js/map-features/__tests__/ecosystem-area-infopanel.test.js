@@ -240,7 +240,7 @@ function klickBuehne({ darfBearbeiten, naheAktiverKante = false }) {
 		isEcosystemEditingInProgress: () => false,
 		isEcosystemGeometryEditOpen: () => false,
 		handleEcosystemEditEdgeDoubleClick: () => false,
-		ecosystemEditHoveredEdge: () => naheAktiverKante ? {} : null,
+		ecosystemEditNearestSessionEdge: () => naheAktiverKante ? {} : null,
 		setActiveEcosystemLayerKind: () => {},
 		// 🪤 KEINE ATTRAPPE FÜR setHighlightedEcosystemRegion -- die Datei DEKLARIERT sie selbst
 		// (map-features-ecosystem-rendering.js), und eine Funktionsdeklaration überschreibt im

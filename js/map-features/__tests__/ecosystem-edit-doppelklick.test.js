@@ -27,22 +27,22 @@ function startSession() {
     };`, context);
 }
 
-// Die echte Kartengeste darf knapp außerhalb der Fläche die Sitzung nicht beenden.
+// Auch weit außerhalb bleibt die nächste Kante der aktiven Fläche das Einfügeziel.
 for (const scale of [1, 4, 16]) {
     zoomScale = scale;
     startSession();
     context.isEcosystemLayerModeActive = () => true;
     context.getSelectedEcosystemAreaPublicId = () => "active";
     context.setSelectedEcosystemArea = () => { throw new Error("Kantengeste darf Auswahl nicht löschen"); };
-    context.handleEcosystemMapClickDeselect({ latlng: { lng: 50, lat: -21 / scale } });
-    context.handleEcosystemEditFinishDoubleClick({ latlng: { lng: 50, lat: -21 / scale }, originalEvent: {} });
+    context.handleEcosystemMapClickDeselect({ latlng: { lng: 50, lat: -200 / scale } });
+    context.handleEcosystemEditFinishDoubleClick({ latlng: { lng: 50, lat: -200 / scale }, originalEvent: {} });
     assert.equal(finished, 0);
     assert.equal(vm.runInContext("activeEcosystemGeometryEdit.geometry.coordinates[0].length", context), 6);
     assert.equal(vm.runInContext("activeEcosystemGeometryEdit.geometry.coordinates[0][1][0]", context), 50);
-    assert.equal(vm.runInContext("activeEcosystemGeometryEdit.geometry.coordinates[0][1][1]", context), -21 / scale);
+    assert.equal(vm.runInContext("activeEcosystemGeometryEdit.geometry.coordinates[0][1][1]", context), -200 / scale);
     assert.equal(vm.runInContext("activeEcosystemGeometryEdit.undoStack.length", context), 1);
     // Ein zweiter Event derselben Geste setzt keinen zweiten Punkt und beendet nichts.
-    context.handleEcosystemEditFinishDoubleClick({ latlng: { lng: 50, lat: -21 / scale }, originalEvent: {} });
+    context.handleEcosystemEditFinishDoubleClick({ latlng: { lng: 50, lat: -200 / scale }, originalEvent: {} });
     assert.equal(finished, 0);
     assert.equal(vm.runInContext("activeEcosystemGeometryEdit.geometry.coordinates[0].length", context), 6);
 }
@@ -53,7 +53,10 @@ assert.equal(saved, 4, "Rückgängig plant auch die Speicherung der ursprünglic
 startSession();
 assert.equal(context.handleEcosystemEditEdgeDoubleClick({ latlng: { lng: 50, lat: 0 }, originalEvent: { ctrlKey: true } }), false);
 assert.equal(context.handleEcosystemEditEdgeDoubleClick({ latlng: { lng: 50, lat: 0 }, originalEvent: { target: { closest: () => true } } }), false);
-context.setSelectedEcosystemArea = () => {};
-context.handleEcosystemEditFinishDoubleClick({ latlng: { lng: 50, lat: -23 / zoomScale }, originalEvent: {} });
-assert.equal(finished, 1, "Außerhalb der Trefferzone bleibt das Beenden erhalten");
-console.log("Landschafts-Doppelklick: Punkt, Zoomtoleranz, Zeitriegel und Beenden geprüft.");
+const savesBeforeControlClick = saved;
+context.handleEcosystemEditEdgeClick({ latlng: { lng: 50, lat: -1000 }, originalEvent: { ctrlKey: true } });
+assert.equal(saved, savesBeforeControlClick, "Strg-Unterteilung ignoriert einen alten unbegrenzten Hover");
+context.handleEcosystemEditFinishDoubleClick({ latlng: { lng: 50, lat: -1000 }, originalEvent: {} });
+assert.equal(finished, 0, "Keine Abstandsschranke: Auch weit entfernt wird eingefügt");
+assert.equal(vm.runInContext("activeEcosystemGeometryEdit.geometry.coordinates[0][1][1]", context), -1000);
+console.log("Landschafts-Doppelklick: Klickposition, nächste Kante ohne Abstandsschranke, Zeitriegel und Rückgängig geprüft.");
