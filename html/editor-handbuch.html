@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 02.10.2026</span>
+		<span class="hb-topbar__meta">Stand: 03.10.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -1015,7 +1015,7 @@
 				<h4>Die Blöcke des Dialogs</h4>
 				<ul class="hb-steps">
 					<li><strong>Kopf</strong> — <em>Name</em> und <em>Art</em>, beide mit <strong>↻</strong> zum Übernehmen aus dem Wiki. Die Art ist nicht auf „Region" beschränkt — die vollständige Liste steht unter <a href="#n-listen">Die Auswahllisten</a>. Der Haken <em>Nodix</em> steht im Reiter <em>Beschriftung</em>.</li>
-					<li><strong>Höhe (Schritt)</strong> — steht unten im selben Block und erscheint nur, wenn die Art <em>Berggipfel</em> oder <em>Vulkan</em> ist: ein Zahlenfeld mit Schieberegler (0–20.000). Ein leeres Feld füllt sich dabei mit <strong>5.000</strong> — der Wert, mit dem die Karte für einen Gipfel ohne erfasste Höhe ohnehin rechnet. Eine <em>bereits erfasste</em> Höhe bleibt unangetastet, auch wenn du den Dialog nur öffnest.</li>
+					<li><strong>Höhe (Schritt)</strong> — steht unten im selben Block und erscheint nur, wenn die Art <em>Berggipfel</em> oder <em>Vulkan</em> ist: ein Zahlenfeld mit Schieberegler (0–20.000). Ein leeres Feld füllt sich dabei mit <strong>5.000</strong> — der Wert, mit dem die Karte für einen Gipfel ohne erfasste Höhe ohnehin rechnet. Eine <em>bereits erfasste</em> Höhe bleibt unangetastet, auch wenn du den Dialog nur öffnest. Steht im Wiki-Steckbrief eine Höhe, bietet „Sync" im <a href="#v-wiki">Zuweisungskasten</a> sie an; eine eigene Zahl gilt als Override, <strong>↺</strong> holt den Wiki-Wert zurück. Alle Berggipfel auf einmal liest <strong>„Berghöhen synchronisieren"</strong> im Reiter Regionen — vorhandene eigene Höhen bleiben erhalten.</li>
 					<li><strong>Darstellung</strong> — Größe, <em>Kurvenbeschriftung</em>, <em>Anzahl Kurvenlabel</em> (erscheint erst mit dem Haken), „Sichtbar ab/bis Zoom", Priorität. Damit steuerst du, wann und wie prominent die Beschriftung erscheint. An Größen- und Zoomreglern steht als Marke, was die Tafel <a href="#landschaften">„Darstellung"</a> für diese Art vorschlägt — du darfst davon abweichen. <strong>Größe und Priorität wirken sofort auf der Karte</strong>, während du am Regler ziehst. Schließt du den Dialog <em>ohne</em> zu speichern („Abbrechen", ×, ESC), geht die Beschriftung auf ihren alten Stand zurück. Bei einer <em>neuen</em> Beschriftung gibt es noch keinen Marker, an dem sich das zeigen könnte.</li>
 					<li><strong>Wiki-Landschaft</strong> — der <a href="#v-wiki">Zuweisungskasten</a>. Liegt eine Fläche darunter, gehört der Artikel der Fläche: Fläche und alle ihre Beschriftungen tragen immer denselben. Änderst du ihn hier, ziehen beim Speichern die übrigen Beschriftungen mit.</li>
 					<li><strong>Quellen</strong> — derselbe Block wie bei Orten und Wegen, über den gemeinsamen Quellenkatalog. <strong>Die Quellen gehören der Fläche</strong>, nicht der Beschriftung: liegt eine Fläche darunter, siehst und änderst du hier deren Liste. Eine eigene hat nur eine <em>freie</em> Beschriftung ohne Fläche.</li>
@@ -1041,7 +1041,7 @@
 				</ul>
 				<p><em>Lösen</em> lässt sich eine Verknüpfung hier nicht. Das macht der Dialog oben.</p>
 				<h4>Verschieben, duplizieren, löschen</h4>
-				<p>Der Linksklick auf eine Beschriftung bietet außerdem <strong>„Label verschieben"</strong>, <strong>„Position zurücksetzen"</strong>, <strong>„Label duplizieren"</strong> und <strong>„Label löschen"</strong> — sowie <strong>„Neue Kraftlinie"</strong>. <strong>„Position zurücksetzen"</strong> holt die Beschriftung auf den Punkt zurück, den das Anlegen einer Fläche vergibt, und steht nur dort, wo eine Fläche darunter liegt; trägt die Fläche mehrere Beschriftungen, fragt sie vorher nach. Kraftlinien sind ein eigener Objekttyp, unabhängig vom Wegenetz — siehe unten.</p>
+				<p>Der Linksklick auf eine Beschriftung bietet außerdem <strong>„Label verschieben"</strong>, <strong>„Position zurücksetzen"</strong>, <strong>„Label duplizieren"</strong> und <strong>„Label löschen"</strong> — sowie <strong>„Neue Kraftlinie"</strong>. <strong>„Position zurücksetzen"</strong> holt die Beschriftung auf den Punkt zurück, den das Anlegen einer Fläche vergibt, und steht nur dort, wo eine Fläche darunter liegt; trägt die Fläche mehrere Beschriftungen, fragt sie vorher nach. Berggipfel und Vulkane bewegst du <em>nur</em> über „Label verschieben": Ein bloßes Ziehen am Namen tut nichts. Nach dem Loslassen ist die Position gespeichert und das Verschieben beendet. Kraftlinien sind ein eigener Objekttyp, unabhängig vom Wegenetz — siehe unten.</p>
 
 				<h3 id="landschaften" class="hb-sub">Landschaften</h3>
 				<p class="hb-path"><strong>Auf der Karte:</strong> Kartenmodus „Landschaften" wählen (Taste <kbd>L</kbd>) &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick auf leere Karte → „Hier hinzufügen" → „Neue Vegetation" &nbsp;·&nbsp; <strong>Ecken bearbeiten:</strong> Rechtsklick auf die Fläche → „Fläche bearbeiten" &nbsp;·&nbsp; oder <strong>Doppelklick auf die Fläche</strong></p>
@@ -1083,10 +1083,10 @@
 					<tr><th>Geste</th><th>Wirkung</th></tr>
 					<tr><td><strong>Ecke ziehen</strong></td><td>Verschiebt sie. Gespeichert wird gebündelt, kurz nachdem du loslässt — nicht bei jeder einzelnen Ecke.</td></tr>
 					<tr><td><strong>Doppelklick auf eine Ecke</strong></td><td>Löscht sie.</td></tr>
-					<tr><td><strong>Doppelklick auf eine Kante</strong></td><td>Setzt <em>genau eine</em> neue Ecke, dort wo du gezielt hast.</td></tr>
+					<tr><td><strong>Doppelklick</strong></td><td>Setzt <em>genau eine</em> neue Ecke an der <em>nächsten Kante</em> der Fläche — auch wenn du weiter daneben klickst.</td></tr>
 					<tr><td><strong><kbd>Strg</kbd>+Klick auf eine Kante</strong></td><td>Setzt <strong>vier</strong> Ecken auf einmal, gleichmäßig verteilt — zum Verfeinern eines langen, geraden Stücks.</td></tr>
 					<tr><td><strong><kbd>Strg</kbd>+<kbd>Z</kbd></strong></td><td>Nimmt Eckenbewegungen zurück, bis zu 20 Schritte.</td></tr>
-					<tr><td><strong>Doppelklick daneben</strong></td><td>Beendet das Bearbeiten.</td></tr>
+					<tr><td><strong><kbd>Esc</kbd></strong></td><td>Beendet das Bearbeiten.</td></tr>
 				</table>
 				<div class="hb-note hb-tip"><strong>Ecken rasten an Nachbarflächen ein.</strong> Lässt du eine Ecke näher als etwa zehn Bildschirmpunkte an der Ecke oder Kante einer anderen Fläche los, springt sie genau dorthin — so stoßen Wald und Gebirge lückenlos aneinander. Eingerastet wird nur an <em>sichtbaren</em> Ebenen; über den Ebenen-Schalter bestimmst du also selbst, woran es fassen darf. <strong>Willst du zwei Flächen bewusst auseinanderhalten</strong>, halte beim Ziehen <kbd>Strg</kbd> — dann rastet nichts ein. Und es rastet nur <em>diese</em> Ecke ein: die Nachbarfläche wird nie mitverändert.</div>
 				<h5>Pinsel und Radiergummi</h5>
