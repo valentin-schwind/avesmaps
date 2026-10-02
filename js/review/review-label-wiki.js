@@ -451,12 +451,17 @@ function mountLabelWikiAssign() {
 // unmittelbar nachdem er fuer den Zwilling im Kartendialog der Landschaft geschrieben war. Genau
 // dafuer ist er da: eine Regel, die einen von mehreren Erzeugern bindet, ist keine Regel.
 function verdrahteLabelWikiZeichner() {
-	labelWikiElement("label-edit-height")?.addEventListener("input", labelWikiZeichneAbweichungen);
 	labelWikiElement("label-edit-text")?.addEventListener("input", labelWikiZeichneAbweichungen);
 	labelWikiElement("label-edit-type")?.addEventListener("change", labelWikiZeichneAbweichungen);
 }
 
 if (typeof document !== "undefined") {
+    document.addEventListener("input", (event) => {
+        if (event.target?.id === "label-edit-height" || event.target?.id === "label-edit-height-range") {
+            labelWikiUebernommen.delete("height_schritt");
+            labelWikiZeichneAbweichungen();
+        }
+    });
 	if (document.readyState === "loading") {
 		document.addEventListener("DOMContentLoaded", verdrahteLabelWikiZeichner, { once: true });
 	} else {
