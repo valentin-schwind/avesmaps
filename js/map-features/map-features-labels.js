@@ -1,3 +1,4 @@
+// Gipfel werden ausschliesslich ueber „Label verschieben“ im Label-Menue bewegt.
 /* 🪤 04.09.2026 Stempel-Heilung nach einem abgebrochenen Deploy -- die Begruendung steht in css/components/fenster.css. */
 // Mirror of avesmapsReadOptionalPeakHeight (api/_internal/map/features.php): the SERVER owns the
 // rule, this only has to agree with it. Returns a finite number >= 0, or null for "not recorded".
