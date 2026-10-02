@@ -786,3 +786,1473 @@ function createLabelMarkerEntry(label) {
 			void selectEcosystemAreaOfLabel(label);
 		});
 		marker.on("dragend", () => {
+			const isPeak = typeof isEcosystemPeakLabel === "function" && isEcosystemPeakLabel(entry.label.publicId);
+			// 💣 Die Invalidierung gehört ANS ENDE der Speicherkette, nicht daneben. saveLabelPosition ist
+			// asynchron und schreibt die neue Lage erst in `label.coordinates`, wenn die Antwort da ist
+			// (applyLabelFeatureResponse). Daneben gerufen läse der Neuaufbau des Höhenfelds noch die ALTE
+			// Position -- der Gipfel wäre verschoben, sein Berg bliebe stehen.
+			const saved = saveLabelPosition(entry);
+			if (isPeak) {
+				Promise.resolve(saved).then(() => {
+					if (typeof invalidateEcosystemHeightForPeak === "function") {
+						invalidateEcosystemHeightForPeak(entry.label);
+					}
+				});
+			}
+			setLabelMoveActive(entry, false);
+		});
+		// Infopanel (default): in edit mode the floating box carries the EDIT actions, but the right Info
+		// panel stayed EMPTY for regions -- so the "Info" edge-tab dead-ended (hasContent=false) and could
+		// not be reached. Settlements already fill the panel in edit mode (their DOM-marker popupopen routes
+		// to avesmapsShowInfopanel, gated only on IS_INFOPANEL_MODE). Mirror that here: when the label's
+		// editor popup opens, ALSO fill the panel with the read-only region info. The view-mode branch below
+		// is unreachable in edit mode, which is why this wiring was missing.
+		// Ohne labelHasWikiRegion-Gate (Spec §5.2), aus demselben Grund wie im Lesemodus darunter: sonst
+		// bliebe der Info-Reiter fuer ein Label ohne Wiki-Zuweisung leer und damit unerreichbar -- genau
+		// die Sackgasse, gegen die diese Verdrahtung ueberhaupt entstand.
+		if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE
+			&& typeof window.avesmapsShowInfopanel === "function"
+			&& typeof buildRegionLabelViewPopupHtml === "function") {
+			// 💣 EIN BAUER, kein fertiger Text: nur so bekommt das Panel einen Anker und laesst sich
+			// auffrischen (avesmapsRefreshInfopanel). Ohne ihn erschien eine Quelle, die der Editor
+			// gerade im Kasten „Quellen" hinzugefuegt hat, erst nach einem erneuten Klick auf das Label.
+			marker.on("popupopen", () => {
+				window.avesmapsShowInfopanel(
+					() => buildRegionLabelViewPopupHtml(label),
+					label.text || (label.wikiRegion && label.wikiRegion.name) || ""
+				);
+			});
+		}
+	} else {
+		// Ansichtsmodus: dasselbe Popup wie der Edit-Mode, nur OHNE die Bearbeiten-Buttons -- via den
+		// gemeinsamen Builder, den auch der Deep-Link/Spotlight-Fokus (focusSpotlightLabel) nutzt.
+		//
+		// Ohne labelHasWikiRegion-Gate (Spec §5.2): ein Label ohne Wiki-Zuweisung bekommt dasselbe Panel,
+		// nur ohne die Wiki-Zeilen -- Name, Typ, Kartensammlung und Abenteuer stehen auch ohne Wiki zur
+		// Verfuegung, und genau die waren bisher unerreichbar.
+		// 🪤 MIT DER BEDARFS-RASTERUNG (Vorgabe) ALS FUNKTION, mit `?labelbedarf=0` als fertiger Text. Dieses Markup ist
+		// der zweite Startposten neben dem Bild: es entstand fuer JEDE Beschriftung sofort, obwohl es
+		// erst beim Anklicken gebraucht wird -- und der Bearbeiten-Zweig darueber bindet seines
+		// laengst als Funktion (refreshLabelMarkerPopup). Leaflet ruft sie bei jedem Oeffnen, es zaehlt
+		// also der Stand von JETZT statt der vom Startaugenblick.
+		let regionLabelPopupHtml;
+		if (avesmapsLabelBedarfAktiv()) {
+			regionLabelPopupHtml = () => buildRegionLabelViewPopupHtml(label);
+		} else {
+			avesmapsLabelPopupZaehlen();
+			regionLabelPopupHtml = buildRegionLabelViewPopupHtml(label);
+		}
+		// Infopanel (now the default): route landscape/Wiki-region label info into the right panel
+		// instead of a floating popup -- same as the other feature types. This label-click path had no
+		// panel guard, so regions kept opening as a floating box. Without panel mode the bound popup stays.
+		//
+		// 💣 DAS PANEL BEKOMMT EINEN BAUER, NIE DEN VORGEBAUTEN TEXT. Zwei Gruende, und der zweite ist
+		// der Grund dieser Aenderung: (1) ein Bauer IST der Anker, an dem avesmapsRefreshInfopanel
+		// haengt -- ohne ihn gibt der Refresh sofort auf, und eine gerade hinzugefuegte Quelle erschien
+		// erst nach einem erneuten Klick; (2) `regionLabelPopupHtml` ist ohne `?labelbedarf=1` ein beim
+		// SEITENSTART gebauter Text -- als Anker eingesetzt zeichnete jeder Refresh treu den Stand vom
+		// Startaugenblick nach und saehe von „nichts hat sich geaendert" nicht zu unterscheiden aus.
+		// ⚠️ Damit bedient der vorgebaute Text nur noch den Rueckfall-Zweig unten (Karte ohne Panel).
+		// Ihn im Panel-Modus gar nicht erst zu bauen waere der naechste Schritt -- er gehoert aber zum
+		// offenen Versuch `?labelbedarf=1` und wird hier bewusst nicht mitentschieden.
+		if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE && typeof window.avesmapsShowInfopanel === "function") {
+			marker.on("click", () => {
+				try { map.panTo(label.coordinates); } catch (error) { /* noop */ }
+				window.avesmapsShowInfopanel(
+					() => buildRegionLabelViewPopupHtml(label),
+					label.text || (label.wikiRegion && label.wikiRegion.name) || ""
+				);
+			});
+		} else {
+			marker.bindPopup(regionLabelPopupHtml, { className: "settlement-popup", minWidth: 320, maxWidth: 400, autoPan: true });
+		}
+	}
+	syncLabelMarkerVisibility(entry);
+	return entry;
+}
+
+function refreshLabelMarkerPopup(entry) {
+	if (!IS_EDIT_MODE) {
+		return;
+	}
+
+	// TWO classes, and every label needs BOTH. "floating-location-popup" gates the Kachel/tile action-button
+	// CSS (location-popups-markers.css); "settlement-popup" is the only rule that releases the 260px base cap
+	// (.location-popup max-width) to 400px (region-sync.css). A label WITHOUT a wiki region -- a continent,
+	// say -- used to get the tile class alone: the tiles then had ~240px to sit in, could not fit four across,
+	// and wrapped into the vertical list. That looked like a layout bug but was a missing width anchor.
+	// labelActionsMarkup renders regardless of hasWiki, so the box is the same box either way.
+	// 🪤 Als FUNKTION gebunden, nicht als fertiger Text. Der Kopf nennt jetzt die Zahl der verbundenen
+	// Flaechen und Labels, und die stehen beim Binden noch gar nicht fest -- die Regionslisten kommen
+	// spaeter. Leaflet ruft die Funktion bei jedem Oeffnen, also zaehlt der Stand von JETZT.
+	entry.marker.bindPopup(() => labelPopupMarkup(entry), { className: "settlement-popup floating-location-popup", minWidth: 320, maxWidth: 400 });
+	// 🔴 UND AUSSERHALB DES LANDSCHAFTSMODUS DIE LISTEN NACHZIEHEN (Owner 24.08.2026). Die Zahl der
+	// Flaechen steht in den REGIONSLISTEN, und die werden nur im Landschaftsmodus geholt -- in der
+	// Standardansicht kannte der Kopf die Zugehoerigkeit, aber nicht die Zahl. Der Zeile fehlte sie
+	// deshalb (labelPopupSubtitle sagt seit heute nichts, statt „0 Flaechen" zu behaupten), und hier
+	// wird sie beschafft.
+	//
+	// ⚠️ NUR FUER EDITOREN, und `canOperateEcosystemLayers` fragt genau das -- IS_EDIT_MODE UND das
+	// Recht. Es fragt NICHT nach der Ansicht, und das ist hier der Punkt: geladen werden darf immer,
+	// geholt wurde bisher nur im Landschaftsmodus.
+	//
+	// 💣 KEINE Schleife: `loadEcosystemRegions` kehrt sofort um, sobald die Ebene im Zwischenspeicher
+	// liegt, und neu gezeichnet wird nur, wenn die Zahl VORHER fehlte und JETZT da ist. Ohne diese
+	// zweite Bedingung setzte jedes Oeffnen den Inhalt neu -- und der Klick auf eine Kachel ginge
+	// zwischen Neubau und Zeigerdruck verloren.
+	entry.marker.on("popupopen", () => {
+		avesmapsLabelMenueFlaechenzahlNachziehen(entry, () => {
+			if (entry.marker.isPopupOpen()) {
+				entry.marker.setPopupContent(labelPopupMarkup(entry));
+			}
+		});
+	});
+}
+
+// Die Flaechenzahl nachziehen und den Inhalt neu setzen lassen.
+//
+// 🔴 EIGENE FUNKTION, weil es ZWEI Wege ins Kachelmenue gibt: den Marker (gerade Labels) und das
+// freistehende Popup am gemalten Namen (Kurvenlabels, deren Marker der Kurvenriegel abmeldet). Beide
+// brauchen dasselbe Nachladen -- zweimal geschrieben waere es die Stelle, an der einer der beiden es
+// irgendwann nicht mehr tut.
+//
+// @param entry      der Labeleintrag
+// @param neuSetzen  wie der Aufrufer seinen Inhalt ersetzt (Marker-Popup oder freistehendes)
+function avesmapsLabelMenueFlaechenzahlNachziehen(entry, neuSetzen) {
+	if (typeof canOperateEcosystemLayers !== "function" || !canOperateEcosystemLayers()) {
+		return;
+	}
+	if (typeof ensureEcosystemRegionsLoadedForLabelFilter !== "function" || typeof neuSetzen !== "function") {
+		return;
+	}
+	const vorher = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry?.label) : null;
+	if (!vorher || vorher.area_count !== undefined) {
+		return;                                      // nichts zu holen -- die Zahl steht schon
+	}
+	ensureEcosystemRegionsLoadedForLabelFilter().then(() => {
+		const nachher = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry?.label) : null;
+		if (!nachher || nachher.area_count === undefined) {
+			return;
+		}
+		neuSetzen();
+	}).catch(() => {
+		// 🪤 Still: der Kopf steht bereits da, nur ohne die Flaechenzahl. Eine Fehlermeldung fuer
+		// eine Nebenauskunft waere lauter als ihr Wert -- und das Popup selbst ist nicht kaputt.
+	});
+}
+
+// Das Kachelmenue eines Labels OHNE seinen Marker oeffnen (Owner 24.08.2026).
+//
+// 💣 WARUM ES DAS BRAUCHT. Sobald eine Flaeche ihre Kurve traegt, meldet der Kurvenriegel den Marker ab
+// (shouldShowLabelMarker) -- und mit ihm sein Popup, denn das haengt am Marker. Der gemalte Name ist
+// anklickbar (Klick-Register der Canvas), aber er oeffnete nur Hervorhebung und Infopanel: das
+// Kachelmenue, das der Marker getragen haette, gab es fuer Kurvenlabels nirgends. Owner, woertlich:
+// „im standardmodus [kann man] nicht auf kurvenlabels klicken (infopanel geht, aber das floating menue
+// fuer editoren kommt nicht)". Damit war ein Kurvenlabel im Standardmodus ueber KEINEN Weg zu
+// bearbeiten -- dieselbe Klasse Fehler wie bei den verwaisten Aussenhuellen.
+//
+// 🔴 DASSELBE MARKUP und dieselben Optionen wie am Marker (labelPopupMarkup, beide Klassen). Die
+// Kachel-Handler haengen an `data-popup-action` und werden ohnehin delegiert -- ein eigenes, magereres
+// Menue waere ein zweites Vokabular fuer dieselben Gesten.
+//
+// @param entry  der Labeleintrag (aus labelMarkers -- er existiert, nur sein Marker ist abgemeldet)
+// @param latlng wo das Menue stehen soll (die Klickstelle am gemalten Namen)
+// @return true, wenn es geoeffnet wurde
+function avesmapsOeffneLabelKachelmenue(entry, latlng) {
+	if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE || !entry?.label) {
+		return false;
+	}
+	if (typeof labelPopupMarkup !== "function" || typeof L === "undefined" || typeof map === "undefined") {
+		return false;
+	}
+	const punkt = latlng || (typeof entry.marker?.getLatLng === "function" ? entry.marker.getLatLng() : null);
+	if (!punkt) {
+		return false;
+	}
+	// Dieselben zwei Klassen wie am Marker: „floating-location-popup" schaltet die Kachel-Optik frei,
+	// „settlement-popup" hebt den 260px-Deckel auf 400 -- ohne die zweite brechen vier Kacheln um.
+	const popup = L.popup({ className: "settlement-popup floating-location-popup", minWidth: 320, maxWidth: 400 })
+		.setLatLng(punkt)
+		.setContent(labelPopupMarkup(entry));
+	popup.openOn(map);
+	avesmapsLabelMenueFlaechenzahlNachziehen(entry, () => {
+		// 🪤 Nur nachtragen, solange DIESES Popup noch offen ist -- sonst reisst ein spaeter
+		// eingetroffenes Nachladen ein inzwischen geschlossenes Menue wieder auf.
+		if (typeof map.hasLayer === "function" && map.hasLayer(popup)) {
+			popup.setContent(labelPopupMarkup(entry));
+		}
+	});
+
+	return true;
+}
+
+// Wie viele Beschriftungen haengen an dieser Flaeche? Ueber ALLE Labels gezaehlt, nicht ueber die
+// sichtbaren: labelData traegt den ganzen Bestand aus der map-features-Nutzlast, waehrend die Marker
+// nach Zoom und Ausschnitt kommen und gehen. Eine Zahl, die beim Zoomen springt, waere keine Auskunft.
+function countEcosystemRegionLabels(regionPublicId) {
+	const gesucht = String(regionPublicId || "");
+	if (gesucht === "" || typeof ecosystemRegionOfLabel !== "function") {
+		return 0;
+	}
+
+	return labelData.filter((label) => String(ecosystemRegionOfLabel(label)?.public_id || "") === gesucht).length;
+}
+
+// 🔴 Ein gespeichertes Label SOFORT auf der Karte nachziehen (Owner 2026-07-28). Vorher wurde die
+// Änderung erst sichtbar, wenn der Live-Sync-Poll die nächste Karten-Nutzlast holte -- also nach bis zu
+// 15 Sekunden. Die Fläche stand längst neu da und ihr Name noch auf dem alten: es sah aus, als hätte
+// das Speichern die Beschriftung vergessen.
+//
+// 🪤 Über normalizeLabelFeature, nicht per Handanlegen an einzelnen Feldern: die Antwort des Servers ist
+// dieselbe Form wie die der Karten-Nutzlast, und nur so bleibt „sofort" und „nach dem nächsten Laden"
+// dasselbe Ergebnis. Wer hier drei Felder einzeln setzt, baut die zweite Wahrheit.
+function applyLabelFeatureLocally(feature) {
+	const publicId = String(feature?.properties?.public_id || feature?.public_id || "");
+	const entry = publicId ? findLabelEntryByPublicId(publicId) : null;
+	if (!entry) {
+		return false;
+	}
+
+	// 🔴 Die Ebene der Flaeche kommt nicht mit der Antwort -- siehe avesmapsLabelEbeneErgaenzen.
+	const frisch = avesmapsLabelEbeneErgaenzen(normalizeLabelFeature(feature), entry.label);
+	const index = labelData.indexOf(entry.label);
+	if (index >= 0) {
+		labelData[index] = frisch;
+	}
+	entry.label = frisch;
+	entry.marker.setLatLng(frisch.coordinates);
+	entry.marker.setIcon(createLabelIcon(frisch));
+	refreshLabelMarkerPopup(entry);
+	// Sichtbarkeit UND Kollision neu: ein anderer Name ist ein anderer Kasten, und ein anderer Subtyp
+	// bringt ein anderes Zoom-Band mit.
+	syncLabelVisibility();
+
+	return true;
+}
+
+function findLabelEntryByPublicId(publicId) {
+	return labelMarkers.find((entry) => entry.label.publicId === publicId) || null;
+}
+
+// MEHRERE Beschriftungen aus einer Serverantwort sofort auf die Karte bringen. `update_region` und
+// `assign_wiki_region` geben seit dem 03.09.2026 die Beschriftungen zurueck, die sie nachgezogen
+// haben (`labels`, in der Form von `update_label`): die Zuweisung der Flaeche geerbt oder -- beim
+// ausdruecklichen Entfernen -- die Kopie genommen. Der Kartenpayload wird nach einem Speichern nicht
+// neu geholt; ohne das staende die Karte bis zum naechsten Live-Abgleich auf dem alten Stand: die
+// Infobox mit dem Artikel, den die Flaeche gerade verloren hat, ein roter Halo, der nicht mehr stimmt.
+//
+// 🔴 UEBER applyLabelFeatureResponse, nicht applyLabelFeatureLocally: die Antwort des Schreibwegs
+// kennt keine Kurve, und nur jener Weg behaelt eine vorhandene (die Falle vom 23.08.2026, „kommt
+// wieder das waagrechte, alte label"). ⚠️ Unbekannte Kennungen werden uebersprungen, nicht angelegt:
+// was hier ankommt, ist eine Aenderung an etwas, das der Client schon kennt. Gibt zurueck, wie viele
+// angewandt wurden.
+function applyLabelFeaturesLocally(features) {
+	if (!Array.isArray(features)) {
+		return 0;
+	}
+	let angewandt = 0;
+	features.forEach((feature) => {
+		const publicId = String(feature?.properties?.public_id || feature?.id || feature?.public_id || "");
+		const entry = publicId ? findLabelEntryByPublicId(publicId) : null;
+		if (!entry) {
+			return;
+		}
+		applyLabelFeatureResponse(entry, feature);
+		angewandt++;
+	});
+	return angewandt;
+}
+
+// Die Beschriftung einer LANDSCHAFTSFLÄCHE, gesucht über den Regionsschlüssel statt über die eigene
+// Kennung. Das ist der Weg, den ein Landschaftsname im Routenplaner braucht: er kennt die Region
+// (`ecosystem_region.public_id` aus path-landscapes.php), und was auf der Karte steht und anklickbar
+// ist, ist das Label.
+//
+// 💣 Fläche↔Label ist 1:N -- der Zeiger sitzt am LABEL (`properties.ecosystem_region_public_id`, vom
+// Server auch im Lesemodus aufgelöst). Der erste Treffer genügt hier: die Beschriftungen einer Region
+// liegen auf derselben Fläche, und wir fliegen nur hin. Ohne Zeiger kein Treffer -- 412 der 589
+// Regionen tragen gar kein Label, und für die gibt es nichts anzufliegen.
+// ALLE Beschriftungen einer Flaeche, in stabiler Reihenfolge.
+//
+// 🔴 Fuer das vereinigte Fenster (25.08.2026): 13 der 1026 Flaechen tragen zwei oder drei
+// Beschriftungen -- das Ingvaltal und das Yaquirtal je drei. Genau dafuer wurde die Beziehung am
+// 28.07.2026 auf 1:N gestellt („der Finsterkamm will im Norden UND im Sueden beschriftet
+// werden, jedes mit eigener Drehung/Position/Groesse").
+//
+// 💣 Sortiert wird nach der `publicId`, nicht nach der Reihenfolge im Bestand: die haengt an der
+// Ladereihenfolge der Nutzlast und rutscht, sobald jemand eine Beschriftung anlegt -- dann
+// zeigte die Auswahl „2 von 3" beim naechsten Oeffnen auf eine andere. Dieselbe Falle wie bei
+// `Kreuzung-N` (AGENTS.md §11).
+function findLabelEntriesByEcosystemRegion(regionPublicId) {
+	const gesucht = String(regionPublicId || "");
+	if (gesucht === "") {
+		return [];
+	}
+	return labelMarkers
+		.filter((entry) => String(entry.label.ecosystemRegionPublicId || "") === gesucht)
+		.sort((a, b) => String(a.label.publicId).localeCompare(String(b.label.publicId)));
+}
+
+function findLabelEntryByEcosystemRegion(regionPublicId) {
+	const gesucht = String(regionPublicId || "");
+	if (gesucht === "") {
+		return null;
+	}
+	return labelMarkers.find((entry) => String(entry.label.ecosystemRegionPublicId || "") === gesucht) || null;
+}
+
+// Ein Label von der Karte UND aus beiden Beständen nehmen. Ausgelagert, weil es seit der Landschafts-
+// Kaskade zwei Anlässe gibt: das ausdrücklich gelöschte Label -- und die Geschwister, die der Server
+// mitgelöscht hat, weil mit ihnen die ganze Region ging.
+function removeLabelEntryLocally(entry) {
+	if (!entry) {
+		return;
+	}
+	map.removeLayer(entry.marker);
+	labelData = labelData.filter((label) => label !== entry.label);
+	labelMarkers = labelMarkers.filter((labelEntry) => labelEntry !== entry);
+}
+
+// 🔴 Die Labels, die eine Landschafts-Kaskade mitgenommen hat, sofort von der Karte nehmen. Der Server
+// nennt sie beim Namen (`deleted_label_public_ids`), damit genau diese Marker verschwinden -- statt die
+// 21 MB grosse Kartennutzlast neu zu laden, nur um herauszufinden, welche es waren.
+//
+// 🪤 Ohne das bliebe ein Name ohne Fläche bis zum nächsten Seitenaufbau stehen: Labels kommen aus der
+// Kartennutzlast, und die lädt weder das Kontextmenü noch eine boolesche Operation neu.
+function removeEcosystemCascadedLabels(result) {
+	const publicIds = result?.deleted_label_public_ids;
+	if (!Array.isArray(publicIds) || publicIds.length === 0) {
+		return 0;
+	}
+	let entfernt = 0;
+	publicIds.forEach((publicId) => {
+		const entry = findLabelEntryByPublicId(String(publicId));
+		if (entry) {
+			removeLabelEntryLocally(entry);
+			entfernt += 1;
+		}
+	});
+	if (entfernt > 0) {
+		syncLabelVisibility();
+	}
+
+	return entfernt;
+}
+
+function setLabelMoveActive(entry, isActive) {
+	if (!entry?.marker?.dragging) {
+		return;
+	}
+
+	if (isActive) {
+		void acquireFeatureSoftLock(entry.label.publicId);
+		entry.marker.dragging.enable();
+		entry.marker.closePopup();
+		showFeedbackToast(`${entry.label.text}: Label verschieben, Loslassen speichert.`, "info");
+		return;
+	}
+
+	entry.marker.dragging.disable();
+	void releaseFeatureSoftLock(entry.label.publicId);
+}
+
+// MAP_LABEL_MODES steht in js/config.js -- der Editor-Haken muss dieselbe Liste lesen.
+// Der "Labels"-Haken (nur Edit-Modus) uebersteuert AUSSCHLIESSLICH die Modus-Bedingung unten --
+// nicht das Zoomband und nicht das Viewport-Culling. Ein vorgezogenes `return box.checked` haette
+// alle vier Bedingungen ausgehebelt: alle Label-Marker auf jeder Zoomstufe auf der Karte, und
+// scheduleLabelCollisionResolution() ueber den ganzen Satz -- kein Haken mehr, ein Perf-Unfall.
+// Der WERT wird einmal je Sync-Lauf gelesen und durchgereicht; shouldShowLabelMarker laeuft pro
+// Label pro Sync (jeder Zoom, jeder Move). Das ELEMENT zu cachen waere die falsche Reparatur: es
+// haengt in einem hidden-Container, den der Moduswechsel umschaltet.
+// Dreiwertig wie beim Grenzen-Haken: true = zeigen, false = verbergen, null = kein Haken da
+// -> allein der Modus entscheidet.
+// ⚠️ Diese Datei stand am 12.08.2026 in ihrer ALTEN Fassung auf dem Server (fuenf gescheiterte
+// Deploys), der Labels-Haken wirkte im Frontend also noch nicht. Nur eine Inhaltsaenderung heilt.
+// 🔴 Der Vorbehalt `IS_EDIT_MODE ?` ist am 12.08.2026 gefallen: der Haken steht seither fuer
+// JEDEN Besucher im Anzeige-Menue an der Karte (#map-display-menu). Die Dreiwertigkeit bleibt
+// aber tragend -- `?? null` faengt den Fall, dass das Element gar nicht da ist (fremde Seite,
+// halber Deploy). Dann entscheidet der Modus allein, genau wie vor diesem Datum.
+function isMapLabelEditorOverrideActive() {
+	return document.getElementById("toggleMapLabels")?.checked ?? null;
+}
+
+// „nur Labels mit Region" — Edit-Mode und nur mit eingeschaltetem Landschaftsmodul (bootstrap.js).
+// Fehlt der Regionenbestand, kann der Filter nichts wissen und gilt als aus: lieber alles zeigen als
+// alles verbergen.
+function isLabelsWithRegionFilterActive() {
+	return typeof ecosystemRegionOfLabel === "function"
+		&& document.getElementById("toggleLabelsWithRegion")?.checked === true;
+}
+
+// PUR (und deshalb prüfbar): gehört diese Beschriftung zur gerade gewählten Landschaftsebene?
+//
+// Vier Fälle, und nur der letzte filtert:
+//   * gar kein Landschaftsmodus  -> ja (die Regel gilt nicht)
+//   * „Alle"                     -> ja (Owner: „bei Alle darf alles dranstehen")
+//   * Gipfel in der Topographie  -> ja (Owner 27.08.2026, siehe unten)
+//   * eine gewählte Ebene        -> nur, wenn die Fläche dieses Labels zu ihr gehört
+//
+// 🪤 Die Umgebungsfunktionen werden mit `typeof` abgefragt, weil map-features-labels.js VOR
+// map-features-ecosystem-layer-switch.js geladen wird (index.html). Zur AUFRUFzeit sind sie da; beim
+// Laden noch nicht, und ein harter Zugriff auf Modulebene wäre ein ReferenceError.
+function isLabelOfActiveEcosystemLayer(label) {
+	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {
+		return true;
+	}
+	if (typeof isEcosystemShowAllLayers === "function" && isEcosystemShowAllLayers()) {
+		// 🔴 Ausser den Ebenen, die „Alle" ausnimmt -- heute die Klimazonen (Owner 27.08.2026). Die Liste
+		// steht in map-features-ecosystem-layer-switch.js und wird hier nur gelesen.
+		// 🪤 DIESER ZWEIG HAT HEUTE KEINEN ERZEUGER, und das ist Absicht, kein Versehen: live trägt KEINE
+		// der 980 Beschriftungen ein `ecosystem_region_kind = klima` (gemessen 27.08.2026) -- die
+		// Zonennamen malt das Klima-Modul selbst (drawClimateZoneNames). Er steht trotzdem da, weil eine
+		// Klimaregion jederzeit ein `label_public_id` bekommen kann und der Name dann durch diese
+		// Pipeline käme, an der Ausnahme vorbei. Wer ihn für tot hält, prüft erst die Zahl neu.
+		return !(typeof isEcosystemKindHiddenInShowAll === "function"
+			&& isEcosystemKindHiddenInShowAll(label?.ecosystemRegionKind));
+	}
+	if (typeof getActiveEcosystemLayerKind !== "function") {
+		return true;
+	}
+	const ebene = getActiveEcosystemLayerKind();
+
+	// 🔴 EIN GIPFEL GEHÖRT ZUR TOPOGRAPHIE, AUCH OHNE FLÄCHE (Owner 27.08.2026: „topographie soll für
+	// editoren und normale nutzer berggipfel anzeigen"). Ein Berggipfel ist ein PUNKT und trägt deshalb
+	// nie ein `ecosystem_region_kind` -- live gemessen 0 von 73 --, fiel also durch die Zeile darunter,
+	// obwohl er der ARBEITSPUNKT genau dieser Ebene ist: aus seiner Höhe entsteht das Relief.
+	//
+	// 💣 DIESELBE AUSNAHME STEHT SCHON EINMAL DA, und dass sie hier fehlte, ist die ganze Störung:
+	// isEcosystemLabelMuted nimmt Gipfel in der Topographie vom BLASSMACHEN aus (mit derselben
+	// Begründung), der Sichtbarkeitsfilter kam am 04.08.2026 dazu und hat sie wieder zugemacht. Der
+	// Gipfel war seither nicht blass, sondern gar nicht da -- und damit auch nicht ziehbar, obwohl
+	// das Kachelmenü seinen Verschiebemodus freischaltet.
+	//
+	// 🔴 ROLLENFREI. Diese Zeile fragt kein Recht: Besucher und Editor sehen denselben Gipfel. Das Recht
+	// entscheidet über die Bearbeitung, nie über das Sehen.
+	//
+	// 🪤 Über den `labelType`, nicht über isEcosystemPeakLabel(publicId): jenes scannt `labelData`
+	// linear, und diese Funktion läuft pro Label pro Zoom und pro Move. Welche Subtypen Gipfel sind,
+	// steht weiterhin an EINER Stelle (ECOSYSTEM_PEAK_SUBTYPES: berggipfel + vulkan).
+	// ⚠️ `typeof` wie bei den Nachbarn -- map-features-labels.js lädt vor dem Höhenmodul. Fehlt es,
+	// gilt „kein Gipfel", also das Verhalten von vorher.
+	if (ebene === "topographie" && typeof isEcosystemPeakSubtype === "function"
+		&& isEcosystemPeakSubtype(label?.labelType)) {
+		return true;
+	}
+
+	return String(label?.ecosystemRegionKind || "") === ebene;
+}
+
+// Liegt diese Beschriftung auf dieser Zoomstufe in ihrem Band?
+//
+// 🔴 DIE TAFEL RAET -- und das ist die UMGEKEHRTE Regel zur Groesse (Entwurf §6). Der eigene Wert
+// des Labels gewinnt; die Vorgabe je Art greift nur, wo das Label KEINEN traegt. Weil heute jede
+// Beschriftung min_zoom und max_zoom traegt, aendert sich an der Sichtbarkeit vorerst NICHTS --
+// gewollt: der Editor behaelt seine Entscheidung und sieht die Vorgabe nur als Marke.
+//
+// 💣 Wer das mit der GROESSE gleich behandelt, nimmt den Editoren entweder ihre Baender weg (Tafel
+// gilt) oder laesst die Groesse wirkungslos (Tafel raet). Beides ist genau falsch herum.
+//
+// 🔴 UND ES GIBT KEINE AUSNAHME -- AUCH NICHT FUER GIPFEL (Owner 02.09.2026: „die einstellung bei
+// darstellung zu den freien labels sind nur die default werte - die kleinen dreieckchen“, und
+// „ich wollte nur dass berggipfel durch die einstellung eine vorgabe bekommen, aber nie dass die
+// eigenen nicht ueberschrieben werden koennen“).
+//
+// 🪤 VOM 27.08. BIS ZUM 02.09.2026 STAND HIER DAS GEGENTEIL: fuer `berggipfel` und `vulkan`
+// schlug die Tafel das eigene Band. Das war eine Fehllesung der Anweisung „berggipfel und vulkane
+// sollen ab Z4 erscheinen“ -- gemeint war die VORGABE (die Marke unter dem Regler), nicht ein
+// Riegel. Der Preis: „Sichtbar ab Zoom“ war im Beschriftungsdialog fuer ALLE 76 Gipfel wirkungslos,
+// und zwar STILL -- der Wert wurde weiter gespeichert und nur beim Zeichnen ignoriert. Gemeldet an
+// „Der Dreizack“, der mit eigenem min_zoom 6 live schon ab z4 dastand.
+//
+// ⭐ Eigene, REINE Funktion, damit ein Test sie AUSFUEHREN kann. Als Ausdruck mitten in
+// shouldShowLabelMarker liess sie sich nur ueber ihren Quelltext pruefen -- und eine Mutation, die
+// den eigenen Wert ignoriert, blieb dabei gruen (gemessen am 24.08.2026).
+function avesmapsLabelImBand(label, bandZoom) {
+	// 💣 `Number(null)` ist 0, NICHT NaN -- ein Label ohne Band fiele mit `Number.isFinite` allein in
+	// den „hat eigenes Band"-Zweig und waere nur auf z0 sichtbar. Deshalb erst auf null/undefined
+	// pruefen und dann auf Zahl. Der Test hat genau das gefunden.
+	const rohMin = label?.minZoom;
+	const rohMax = label?.maxZoom;
+	const min = Number(rohMin);
+	const max = Number(rohMax);
+	const hatEigenes = rohMin !== null && rohMin !== undefined && Number.isFinite(min)
+		&& rohMax !== null && rohMax !== undefined && Number.isFinite(max);
+	if (hatEigenes) {
+		return bandZoom >= min && bandZoom <= max;
+	}
+	if (typeof avesmapsEcosystemDisplaySichtbar === "function") {
+		return avesmapsEcosystemDisplaySichtbar(label?.labelType, bandZoom);
+	}
+	// 🪤 Der Notausgang: fehlt auch die Tafel, gilt das ganze Band. Das ist die sichere Richtung --
+	// lieber ein Name zur falschen Zoomstufe als gar keiner.
+	return bandZoom >= (Number.isFinite(min) ? min : 0) && bandZoom <= (Number.isFinite(max) ? max : 7);
+}
+
+function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds(), editorOverride = isMapLabelEditorOverrideActive(), mitKurvenriegel = true) {
+	const minZoom = Number(entry.label.minZoom) || 0;
+	const maxZoom = Number.isFinite(Number(entry.label.maxZoom)) ? Number(entry.label.maxZoom) : 7;
+	// Sichtbarkeits-Band gegen die ECHTE Zoomstufe pruefen (Karte geht bis 7), NICHT gegen den auf
+	// VISUAL_MAX_ZOOM_LEVEL=5 geklemmten Visual-Zoom -- sonst sind Zoom 5/6/7 fuer Labels ununterscheidbar
+	// und "Sichtbar bis Zoom" hat oben keinen Effekt (5 <= maxZoom ist fuer maxZoom>=5 immer wahr). Die
+	// Label-GROESSE skaliert weiter ueber den Visual-Zoom (s. getScaledLabelSize).
+	const bandZoom = Math.max(0, Math.round(Number(zoomLevel)));
+	// Haken aus -> immer weg. `return false` und NICHT `return box.checked`: ein wahrheitswertiges
+	// Vorab-return wuerde Zoomband und Culling mit aushebeln; false kann nur verbergen, nie zeigen.
+	if (editorOverride === false) {
+		return false;
+	}
+
+	// „Regionname anzeigen" aus -> das Label bleibt bestehen, wird aber nicht gezeichnet. Wie der
+	// Editor-Riegel darüber ein `return false` und keine wahrheitswertige Bedingung: es darf nur
+	// verbergen, nie zeigen, sonst höbe es Zoomband und Culling mit aus.
+	if (entry.label.showName === false) {
+		return false;
+	}
+
+	// „nur Labels mit Region": blendet Beschriftungen aus, an denen keine Landschaftsfläche hängt.
+	// Wieder ein `return false` und keine wahrheitswertige Bedingung -- der Haken darf nur verbergen.
+	if (isLabelsWithRegionFilterActive() && !ecosystemRegionOfLabel(entry.label)) {
+		return false;
+	}
+
+	// 🔴 EINE GEWÄHLTE EBENE ZEIGT NUR IHRE EIGENEN BESCHRIFTUNGEN (Owner 2026-08-04: „Wälder bei
+	// Vegetation, Namen der Klimazonen, etc. -- bei Alle darf alles dranstehen"). Wer auf Vegetation
+	// schaltet, will die Wälder lesen und nicht die Gebirge daneben.
+	//
+	// 🪤 Auch die Beschriftungen OHNE Fläche fallen weg -- Ortsnamen, Meere, alles, was an keiner
+	// Landschaftsfläche hängt. Das ist gewollt: „nur die Labels, die für die jeweilige Zone gelten".
+	// In „Alle" greift die Regel gar nicht, dort steht wieder alles.
+	//
+	// Wieder ein `return false` und keine wahrheitswertige Bedingung: der Filter darf nur verbergen.
+	if (!isLabelOfActiveEcosystemLayer(entry.label)) {
+		return false;
+	}
+
+	// 🔴 Ein Kurvenlabel wird auf CANVAS gemalt (Entwurf §7.3), nicht als gedrehtes <img> im divIcon.
+	// Wieder ein `return false` und keine wahrheitswertige Bedingung, aus demselben Grund wie die
+	// vier Riegel darueber: er darf nur verbergen, nie zeigen.
+	// ⚠️ DER RIEGEL STEHT ZULETZT. Weiter oben stuende er ueber dem Ebenen- und dem Zoomfilter --
+	// dann waere „Kurvenbeschriftung an" ein Weg, ein Label an der Ebenenwahl vorbeizuschmuggeln.
+	// ⚠️ Er haengt an einem Zustand, den erst der Kollisionsdurchgang setzt
+	// (avesmapsKurvenlabelPlatzierungen). Beim allerersten Bild ist die Ablage noch leer, der Marker
+	// steht also einen Durchgang lang. Das ist richtig herum: lieber ein Bild zu viel Marker als ein
+	// fehlender Name.
+	// 💣 `typeof`, nicht blank: mit ?canvaspathlabels=0 steigt das Overlay aus, bevor es die Funktion
+	// ueberhaupt setzt -- dann wird auch keine Kurve gemalt, und genau dann gehoert der Marker
+	// stehengelassen. Ein blanker Aufruf waere derselbe ReferenceError, an dem am 22.08.2026
+	// findFreePlacement beinahe saemtliche Wegnamen gekostet haette.
+	// 🔴 `mitKurvenriegel` ist die EINE Ausnahme, und sie ist tragend: avesmapsKurvenlabelKandidaten
+	// fragt mit `false`. Sonst schluege der Riegel auf seine eigene Voraussetzung zurueck -- ein
+	// gemaltes Kurvenlabel fiele im naechsten Durchgang aus der Kandidatenliste, wuerde nicht mehr
+	// gemalt, der Marker kaeme zurueck, und das Ganze flackerte im Wechsel.
+	// 🔴 DER MARKER GEHT AUCH IM BEARBEITEN-MODUS (Owner 23.08.2026, an vier Screenshots: „jetzt
+	// muessen nur ihre vorgaenger weg“). Bis dahin blieb er dort absichtlich stehen, und der Name
+	// stand doppelt -- gebogen auf der Kurve und waagerecht daneben.
+	// 💣 DER PREIS, UND ER IST BEWUSST BEZAHLT: mit dem Marker gehen Klick, Popup und ZIEHGRIFF des
+	// Labels. Ein Label laesst sich seither nicht mehr mit der Maus verschieben, und der
+	// Klick-Schiedsrichter des Canvas-Overlays steigt bei IS_EDIT_MODE weiterhin sofort aus (ein
+	// Klick soll die FLAECHE darunter treffen).
+	// ⭐ OHNE ERSATZ WAEREN ALLE 52 BESCHRIFTUNGEN UNERREICHBAR GEWESEN -- die Owner-Regel von den
+	// verwaisten Aussenhuellen, zweite Auflage („es darf keine Elemente geben, ueber die ich keine
+	// Kontrolle mehr habe“). Gemessen vor dem Umbau: das Flaechenmenue kannte nur `create-label`,
+	// einen Weg zu einem BESTEHENDEN Label gab es dort nicht. Der Ersatz ist „Beschriftung
+	// bearbeiten“ im Kontextmenue der FLAECHE (map-features-ecosystem-context-action.js, Eintrag
+	// `edit-label`) -- woertlich der vom Owner gewaehlte Weg. Wer diesen Riegel je wieder anfasst,
+	// prueft ZUERST, ob es diesen Eintrag noch gibt.
+	if (mitKurvenriegel
+		&& typeof avesmapsLabelWirdAlsKurveGemalt === "function"
+		&& avesmapsLabelWirdAlsKurveGemalt(entry.label)) {
+		return false;
+	}
+
+	// 🔴 DIE TAFEL RAET -- und das ist die UMGEKEHRTE Regel zur Groesse darueber (Entwurf §6).
+	// Der eigene Wert des Labels gewinnt; die Vorgabe je Art greift nur, wo das Label KEINEN traegt.
+	// Weil heute jede Beschriftung min_zoom und max_zoom traegt, aendert sich an der Sichtbarkeit
+	// vorerst NICHTS -- gewollt: der Editor behaelt seine Entscheidung und sieht die Vorgabe nur als
+	// Marke auf seinem Regler.
+	// 💣 Wer beides gleich behandelt, nimmt den Editoren entweder ihre Baender weg (Tafel gilt) oder
+	// laesst die Groesse wirkungslos (Tafel raet). Beides ist genau falsch herum.
+	// 🔴 EINE MARKIERUNG HEBT DAS ZOOMBAND AUF (Owner 02.09.2026: „mach dass die anzeigen zoomstufen
+	// unabhängig sind (sprich, dass ich auf allen zoomstufen die markierungen sehe)"). Das nimmt die
+	// Zusage „blendet nichts ein" vom selben Tag zurueck und stellt die aeltere Hausregel wieder her:
+	// ein Pruefhaken ZEIGT seine Funde. Ohne diese Zeile erscheinen die Fluss-Beschriftungen erst ab
+	// Zoom 5, und wer auf Stufe 4 danach sucht, sieht nichts und haelt das Werkzeug fuer kaputt.
+	// 💣 NUR DAS BAND, und das ist der ganze Umfang: die vier `return false` darueber (Labels-Haken,
+	// „Regionname anzeigen", Regionenfilter, Ebenenwahl) bleiben unberuehrt, ebenso das Culling am
+	// Bildrand darunter. Ein Werkzeug, das einen AUSGESCHALTETEN Schalter ueberstimmt, ist keine
+	// Hilfe mehr, sondern eine Ueberraschung -- und das Culling aufzuheben hiesse, 1017 Marker fuer
+	// die ganze Karte zu bauen statt fuer den Ausschnitt.
+	// ⚠️ Der Kurvenriegel steht DARUEBER und gilt weiter: ein gebogener Name bekommt keinen Marker,
+	// er bekommt seinen Kasten gemalt. Seine Sichtbarkeit haengt an derselben Funktion (der
+	// Kandidatenleser fragt mit `mitKurvenriegel = false`), das Band faellt dort also mit.
+	const markiert = typeof avesmapsLabelMarkeHebtZoomband === "function"
+		&& avesmapsLabelMarkeHebtZoomband(entry.label);
+	return (MAP_LABEL_MODES.includes(getSelectedMapLayerMode()) || editorOverride === true)
+		&& (markiert || avesmapsLabelImBand(entry.label, bandZoom))
+		&& isLatLngInRenderBounds(entry.marker.getLatLng(), renderBounds);
+}
+
+// Welche Labels wuerden JETZT als Kurve gezeichnet? Der schmale Leser fuer Kanal C
+// (map-features-path-label-canvas-overlay.js) -- er liefert genau die Labels, die eine `curveLine`
+// tragen UND nach `shouldShowLabelMarker` sichtbar waeren. Die Sichtbarkeitsregel bleibt damit an
+// ihrer EINEN Stelle; das Overlay bekommt eine fertige Liste und kein zweites Regelwerk.
+// 💣 Wer die Zoom- und Ebenenpruefung im Overlay nachbaut, hat zwei Regeln, die beim ersten neuen
+// Filter auseinanderlaufen. Genau diese Falle hat am 14.08.2026 die Verkehrsmittel-Sperre gekostet:
+// eine Regel, die einen von vier Erzeugern bindet, ist keine Regel.
+// ⚠️ `shouldShowLabelMarker` prueft den Bildausschnitt gegen `entry.marker.getLatLng()` -- die
+// ANKERLAGE des Labels. Eine Kurve ist bis zu 88 Karteneinheiten lang; ihr Anker kann ausserhalb
+// liegen, waehrend ein Stueck Kurve noch im Bild ist. Das ergibt an den Bildraendern ein spaet
+// erscheinendes Kurvenlabel -- fuer Plan 2 hingenommen und gemessen (Aufgabe 7), nicht behoben: die
+// Ankerpruefung gilt heute allen Labels, sie hier allein fuer Kurven zu aendern waere eine zweite
+// Sichtbarkeitsregel.
+// Die Kurvendaten EINER Region an ihre Labels haengen -- OHNE nachzuzeichnen.
+//
+// 🔴 WARUM GETRENNT: das Nachzeichnen ist teuer und global (avesmapsKurvenlabelPlatzierungen rechnet
+// JEDES Kurvenlabel der Karte neu). Fuer ein gespeichertes Gebiet ist das genau richtig; fuer den
+// Sammellauf, der 82 Regionen auf einmal bringt, waere es 82 volle Neuberechnungen. Deshalb setzt
+// dieser Teil nur die Daten, und der Aufrufer entscheidet, wann gezeichnet wird.
+//
+// ⚠️ Die Rueckgabe sind die BERUEHRTEN Eintraege, nicht ihre Anzahl -- der Sammelweg sammelt sie ein
+// und zeichnet einmal fuer alle nach.
+function avesmapsCurveDatenAnLabels(regionPublicId, an, max, roheLinie) {
+	const eintraege = avesmapsLabelEntriesForEcosystemRegion(regionPublicId);
+	for (const eintrag of eintraege) {
+		if (an === false) {
+			eintrag.label.curveLine = null;
+		} else if (roheLinie) {
+			// ⭐ Eine frisch gerechnete Kurve („Labelkurve aktualisieren" im Flaechenmenue). Gedreht wird mit
+			// DEMSELBEN Leser, mit dem der Kartenpayload gelesen wird -- GeoJSON haelt [x, y], Leaflet
+			// [lat, lng] = [y, x] (AGENTS.md §5). Ein zweiter Dreh-Weg waere die Stelle, an der die
+			// Vorzeichen irgendwann auseinanderlaufen, und das faellt bei N/O/S/W nicht auf.
+			// ⚠️ Nur uebernehmen, wenn der Leser sie annimmt: eine unbrauchbare Linie darf die
+			// vorhandene nicht loeschen -- sonst macht ein Fehlschlag den Namen unsichtbar.
+			const gedreht = readLabelCurveLine({ curve_label_line: roheLinie });
+			if (gedreht) {
+				eintrag.label.curveLine = gedreht;
+			}
+		}
+		if (Number.isFinite(Number(max))) {
+			eintrag.label.curveMax = Math.min(3, Math.max(1, Math.round(Number(max))));
+		}
+		// Der Marker muss neu gezeichnet werden: ohne Kurve traegt er den Namen wieder, und zwar
+		// waagerecht (Entwurf §4.3). Sein Icon kennt die Drehung, nicht die Kurve -- also neu bauen.
+		eintrag.marker.setIcon(createLabelIcon(eintrag.label));
+	}
+	return eintraege;
+}
+
+// Die drei Schritte des Nachzeichnens -- EINMAL, egal wie viele Regionen sich geaendert haben.
+//
+// 💣 UND SIE STEHEN IN GENAU DIESER REIHENFOLGE. Am 23.08.2026 im Browser des Owners gemessen,
+// nachdem „Kurvenbeschriftung aus" den Namen GANZ verschwinden liess:
+//
+// 1. Die Platzierung NEU RECHNEN. `avesmapsLabelWirdAlsKurveGemalt` fragt das Ergebnis des letzten
+//    Durchgangs; ohne Neurechnung gilt das eben abgeschaltete Label dort weiter als „wird als
+//    Kurve gemalt", und der Riegel haelt seinen Marker unten. Gemessen: shouldShowLabelMarker
+//    blieb `false`, obwohl Zoomband, Bildausschnitt und Ansicht alle passten.
+//    ⚠️ Gerufen wird sie fuer ihren NEUAUFBAU, nicht fuer ihren Rueckgabewert.
+// 2. Die Marker der geaenderten Labels EINZELN nachziehen. `avesmapsSyncKurvenlabelMarker`
+//    kann das nicht: er ueberspringt jedes Label OHNE `curveLine` -- und genau das ist ein eben
+//    abgeschaltetes. Gemessen: nach ihm blieb der Marker weg, nach syncLabelMarkerVisibility kam
+//    er zurueck.
+// 3. Und den normalen Durchgang anstossen, damit Kollisionen und Canvas nachziehen.
+//
+// ⚠️ Kein beruehrtes Label heisst: gar nicht zeichnen. Eine Region ohne Beschriftung darf keinen
+// Durchgang ueber die ganze Karte ausloesen -- beim Sammellauf traefe das sonst jede Region, die
+// zwar eine Kurve hat, aber (noch) kein Label traegt.
+function avesmapsCurveNachzeichnen(eintraege) {
+	if (eintraege.length === 0) {
+		return 0;
+	}
+	if (typeof avesmapsKurvenlabelPlatzierungen === "function") {
+		avesmapsKurvenlabelPlatzierungen(null);
+	}
+	for (const eintrag of eintraege) {
+		syncLabelMarkerVisibility(eintrag);
+	}
+	if (typeof scheduleLabelCollisionResolution === "function") {
+		scheduleLabelCollisionResolution();
+	}
+	return eintraege.length;
+}
+
+// Eine frisch gespeicherte Kurveneinstellung SOFORT auf die Karte bringen.
+//
+// 🔴 WARUM ES DAS BRAUCHT: die Kurve reist im Kartenpayload, und der wird nach einem Speichern nicht
+// neu geholt. Ohne diesen Schritt aendert sich am Bild gar nichts -- der Editor stellt um, drueckt
+// Speichern und sieht denselben Zustand wie vorher. Genau so gemeldet am 23.08.2026
+// („speichere, nix passiert").
+//
+// ⚠️ EINSCHALTEN kann hier keine Kurve herbeizaubern: sie wird auf dem SERVER gerechnet und liegt im
+// Zwischenspeicher, den nur der Sammellauf fuellt („Kurven rechnen“ im Landschaften-Editor). Diese
+// Funktion setzt deshalb beim Einschalten nur die ANZAHL; die Kurve selbst erscheint nach dem Lauf.
+// AUSschalten dagegen wirkt sofort -- die Kurve wird entfernt, das Label ist wieder ein normales.
+//
+// ⭐ Mit `roheLinie` faellt auch das Einschalten sofort ins Bild: die Aktion `refresh_curve` rechnet
+// die Kurve serverseitig und reicht sie zurueck, statt den Browser auf den naechsten Kartenpayload
+// warten zu lassen.
+function avesmapsCurveSettingAufLabelsAnwenden(regionPublicId, an, max, roheLinie) {
+	return avesmapsCurveNachzeichnen(avesmapsCurveDatenAnLabels(regionPublicId, an, max, roheLinie));
+}
+
+// Der SAMMELWEG: die frisch gerechneten Kurven des Laufs „Rechnen -> Kurven" auf die Karte bringen.
+//
+// 🔴 WARUM ES DAS BRAUCHT (Owner 07.09.2026: „hat aber keinen effekt auf das zuruecksetzen der
+// betroffenen faelle"): der Sammellauf schreibt den Zwischenspeicher, aber die Karte liest ihn nur
+// beim VOLLEN Laden der Nutzlast. Der Editor ist ein iframe ueber der lebenden Karte, die Nutzlast
+// wird nach einem Speichern nicht neu geholt, und der Lauf bumpt `ecosystem_revision`, nicht
+// `map_revision` -- der Live-Abgleich sieht also auch nichts. Ohne diesen Weg wirkt der Knopf tot.
+//
+// 💣 EIN NACHZEICHNEN FUER ALLE. Der Einzelweg daneben zeichnet je Aufruf nach; 82 Regionen mal
+// avesmapsKurvenlabelPlatzierungen (das jedes Kurvenlabel der Karte neu rechnet) waere der Grund,
+// diesen Weg wieder auszubauen.
+//
+// 🔴 ER SETZT NUR, ER ENTFERNT NIE. Die Ablage nennt ausschliesslich Regionen, deren
+// Kurvenbeschriftung AN ist und deren Kurve sich rechnen liess -- ein Fehlen heisst also entweder
+// „ausgeschaltet" ODER „gerade nicht rechenbar", und die zwei sind hier nicht zu unterscheiden. Aus
+// dem Fehlen auf „aus" zu schliessen naehme einem Label seine Kurve, weil der Server sie einmal
+// nicht liefern konnte. Das AUSschalten hat seinen eigenen, ausdruecklichen Weg (der Einzelweg mit
+// `an === false`) und wirkt bereits beim Speichern.
+//
+// @param {Object<string, {line: Array, max: number}>} baselines wie `action: "baselines"` sie liefert
+function avesmapsCurveBaselinesAufLabelsAnwenden(baselines) {
+	if (!baselines || typeof baselines !== "object") {
+		return 0;
+	}
+	const beruehrt = [];
+	for (const regionPublicId of Object.keys(baselines)) {
+		const satz = baselines[regionPublicId];
+		const linie = satz && satz.line;
+		// ⚠️ Die Pruefung steht schon hier, nicht erst im Leser: eine unbrauchbare Linie soll nicht
+		// einmal die Labels ihrer Region beruehren -- sonst zaehlten sie als „geaendert" und loesten
+		// ein Nachzeichnen aus, das nichts zu zeichnen hat.
+		if (!Array.isArray(linie) || linie.length < 2) {
+			continue;
+		}
+		for (const eintrag of avesmapsCurveDatenAnLabels(regionPublicId, true, satz.max, linie)) {
+			beruehrt.push(eintrag);
+		}
+	}
+	return avesmapsCurveNachzeichnen(beruehrt);
+}
+
+// Die Beschriftungen EINER Landschaftsflaeche -- fuer „Beschriftung bearbeiten“ im Flaechenmenue.
+//
+// 🔴 Sie ist der Ersatz fuer den Marker, den der Kurvenriegel im Bearbeiten-Modus abmeldet. Ohne sie
+// gaebe es keinen Weg mehr zu einem bestehenden Label (das Flaechenmenue kannte nur `create-label`).
+//
+// 💣 Aufgeloest wird ueber `ecosystemRegionOfLabel`, den EINEN Aufloeser des Hauses -- nicht ueber
+// einen eigenen Vergleich auf `label.ecosystemRegionPublicId`. Die Zugehoerigkeit steht in BEIDEN
+// Richtungen (Zeiger am Label und `label_public_id` an der Region); wer nur eine liest, findet das
+// zweite und dritte Label einer Flaeche nie -- und genau die sind bei „Max. Namen 2“ der Sinn.
+function avesmapsLabelEntriesForEcosystemRegion(regionPublicId) {
+	const gesucht = String(regionPublicId || "").trim();
+	if (gesucht === "" || typeof labelMarkers === "undefined" || !Array.isArray(labelMarkers)) {
+		return [];
+	}
+	if (typeof ecosystemRegionOfLabel !== "function") {
+		return [];
+	}
+	return labelMarkers.filter((eintrag) => {
+		const region = ecosystemRegionOfLabel(eintrag?.label);
+		return Boolean(region) && String(region.public_id || "") === gesucht;
+	});
+}
+
+function avesmapsKurvenlabelKandidaten() {
+	if (typeof labelMarkers === "undefined" || !Array.isArray(labelMarkers)) {
+		return [];
+	}
+	const zoomLevel = map.getZoom();
+	const renderBounds = getMapRenderBounds();
+	const editorOverride = isMapLabelEditorOverrideActive();
+	return labelMarkers
+		.filter((entry) => Array.isArray(entry.label.curveLine) && entry.label.curveLine.length >= 2)
+		// 💣 OHNE DEN KURVENRIEGEL (letztes Argument `false`). Der Riegel in shouldShowLabelMarker
+		// fragt, ob dieses Label GERADE als Kurve gemalt wird -- und diese Liste ist es, aus der das
+		// Malen erst hervorgeht. Mit Riegel fiele jedes einmal gemalte Kurvenlabel im naechsten
+		// Durchgang aus seiner eigenen Kandidatenliste; es wuerde nicht mehr gemalt, der Marker kaeme
+		// zurueck, und beides wechselte sich Bild fuer Bild ab. Alle uebrigen Regeln (Zoomband,
+		// Ebenenwahl, Bildausschnitt, die beiden Haken) gelten unveraendert -- es ist EIN Riegel, der
+		// hier ausgenommen ist, kein zweites Regelwerk.
+		.filter((entry) => shouldShowLabelMarker(entry, zoomLevel, renderBounds, editorOverride, false))
+		.map((entry) => entry.label);
+}
+
+// Die Marker der Kurvenlabels nachziehen -- gerufen vom Kollisionsdurchgang, direkt nachdem die
+// Platzierungen stehen (map-features-label-collisions.js).
+//
+// 💣 Ohne diesen Aufruf stuende der Name DOPPELT: der Riegel in shouldShowLabelMarker haengt am
+// Ergebnis der Platzierung, aber niemand sonst fragt ihn erneut -- syncLabelVisibility laeuft nur
+// bei Zoom und Schwenk. Nach dem Laden bliebe der waagerechte Marker also neben der Kurve stehen,
+// bis der Benutzer die Karte bewegt.
+//
+// ⚠️ Sie ruft syncLabelMarkerVisibility und NICHT syncLabelVisibility: jenes meldet am Ende einen
+// neuen Kollisionsdurchgang an, und der liefe mitten im laufenden Durchgang auf eine Schleife
+// hinaus. Nachgezogen werden nur Labels MIT Kurve -- alle anderen kann dieser Riegel nicht
+// betreffen.
+function avesmapsSyncKurvenlabelMarker() {
+	if (typeof labelMarkers === "undefined" || !Array.isArray(labelMarkers)) {
+		return;
+	}
+	const zoomLevel = map.getZoom();
+	const renderBounds = getMapRenderBounds();
+	const editorOverride = isMapLabelEditorOverrideActive();
+	labelMarkers.forEach((entry) => {
+		if (!Array.isArray(entry.label.curveLine) || entry.label.curveLine.length < 2) {
+			return;
+		}
+		syncLabelMarkerVisibility(entry, zoomLevel, renderBounds, editorOverride);
+	});
+}
+
+function syncLabelMarkerVisibility(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds(), editorOverride = isMapLabelEditorOverrideActive()) {
+	const shouldShow = shouldShowLabelMarker(entry, zoomLevel, renderBounds, editorOverride);
+	const isVisible = map.hasLayer(entry.marker);
+	if (shouldShow && !isVisible) {
+		// 🔴 RASTERN VOR DEM `addTo` -- das ist die ganze Bedarfs-Rasterung, und die Reihenfolge ist
+		// tragend: ein Marker auf der Karte muss sein echtes Icon tragen, sonst misst die
+		// Kollisionsaufloesung ein Rechteck der Groesse 0 und schiebt die Ortsnamen daneben ins Leere.
+		// Ohne `?labelbedarf=1` steht hier von vornherein das echte Icon, die Bedingung ist dann falsch.
+		if (avesmapsLabelBedarfAktiv() && entry._bedarfIconZoom !== zoomLevel) {
+			avesmapsLabelIconRastern(entry, zoomLevel);
+		}
+		entry.marker.addTo(map);
+		return;
+	}
+
+	if (!shouldShow && isVisible) {
+		map.removeLayer(entry.marker);
+	}
+}
+
+function syncLabelVisibility() {
+	const zoomLevel = map.getZoom();
+	const renderBounds = getMapRenderBounds();
+	const editorOverride = isMapLabelEditorOverrideActive();
+	labelMarkers.forEach((entry) => syncLabelMarkerVisibility(entry, zoomLevel, renderBounds, editorOverride));
+	scheduleLabelCollisionResolution();
+}
+
+function syncLabelIcons() {
+	const zoomLevel = map.getZoom();
+	const renderBounds = getMapRenderBounds();
+	const editorOverride = isMapLabelEditorOverrideActive();
+	labelMarkers.forEach((entry) => {
+		if (shouldShowLabelMarker(entry, zoomLevel, renderBounds, editorOverride) || map.hasLayer(entry.marker)) {
+			avesmapsLabelIconRastern(entry, zoomLevel);
+		}
+		syncLabelMarkerVisibility(entry, zoomLevel, renderBounds, editorOverride);
+	});
+	scheduleLabelCollisionResolution();
+}
+
+// Der Einstieg für Module, die die Labelbilder neu bauen lassen müssen -- der Prüfhaken „Keine
+// Wiki-Zuweisung" färbt ihren Halo, und der steckt im Bild (siehe createLabelIcon).
+// ⚠️ `syncLabelIcons` heißt bewusst nicht um: der Name gehört seit jeher dem Zoom-/Rasterpfad. Dies
+// hier ist nur die Tür nach außen, damit ein anderes Modul nicht auf einen Dateinamen zielen muss.
+window.avesmapsLabelIconsNeuBauen = function avesmapsLabelIconsNeuBauen() {
+	if (typeof labelMarkers === "undefined" || !Array.isArray(labelMarkers) || labelMarkers.length === 0) {
+		return;
+	}
+	syncLabelIcons();
+};
+
+function prepareLabelData(data) {
+	// 💣 DIE DAUER GEHOERT IN DIE BILANZ, IN BEIDEN ZUSTAENDEN. Sonst vergleicht man zwei Messungen,
+	// die verschieden zustande kamen (js/map-features/label-bedarf.js). Live gemessen 26.08.2026:
+	// 1.660 ms in einem 2.788 ms langen Stillstand nach dem Start.
+	const begonnen = (typeof performance !== "undefined" && typeof performance.now === "function") ? performance.now() : 0;
+	labelMarkers.forEach((entry) => map.removeLayer(entry.marker));
+	labelData = data.features.filter((feature) => feature.properties?.feature_type === "label").map(normalizeLabelFeature);
+	// 🔴 VOLLZAEHLIG UND SOFORT, auch mit `?labelbedarf=1`. Gespart wird das BILD und das
+	// POPUP-Markup, nie der Eintrag: `preparePathData` laeuft direkt danach und baut aus genau diesen
+	// labelMarkers den Verlinkungs-Index seiner Weg-Popups (routing.js, map-features-path-item-links.js).
+	labelMarkers = labelData.map(createLabelMarkerEntry);
+	syncLabelVisibility();
+	const beendet = (typeof performance !== "undefined" && typeof performance.now === "function") ? performance.now() : 0;
+	avesmapsLabelStartFesthalten(labelMarkers.length, beendet - begonnen);
+	// Die Zeilen des Felds „Freie Labels markieren" entstehen aus DIESEM Bestand -- Art und Anzahl
+	// sind Daten, keine Auszeichnung. 💣 Der Aufruf gehoert hierher und nicht in den Startlauf: diese
+	// Funktion laeuft auch nach einem Live-Abgleich im Editor, und eine Liste, die den geloeschten
+	// Bestand von vorhin zaehlt, waere schlimmer als keine (sie sieht richtig aus).
+	if (typeof avesmapsFreieLabelMarkierungFeldFuellen === "function") {
+		avesmapsFreieLabelMarkierungFeldFuellen();
+	}
+}
+
+function addCreatedLabelFeature(feature) {
+	const label = normalizeLabelFeature(feature);
+	const entry = createLabelMarkerEntry(label);
+	labelData.push(label);
+	labelMarkers.push(entry);
+	refreshLabelMarkerPopup(entry);
+	return entry;
+}
+
+function applyLabelFeatureResponse(entry, feature, deferRefresh = false) {
+	const label = normalizeLabelFeature(feature);
+	// 💣 DIE ANTWORT DES SCHREIBWEGS KENNT KEINE KURVE. Sie entsteht nur im LESEPFAD
+	// (avesmapsCurveApplyToFeatures in api/app/map-features.php); der Editor-Endpunkt gibt das nackte
+	// Feature zurueck. Ohne diese zwei Zeilen setzt `Object.assign` `curveLine` auf `null`, der
+	// Kurvenriegel greift nicht mehr, der alte waagerechte Marker kommt zurueck -- und zwar bei JEDEM
+	// Speichern eines Kurven-Labels. Genau so gemeldet am 23.08.2026 („kommt wieder das waagrechte,
+	// alte label", nach dem Erhoehen der Anzahl auf 2).
+	// 🔴 Die Kurve haengt an der GEOMETRIE der Flaeche, nicht am Label -- ein Label-Speichern kann sie
+	// gar nicht ungueltig machen. Sie zu behalten ist deshalb nicht Notbehelf, sondern richtig.
+	// ⚠️ Das AUSschalten laeuft nicht hierueber, sondern ueber avesmapsCurveSettingAufLabelsAnwenden --
+	// dort wird sie ausdruecklich entfernt.
+	if (label.curveLine === null && Array.isArray(entry.label.curveLine)) {
+		label.curveLine = entry.label.curveLine;
+		label.curveMax = entry.label.curveMax;
+	}
+	// 🔴 UND KEINE EBENE -- dieselbe Falle wie die Kurve, siehe avesmapsLabelEbeneErgaenzen.
+	avesmapsLabelEbeneErgaenzen(label, entry.label);
+	Object.assign(entry.label, label);
+	if (deferRefresh) {
+		return;
+	}
+	refreshLabelFeatureResponse(entry);
+	avesmapsLabelInfopanelNachziehen();
+}
+
+function refreshLabelFeatureResponse(entry) {
+	entry.marker.setLatLng(entry.label.coordinates);
+	// Ueber den gemeinsamen Rasterer, damit der Zoom-Merker der Bedarfs-Rasterung mitwandert -- sonst
+	// hielte eine gerade gespeicherte Beschriftung ihren Stand fuer aelter, als er ist.
+	avesmapsLabelIconRastern(entry, map.getZoom());
+	refreshLabelMarkerPopup(entry);
+	syncLabelMarkerVisibility(entry);
+}
+
+// DIE EBENE DER FLAECHE UEBERLEBT DIE ANTWORT DES SCHREIBWEGS.
+//
+// 🔴 `ecosystem_region_kind` entsteht NUR im LESEPFAD (api/_internal/app/ecosystem-label-link.php,
+// Kartennutzlast Fassung 11); `update_label` und die `labels` von `update_region` geben die rohe
+// Ablage zurueck. Ohne diese Funktion setzte der Nachzug die Ebene auf "" -- und in der
+// Landschaften-Ansicht zeigt die gewaehlte Ebene NUR ihre eigenen Beschriftungen
+// (isLabelOfActiveEcosystemLayer): das eben gespeicherte Label verschwand von der Karte, bis die
+// Nutzlast neu kam. Gemessen 03.09.2026 am „Cronwald" im Browser: nach dem Speichern das einzige
+// Label mit Flaeche und ohne Ebene, `hasLayer` false, und nirgends ein Fehler.
+//
+// ⭐ Die Ebene kommt aus dem Regionsbestand, wenn der sie kennt -- das Label kann seine Flaeche im
+// selben Speichern gewechselt haben, und ecosystemRegionOfLabel liest BEIDE Richtungen der
+// Zugehoerigkeit (eigener Zeiger ODER `label_public_id` der Region), genau wie der Lesepfad. Sonst
+// bleibt die bisherige stehen, aber NUR, solange sich der eigene Zeiger nicht geaendert hat: eine
+// fremde Ebene an einer neuen Flaeche waere geraten. Gibt das Objekt zurueck, das es bekam.
+// 💣 KEIN frueher Ausstieg bei leerem Zeiger: das primaere Label haengt oft NUR ueber den Zeiger
+// der Region (`label_public_id`) und traegt selbst keinen -- der Lesepfad gibt ihm die Ebene
+// trotzdem, und hier muss sie ebenso ueberleben.
+function avesmapsLabelEbeneErgaenzen(frisch, bisher) {
+	if (!frisch || String(frisch.ecosystemRegionKind || "") !== "") {
+		return frisch;
+	}
+	const region = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(frisch) : null;
+	const gleicheFlaeche = Boolean(bisher) && String(bisher.ecosystemRegionPublicId || "") === String(frisch.ecosystemRegionPublicId || "");
+	frisch.ecosystemRegionKind = String((region && region.kind) || (gleicheFlaeche && bisher.ecosystemRegionKind) || "");
+	return frisch;
+}
+
+// DAS OFFENE INFOPANEL ZIEHT MIT (Owner 03.09.2026: „die aenderungen sichtbar werden").
+//
+// 🔴 Der Klick auf ein Label gibt dem Panel einen BAUER, keinen fertigen Text -- genau damit es sich
+// auffrischen laesst (avesmapsRefreshInfopanel, siehe createLabelMarker). Bis heute rief das nach
+// einem Label-Save niemand: die Zuweisung war aus Flaeche und Beschriftung heraus, die Infobox
+// daneben zeigte weiter Lage, Staat, Beschreibung und die Wiki-Quelle des alten Artikels, bis man
+// das Label ein zweites Mal anklickte. Der Refresh ist entprellt (panelRefreshQueued) -- mehrere
+// nachgezogene Beschriftungen kosten EINEN Neubau.
+// ⚠️ `typeof`: die Editorseiten laden dieses Skript ohne das Panel.
+function avesmapsLabelInfopanelNachziehen() {
+	if (typeof window !== "undefined" && typeof window.avesmapsRefreshInfopanel === "function") {
+		window.avesmapsRefreshInfopanel();
+	}
+}
+
+function applyLiveLabelFeature(feature) {
+	const label = normalizeLabelFeature(feature);
+	const entry = labelMarkers.find((labelEntry) => labelEntry.label.publicId === label.publicId);
+	if (entry) {
+		applyLabelFeatureResponse(entry, feature);
+		return;
+	}
+
+	const newEntry = createLabelMarkerEntry(label);
+	labelData.push(label);
+	labelMarkers.push(newEntry);
+	syncLabelMarkerVisibility(newEntry);
+}
+
+async function saveLabelPosition(entry) {
+	const latlng = entry.marker.getLatLng();
+	try {
+		const result = await submitMapFeatureEdit({
+			action: "move_label",
+			public_id: entry.label.publicId,
+			lat: latlng.lat,
+			lng: latlng.lng,
+		});
+		applyLabelFeatureResponse(entry, result.feature);
+		updateRevisionFromEditResponse(result);
+		if (typeof loadChangeLog === "function") void loadChangeLog();
+		showFeedbackToast("Labelposition gespeichert.", "success");
+	} catch (error) {
+		console.error("Label konnte nicht verschoben werden:", error);
+		showFeedbackToast(error.message || "Label konnte nicht verschoben werden.", "warning");
+	}
+}
+
+// 💣 Ein Label wird NICHT ueber deleteLocationMarker geloescht, sondern hier -- und ein als Nodix
+// markiertes Label ist ein gueltiger Kraftlinien-Endpunkt (Owner 2026-07-28,
+// api/edit/map/powerlines.php:93: „a nodix label was already a valid endpoint"). Ohne die Abfrage
+// war dieser Weg ungebremst: Region auf Nodix stellen, Kraftlinie anhaengen, Label loeschen --
+// eine frische Waise, lautlos. Der Riegel selbst wohnt bei den Kraftlinien, wo seine Datenquelle
+// liegt (map-features-powerlines.js); hier steht nur der Aufruf.
+async function deleteLabelEntry(entry, { closeDialog = false } = {}) {
+	if (!entry) {
+		return;
+	}
+	if (refusePowerlineAnchoredDeletion(entry.label?.text || "Das Label", entry.label?.publicId || "")) {
+		return;
+	}
+	// 🔴 Das LETZTE Label einer Landschaftsfläche nimmt die Fläche mit (Owner 2026-07-28, serverseitig
+	// in avesmapsEcosystemCascadeAfterRemoval). Die Rückfrage muss das sagen, bevor sie es tut -- sie
+	// ist die einzige Bremse. Für jedes andere Label bleibt es bei der schlichten Fassung.
+	//
+	// 🪤 ERST DIE REGIONSLISTEN HOLEN -- dieselbe Zeile, die duplicateLabelEntry und
+	// selectEcosystemAreaOfLabel längst tragen; ausgerechnet der eine der drei Wege, der etwas
+	// ZERSTÖRT, ging bis zu den Fällen #80/#81 daran vorbei. `ecosystemRegionsByKind` hält im
+	// Normalfall nur die AKTIVE Ebene, nach jedem Schreibvorgang sogar nur sie allein, und
+	// ausserhalb des Landschaftsmodus gar nichts. Ohne das kennt die Rückfrage weder Namen noch
+	// Flächenzahl -- und bei einem Label ohne eigenen Zeiger (die grosse Mehrheit) nicht einmal,
+	// DASS eine Fläche daran hängt. Gecacht, also im Regelfall kein Netzverkehr.
+	if (typeof loadEcosystemRegions === "function" && typeof ECOSYSTEM_KINDS !== "undefined") {
+		await Promise.all(ECOSYSTEM_KINDS.map((kind) => loadEcosystemRegions(kind)));
+	}
+	const ecoRegion = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry.label) : null;
+	const confirmText = typeof formatEcosystemLabelDeleteConfirmation === "function"
+		? formatEcosystemLabelDeleteConfirmation(
+			entry.label.text,
+			ecoRegion,
+			typeof ecosystemLabelCountOfRegion === "function" ? ecosystemLabelCountOfRegion(ecoRegion?.public_id) : 0,
+			// 💣 `null`, nicht `false`, wenn es den Leser gar nicht gibt: die Rückfrage behandelt „nie
+			// gehört" wie „eingeschaltet" und beruhigt nur bei einem ausdrücklichen Nein. Die Kurzform
+			// `typeof … === "function" && …()` machte aus einem fehlenden Modul genau so ein
+			// ausdrückliches Nein -- und damit aus der Warnung eine Entwarnung.
+			typeof isEcosystemCascadeEnabled === "function" ? isEcosystemCascadeEnabled() : null
+		)
+		: `${entry.label.text} wirklich löschen?`;
+	if (!window.confirm(confirmText)) {
+		return;
+	}
+
+	try {
+		const result = await submitMapFeatureEdit({
+			action: "delete_feature",
+			public_id: entry.label.publicId,
+		});
+		removeLabelEntryLocally(entry);
+		updateRevisionFromEditResponse(result);
+		if (typeof loadChangeLog === "function") void loadChangeLog();
+		if (closeDialog) {
+			if (typeof setLabelEditDialogOpen === "function") setLabelEditDialogOpen(false, { resetForm: true });
+		}
+		// 🔴 War das das letzte Label seiner Fläche, hat der Server die Region samt Flächen mitgelöscht
+		// (avesmapsEcosystemCascadeAfterRemoval). Der Editor erfährt es hier -- eine Fläche, die
+		// stillschweigend verschwindet, wäre die schlechteste Art, es zu erfahren.
+		if (result?.region_deleted) {
+			removeEcosystemCascadedLabels(result);
+			if (typeof invalidateEcosystemRegionCache === "function") {
+				invalidateEcosystemRegionCache();
+			}
+			if (typeof scheduleEcosystemAreaReload === "function") {
+				scheduleEcosystemAreaReload({ immediate: true });
+			}
+			const flaechen = Number(result.areas_deleted) || 0;
+			showFeedbackToast(
+				`Label gelöscht — es war das letzte, also ist die Region mit ${flaechen === 1 ? "ihrer Fläche" : `ihren ${flaechen} Flächen`} mitgegangen.`,
+				"success"
+			);
+			return;
+		}
+		showFeedbackToast("Label gelöscht.", "success");
+	} catch (error) {
+		console.error("Label konnte nicht gelöscht werden:", error);
+		setLabelEditStatus(error.message || "Label konnte nicht gelöscht werden.", "error");
+	}
+}
+
+async function deleteActiveLabel() {
+	await deleteLabelEntry(labelEditEntry, { closeDialog: true });
+}
+
+// 🔴 Vom Label zur Flaeche. Die Region kennt der Auflöser aus beiden Richtungen; welche ihrer Flaechen
+// gemeint ist, entscheidet die Naehe -- eine Region kann mehrere tragen, und das Label sitzt auf einer
+// bestimmten davon. Ohne geladene Flaeche passiert nichts: sie kann ausserhalb des Ausschnitts liegen.
+//
+// 🪤 Die Ebene wechselt MIT. Eine Flaeche der Topographie auszuwaehlen, waehrend die Vegetationsebene
+// aktiv ist, hiesse: markiert, aber unanklickbar und ohne Griffe -- die ruhende Ebene nimmt keine Klicks.
+async function selectEcosystemAreaOfLabel(label) {
+	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {
+		return;
+	}
+	const treffer = await avesmapsEcosystemAreaPublicIdOfLabel(label);
+	if (treffer === "" || typeof setSelectedEcosystemArea !== "function") {
+		return;
+	}
+	setSelectedEcosystemArea(treffer);
+}
+
+// Welche FLAECHE ist mit diesem Label gemeint -- und die Ansicht steht danach darauf.
+//
+// 🔴 EIGENE FUNKTION, weil DREI Handgriffe dieselbe Antwort brauchen: die Auswahl beim Label-Klick,
+// „Eigenschaften" und „Fläche bearbeiten" im Kachelmenue (Owner 24.08.2026). Zweimal gerechnet waere
+// es die Stelle, an der die drei irgendwann auf verschiedene Flaechen zeigen -- eine Region traegt
+// mehrere, und welche gemeint ist, entscheidet allein die NAEHE zum Label.
+//
+// 🪤 Die Ebene wechselt MIT. Eine Flaeche der Topographie auszuwaehlen, waehrend die Vegetationsebene
+// aktiv ist, hiesse: markiert, aber unanklickbar und ohne Griffe -- die ruhende Ebene nimmt keine Klicks.
+//
+// 🔴 UND AUS DEM STANDARDMODUS HERAUS ebenfalls (`wechsleAnsicht`). Dort sind gar keine Flaechen
+// geladen (`ecosystemLayers` ist leer), die Naehe-Rechnung fiele also ins Leere. Deshalb erst der
+// Wechsel in die Landschaftsansicht, dann `loadEcosystemAreas()` abwarten, dann rechnen. Genau das
+// meinte der Owner mit „hier wechselt die ansicht in die landschaft".
+//
+// @param label            das Label
+// @param wechsleAnsicht   true = notfalls in den Landschaftsmodus wechseln und Flaechen nachladen
+// @return die public_id der Flaeche, oder "" wenn keine zu finden ist
+async function avesmapsEcosystemAreaPublicIdOfLabel(label, { wechsleAnsicht = false } = {}) {
+	if (typeof loadEcosystemRegions === "function" && typeof ECOSYSTEM_KINDS !== "undefined") {
+		await Promise.all(ECOSYSTEM_KINDS.map((kind) => loadEcosystemRegions(kind)));
+	}
+	const region = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(label) : null;
+	const regionPublicId = String(region?.public_id || "");
+	if (regionPublicId === "") {
+		return "";
+	}
+
+	// Die Ebene der Region kennt der Auflöser; sie ist die Ansicht, in der ihre Flaechen ueberhaupt
+	// liegen. Ohne geladene Regionsliste steht sie nicht da -- dann bleibt es beim Bestand.
+	const regionKind = String(region?.kind || "");
+	if (wechsleAnsicht && regionKind !== "") {
+		if (typeof setActiveEcosystemLayerKind === "function"
+			&& (typeof getActiveEcosystemLayerKind !== "function" || getActiveEcosystemLayerKind() !== regionKind)) {
+			setActiveEcosystemLayerKind(regionKind);
+		}
+		// Kind VOR dem Modus, wie im Kontextmenue: der Moduswechsel holt die Flaechen der EINGESTELLTEN
+		// Ebene -- andersherum waere es eine Anfrage fuer die alte plus eine Korrektur.
+		if (typeof setSelectedMapLayerMode === "function"
+			&& (typeof getSelectedMapLayerMode !== "function" || getSelectedMapLayerMode() !== "ecosystem")) {
+			setSelectedMapLayerMode("ecosystem");
+		}
+		if (typeof loadEcosystemAreas === "function") {
+			try {
+				await loadEcosystemAreas();
+			} catch (error) {
+				// Die Flaechen fehlen dann eben -- die Pruefung darunter faengt es ab.
+			}
+		}
+	}
+
+	if (typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
+		return "";
+	}
+	const punkt = L.latLng(label.coordinates[0], label.coordinates[1]);
+	let treffer = "";
+	let beste = Infinity;
+	ecosystemLayers.forEach((layer, publicId) => {
+		const area = layer?._ecosystemArea;
+		if (!area || String(area.region_public_id || "") !== regionPublicId) {
+			return;
+		}
+		const mitte = typeof layer.getBounds === "function" ? layer.getBounds().getCenter() : null;
+		const abstand = mitte ? punkt.distanceTo(mitte) : Infinity;
+		if (abstand < beste) {
+			beste = abstand;
+			treffer = publicId;
+		}
+	});
+	if (treffer === "") {
+		return "";
+	}
+
+	const kind = String(ecosystemLayers.get(treffer)?._ecosystemArea?.kind || "");
+	if (kind !== "" && typeof setActiveEcosystemLayerKind === "function" && typeof getActiveEcosystemLayerKind === "function"
+		&& kind !== getActiveEcosystemLayerKind()) {
+		setActiveEcosystemLayerKind(kind);
+	}
+
+	return treffer;
+}
+
+// „Eigenschaften" und „Fläche bearbeiten" am Label -- beide fuehren auf die FLAECHE, die unter dem
+// Namen liegt (Owner 24.08.2026). Sie tun genau das, was die gleichnamigen Eintraege im Kontextmenue
+// der Flaeche tun: kein zweiter Weg, sondern derselbe, nur von der Beschriftung aus erreicht.
+//
+// 💣 Ohne Flaeche sagt es das, statt still zu bleiben. Ein Label ohne Landschaftsflaeche gibt es
+// wirklich (freie Labels, Gipfel), und ein Knopf, der nichts tut, sieht aus wie ein Fehler.
+async function avesmapsLabelFlaechenHandgriff(label, was) {
+	const flaeche = await avesmapsEcosystemAreaPublicIdOfLabel(label, { wechsleAnsicht: true });
+	if (flaeche === "") {
+		if (typeof showFeedbackToast === "function") {
+			showFeedbackToast("Zu dieser Beschriftung ist keine Fläche geladen.", "warning");
+		}
+		return;
+	}
+	if (was === "eigenschaften") {
+		// Der EINE Zugang zum Dialog -- er ist privat in seiner Datei und wird ueber das Fenster
+		// herausgereicht (map-features-ecosystem-properties.js). Ein Nachbau waere die zweite Wahrheit.
+		window.AvesmapsEcosystemProperties?.open?.(flaeche);
+		return;
+	}
+	if (typeof openEcosystemGeometryEdit !== "function") {
+		if (typeof showFeedbackToast === "function") {
+			showFeedbackToast("Der Ecken-Editor ist nicht bereit.", "warning");
+		}
+		return;
+	}
+	// 💣 Eine offene Sitzung wird NICHT neu geoeffnet: openEcosystemGeometryEdit schliesst und baut neu
+	// auf, und das wirft den Rueckgaengig-Stapel weg. Dieselbe Bremse wie im Kontextmenue.
+	if (typeof isEcosystemGeometryEditOpen === "function" && isEcosystemGeometryEditOpen(flaeche)) {
+		if (typeof showFeedbackToast === "function") {
+			showFeedbackToast("Diese Fläche ist bereits in Bearbeitung — ihre Ecken liegen schon frei.");
+		}
+		return;
+	}
+	openEcosystemGeometryEdit(flaeche);
+}
+
+// ---- „Position zurücksetzen“: zurück an den Point of Inaccessibility --------------------------
+//
+// Owner 25.08.2026: „dass es an den point of inaccesiblity zurückverschoben wird“. Das ist genau der
+// Punkt, den das Anlegen einer Landschaftsfläche vergibt (createEcosystemRegionLabel,
+// map-features-ecosystem-draw.js) -- der mit dem grössten Abstand zu allen Kanten.
+//
+// Gewacht von js/map-features/__tests__/label-position-zuruecksetzen.test.js: die beiden reinen
+// Rechnungen einzeln, die Kachel, die Verdrahtung und der Ablauf mit Attrappen fuer Karte,
+// Regionen und Speicherweg.
+
+// Wie weit eine zurückgesetzte Beschriftung ausweicht, wenn dort schon eine andere derselben Fläche
+// liegt: 20 px nach unten UND nach rechts, wie beim Duplizieren (Owner 25.08.2026). Layer-Punkte,
+// also Bildschirmpixel der aktuellen Zoomstufe -- dieselbe Einheit, in der duplicateLabelEntry
+// seinen Versatz misst.
+const LABEL_ZURUECK_VERSATZ_PX = 20;
+
+// Der Zielpunkt aus der Geometrie, in Leaflet-Ordnung.
+//
+// 💣 GeoJSON speichert [x, y], Leaflet L.CRS.Simple will [lat, lng] = [y, x] -- bewusst gedreht
+// (AGENTS.md §5). Ein vertauschtes Paar sieht nirgends falsch aus; die Beschriftung landet nur
+// woanders auf der Karte.
+// 🪤 Der Rückfall ist `null`, nie ein Paar aus NaN: ein NaN reiste bis in `move_label` durch und
+// schriebe die Beschriftung ins Nirgendwo -- ohne Fehler und ohne Meldung.
+function avesmapsLabelZurueckPoiLatLng(geometry) {
+	const punkt = typeof avesmapsComputeLabelPoint === "function" ? avesmapsComputeLabelPoint(geometry) : null;
+	if (!punkt || !Number.isFinite(punkt.x) || !Number.isFinite(punkt.y)) {
+		return null;
+	}
+
+	return { lat: punkt.y, lng: punkt.x };
+}
+
+// Der freie Platz am Zielpunkt: er selbst, solange dort keine andere Beschriftung derselben Fläche
+// liegt -- sonst je ein Schritt nach rechts unten. Reine Rechnung in Layer-Punkten.
+//
+// 💣 GEDECKELT, und der Deckel ist gerechnet: auf der Schrittdiagonale (28,3 px Abstand) verdeckt
+// ein einzelner belegter Punkt mit seinem 20-px-Radius höchstens ZWEI Kandidaten, also lassen n
+// Nachbarn von 2n+1 Kandidaten mindestens einen frei. Ohne den Deckel drehte sich die Schleife im
+// Klick-Handler eines Popups endlos -- das ist kein Fehler, das ist ein eingefrorener Browser.
+function avesmapsLabelZurueckFreierPunkt(ziel, belegte) {
+	const nachbarn = Array.isArray(belegte) ? belegte : [];
+	const maxSchritte = nachbarn.length * 2;
+	for (let schritt = 0; schritt <= maxSchritte; schritt += 1) {
+		const kandidat = {
+			x: ziel.x + schritt * LABEL_ZURUECK_VERSATZ_PX,
+			y: ziel.y + schritt * LABEL_ZURUECK_VERSATZ_PX,
+		};
+		const belegt = nachbarn.some((punkt) => Math.hypot(punkt.x - kandidat.x, punkt.y - kandidat.y) < LABEL_ZURUECK_VERSATZ_PX);
+		if (!belegt) {
+			return kandidat;
+		}
+	}
+
+	// Unerreichbar nach der Rechnung oben -- ein Rückgabewert gehört trotzdem hin.
+	return ziel;
+}
+
+// Der Handgriff selbst.
+//
+// 🔴 DERSELBE WEG ZUR FLÄCHE wie „Eigenschaften“ und „Fläche bearbeiten“
+// (avesmapsEcosystemAreaPublicIdOfLabel), samt Ansichtswechsel: im Standardmodus ist die Fläche gar
+// nicht geladen, und ohne ihre Geometrie gibt es keinen Punkt zu rechnen. Ein zweiter Weg dorthin
+// wäre die zweite Wahrheit.
+//
+// 🔴 RÜCKFRAGE, SOBALD DIE FLÄCHE MEHR ALS EINE BESCHRIFTUNG TRÄGT (Owner-Entscheid 25.08.2026).
+// Fläche↔Label ist 1:N -- der Finsterkamm trägt einen Namen im Norden und einen im Süden. Setzt man
+// beide zurück, rücken sie auf denselben Punkt, und die Kollisionsauflösung blendet einen davon aus:
+// es sähe aus, als hätte der Knopf nichts getan. Gezählt wird VOR dem Ansichtswechsel, damit die
+// Rückfrage vor der Wirkung steht.
+async function avesmapsLabelPositionZuruecksetzen(entry) {
+	if (!entry) {
+		showFeedbackToast("Label konnte nicht gefunden werden.", "warning");
+		return;
+	}
+
+	// 🪤 Erst die Regionslisten holen -- bei ~124 Bestandslabels steht der Zeiger Label↔Fläche NUR
+	// an der Region. Gecacht, also im Regelfall kein Netzverkehr (wie in duplicateLabelEntry).
+	if (typeof loadEcosystemRegions === "function" && typeof ECOSYSTEM_KINDS !== "undefined") {
+		await Promise.all(ECOSYSTEM_KINDS.map((kind) => loadEcosystemRegions(kind)));
+	}
+	const region = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry.label) : null;
+	const regionPublicId = String(region?.public_id || "");
+	const geschwister = regionPublicId !== "" && typeof countEcosystemRegionLabels === "function"
+		? countEcosystemRegionLabels(regionPublicId)
+		: 0;
+	if (geschwister > 1 && !window.confirm(
+		`Diese Fläche trägt ${geschwister} Beschriftungen. Zurückgesetzt rücken sie dicht zusammen — je ${LABEL_ZURUECK_VERSATZ_PX} px versetzt. Fortfahren?`
+	)) {
+		return;
+	}
+
+	const flaeche = await avesmapsEcosystemAreaPublicIdOfLabel(entry.label, { wechsleAnsicht: true });
+	const geometrie = flaeche !== "" && typeof ecosystemLayers !== "undefined" && ecosystemLayers instanceof Map
+		? ecosystemLayers.get(flaeche)?._ecosystemArea?.geometry
+		: null;
+	const ziel = geometrie ? avesmapsLabelZurueckPoiLatLng(geometrie) : null;
+	if (!ziel) {
+		showFeedbackToast("Zu dieser Beschriftung ist keine Fläche geladen.", "warning");
+		return;
+	}
+
+	// Die anderen Beschriftungen derselben Fläche, in Layer-Punkten: der Versatz gilt in PIXELN, nicht
+	// in Kartenkoordinaten -- dieselbe Einheit wie beim Duplizieren.
+	const belegte = labelData
+		.filter((label) => label !== entry.label
+			&& String(ecosystemRegionOfLabel(label)?.public_id || "") === regionPublicId)
+		.map((label) => map.latLngToLayerPoint(L.latLng(label.coordinates[0], label.coordinates[1])));
+	const poiPunkt = map.latLngToLayerPoint(L.latLng(ziel.lat, ziel.lng));
+	const frei = avesmapsLabelZurueckFreierPunkt(poiPunkt, belegte);
+
+	// 💣 OHNE AUSWEICHEN GENAU DER GERECHNETE PUNKT, nicht der Rückweg durch die Layer-Punkte:
+	// `latLngToLayerPoint` liefert GANZE Pixel. Bei Zoom 4 sind das 1/16 Karteneinheit (live gemessen
+	// am Sichelhag: gerechnet 601,2425 | 569,7005, gespeichert 601,25 | 569,6875), bei Zoom 0 aber eine
+	// GANZE -- die Beschriftung läge dann sichtbar neben ihrem Punkt, je nachdem, wie weit der Editor
+	// gerade herausgezoomt hat. Nur der VERSATZ gehört in Pixel, der Punkt selbst nicht.
+	const latlng = frei.x === poiPunkt.x && frei.y === poiPunkt.y
+		? L.latLng(ziel.lat, ziel.lng)
+		: map.layerPointToLatLng(L.point(frei.x, frei.y));
+
+	// 🪤 Über den GEMEINSAMEN Speicherweg (saveLabelPosition), nicht über einen eigenen Aufruf:
+	// Protokoll, Revision und der sofortige Nachzug auf der Karte hängen alle dort. Wie beim Ziehen
+	// bleibt die Beschriftung bei einem Fehlschlag am neuen Fleck stehen, bis neu geladen wird.
+	entry.marker.setLatLng(latlng);
+	await saveLabelPosition(entry);
+}
+
+async function duplicateLabelEntry(entry) {
+	if (!entry) {
+		showFeedbackToast("Label konnte nicht gefunden werden.", "warning");
+		return;
+	}
+
+	const sourceLatLng = entry.marker.getLatLng();
+	// 💣 WEIT GENUG WEG, sonst ist die Kopie unsichtbar. Sie traegt denselben Text, dieselbe Groesse und
+	// dieselbe Drehung wie das Original -- 24 px daneben lag ihr Kasten MITTEN im Kasten des Originals,
+	// die Kollisionsaufloesung fand keinen freien Platz und blendete sie aus (map-labels.css, is-colliding).
+	// Ergebnis: der Editor duplizierte vier Mal und sah kein einziges Mal etwas (Owner 2026-07-28) --
+	// angelegt waren alle vier. Ein Versatz um die eigene Hoehe trennt die beiden achsenparallelen
+	// Kaesten garantiert; gemessen wird das gedrehte Element, nicht geschaetzt.
+	// 🪤 NICHT das Marker-Element messen: das ist ein divIcon mit iconSize [0, 0] und liefert eine Box
+	// der Hoehe 0. Der sichtbare, gedrehte Teil ist das <img> darin -- also dieselbe Messung benutzen,
+	// mit der die Kollisionsaufloesung selbst rechnet, samt ihrer Polsterung.
+	const sourceElement = typeof entry.marker.getElement === "function" ? entry.marker.getElement() : null;
+	const sourceBox = sourceElement && typeof measureLabelCollisionRect === "function"
+		? measureLabelCollisionRect(sourceElement)
+		: null;
+	const stepY = sourceBox && sourceBox.height > 0 ? Math.ceil(sourceBox.height) + 8 : 48;
+	const duplicateLatLng = map.layerPointToLatLng(map.latLngToLayerPoint(sourceLatLng).add([0, stepY]));
+
+	// Die Flaeche des Originals -- aus beiden Richtungen (Zeiger am Label ODER an der Region). Genau das
+	// war der Auftrag: eine grosse Region wie der Finsterkamm soll mehrere Beschriftungen tragen duerfen,
+	// im Norden und im Sueden, jede mit eigener Drehung und Lage.
+	// 🪤 Erst die Regionslisten holen. Ausserhalb des Landschaftsmodus sind sie leer, und dann faende der
+	// Klon weder seine Flaeche noch deren Wiki-Landschaft -- "Label duplizieren" gibt es aber ueberall.
+	// Gecacht, also im Regelfall kein Netzverkehr.
+	if (typeof loadEcosystemRegions === "function" && typeof ECOSYSTEM_KINDS !== "undefined") {
+		await Promise.all(ECOSYSTEM_KINDS.map((kind) => loadEcosystemRegions(kind)));
+	}
+	const quellRegionZeile = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry.label) : null;
+	const quellRegion = String(quellRegionZeile?.public_id || "");
+	// 🔴 DIE ART KOMMT VON DER FLAECHE, NICHT VOM ORIGINAL (Owner 10.09.2026: „wenn man ein Label einer
+	// Flaeche dupliziert wird das Style/Theme aus der Kategorie nicht mit uebernommen"). Der Subtyp IST
+	// der Art-Schluessel der Region, und die Flaeche ist die Wahrheit dafuer (Owner 02.09.2026, siehe
+	// avesmapsEcosystemPushRegionTypeToLabels). Haengt das Original der Flaeche hinterher -- live am
+	// 10.09.2026 fuenf Beschriftungen, „Ogerbusch" trug `region` auf einer `wald`-Flaeche --, erbte die
+	// Kopie den Fehler und stand weiss auf gruenem Grund. Geheilt hat das erst ein Speichern der
+	// Flaeche, und genau das meinte „erst wenn ich die Flaechenkategorie 2x aender".
+	// 💣 NUR DIE ART. Groesse, Drehung und Zoomband bleiben die des Originals -- ein zweites Label
+	// existiert gerade deshalb, weil es anders stehen soll (map-features-ecosystem-label-writeback.js).
+	// 💣 EINE LEERE FLAECHENART IST KEINE AUSSAGE, sondern „keine Art" (am Label heisst dasselbe
+	// `region`). Sie durchzureichen naehme der Kopie einer noch untypisierten Flaeche ihre Art.
+	const quellRegionArt = String(quellRegionZeile?.region_type || "");
+
+	// 🪤 Der Wiki-Eintrag steht oft NICHT am Label, sondern an seiner Region -- die Infobox zeigt ihn
+	// trotzdem, weil sie ihn von dort holt. Ein Klon, der nur `label.wikiRegion` kopiert, kommt deshalb
+	// leer heraus, obwohl das Original vollstaendig aussieht (Owner 2026-07-28). Also dieselbe Leiter wie
+	// beim Anlegen eines Regionslabels: erst das Label selbst, sonst die Wiki-Landschaft seiner Flaeche.
+	let wikiRegion = entry.label.wikiRegion || null;
+	if (!wikiRegion && quellRegionZeile?.wiki_region_key && typeof ecosystemWikiRegionSnapshot === "function") {
+		wikiRegion = await ecosystemWikiRegionSnapshot(quellRegionZeile.wiki_region_key, quellRegionZeile.wiki_url || "");
+	}
+	try {
+		const result = await submitMapFeatureEdit({
+			action: "create_label",
+			text: entry.label.text,
+			feature_subtype: quellRegionArt || entry.label.labelType || "region",
+			size: Number(entry.label.size) || 18,
+			rotation: Number(entry.label.rotation) || 0,
+			min_zoom: Number(entry.label.minZoom) || 0,
+			max_zoom: Number(entry.label.maxZoom) || 5,
+			priority: Number(entry.label.priority) || 3,
+			// Eine KOPIE, kein neues Label: Sichtbarkeit, Wiki-Landschaft und Zugehoerigkeit reisen mit.
+			// Ohne das war die Kopie ein Fremdkoerper -- kein Wiki-Eintrag, keine Flaeche, und damit auch
+			// unsichtbar unter "nur Labels mit Region".
+			show_name: entry.label.showName !== false,
+			...(wikiRegion ? { wiki_region: wikiRegion } : {}),
+			...(quellRegion ? { ecosystem_region_public_id: quellRegion } : {}),
+			lat: duplicateLatLng.lat,
+			lng: duplicateLatLng.lng,
+		});
+		const duplicatedLabelEntry = addCreatedLabelFeature(result.feature);
+		updateRevisionFromEditResponse(result);
+		if (typeof loadChangeLog === "function") void loadChangeLog();
+		entry.marker.closePopup();
+		pendingLabelMoveAfterEditEntry = duplicatedLabelEntry;
+		if (typeof openLabelEditDialog === "function") openLabelEditDialog({ labelEntry: duplicatedLabelEntry });
+		showFeedbackToast("Label dupliziert. Bearbeiten, danach verschieben.", "success");
+	} catch (error) {
+		console.error("Label konnte nicht dupliziert werden:", error);
+		showFeedbackToast(error.message || "Label konnte nicht dupliziert werden.", "warning");
+	}
+}
+
+function createLabelAt(latlng) {
+	setSelectedMapLayerMode("deregraphic");
+	if (typeof openLabelEditDialog === "function") openLabelEditDialog({ latlng: L.latLng(latlng) });
+}
+
+// Webfont (Faculty Glyphic) kann beim ersten Label-Render noch nicht geladen sein -> nach dem Laden die
+// Label-Icons (Canvas-Renderer) neu bauen, sonst zeigt das erste Bild den Fallback-Font.
+try {
+	if (document.fonts && document.fonts.ready) {
+		document.fonts.ready.then(() => {
+			try {
+				if (typeof syncLabelIcons === "function" && typeof labelMarkers !== "undefined" && Array.isArray(labelMarkers) && labelMarkers.length) {
+					syncLabelIcons();
+				}
+			} catch (error) {
+				/* noop */
+			}
+		});
+	}
+} catch (error) {
+	/* noop */
+}
