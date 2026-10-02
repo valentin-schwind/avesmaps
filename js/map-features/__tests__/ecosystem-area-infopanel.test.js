@@ -210,7 +210,7 @@ assert(context.showEcosystemAreaInfopanel(flaeche({ label_public_id: "l-eisen" }
 // findet, was jemand hingeschrieben hat, nicht was läuft.
 const geometrie = require("../map-features-ecosystem-geometry.js");
 
-function klickBuehne({ darfBearbeiten }) {
+function klickBuehne({ darfBearbeiten, naheAktiverKante = false }) {
 	const handler = new Map();
 	const spur = { geleuchtet: "", panel: [], toast: [] };
 	const layerAttrappe = {
@@ -240,6 +240,7 @@ function klickBuehne({ darfBearbeiten }) {
 		isEcosystemEditingInProgress: () => false,
 		isEcosystemGeometryEditOpen: () => false,
 		handleEcosystemEditEdgeDoubleClick: () => false,
+		ecosystemEditHoveredEdge: () => naheAktiverKante ? {} : null,
 		setActiveEcosystemLayerKind: () => {},
 		// 🪤 KEINE ATTRAPPE FÜR setHighlightedEcosystemRegion -- die Datei DEKLARIERT sie selbst
 		// (map-features-ecosystem-rendering.js), und eine Funktionsdeklaration überschreibt im
@@ -298,6 +299,11 @@ assert(imEditor.geleuchtet === "",
 	"💣 und leuchtet NICHT -- die weisse Auswahlkontur ist dort schon die Antwort: " + JSON.stringify(imEditor.geleuchtet));
 assert(imEditor.toast.length === 0,
 	"⚠️ der Schwebezettel entfällt, sobald das Panel den Satz trägt: " + JSON.stringify(imEditor.toast));
+
+// Die beiden Klicks auf eine Nachbarfläche dürfen die aktive Kantenbearbeitung nicht verdrängen.
+const anNachbarkante = klickBuehne({ darfBearbeiten: true, naheAktiverKante: true });
+assert(anNachbarkante.panel.length === 0 && anNachbarkante.toast.length === 0,
+	"Kantengeste auf Nachbarfläche öffnet kein anderes Panel");
 
 // 🔴 DER LESER: beides.
 const imFrontend = klickBuehne({ darfBearbeiten: false });

@@ -35,9 +35,8 @@
 
 const ECOSYSTEM_GEOMETRY_SAVE_DEBOUNCE_MS = 800;
 const ECOSYSTEM_GEOMETRY_UNDO_LIMIT = 20;
-// Ctrl+click closer than this to an edge (in map units, which L.CRS.Simple keeps linear) counts as a hit
-// on that edge. Far enough away is not an edge click and is left alone.
-const ECOSYSTEM_EDIT_EDGE_HIT_DISTANCE = 12;
+// Wie im Territorien-Editor bleibt die Trefferzone bei jedem Zoom gleich breit.
+const ECOSYSTEM_EDIT_EDGE_HIT_PIXELS = 22;
 // How many corners a Ctrl+click lays along one edge -- the template's number (owner 2026-07-26).
 const ECOSYSTEM_EDIT_SUBDIVIDE_COUNT = 4;
 // 💣 A double-click fires click, click, dblclick. Without this gate the two clicks of a Ctrl+double
@@ -648,7 +647,14 @@ function ecosystemEditHoveredEdge(latLng) {
 	// [lat, lng] -> GeoJSON [x, y].
 	const edge = ecosystemEditNearestEdge([latLng.lng, latLng.lat], session.geometry);
 
-	return edge && edge.distance <= ECOSYSTEM_EDIT_EDGE_HIT_DISTANCE ? edge : null;
+	if (!edge || typeof map === "undefined" || !map) {
+		return null;
+	}
+	const cursor = map.latLngToContainerPoint(latLng);
+	const projected = map.latLngToContainerPoint(L.latLng(edge.position[1], edge.position[0]));
+	const distancePixels = Math.hypot(cursor.x - projected.x, cursor.y - projected.y);
+
+	return distancePixels <= ECOSYSTEM_EDIT_EDGE_HIT_PIXELS ? edge : null;
 }
 
 function clearEcosystemEditEdgeHover() {
@@ -777,12 +783,17 @@ function handleEcosystemEditEdgeDoubleClick(event) {
 	if (!session || !event?.latlng) {
 		return false;
 	}
-	const edge = session.edgeHover || ecosystemEditHoveredEdge(event.latlng);
+	if (event.originalEvent?.ctrlKey || event.originalEvent?.target?.closest?.(".ecosystem-edit-handle-marker")) {
+		return false;
+	}
+	const edge = ecosystemEditHoveredEdge(event.latlng);
 	if (!edge) {
 		return false;
 	}
 
-	return applyEcosystemEditEdgeInsertion(edge, 1, true);
+	// Auch ein vom Zeitriegel abgefangener Treffer gehört weiterhin der Kante.
+	applyEcosystemEditEdgeInsertion(edge, 1, true);
+	return true;
 }
 
 // ---- saving --------------------------------------------------------------------------------------
@@ -967,7 +978,7 @@ function openEcosystemGeometryEdit(publicId) {
 	applyEcosystemEditClass(layer, true);
 	syncEcosystemMapEditingClass();
 	refreshEcosystemEditHandles();
-	sayEcosystemEdit("Ecken ziehen · Strg+Klick auf eine Kante setzt eine Ecke · Doppelklick löscht sie · Doppelklick daneben beendet.");
+	sayEcosystemEdit("Ecken ziehen · Doppelklick auf oder nahe einer Kante setzt eine Ecke · Strg+Klick setzt vier Ecken · Doppelklick auf eine Ecke löscht sie · Doppelklick weiter daneben beendet.");
 }
 
 function closeEcosystemGeometryEdit({ flush = true } = {}) {
@@ -1017,6 +1028,12 @@ function closeEcosystemGeometryEdit({ flush = true } = {}) {
 // reaches here: its own handler stops the event, which is also what stops Leaflet from bubbling it to
 // the map (Map._fireDOMEvent checks originalEvent._stopped).
 function handleEcosystemEditFinishDoubleClick(event) {
+	if (handleEcosystemEditEdgeDoubleClick(event)) {
+		if (event?.originalEvent) {
+			L.DomEvent.stop(event);
+		}
+		return;
+	}
 	if (!activeEcosystemGeometryEdit) {
 		return;
 	}
@@ -1063,7 +1080,11 @@ function syncEcosystemMapEditingClass() {
 	container.classList.toggle("ecosystem-geometry-editing", isEditing);
 }
 
-function handleEcosystemMapClickDeselect() {
+function handleEcosystemMapClickDeselect(event) {
+	// Die beiden Klicks vor einem Doppelklick dürfen die Kantensitzung nicht schließen.
+	if (ecosystemEditHoveredEdge(event?.latlng)) {
+		return;
+	}
 	// 💣 A click on an AREA never gets here: the layer's own handler stops the event, which is what
 	// keeps Leaflet from bubbling it to the map. So reaching this point means empty map.
 	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {

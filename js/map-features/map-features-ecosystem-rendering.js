@@ -1132,6 +1132,10 @@ function buildEcosystemAreaLayer(area) {
 		if (isEcosystemReaderClick() && typeof setHighlightedEcosystemRegion === "function") {
 			setHighlightedEcosystemRegion(area.region_public_id || "");
 		}
+		// Auch auf einer Nachbarfläche gehören die ersten beiden Klicks der aktiven Kante.
+		if (typeof ecosystemEditHoveredEdge === "function" && ecosystemEditHoveredEdge(event?.latlng)) {
+			return;
+		}
 		const zeigtPanel = showEcosystemAreaInfopanel(area);
 		setSelectedEcosystemArea(area.public_id);
 		// Der Schwebezettel nur noch dort, wo KEIN Panel aufgeht: er sagt denselben Satz, den das Panel
