@@ -791,8 +791,10 @@ function handleEcosystemEditEdgeDoubleClick(event) {
 		return false;
 	}
 
+	// Wie im Territorien-Editor bestimmt die Kante nur die Reihenfolge; der Punkt sitzt am Klick.
+	const insertion = { ...edge, position: [event.latlng.lng, event.latlng.lat] };
 	// Auch ein vom Zeitriegel abgefangener Treffer gehört weiterhin der Kante.
-	applyEcosystemEditEdgeInsertion(edge, 1, true);
+	applyEcosystemEditEdgeInsertion(insertion, 1, true);
 	return true;
 }
 

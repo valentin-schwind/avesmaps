@@ -39,10 +39,10 @@ for (const scale of [1, 4, 16]) {
     assert.equal(finished, 0);
     assert.equal(vm.runInContext("activeEcosystemGeometryEdit.geometry.coordinates[0].length", context), 6);
     assert.equal(vm.runInContext("activeEcosystemGeometryEdit.geometry.coordinates[0][1][0]", context), 50);
-    assert.equal(vm.runInContext("activeEcosystemGeometryEdit.geometry.coordinates[0][1][1]", context), 0);
+    assert.equal(vm.runInContext("activeEcosystemGeometryEdit.geometry.coordinates[0][1][1]", context), -21 / scale);
     assert.equal(vm.runInContext("activeEcosystemGeometryEdit.undoStack.length", context), 1);
     // Ein zweiter Event derselben Geste setzt keinen zweiten Punkt und beendet nichts.
-    context.handleEcosystemEditFinishDoubleClick({ latlng: { lng: 50, lat: 0 }, originalEvent: {} });
+    context.handleEcosystemEditFinishDoubleClick({ latlng: { lng: 50, lat: -21 / scale }, originalEvent: {} });
     assert.equal(finished, 0);
     assert.equal(vm.runInContext("activeEcosystemGeometryEdit.geometry.coordinates[0].length", context), 6);
 }
