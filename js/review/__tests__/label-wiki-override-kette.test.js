@@ -135,7 +135,7 @@ const registry = vm.runInNewContext(
 // Zeile scheitert der Vergleich mit zwei Listen, die im Meldetext IDENTISCH aussehen.
 const kartenziele = Array.from(registry.landschaftslabel.felder || [])
 	.map((zeile) => String(zeile.karte || "")).filter((ziel) => ziel !== "");
-assert.deepStrictEqual(kartenziele.sort(), ["feature_subtype", "text"],
+assert.deepStrictEqual(kartenziele.sort(), ["feature_subtype", "height_schritt", "text"],
 	"die Kartenziele des Labels im Register stimmen nicht mehr mit denen ueberein, die der Server "
 	+ "annimmt (AVESMAPS_LABEL_WIKI_ORIGIN_FIELDS in api/_internal/map/features.php). Ein Feld, das "
 	+ "nur eine Seite kennt, wird lautlos verworfen. Gefunden: " + JSON.stringify(kartenziele));
@@ -145,7 +145,7 @@ const serverFelder = lies("api/_internal/map/features.php")
 	.match(/const AVESMAPS_LABEL_WIKI_ORIGIN_FIELDS\s*=\s*\[([^\]]*)\]/);
 assert.ok(serverFelder, "AVESMAPS_LABEL_WIKI_ORIGIN_FIELDS steht nicht mehr in features.php");
 const serverListe = serverFelder[1].split(",").map((s) => s.trim().replace(/^'|'$/g, "")).filter(Boolean);
-assert.deepStrictEqual(serverListe.sort(), ["feature_subtype", "text"],
+assert.deepStrictEqual(serverListe.sort(), ["feature_subtype", "height_schritt", "text"],
 	"der Server nimmt andere Felder an als das Register nennt: " + JSON.stringify(serverListe));
 checks++;
 

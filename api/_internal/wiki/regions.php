@@ -603,7 +603,8 @@ function avesmapsWikiRegionParsePage(string $title, string $wikitext, string $ca
         // der Sync SETZT das Feld, er raeumt es nicht.
         'image_url' => avesmapsWikiSyncMonitorCoatOfArmsUrl(avesmapsWikiSyncMonitorField($norm, ['wappen', 'wappenbild'])),
         'wiki_url' => avesmapsWikiSyncMonitorPageUrl($canonical),
-        'raw_json' => ['source' => 'wiki-region-sync', 'infobox' => $infoboxName],
+        'raw_json' => ['source' => 'wiki-region-sync', 'infobox' => $infoboxName,
+            'height_schritt' => avesmapsWikiRegionParseHeight($field(['höhe', 'hohe', 'hoehe']))],
     ];
 
     if (trim((string) $record['wiki_key']) === '' || trim((string) $record['name']) === '') {
@@ -744,6 +745,7 @@ function avesmapsWikiRegionStagingSample(PDO $pdo, array $wikiKeys = [], int $li
         $rows = $pdo->query('SELECT * FROM ' . AVESMAPS_WIKI_REGION_STAGING_TABLE . ' ORDER BY synced_at DESC, id DESC LIMIT ' . $limit)->fetchAll(PDO::FETCH_ASSOC);
     }
     foreach ($rows as &$row) {
+        $row['height_schritt'] = avesmapsWikiRegionHeightFromRow($row);
         foreach (['neighbors_json', 'synonyms_json', 'source_categories_json', 'raw_json'] as $col) {
             if (array_key_exists($col, $row)) {
                 $row[$col] = avesmapsWikiSyncDecodeJson($row[$col]);
@@ -793,6 +795,7 @@ function avesmapsWikiRegionClear(PDO $pdo, string $target, string $runId = ''): 
 // wie der Label-Editor-Picker speichert.
 function avesmapsWikiRegionBuildAssignObject(array $r): array {
     return [
+        'height_schritt' => avesmapsWikiRegionHeightFromRow($r),
         'wiki_key' => (string) ($r['wiki_key'] ?? ''),
         'name' => (string) ($r['name'] ?? ''),
         'art' => (string) ($r['art'] ?? ''),
@@ -859,6 +862,8 @@ function avesmapsWikiRegionAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $
         $matched++;
         if (!$dryRun) {
             $props = avesmapsLandschaftWikiNestSetzen(avesmapsWikiSyncDecodeJson($l['properties_json'] ?? null), $assignObject);
+            $props = avesmapsWikiRegionApplyHeight($props,
+                (string) ($l['feature_subtype'] ?? '') === 'berggipfel' ? ($assignObject['height_schritt'] ?? null) : null);
             $updates[] = ['before' => $l, 'properties_json' => $props];
             $applied++;
         }
@@ -1079,6 +1084,8 @@ function avesmapsWikiRegionAssignLabels(PDO $pdo, array $payload, int $userId = 
             $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
             $props = avesmapsWikiSyncDecodeJson($labelRow['properties_json'] ?? null);
             $props = avesmapsLandschaftWikiNestSetzen($props, $assignObject);
+            $props = avesmapsWikiRegionApplyHeight($props,
+                (string) ($labelRow['feature_subtype'] ?? '') === 'berggipfel' ? ($assignObject['height_schritt'] ?? null) : null);
             $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => $featureId]);
             avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId);
             $assigned++;
@@ -1169,6 +1176,8 @@ function avesmapsWikiRegionAssignAll(PDO $pdo, string $continentFilter, bool $dr
         $linked[$obj['wiki_key']] = true;
         if (!$dryRun) {
             $props = avesmapsLandschaftWikiNestSetzen($props, $obj);
+            $props = avesmapsWikiRegionApplyHeight($props,
+                (string) ($l['feature_subtype'] ?? '') === 'berggipfel' ? ($obj['height_schritt'] ?? null) : null);
             $updates[] = ['before' => $l, 'properties_json' => $props];
         }
     }
@@ -1202,7 +1211,7 @@ function avesmapsWikiRegionSearch(PDO $pdo, string $query, int $limit = 30): arr
     $limit = max(1, min(100, $limit));
     $query = trim($query);
     $columns = 'wiki_key, name, art, continent, region_parent, affiliation_staat, einwohner, sprache, '
-        . 'vegetation, verkehrswege, description, neighbors_json, synonyms_json, image_url, image_license, '
+        . 'raw_json, vegetation, verkehrswege, description, neighbors_json, synonyms_json, image_url, image_license, '
         . 'image_author, image_attribution, image_license_status, image_license_url, wiki_url, synced_at';
 
     if ($query === '') {
@@ -1224,6 +1233,7 @@ function avesmapsWikiRegionSearch(PDO $pdo, string $query, int $limit = 30): arr
     }
 
     foreach ($rows as &$row) {
+        $row['height_schritt'] = avesmapsWikiRegionHeightFromRow($row);
         foreach (['neighbors_json', 'synonyms_json'] as $col) {
             if (array_key_exists($col, $row)) {
                 $row[$col] = avesmapsWikiSyncDecodeJson($row[$col]);
@@ -1450,3 +1460,5 @@ function avesmapsWikiRegionMatch(PDO $pdo, array $options = []): array {
         'unmatched_map_labels' => array_slice($unmatchedLabels, 0, 500),
     ];
 }
+
+require_once __DIR__ . "/region-heights.php";

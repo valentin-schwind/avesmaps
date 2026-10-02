@@ -100,7 +100,7 @@ const AVESMAPS_WIKI_ASSIGN_LANDSCHAFT_KARTENFELDER = ["name", "region_type"];
 // Zusammenzulegen waere eine erzwungene Gemeinsamkeit: schon die Feldnamen stimmen nicht ueberein,
 // und das Zielvokabular der Art ist ein anderes. Geteilt wird alles, was WIRKLICH dasselbe ist --
 // die Suche, die Werte, der Treffer, die erste Komponente, die Synonymtabelle und die Art-Ordnung.
-const AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER = ["text", "feature_subtype"];
+const AVESMAPS_WIKI_ASSIGN_LANDSCHAFTSLABEL_KARTENFELDER = ["text", "feature_subtype", "height_schritt"];
 
 /**
  * Abschrift von AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE (api/_internal/wiki/regions.php:68-128), Stand
@@ -226,6 +226,7 @@ function avesmapsWikiAssignLandschaftWerte(quelle, arten) {
 		region_parent: avesmapsWikiAssignLandschaftText(q.region_parent),
 		affiliation_staat: avesmapsWikiAssignLandschaftText(q.affiliation_staat),
 		continent: avesmapsWikiAssignLandschaftText(q.continent),
+		height_schritt: avesmapsWikiAssignLandschaftText(q.height_schritt),
 		einwohner: avesmapsWikiAssignLandschaftText(q.einwohner),
 		sprache: avesmapsWikiAssignLandschaftText(q.sprache),
 		vegetation: avesmapsWikiAssignLandschaftText(q.vegetation),

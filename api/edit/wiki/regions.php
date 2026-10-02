@@ -52,6 +52,7 @@ try {
             // die 'assign' (Namens-Match, traegt den Berge-Bulk) nicht leisten kann. Trockenlauf per
             // Vorgabe; scharf nur mit dry_run=false UND confirm='apply'. Steht bewusst NICHT in der
             // Nachbump-Liste unten: die Funktion bumpt map_revision selbst, genau einmal pro Aufruf.
+            'sync_heights' => avesmapsWikiRegionSyncHeights($pdo, $payload, (int) ($user['id'] ?? 0)),
             // 🔴 Haengt ein gewaehltes Label an einer Flaeche, schreibt die Aktion seit dem 15.09.2026 an die
             // REGION (eine Quelle, die Region). Dieser Endpunkt verlangt nur `review`, die Region verlangt
             // `edit` -- das Recht reist deshalb mit, und die Bibliothek lehnt ohne es ab.
@@ -120,6 +121,8 @@ try {
     // Eigene Pruefungen der Bibliothek, die das Feld oder den Grund benennen (z. B. „Label zuweisen" an einer
     // Flaeche ohne Bearbeitungsrecht, 15.09.2026) -- duerfen nach draussen, wie im Karten-Endpunkt.
     avesmapsErrorResponse(400, 'invalid_request', $error->getMessage());
+} catch (AvesmapsWikiBelegtException $error) {
+    avesmapsErrorResponse(503, 'wiki_busy', $error->getMessage());
 } catch (AvesmapsWikiUnreachableException $error) {
     // Das Wiki hat nicht geantwortet -- ein eigener Fall, kein Serverfehler. Fertig formulierter
     // Satz ohne Interna, 503 weil die Ursache draussen liegt. Begruendung samt Reihenfolge-Falle:

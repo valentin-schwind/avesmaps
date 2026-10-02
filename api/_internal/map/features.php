@@ -1176,7 +1176,9 @@ function avesmapsReadLabelWikiRegion(mixed $value): ?array {
         $synonyms = array_slice(array_values(array_unique($synonyms)), 0, 40);
     }
 
+    $wikiHeight = avesmapsReadOptionalPeakHeight($value['height_schritt'] ?? null);
     return [
+        ...($wikiHeight !== null ? ['height_schritt' => $wikiHeight] : []),
         'wiki_key' => $wikiKey,
         'name' => $line($value['name'] ?? '', 255),
         'art' => $line($value['art'] ?? '', 120),
@@ -1497,7 +1499,7 @@ const AVESMAPS_POINT_WIKI_ORIGIN_FIELDS = ['name', 'feature_subtype', 'einwohner
  * `map_features.name` traegt dieselbe Zeichenkette als Abbild und bekommt deshalb KEINE eigene
  * Herkunft; zwei Herkuenfte fuer einen Wert waeren die erste Divergenz.
  */
-const AVESMAPS_LABEL_WIKI_ORIGIN_FIELDS = ['text', 'feature_subtype'];
+const AVESMAPS_LABEL_WIKI_ORIGIN_FIELDS = ['text', 'feature_subtype', 'height_schritt'];
 
 /**
  * Dasselbe fuer einen WEG -- Name und Wegtyp.
@@ -3578,6 +3580,9 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
         $peakHeight = avesmapsReadOptionalPeakHeight($payload['height_schritt']);
         if ($peakHeight !== null) {
             $properties['height_schritt'] = $peakHeight;
+            $properties['field_origins']['height_schritt'] = in_array(
+                'height_schritt', avesmapsFieldOriginsAusWikiLesen($payload, AVESMAPS_LABEL_WIKI_ORIGIN_FIELDS), true
+            ) ? 'wiki' : 'manual';
         }
     }
     $ecosystemRegion = avesmapsReadLabelEcosystemRegion($payload);
@@ -3751,6 +3756,18 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
                 unset($properties['height_schritt']);
             } else {
                 $properties['height_schritt'] = $peakHeight;
+            }
+        }
+        if (array_key_exists('height_schritt', $payload)) {
+            $properties['field_origins'] = avesmapsFieldOriginsStempeln(
+                $properties['field_origins'] ?? [],
+                ['height_schritt' => avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null)['height_schritt'] ?? null],
+                ['height_schritt' => $properties['height_schritt'] ?? null],
+                avesmapsFieldOriginsAusWikiLesen($payload, AVESMAPS_LABEL_WIKI_ORIGIN_FIELDS)
+            );
+            if (($properties['height_schritt'] ?? null) !== null
+                && in_array('height_schritt', avesmapsFieldOriginsAusWikiLesen($payload, AVESMAPS_LABEL_WIKI_ORIGIN_FIELDS), true)) {
+                $properties['field_origins']['height_schritt'] = 'wiki';
             }
         }
         // Die Flaeche, zu der dieses Label gehoert. Leer mitgeschickt = ausdruecklich geloest.

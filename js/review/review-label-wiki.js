@@ -44,6 +44,7 @@ function labelWikiRegionFromRow(row) {
 		return null;
 	}
 	return {
+		height_schritt: row.height_schritt ?? null,
 		wiki_key: row.wiki_key || "",
 		name: row.name || "",
 		art: row.art || "",
@@ -216,6 +217,7 @@ async function labelWikiAssignZustand() {
 		field_origins: labelWikiFieldOrigins,
 		// 💣 Lesefunktionen, nicht Werte: `laden` läuft einmal, die Sync-Vorschau entsteht erst beim
 		// Druck auf „Sync" -- dazwischen kann im Formular getippt worden sein.
+		height_schritt: () => String(labelWikiElement("label-edit-height")?.value || ""),
 		text: () => String(labelWikiElement("label-edit-text")?.value || ""),
 		feature_subtype: () => String(labelWikiElement("label-edit-type")?.value || ""),
 	});
@@ -247,6 +249,7 @@ function labelWikiZeichneAbweichungen() {
 	const stand = avesmapsWikiFeldStand(
 		(avesmapsWikiAssignSubject("landschaftslabel") || {}).felder || [],
 		{
+			height_schritt: String(labelWikiElement("label-edit-height")?.value || ""),
 			text: String(labelWikiElement("label-edit-text")?.value || ""),
 			feature_subtype: String(labelWikiElement("label-edit-type")?.value || ""),
 		},
@@ -292,7 +295,17 @@ function labelWikiZeichneAbweichungen() {
  * zweiter Schreibpfad. Geschrieben wird mit „Speichern".
  */
 function labelWikiFeldZuruecksetzen(feld, wikiWert) {
-	if (feld === "text") {
+	if (feld === "height_schritt") {
+		const eingabe = labelWikiElement("label-edit-height");
+		if (!eingabe || wikiWert === "") {
+			return;
+		}
+		eingabe.value = wikiWert;
+		const regler = labelWikiElement("label-edit-height-range");
+		if (regler) {
+			regler.value = wikiWert;
+		}
+	} else if (feld === "text") {
 		const eingabe = labelWikiElement("label-edit-text");
 		if (!eingabe) {
 			return;
@@ -378,6 +391,9 @@ function labelWikiAssignSyncUebernehmen(zeilen) {
 		throw new Error("Keine übernehmbare Angabe angehakt.");
 	}
 	// 🔴 ZWEITE HÄLFTE DER ÜBERNAHME: merken, WELCHE Felder aus dem Wiki kamen.
+	if (werte.height_schritt !== null) {
+		labelWikiFeldZuruecksetzen("height_schritt", werte.height_schritt);
+	}
 	const textInput = labelWikiElement("label-edit-text");
 	if (werte.text !== null && textInput) {
 		textInput.value = werte.text;
@@ -435,6 +451,7 @@ function mountLabelWikiAssign() {
 // unmittelbar nachdem er fuer den Zwilling im Kartendialog der Landschaft geschrieben war. Genau
 // dafuer ist er da: eine Regel, die einen von mehreren Erzeugern bindet, ist keine Regel.
 function verdrahteLabelWikiZeichner() {
+	labelWikiElement("label-edit-height")?.addEventListener("input", labelWikiZeichneAbweichungen);
 	labelWikiElement("label-edit-text")?.addEventListener("input", labelWikiZeichneAbweichungen);
 	labelWikiElement("label-edit-type")?.addEventListener("change", labelWikiZeichneAbweichungen);
 }

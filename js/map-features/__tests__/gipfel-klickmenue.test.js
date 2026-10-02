@@ -31,6 +31,7 @@ async function pruefeGipfel(labelType, topographie) {
 		selectEcosystemAreaOfLabel: () => {},
 		avesmapsLabelMenueFlaechenzahlNachziehen: () => {},
 		isEcosystemPeakActive: () => topographie,
+		isEcosystemPeakLabel: (publicId) => publicId === label.publicId,
 		isEcosystemPeakSubtype: (typ) => ["berggipfel", "vulkan"].includes(typ),
 		ecosystemRegionOfLabel: () => null,
 		labelPopupSubtitle: () => labelType,
@@ -97,7 +98,7 @@ async function pruefeGipfel(labelType, topographie) {
 	speichernAbschliessen();
 	await speichern;
 	await new Promise((resolve) => setImmediate(resolve));
-	assert.equal(invalidiert, topographie ? 1 : 0);
+	assert.equal(invalidiert, 1, "Gespeicherte Gipfellagen entwerten auch das gerade ausgeblendete Höhenfeld.");
 }
 
 (async () => {

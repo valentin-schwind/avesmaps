@@ -335,6 +335,7 @@ const AVESMAPS_WIKI_ASSIGN_REGISTRY = {
 			{ wiki: "name", karte: "text", label: "Name" },
 			{ wiki: "art", karte: "", label: "Art" },
 			{ wiki: "landschaftsart", karte: "feature_subtype", label: "Kategorie" },
+			{ wiki: "height_schritt", karte: "height_schritt", label: "Höhe (Schritt)" },
 			{ wiki: "region_parent", karte: "", label: "Lage" },
 			{ wiki: "affiliation_staat", karte: "", label: "Staat" },
 			{ wiki: "continent", karte: "", label: "Kontinent" },

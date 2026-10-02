@@ -1468,7 +1468,7 @@ function sandkastenBauen(dateien, felder, behaelterIds, fetchAntwort, zusatz) {
 	// Sync: fuellt NUR das Formular, und der Text ist die einzige offene Angabe.
 	labelHost.feuere("click", scheinZiel("data-wa-aktion", "sync"));
 	await ruhe();
-	assert.ok(labelHost.innerHTML.indexOf("1 von 2 Angaben würde sich ändern") !== -1,
+	assert.ok(labelHost.innerHTML.indexOf("1 von 3 Angaben würde sich ändern") !== -1,
 		"die Sync-Vorschau des Labels zaehlt falsch: " + labelHost.innerHTML);
 	labelHost.feuere("click", scheinZiel("data-wa-aktion", "sync-alle"));
 	await ruhe();

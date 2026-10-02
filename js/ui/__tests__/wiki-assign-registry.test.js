@@ -185,7 +185,7 @@ const WIRKLICHKEIT = {
 		// etwas uebernehmen. Pruefung 1 fragt nur, ob ein ERKLAERTES Kartenfeld existiert; die
 		// Gegenrichtung unten fragt, ob jedes hier genannte beansprucht wird. Deshalb steht hier, was
 		// eine Wiki-Angabe fuellen KANN, nicht was das Formular alles hat.
-		karte: ["text", "feature_subtype"],
+		karte: ["text", "feature_subtype", "height_schritt"],
 	},
 	territorium: {
 		// 🔴 HIER IST DIE „WIRKLICHKEIT" NICHT DER PARSER, SONDERN DIE KANDIDATENANTWORT -- und das ist

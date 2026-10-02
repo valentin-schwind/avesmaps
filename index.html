@@ -752,6 +752,7 @@
 						</div>
 								<!-- Nur noch STATUSPLATZ (Laden, Fehler) -- wie bei den Wegen. Die Statistikzeile
 								     "N gesynct - M Karten-Labels" ist am 22.08.2026 entfallen (Owner). -->
+								<button type="button" class="wiki-sync-panel__start" id="region-sync-heights">Berghöhen synchronisieren</button>
 								<span id="region-sync-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary"></span>
 						<div class="wiki-sync-panel__filter">
 							<input id="region-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Regionen suchen ..." aria-label="Regionen durchsuchen" />
@@ -2296,7 +2297,7 @@
 						     🪤 Regler und Zahl teilen dieselben Grenzen (0..20000, die Tippfehler-Klemme des
 						     Servers). Ein engerer Regler klemmte einen getippten Wert beim ersten Anfassen
 						     stillschweigend herunter -- Auflösung ist Kosmetik, eine stille Datenänderung nicht. -->
-						<label class="location-report-form__field location-report-form__field--zeile" id="label-edit-height-row" hidden><span>H&ouml;he (Schritt)</span><div class="label-edit-sliderrow label-edit-sliderrow--wide"><input id="label-edit-height" name="height_schritt" type="number" min="0" max="20000" step="1" inputmode="numeric" /><input id="label-edit-height-range" type="range" min="0" max="20000" step="50" aria-label="H&ouml;he in Schritt" /></div></label>
+						<label class="location-report-form__field location-report-form__field--zeile" id="label-edit-height-row" hidden><span>H&ouml;he (Schritt) <span class="dt-alt" data-label-wiki-alt="height_schritt"></span></span><div class="label-edit-sliderrow label-edit-sliderrow--wide"><input id="label-edit-height" name="height_schritt" type="number" min="0" max="20000" step="1" inputmode="numeric" /><input id="label-edit-height-range" type="range" min="0" max="20000" step="50" aria-label="H&ouml;he in Schritt" /></div></label>
 						<label class="location-report-form__field location-report-form__field--checkbox location-report-form__field--hakenzeile"><input id="label-edit-is-nodix" name="is_nodix" type="checkbox" /><span>Nodix</span></label>
 						</div><div class="label-edit-section"><div class="label-edit-section-title">Darstellung</div>
 						<!-- 🪤 HIER STAND EINEN TAG LANG DAS GEGENTEIL: „Größe ist als Bedienelement gefallen".

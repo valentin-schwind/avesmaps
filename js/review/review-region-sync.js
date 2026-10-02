@@ -452,3 +452,50 @@ attachFilterMenu("region-filter-toggle", "region-filter-menu", [
 ], renderRegionSyncList, "Filter");
 
 window.loadRegionWikiSync = loadRegionWikiSync;
+
+async function runRegionHeightSync(button) {
+    if (regionSyncBusy) {
+        return;
+    }
+    regionSyncBusy = true;
+    button.disabled = true;
+    let cursor = 0;
+    let updated = 0;
+    let found = 0;
+    const summary = regionSyncElement("region-sync-summary");
+    try {
+        for (let packet = 0; packet < 1000; packet++) {
+            summary.textContent = `Berghöhen werden aus dem aktuellen Wiki geladen … ${found} Höhen, ${updated} Beschriftungen aktualisiert`;
+            const result = await regionSyncPost({ action: "sync_heights", cursor });
+            if (!result.ok) {
+                throw new Error(result.error?.message || result.error || "Berghöhen konnten nicht synchronisiert werden.");
+            }
+            updated += Number(result.updated || 0);
+            found += Number(result.found || 0);
+            if (result.done) {
+                summary.textContent = `${found} Wiki-Höhen gelesen, ${updated} Beschriftungen aktualisiert. Vorhandene eigene Höhen bleiben erhalten.`;
+                return;
+            }
+            if (Number(result.cursor) <= cursor) {
+                throw new Error("Der Höhenabgleich hat keinen Fortschritt gemacht.");
+            }
+            cursor = Number(result.cursor);
+            if (Number(result.wait_seconds) > 0) {
+                summary.textContent = `Pause zum Schutz von Wiki Aventurica: ${found} Höhen gelesen.`;
+                await new Promise((resolve) => setTimeout(resolve, Math.min(Number(result.wait_seconds), 60) * 1000));
+            }
+        }
+        throw new Error("Sicherheitsgrenze erreicht. Bitte den Höhenabgleich erneut starten.");
+    } catch (error) {
+        summary.textContent = `${error.message} Bereits aktualisiert: ${updated}.`;
+    } finally {
+        regionSyncBusy = false;
+        button.disabled = false;
+    }
+}
+
+document.addEventListener("click", (event) => {
+    if (event.target?.id === "region-sync-heights") {
+        runRegionHeightSync(event.target);
+    }
+});
