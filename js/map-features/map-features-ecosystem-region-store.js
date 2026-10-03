@@ -212,23 +212,76 @@ function ecosystemReleaseCreatedRegion() {
 	ecosystemCreatedRegion = null;
 }
 
+// kind -> die Anfrage, die gerade fuer diese Ebene unterwegs ist: { token, promise }. Fehlt der Eintrag,
+// laeuft keine.
+const ecosystemRegionLoads = {};
+
+// 🔴 `await loadEcosystemRegions(kind)` HEISST: DIE EBENE STEHT JETZT IM BESTAND -- fuer JEDEN Aufrufer.
+//
+// 💣 Das war bis zum 03.10.2026 nicht so, und es kostete ein Auswahlmenue (Owner: „schon zum
+// wiederholten Mal"). Jeder Aufruf zog eine neue Marke; kam eine zweite Anfrage fuer dieselbe Ebene,
+// war die erste ueberholt und kehrte bei ihrer Antwort STILLSCHWEIGEND zurueck -- ohne zu speichern,
+// aber auch ohne ihren Aufrufer zu warnen. Der bekam „fertig" gemeldet, waehrend die zweite Anfrage
+// noch lief und die Ebene fehlte.
+//
+// Das trifft jeden Label-Dialog nach einem Schreibvorgang: `invalidateEcosystemRegionCache` leert alle
+// Ebenen und laedt nur die aktive neu; beim Oeffnen fragen dann die Traegerzeile
+// (renderLabelCarrierNote) und die Flaechensuche (avesmapsEcosystemAreaPublicIdOfLabel) beide nach
+// allen Ebenen -- die zweite ueberholt die erste. `fillLabelRegionSelect` baut „Gehoert zu" genau
+// EINMAL direkt nach diesem `await` und fand nur die aktive Ebene vor: bei Vegetation nur
+// „Vegetation", bei Topographie nur „Topographie".
+//
+// Zwei Wege, dieselbe Zusage:
+//   * Gleichzeitige Aufrufer (ohne `force`) teilen sich EINE Anfrage -- kein Grund, dieselbe Liste
+//     zweimal zu holen, und keine zweite Marke, die die erste ueberholen koennte.
+//   * Ein erzwungenes Neuladen (`force`) bekommt trotzdem seine eigene Anfrage -- es will ja frische
+//     Daten. Die UEBERHOLTE Anfrage speichert weiterhin nichts, wartet aber auf die neuere und gibt
+//     ihren Aufrufern erst dann „fertig".
+//
+// 🔴 Die Marke je Ebene bleibt und ist tragend: sie verhindert, dass eine SPAETE alte Antwort einen
+// neueren Stand ueberschreibt (2026-07-28, siehe oben). Der Umbau aendert nur, was ein Aufrufer
+// erfaehrt, nicht welche Antwort gilt.
 async function loadEcosystemRegions(kind, { force = false } = {}) {
 	if (!isKnownEcosystemKind(kind) || (!force && Array.isArray(ecosystemRegionsByKind[kind]))) {
 		return;
 	}
+	if (!force && ecosystemRegionLoads[kind]) {
+		return ecosystemRegionLoads[kind].promise;
+	}
 
 	const requestToken = (ecosystemRegionRequestTokens[kind] = (ecosystemRegionRequestTokens[kind] || 0) + 1);
+	// Der Eintrag steht VOR dem Aufruf, nicht danach: so findet jeder Zugriff, der schon waehrend der
+	// Anfrage mitliest, einen Eintrag mit der richtigen Marke vor.
+	const eintrag = { token: requestToken, promise: null };
+	ecosystemRegionLoads[kind] = eintrag;
+	eintrag.promise = fetchEcosystemRegionsOfKind(kind, requestToken);
+
+	return eintrag.promise;
+}
+
+// Die EINE Anfrage fuer eine Ebene -- laeuft nie auf einen Fehler hinaus, sondern auf eine leere Liste.
+//
+// 💣 Der Eintrag in `ecosystemRegionLoads` wird hier abgeraeumt, nicht beim Aufrufer: sonst bliebe nach
+// einem Fehlschlag eine erledigte Zusage stehen, und ein spaeterer Aufruf bekaeme sie zurueck, ohne
+// etwas zu laden -- die Ebene bliebe leer, und kein Fehler sagte warum. Abgeraeumt wird nur der EIGENE
+// Eintrag (gleiche Marke): ein neuerer gehoert seiner Anfrage.
+async function fetchEcosystemRegionsOfKind(kind, requestToken) {
+	const ueberholt = () => requestToken !== ecosystemRegionRequestTokens[kind];
+	// Eine ueberholte Anfrage gibt ihren Aufrufern erst frei, wenn die NEUERE fertig ist. Hat sie ihren
+	// Stand schon gespeichert (kein Eintrag mehr), ist nichts abzuwarten.
+	const aufDieNeuereWarten = () => (ecosystemRegionLoads[kind] ? ecosystemRegionLoads[kind].promise : undefined);
+
 	try {
 		const result = await postEcosystemEdit("list_regions", { kind });
-		if (requestToken !== ecosystemRegionRequestTokens[kind]) {
-			return;
+		if (ueberholt()) {
+			return await aufDieNeuereWarten();
 		}
 		ecosystemRegionsByKind[kind] = Array.isArray(result.regions) ? result.regions : [];
 		ecosystemRegionTypesByKind[kind] = Array.isArray(result.region_types) ? result.region_types : [];
 		ecosystemRegionCacheStamp += 1;
 	} catch (error) {
-		if (requestToken !== ecosystemRegionRequestTokens[kind]) {
-			return;
+		if (ueberholt()) {
+			return await aufDieNeuereWarten();
 		}
 		// Eine LEERE Liste, keine fehlende: sonst warten die Dialoge ewig auf ein Art-Vokabular, das nie
 		// kommt. Der wahre Grund steht in der Konsole.
@@ -236,6 +289,10 @@ async function loadEcosystemRegions(kind, { force = false } = {}) {
 		ecosystemRegionTypesByKind[kind] = [];
 		ecosystemRegionCacheStamp += 1;
 		console.warn("Landschafts-Regionen konnten nicht geladen werden:", error);
+	} finally {
+		if (ecosystemRegionLoads[kind] && ecosystemRegionLoads[kind].token === requestToken) {
+			delete ecosystemRegionLoads[kind];
+		}
 	}
 }
 
