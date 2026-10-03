@@ -281,6 +281,59 @@ async function abschnittF() {
 		`F4: und er laeuft mit dem Stand der neueren weiter (gefunden: ${JSON.stringify(namen)})`);
 }
 
+// ---- G. Das Leeren nach einem Schreibvorgang verwirft auch laufende Anfragen --------------------
+//
+// 💣 Die Nebenwirkung der gemeinsamen Anfrage, und sie ist eine Folge DIESES Umbaus: vorher stellte ein
+// Aufruf nach dem Leeren eine frische Anfrage und ueberholte damit die laufende (die noch den Stand von
+// VOR dem Speichern holte). Teilen sich Aufrufer jetzt eine Anfrage, haengte sich ein Aufruf nach dem
+// Leeren an genau diese alte -- und legte den veralteten Stand ab. Deshalb startet das Leeren jede
+// gerade laufende Ebene neu; die alten Aufrufer warten (Abschnitt B) auf die neue.
+async function abschnittG() {
+	const b = baueBuehne("vegetation");
+	let weiter = false;
+	const altAufrufer = b.laden("topographie").then(() => {
+		weiter = true;
+		return b.namenDer("topographie");
+	});
+	await ruhe();
+	pruefe(b.anfragen.length === 1, "G0: ein laufender Abruf fuer die nicht aktive Ebene");
+
+	b.kontext.invalidateEcosystemRegionCache();      // das Speichern -- waehrend der Abruf noch laeuft
+	await ruhe();
+	const kinds = b.anfragen.map((anfrage) => anfrage.kind).sort();
+	pruefe(kinds.join() === "topographie,topographie,vegetation",
+		`G1: das Leeren laedt die aktive Ebene UND die laufende neu (gestellt: ${kinds.join()})`);
+
+	// Die Antwort von VOR dem Speichern trifft ein -- sie darf weder gelten noch den Aufrufer freigeben.
+	b.anfragen[0].beantworte("vor-dem-speichern");
+	await ruhe();
+	pruefe(weiter === false, "G2: der alte Aufrufer wartet auf die Anfrage NACH dem Speichern");
+	pruefe(!b.geladeneEbenen().includes("topographie"), "G3: die Antwort von vor dem Speichern liegt nicht im Bestand");
+
+	await beantworteAlle(b, "nach-dem-speichern");
+	const namen = await altAufrufer;
+	pruefe(namen.length === 1 && namen[0] === "topographie:nach-dem-speichern",
+		`G4: er laeuft mit dem Stand NACH dem Speichern weiter (gefunden: ${JSON.stringify(namen)})`);
+
+	// Gegenprobe: ohne laufenden Abruf stellt das Leeren genau EINE Anfrage (die aktive Ebene).
+	const c = baueBuehne("vegetation");
+	c.kontext.invalidateEcosystemRegionCache();
+	await ruhe();
+	pruefe(c.anfragen.length === 1 && c.anfragen[0].kind === "vegetation",
+		"G5: ohne laufenden Abruf laedt das Leeren nur die aktive Ebene -- keine zusaetzlichen Anfragen");
+
+	// G6: laeuft gerade die AKTIVE Ebene, wird sie genau EINMAL neu gestartet -- nicht zweimal (einmal als
+	// aktive, einmal als laufende). Eine doppelte erzwungene Anfrage kostet den Server eine Liste mit
+	// ueber 500 Regionen ohne jeden Nutzen.
+	const d = baueBuehne("vegetation");
+	d.laden("vegetation");
+	await ruhe();
+	d.kontext.invalidateEcosystemRegionCache();
+	await ruhe();
+	pruefe(d.anfragen.length === 2,
+		`G6: eine laufende aktive Ebene wird beim Leeren genau einmal neu gestartet (gestellt: ${d.anfragen.length})`);
+}
+
 (async () => {
 	await abschnittA();
 	await abschnittB();
@@ -288,6 +341,7 @@ async function abschnittF() {
 	await abschnittD();
 	await abschnittE();
 	await abschnittF();
+	await abschnittG();
 	console.log(`ecosystem-regionen-lader-wartet: ${pruefungen} Pruefungen bestanden`);
 })().catch((fehler) => {
 	console.error(fehler);

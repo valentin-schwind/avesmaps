@@ -300,10 +300,22 @@ async function fetchEcosystemRegionsOfKind(kind, requestToken) {
 // vor allem ihre Flächenzahlen, die der Eigenschaften-Dialog anzeigt. ALLE Ebenen fallen, nicht nur die
 // aktive: ein Wechsel darf keinen Stand von vor dem Schreiben zurückgeben.
 function invalidateEcosystemRegionCache() {
+	// 💣 Was JETZT unterwegs ist, holt den Stand von VOR diesem Schreibvorgang. Seit gleichzeitige
+	// Aufrufer sich eine Anfrage teilen (loadEcosystemRegions), haengte sich ein Aufruf nach dem Leeren an
+	// genau diese alte -- und legte den veralteten Stand ab. Vorher stellte er eine frische und
+	// ueberholte sie. Deshalb wird jede gerade laufende Ebene neu gestartet; wer auf die alte wartete,
+	// wartet auf die neue (siehe fetchEcosystemRegionsOfKind).
+	const laufende = Object.keys(ecosystemRegionLoads);
 	ecosystemRegionsByKind = {};
 	ecosystemRegionTypesByKind = {};
 	ecosystemRegionCacheStamp += 1;
-	void loadEcosystemRegions(getActiveEcosystemLayerKind(), { force: true });
+	const aktive = getActiveEcosystemLayerKind();
+	void loadEcosystemRegions(aktive, { force: true });
+	laufende.forEach((kind) => {
+		if (kind !== aktive) {
+			void loadEcosystemRegions(kind, { force: true });
+		}
+	});
 	// 💣 Der Filter „nur Labels mit Region" liest ALLE drei Ebenen, hier nachgeladen wird aber nur die
 	// aktive. Wäre er an, verschwänden die Beschriftungen der beiden anderen Ebenen nach jedem
 	// Schreibvorgang — nicht weil sie keine Region hätten, sondern weil deren Liste gerade leer ist.
