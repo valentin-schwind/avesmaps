@@ -213,6 +213,16 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     ['vegetation', 'suempfe_moore', 'Sümpfe und Moore', 20],
     ['vegetation', 'steppe', 'Steppe', 30],
     ['vegetation', 'tundra', 'Tundra', 40],
+    // Owner 2026-10-04. Schnee und Eis sind LANDBEDECKUNG (Oberflaeche), keine Geländeform -- deshalb
+    // `vegetation`, wo schon Wueste, Tundra und Suempfe liegen, und NICHT `topographie`. Sie koennen
+    // andere Formen ueberlagern (Gebirge + Schneelandschaft, Gletscher + Eislandschaft); `gletscher`
+    // bleibt die eigene topographische Form. Gemeint ist dauerhafter bzw. landschaftspraegender Schnee
+    // und Eis, nicht saisonaler Schnee oder voruebergehend zugefrorenes Gelaende -- eine Jahreszeit
+    // kennt diese Ebene nicht (season-ground.js im Browser ist die Stelle dafuer).
+    // 🔴 Sie tragen KEINE Hoehen-/Formwerte (Koernung, Stufen, Hoehe): sie veraendern das Gelaende
+    // nicht. Nur die Reiseparameter stehen in der Startwerte-Tafel unten.
+    ['vegetation', 'schneelandschaft', 'Schneelandschaft', 42],
+    ['vegetation', 'eislandschaft', 'Eislandschaft', 44],
     ['vegetation', 'auenlandschaft', 'Auenlandschaft', 50],
     ['vegetation', 'wueste', 'Wüste', 60],
     ['vegetation', 'graslandschaft', 'Graslandschaft', 70],
@@ -1286,8 +1296,9 @@ function avesmapsEcosystemRetireVorgebirge(PDO $pdo): void
  * einer eigenen, erfundenen Art WIRKLICH fahren kann, statt nur ihren Quelltext zu lesen. Ohne das
  * haette das Streichen der Art die Abdeckung des NULL-Riegels mitgenommen, den sie traegt.
  *
- * @param list<array{0:string,1:string,2:float,3:int,4:float,5:float,6:float,7:float}>|null $startwerte
- *        je Zeile [kind, type_key, grain, levels, maximalhoehe, durchschnittshoehe, tempofaktor, offroad]
+ * @param list<array{0:string,1:string,2:?float,3:?int,4:?float,5:?float,6:float,7:float}>|null $startwerte
+ *        je Zeile [kind, type_key, grain, levels, maximalhoehe, durchschnittshoehe, tempofaktor, offroad];
+ *        ein `null` in den vier Formwerten heisst „keine Aussage“ und wird uebersprungen (Schnee, Eis)
  */
 function avesmapsEcosystemFillMissingTypeDefaults(PDO $pdo, ?array $startwerte = null): void
 {
@@ -1302,6 +1313,12 @@ function avesmapsEcosystemFillMissingTypeDefaults(PDO $pdo, ?array $startwerte =
     // PHP hoistet Funktionen, aber keine `const` (const-vor-benutzung-test.php), und diese Funktion wird
     // weit oben gerufen.
     $startwerte ??= [
+        // Schneelandschaft / Eislandschaft (Owner 04.10.2026, nach der Geographia Aventurica: Eisgebiet
+        // Tiefschnee 0,4, Eisflaechen 0,2). NUR Reiseparameter -- Koernung, Stufen und Hoehen bleiben
+        // NULL, denn eine Oberflaechenart formt kein Gelaende. Tempo = 0,75 / offroad; offroad_factor ist
+        // DECIMAL(4,2), also 1,875 -> 1,88 (Tempo bleibt die ausdrueckliche 0,400, nicht 0,75 / 1,88).
+        ['vegetation', 'schneelandschaft', null, null, null, null, 0.400, 1.88],
+        ['vegetation', 'eislandschaft', null, null, null, null, 0.200, 3.75],
         // Gletscher: Huegelland (4,5 / 2 / 600 / 300, offroad 1,30) und Hochebene (offroad 1,10, Tempo 0,682),
         // beides etwas haerter -- Eis ist glatt, aber zerklueftet und gefaehrlich: Tempo 0,75 / 1,60 = 0,469.
         // Hoehe/Mittel 800/400: Verhaeltnis 0,5 wie das Huegelland, unter der Klemme von rund 0,67.
@@ -1322,6 +1339,9 @@ function avesmapsEcosystemFillMissingTypeDefaults(PDO $pdo, ?array $startwerte =
             ['terrain_mean_height', $mean],
             ['terrain_speed_factor', $tempo],
         ] as [$spalte, $wert]) {
+            if ($wert === null) {
+                continue; // keine Aussage in der Tafel -- die Spalte bleibt, wie sie ist
+            }
             try {
                 $statement = $pdo->prepare(
                     'UPDATE ecosystem_region_type SET ' . $spalte . ' = :w'

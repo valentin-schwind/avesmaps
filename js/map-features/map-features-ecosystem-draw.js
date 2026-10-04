@@ -542,6 +542,10 @@ const ECOSYSTEM_LABEL_STYLE_BY_TYPE = {
 	kulturlandschaft: { size: 16, minZoom: 3 },
 	// Gletscher: eine Flaeche wie das Gebirge, aber kleiner und selten -- ein Eisfeld, kein ganzer Zug.
 	gletscher: { size: 16, minZoom: 3 },
+	// Schnee und Eis sind grossraeumige Landbedeckung (keine Punkte, keine Baender): Label zwischen Tundra
+	// (Vorgabe 18 / ab 2) und Kulturlandschaft (16 / ab 3).
+	schneelandschaft: { size: 17, minZoom: 3 },
+	eislandschaft: { size: 17, minZoom: 3 },
 	// Eine Kueste ist ein BAND am Meer; Label wie die allgemeine Kueste (Vorgabe), erst ab Zoom 3.
 	flachkueste: { size: 16, minZoom: 3 },
 	steilkueste: { size: 16, minZoom: 3 },

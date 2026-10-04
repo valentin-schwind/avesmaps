@@ -318,7 +318,9 @@ ecosystemTestThrows(static fn() => avesmapsEcosystemReadKind('wetter'), 'an unkn
 // damit als einzige dieser Reihe wieder ZURUECK -- wer sie liest, soll den Sprung sehen und nicht
 // eine der Zeilen darueber fuer falsch halten.
 // 39 seit 2026-10-04: drei topographische Formen -- Gletscher, Flachkueste und Steilkueste (Owner-Auftrag).
-assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 39, 'the seed is 39 rows');
+// 41 seit 2026-10-04 (zweiter Schub): Schneelandschaft und Eislandschaft als dreizehnte und vierzehnte
+// Vegetationsart -- Landbedeckung, keine Geländeform.
+assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 41, 'the seed is 41 rows');
 
 $byKind = [];
 foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortOrder]) {
@@ -330,7 +332,8 @@ assert(count($byKind['derographisch']) === 4, 'derographisch: 4');
 // 12 wieder seit dem 09.09.2026 (Vor-/Mittelgebirge gestrichen, siehe unten).
 // 15 seit dem 04.10.2026: Gletscher, Flachkueste, Steilkueste.
 assert(count($byKind['topographie']) === 15, 'topographie: 15');
-assert(count($byKind['vegetation']) === 12, 'vegetation: 12');
+// 14 seit dem 04.10.2026: Schneelandschaft und Eislandschaft.
+assert(count($byKind['vegetation']) === 14, 'vegetation: 14');
 assert(count($byKind['klima']) === 8, 'klima: 8 -- and the dividers are always one fewer');
 
 // 🔴 Die REIHENFOLGE der Klimazonen ist tragend, nicht kosmetisch: sie sagt, welche Zone noerdlich
@@ -357,6 +360,17 @@ assert(!in_array('inselgruppe', $byKind['topographie'], true), 'a group of islan
 assert(in_array('kulturlandschaft', $byKind['vegetation'], true), 'kulturlandschaft is a vegetation cover');
 assert(!in_array('kulturlandschaft', $byKind['topographie'], true), 'and not a landform');
 assert(!in_array('kulturlandschaft', $byKind['derographisch'], true), 'and not a named stretch of map');
+
+// 🔴 2026-10-04: Schnee und Eis sind LANDBEDECKUNG -- `vegetation`, wo schon Wueste und Tundra liegen --
+// und KEINE Geländeform. Sie koennen Gebirge, Hochebene oder Gletscher ueberlagern; `gletscher` bleibt
+// die eigene topographische Form und wird von keiner der beiden ersetzt.
+foreach (['schneelandschaft', 'eislandschaft'] as $deckeSchluessel) {
+    assert(in_array($deckeSchluessel, $byKind['vegetation'], true), "$deckeSchluessel is a vegetation cover");
+    assert(!in_array($deckeSchluessel, $byKind['topographie'], true), "$deckeSchluessel is not a landform");
+    assert(!in_array($deckeSchluessel, $byKind['derographisch'], true), "$deckeSchluessel is not a named stretch of map");
+}
+assert(in_array('gletscher', $byKind['topographie'], true) && !in_array('gletscher', $byKind['vegetation'], true),
+    'the glacier stays a landform and is not replaced by the ice cover');
 
 // --- 🔴 2026-08-29 (Garetien-Import, Entwurf §3.4): „Urwald" ist eine EIGENE Vegetationsart,
 // keine Umbenennung von „Dschungel" -- der Dschungel ist eine Klimaaussage (tropisch), der

@@ -356,6 +356,8 @@ const SVGX_TYPE_VOCAB = {
 	suempfe_moore: { de: "Sümpfe & Moore", en: "swamp and moor" },
 	steppe: { de: "Steppe", en: "steppe" },
 	tundra: { de: "Tundra", en: "tundra" },
+	schneelandschaft: { de: "Schneelandschaft", en: "snow landscape" },
+	eislandschaft: { de: "Eislandschaft", en: "ice landscape" },
 	auenlandschaft: { de: "Auenlandschaft", en: "floodplain" },
 	wueste: { de: "Wüste", en: "desert" },
 	graslandschaft: { de: "Graslandschaft", en: "grassland" },

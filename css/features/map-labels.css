@@ -113,6 +113,12 @@ body.edit-mode .map-label.leaflet-marker-draggable img {
 .map-label--tundra span {
 	color: #dbe8e8; /* Tundra: blasses Eisgrau */
 }
+.map-label--schneelandschaft span {
+	color: #f3f8fb; /* Schneelandschaft: Schneeweiss mit kuehlem Stich, heller als der Gletscher */
+}
+.map-label--eislandschaft span {
+	color: #c2e3f3; /* Eislandschaft: klares Eisblau, etwas kraeftiger als der Gletscher */
+}
 .map-label--gletscher span {
 	color: #e0f0f6; /* Gletscher: Eisweiss mit kaltem Blaustich */
 }

@@ -602,6 +602,8 @@ const INFO_HEADER_IMAGE_BY_ART = {
 	graslandschaft: "graslandschaft", wiese: "graslandschaft",
 	auenlandschaft: "auenlandschaft",
 	tundra: "tundra",
+	// Owner 2026-10-04: Schnee und Eis haben kein eigenes Kopfbild -- sie borgen das der Tundra (Eisfamilie).
+	schneelandschaft: "tundra", eislandschaft: "tundra",
 	ebene: "ebene", talkessel: "ebene", tal: "ebene", tiefebene: "ebene", hochebene: "ebene",
 };
 // Wegtyp -> Header-Bild (Owner-Grafiken 2026-07-17, eine je Subtyp). Vorher teilten sich alle Landwege das

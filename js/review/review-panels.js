@@ -1099,6 +1099,8 @@ function getReportTypeLabel(report) {
 		huegelland: "Hügelland",
 		tal: "Tal",
 		tundra: "Tundra",
+		schneelandschaft: "Schneelandschaft",
+		eislandschaft: "Eislandschaft",
 		kueste: "Küste",
 		ebene: "Ebene",
 		graslandschaft: "Graslandschaft",

@@ -234,7 +234,8 @@ $geschrieben = avesmapsTravelValuesWriteLandscapeFactors($pdo, $plan['factors'])
 // 25 seit dem 04.10.2026: Gletscher, Flachkueste und Steilkueste kamen als topographische Formen dazu.
 // Ihre Werte stehen NICHT hier, sondern in der Startwerte-Tafel (Block L); diese frische Anlage hat sie
 // noch nicht gefuellt und bekommt fuer alle drei den rechnerischen Rueckfall (offroad 1,00 -> Basis).
-assert($geschrieben === 25, "fuenfundzwanzig Zeilen geschrieben, bekommen: $geschrieben");
+// 27 seit dem 04.10.2026 (zweiter Schub): Schneelandschaft und Eislandschaft als Vegetationsarten.
+assert($geschrieben === 27, "siebenundzwanzig Zeilen geschrieben, bekommen: $geschrieben");
 
 $nachher = $spalte($pdo);
 assert($nah((float) $nachher['suempfe_moore'], 0.100, 0.0005), 'Sumpf 0,100: ' . $nachher['suempfe_moore']);
@@ -526,7 +527,8 @@ foreach ($liste as $zeile) { $nachSchluessel[$zeile['type_key']] = $zeile; }
 // 23 seit dem 01.09.2026 (Vor-/Mittelgebirge, Editorenwunsch), 22 wieder seit dem 09.09.2026:
 // dieselbe Art gestrichen (avesmapsEcosystemRetireVorgebirge).
 // 25 seit dem 04.10.2026 (Gletscher, Flachkueste, Steilkueste).
-assert(count($liste) === 25, 'fuenfundzwanzig Landschaftsarten im Fenster: ' . count($liste));
+// 27 seit dem 04.10.2026 (Schneelandschaft, Eislandschaft).
+assert(count($liste) === 27, 'siebenundzwanzig Landschaftsarten im Fenster: ' . count($liste));
 foreach (['kind', 'type_key', 'label', 'factor', 'source', 'area_count'] as $feld) {
     assert(array_key_exists($feld, $liste[0]), "jede Zeile traegt `$feld`");
 }
@@ -817,8 +819,8 @@ $gefuelltL = $pdoL->query(
       ORDER BY type_key"
 )->fetchAll(PDO::FETCH_ASSOC);
 $gefuelltSchluessel = array_column($gefuelltL, 'type_key');
-assert($gefuelltSchluessel === ['flachkueste', 'gletscher', 'steilkueste'],
-    '🔴 die Modultafel fuellt genau die drei neuen Formen und sonst nichts: ' . json_encode($gefuelltSchluessel));
+assert($gefuelltSchluessel === ['eislandschaft', 'flachkueste', 'gletscher', 'schneelandschaft', 'steilkueste'],
+    '🔴 die Modultafel fuellt genau die fuenf neuen Arten und sonst nichts: ' . json_encode($gefuelltSchluessel));
 $werteL = array_column($gefuelltL, null, 'type_key');
 // Gletscher: staerker als Huegelland (offroad 1,30) UND Hochebene (1,10) -- und langsamer als beide
 // (Huegelland 0,75, Hochebene 0,682), aber weniger hart als das Gebirge (offroad 2,20 / Tempo 0,20).
@@ -835,7 +837,27 @@ foreach ($werteL as $schluesselL => $zeileL) {
 // Die Kuesten: Flachkueste wie Kueste/Tiefebene (nichts bremst), Steilkueste wie Hochebene (1,10).
 assert((float) $werteL['flachkueste']['offroad_factor'] === 1.0, 'Flachkueste bremst nicht (Tiefebene/Kueste)');
 assert((float) $werteL['steilkueste']['offroad_factor'] === 1.10, 'Steilkueste wie die Hochebene');
-$pruefungen += 6;
+// 🔴 Schnee und Eis (Owner 04.10.2026, nach der GA: Tiefschnee 0,4, Eisflaechen 0,2): EXAKT 0,400 bzw. 0,200 --
+// nicht 0,75 / offroad_factor, denn 1,875 passt nicht in DECIMAL(4,2) und wird zu 1,88 (0,399).
+assert((float) $werteL['schneelandschaft']['terrain_speed_factor'] === 0.400, 'Schneelandschaft genau 0,400: ' . json_encode($werteL['schneelandschaft']));
+assert((float) $werteL['eislandschaft']['terrain_speed_factor'] === 0.200, 'Eislandschaft genau 0,200: ' . json_encode($werteL['eislandschaft']));
+assert((float) $werteL['schneelandschaft']['offroad_factor'] === 1.88 && (float) $werteL['eislandschaft']['offroad_factor'] === 3.75,
+    'offroad_factor 1,88 bzw. 3,75');
+// 🔴 Eine Oberflaechenart formt kein Gelaende: KEINE Hoehen-/Formwerte -- die vier Spalten bleiben NULL.
+foreach (['schneelandschaft', 'eislandschaft'] as $deckeL) {
+    foreach (['terrain_grain', 'terrain_levels', 'terrain_avg_height', 'terrain_mean_height'] as $formSpalte) {
+        assert($werteL[$deckeL][$formSpalte] === null, "$deckeL: $formSpalte bleibt NULL: " . json_encode($werteL[$deckeL]));
+    }
+}
+// Und beide stehen auf der Vegetationsebene der Tafel, nicht auf der Topographie.
+$ebeneL = array_column((array) $pdoL->query("SELECT type_key, kind FROM ecosystem_region_type WHERE type_key IN ('schneelandschaft','eislandschaft')")->fetchAll(PDO::FETCH_ASSOC), 'kind', 'type_key');
+assert($ebeneL === ['schneelandschaft' => 'vegetation', 'eislandschaft' => 'vegetation'], 'Schnee/Eis: vegetation: ' . json_encode($ebeneL));
+// Ein zweiter Lauf fasst einen vom Owner gesetzten Wert NICHT an (NULL-Riegel bleibt erhalten).
+$pdoL->exec("UPDATE ecosystem_region_type SET terrain_speed_factor = 0.55 WHERE type_key = 'schneelandschaft'");
+avesmapsEcosystemFillMissingTypeDefaults($pdoL);
+assert((float) $pdoL->query("SELECT terrain_speed_factor FROM ecosystem_region_type WHERE type_key = 'schneelandschaft'")->fetchColumn() === 0.55,
+    'ein vom Owner gesetzter Schnee-Wert bleibt stehen');
+$pruefungen += 11;
 
 // 💣 UND SIE WIRD WIRKLICH GERUFEN. Eine Mutationsprobe am 01.09.2026 hat den Aufruf aus
 // avesmapsEcosystemEnsureTables entfernt und ist unbemerkt durchgelaufen -- die Zusicherungen oben

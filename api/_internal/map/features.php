@@ -1045,7 +1045,7 @@ function avesmapsReadLabelSubtype(mixed $value): string {
     // 🔴 'urwald' seit 2026-08-29 (Garetien-Import): AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED bekam die
     // Art dazu, und ohne den Eintrag hier liesse sich an keinem Label speichern -- siehe den
     // Kommentar oben an dieser Liste.
-    $allowedSubtypes = ['region', 'fluss', 'meer', 'gebirge', 'berggipfel', 'wald', 'urwald', 'steppe', 'huegelland', 'tundra', 'kueste', 'ebene', 'graslandschaft', 'auenlandschaft', 'flussland_flusstal', 'dschungel', 'wuestenoase', 'wadi', 'schlucht', 'hochebene', 'tiefebene', 'tal', 'flussdelta', 'kulturlandschaft', 'gletscher', 'flachkueste', 'steilkueste', 'vulkan', 'kontinent', 'wueste', 'suempfe_moore', 'see', 'insel', 'inselgruppe', 'sonstiges',
+    $allowedSubtypes = ['region', 'fluss', 'meer', 'gebirge', 'berggipfel', 'wald', 'urwald', 'steppe', 'huegelland', 'tundra', 'kueste', 'ebene', 'graslandschaft', 'auenlandschaft', 'flussland_flusstal', 'dschungel', 'wuestenoase', 'wadi', 'schlucht', 'hochebene', 'tiefebene', 'tal', 'flussdelta', 'kulturlandschaft', 'gletscher', 'schneelandschaft', 'eislandschaft', 'flachkueste', 'steilkueste', 'vulkan', 'kontinent', 'wueste', 'suempfe_moore', 'see', 'insel', 'inselgruppe', 'sonstiges',
         // 🔴 01.09.2026 (Editorenwunsch): drei FREIE Label-Arten in der Familie von
         // Berggipfel und Vulkan -- sie haben KEIN Flaechen-Gegenstueck und stehen deshalb
         // nur hier, nicht im Seed.

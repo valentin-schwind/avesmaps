@@ -57,6 +57,8 @@ const AVESMAPS_REPORT_TYPES = [
     'gletscher' => ['type' => 'label', 'subtype' => 'gletscher'],
     'flachkueste' => ['type' => 'label', 'subtype' => 'flachkueste'],
     'steilkueste' => ['type' => 'label', 'subtype' => 'steilkueste'],
+    'schneelandschaft' => ['type' => 'label', 'subtype' => 'schneelandschaft'],
+    'eislandschaft' => ['type' => 'label', 'subtype' => 'eislandschaft'],
     'comment' => ['type' => 'comment', 'subtype' => 'comment'],
     'sonstiges' => ['type' => 'label', 'subtype' => 'sonstiges'],
     'weg' => ['type' => 'path', 'subtype' => 'weg'],

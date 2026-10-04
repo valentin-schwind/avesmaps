@@ -417,6 +417,11 @@
 	--color-ecosystem-vegetation-suempfe-moore: #2f4a2a;    /* swamp and moor, dark green */
 	--color-ecosystem-vegetation-steppe: #a8bd8a;           /* steppe, pale green */
 	--color-ecosystem-vegetation-tundra: #6f9d94;           /* tundra, blue-green */
+	/* Owner 2026-10-04. Schnee und Eis liegen als LANDBEDECKUNG auf der Vegetationsebene. Beide stehen im kalten Weiss-Blau-Bereich,
+	   den sonst nur der Gletscher (#bcd6e0, topographisch) und die Tundra (#6f9d94, blaugruen und dunkler) besetzen: Schnee ist deutlich
+	   HELLER als der Gletscher, Eis deutlich BLAUER und gesaettigter -- keine der beiden Farben ist mit dem See (--color-water) zu verwechseln. */
+	--color-ecosystem-vegetation-schneelandschaft: #edf3f7; /* snow cover, near-white with a cold cast -- lighter than the glacier */
+	--color-ecosystem-vegetation-eislandschaft: #8ec3e0;    /* ice cover, clear ice blue -- stronger than the glacier, paler than the lake */
 	--color-ecosystem-vegetation-auenlandschaft: #4f9e35;   /* floodplain, vivid green */
 	--color-ecosystem-vegetation-wueste: #e0c74e;           /* desert, yellow */
 	--color-ecosystem-vegetation-graslandschaft: #8fbf6a;   /* grassland, soft green */
