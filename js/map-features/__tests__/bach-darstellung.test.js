@@ -122,6 +122,7 @@ assert.strictEqual(isWayLabelEligible(bach, ctxBei(5)), true, "Kanal A: ab z5 sp
 // ohnehin von selbst, weil die Pfeile pruefen, ob die gezeichnete Linie auf der Karte liegt.
 const pfeile = ohneKommentare(lies("js/map-features/map-features-river-flow-arrows.js"));
 assert.ok(/pathBreitenFaktor\(/.test(pfeile), "die Pfeile lesen denselben Faktor wie die Linie");
+assert.ok(pfeile.includes("Math.max(linienFaktor, ARROW_MIN_MASSSTAB)") && pfeile.includes("ARROW_MIN_MASSSTAB = 1;"), "aber nie kleiner als der Mindestfaktor: auf einem Bach sah der Editor das halbe Dreieck nicht");
 assert.ok(/function drawArrow\([^)]*massstab/.test(pfeile), "und reichen ihn bis ins Zeichnen durch");
 assert.ok(/moveTo\(8 \* massstab, 0\)/.test(pfeile), "die Pfeilspitze wird mitskaliert");
 assert.ok(/lineWidth = 1\.5 \* massstab/.test(pfeile), "die Kontur des Pfeils ebenso");

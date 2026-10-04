@@ -9,6 +9,11 @@
 	const PANE_NAME = "avesmapsRiverFlowArrowPane";
 	const ARROW_SPACING_PX = 56;
 	const ARROW_MIN_ZOOM = 1;
+	// 🔴 Ein Pfeil ist nie kleiner als dieser Faktor, auch wenn seine Linie schmaler ist (Owner 04.10.2026:
+	// „die editoren sehen nix“ -- auf einem Bach, Breitenfaktor 0,5, war das Dreieck 6,5 x 5,5 px).
+	// Er gilt nur, solange die Linie ueberhaupt liegt (Faktor > 0): bei 0 ist der Weg von der Karte und
+	// der Pfeil mit ihm.
+	const ARROW_MIN_MASSSTAB = 1;
 
 	function ready() {
 		// typeof map.createPane guards against the pre-bootstrap window: until bootstrap.js
@@ -146,7 +151,8 @@
 				if (!Array.isArray(rawCoordinates) || rawCoordinates.length < 2) {
 					return;
 				}
-				const massstab = (typeof pathBreitenFaktor === "function") ? pathBreitenFaktor(path, map.getZoom()) : 1;
+				const linienFaktor = (typeof pathBreitenFaktor === "function") ? pathBreitenFaktor(path, map.getZoom()) : 1;
+				const massstab = linienFaktor > 0 ? Math.max(linienFaktor, ARROW_MIN_MASSSTAB) : 0;
 				const displayCoordinates = displayCoordinatesFor(path, rawCoordinates);
 				// Walk in FLOW direction: reverse-drawn rivers are walked back-to-front.
 				const coordinates = dir === "forward" ? displayCoordinates : [...displayCoordinates].reverse();
