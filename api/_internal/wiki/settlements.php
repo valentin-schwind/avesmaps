@@ -24,6 +24,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/../coat-url.php';
 // avesmapsIstBauwerksklasse -- der Riegel im Bauwerks-Upsert gegen eine Siedlungsklasse.
 require_once __DIR__ . '/../ortsklassen.php';
+// Die EINE Zerlegung von Wikilinks (Regex) -- avesmapsWikiSettlementLinkTargets unten ruft sie, statt eine
+// zweite Abschrift zu fuehren (Export der Linkziele, 05.10.2026).
+require_once __DIR__ . '/link-ziele.php';
 
 // Siedlungs-WikiSync-VERBINDUNG (additiv). Verbindet ein Orts-Feature (feature_type=location)
 // mit seinem Wiki-Datensatz ({{Infobox Siedlung}}) und schreibt die Infobox-Felder als
@@ -754,23 +757,12 @@ function avesmapsWikiSettlementClearCoat(PDO $pdo, string $publicId, bool $dryRu
  * @return array<string,string> Anzeigetext => Linkziel (nur wo beide abweichen bzw. ein Link existiert)
  */
 function avesmapsWikiSettlementLinkTargets(string $rawValue): array {
-    if (trim($rawValue) === '' || !str_contains($rawValue, '[[')) {
-        return [];
-    }
-    if (preg_match_all('/\[\[\s*([^\]\|#<>\[]+?)\s*(?:#[^\]\|]*)?(?:\|([^\]]*))?\]\]/u', $rawValue, $matches, PREG_SET_ORDER) < 1) {
-        return [];
-    }
-
+    // Die Zerlegung steht in link-ziele.php. Hier bleibt nur die alte TAFEL: Anzeigetext => Ziel, der
+    // erste Treffer je Anzeigetext gewinnt (unveraendert -- assign_to und seine Leser haengen daran).
     $out = [];
-    foreach ($matches as $match) {
-        $target = trim((string) ($match[1] ?? ''));
-        $label = trim((string) ($match[2] ?? '')); // leer bei [[Name]]
-        if ($target === '') {
-            continue;
-        }
-        $key = $label !== '' ? $label : $target;
-        if (!isset($out[$key])) {
-            $out[$key] = $target;
+    foreach (avesmapsWikiLinkZielePaare($rawValue) as $paar) {
+        if (!isset($out[$paar['anzeige']])) {
+            $out[$paar['anzeige']] = $paar['ziel'];
         }
     }
 

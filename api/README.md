@@ -498,6 +498,8 @@ The following endpoints are used by the Avesmaps app. They are reachable, but no
 /api/app/territory-detail.php
 /api/app/track.php
 /api/app/visitor-metrics.php
+/api/app/wiki-linkziele-export.php
+/api/app/wiki-zuordnung-export.php
 ```
 
 **Two of them need a sign-in (since 2026-09-14).** `political-territories.php` answers `GET action=layer` for everyone; every other GET action needs an editor session (401 without a session, 403 for a reviewer), except `change_log`, `geometry_inventory` and `geometry_collision`, which stay at reviewer level. The public set is an allow-list, so a new GET action is protected by default. `political-territory-wiki.php` needs an editor session altogether. Both used to hand out raw coat-of-arms URLs past the licence gate and the coat kill switch.
@@ -590,6 +592,54 @@ GET /api/app/political-territories-export.php
   is large (several MB) and a `304` still costs one full read — fetch it on demand, never in a loop.
 - The old endpoint is unchanged: `political-territories.php?action=export` does not exist and would be
   editor-only like every GET action outside the public allow-list.
+
+### `GET /api/app/wiki-linkziele-export.php` and `GET /api/app/wiki-zuordnung-export.php` — wiki link targets
+
+Public and read-only since 2026-10-05, built for Avesmaps3D so that every map object named in a wiki
+infobox field can be linked **by its wiki key, never by its name** (owner decision 2026-09-08, "the wiki
+assignment wins"). The two answers are meant to be joined on `wiki_key` / `ziel_key`. No session, nothing
+written, no live request to the wiki. Details and example answers: `docs/wiki-linkziele-export.md`.
+
+```text
+GET /api/app/wiki-linkziele-export.php   (X1)
+-> { "ok": true, map_revision, ecosystem_revision, territories_revision, aliase_stempel,
+     "dump": { run_id, abgeschlossen },
+     "kopf": { objekte_je_art, artikel: { mit_wikitext, felder_befuellt, felder_mit_link, links_gesamt,
+               links_pipe, ziele_verschieden, ziele_mit_kartenobjekt, ziele_ohne_kartenobjekt },
+               haeufigste_ziele_ohne_kartenobjekt (top 30), vorlagen_in_feldern, seiten_schluesselkollision },
+     "objekte": [ { public_id, art, wiki_key, ns, ns_name, seite_art, seite_titel,
+                    felder: { <field>: [ { anzeige, ziel, ns, ns_name, ziel_key, weiterleitung_auf? } ] } } ],
+     "ohne_wikitext": [ { public_id, art, wiki_key, grund } ] }
+
+GET /api/app/wiki-zuordnung-export.php   (X2)
+-> { "ok": true, map_revision, ecosystem_revision, territories_revision, aliase_stempel,
+     "kopf": { objekte_mit_zuweisung, objekte_ohne_schluessel, verschiedene_schluessel,
+               je_art: { <art>: { zugewiesen, ohne_zuweisung } } },
+     "objekte": [ { public_id, art, wiki_url, wiki_key, wiki_titel, ns, ns_name, weiterleitung_auf?, … } ] }
+```
+
+- **The key is one rule for both sides** (`avesmapsWikiLinkzieleKey`): normalise the title, look the slug up in
+  `wiki_redirect_alias`, otherwise `wiki:` + slug (the house fold table, so `Gareth` is `wiki:gareth` and
+  `Fürstentum Kosch` is `wiki:f-rstentum-kosch`). The namespace stays inside the key
+  (`wiki:inoffiziell-dju-imen` ≠ `wiki:dju-imen`) **and** is given as a number: `ns` (0 = main namespace,
+  222 = `Inoffiziell:`, 218 `DSK:`, 220 `Elf:`, 444 `Ilaris:`) with `ns_name`. `ziel` keeps the raw target
+  with its prefix. `weiterleitung_auf` appears only when a redirect changed the key and names the target
+  page's title and namespace (`null` where the dump does not know the page) — so a redirect across
+  namespaces reads as `ns` against `weiterleitung_auf.ns`.
+- **X1 reads the wikitext from the dump sandbox** (`wiki_dump_hybrid_state`, the newest completed `dump_read`
+  run, named in `dump`), because the stored infobox values have lost the link target. Objects whose page the
+  run does not have are listed in `ohne_wikitext` with a reason — never as empty fields.
+- **The fields are an allow-list per page kind** (`AVESMAPS_WIKI_LINKZIELE_FELDER`): the infobox fields the
+  legacy parsers read, plus the eight neighbours; any other infobox field stays out. Only wikilinks count.
+  ⚠️ A template such as `{{Pol|Baronie Raulsmark}}` is **not** a link of this export; the head counts them
+  (`vorlagen_in_feldern`) so the gap is visible.
+- **X2 is only what is assigned**: the map nest (`wiki_settlement` / `wiki_region` / `wiki_path` /
+  `wiki_powerline`) with a `wiki_url`, never the flat `wiki_url` (that one is guessed); landscape areas by
+  `wiki_url` or `wiki_region_key`; territories by a stored `wiki:` key. Nothing is derived from a name. The
+  number of objects without an assignment is given per `art`.
+- Stamps, ETag and `503 data_changing` work like on `political-territories-export.php`; the stamps also
+  cover the territory table, the redirect table and the dump run. ⚠️ X1 is large (about 10 MB uncompressed) —
+  fetch it on demand, never in a loop.
 
 ## Machine access: the semantic SVG export
 
