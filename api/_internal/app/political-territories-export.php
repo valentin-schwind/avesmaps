@@ -68,12 +68,33 @@ declare(strict_types=1);
 // ⚠️ Doppelt verwendete PDO-Platzhalter sind ein FEHLER (MySQL, native Prepares: HY093) -- jede Abfrage
 // hier nennt jeden Platzhalter genau einmal; der Test haelt das fest.
 
+//
+// ⭐ SEIT 05.10.2026 ZWEI OBJEKTE MEHR JE GEBIET (Legacy-Export E4, Auftrag Avesmaps3D 04.10.2026):
+//   `detail`  die wirksamen Detailfelder wie in der Infobox (api/app/territory-detail.php) -- Override vor Staging,
+//             ueber DIESELBE Regel (territory-detail-felder.php). Je Feld: der Wert, "" fuer einen BEWUSST leeren
+//             Override, null fuer „kein Wert". `detail_overrides` nennt die Felder, deren Wert aus dem Override
+//             stammt -- auch die leeren.
+//   `coat`    der Wappenzustand: `state` (undecided = keine redaktionelle Entscheidung, none = ausdruecklich kein
+//             Wappen, set = redaktionell gesetzt), welches Feld gewinnt (`source`: override | territory | staging),
+//             die Art der Datei (`origin`), die Adresse OHNE `?v=`, Lizenzcode, Lizenz-Klartext, Urheber, Nennung,
+//             und zwei Wahrheitswerte: `public` (Lizenz-Gate bestanden) und `shown` (dazu der Herkunfts-Schalter an).
+//   💣 Der heutige Export unterschied „kein Entscheid" nicht von „ausdruecklich keins" (1.275 leere Felder, 545 mit
+//   Wiki-Adresse) und nannte 53 lokalisierte Wiki-Kopien `own`. Die drei alten Felder `coat_of_arms_url`,
+//   `coat_license_status`, `coat_origin` bleiben unveraendert stehen (Rueckwaertsvertrag).
+//   🔴 Die Hausregel gilt weiter: ein Wappen unter NICHT oeffentlicher Lizenz verraet weder Adresse noch Lizenz,
+//   Herkunft, Urheber oder Nennung -- `coat` nennt dann nur seinen Zustand und `public: false`. Die volle Wahrheit
+//   steht im privaten Medien-Migrationsexport (api/edit/migration/media-export.php, nur Admin).
+//   ⚠️ Staging und Overrides werden hier STRENG gelesen (ein Fehler ist ein 500). Der geteilte Gate-Leser
+//   avesmapsLoadSettlementCoatGateInputs faengt Fehler ab und liefert dann LEER -- fuer eine Kartenanzeige richtig,
+//   fuer einen Export, den Avesmaps3D ablegt, waere das ein stilles „kein Wappen" fuer alle Gebiete.
+
 require_once __DIR__ . '/../political/territory.php';
 require_once __DIR__ . '/../political/territories-support.php';
 require_once __DIR__ . '/../political/territories-read.php';
 require_once __DIR__ . '/../political/territories-geometry.php';
 require_once __DIR__ . '/../coat-url.php';
 require_once __DIR__ . '/coat-display.php';
+require_once __DIR__ . '/territory-detail-felder.php';
 
 // Die Felder je Gebiet, in dieser Reihenfolge. Nichts davon traegt eine Person oder eine Editornotiz.
 // `updated_at` baut `avesmapsPoliticalTerritoryRowToPublic` nicht; die Bibliothek setzt es aus der Zeile.
@@ -106,6 +127,54 @@ const AVESMAPS_POLITICAL_TERRITORIES_EXPORT_COAT_FIELDS = [
     'coat_of_arms_url',
     'coat_license_status',
     'coat_origin',
+];
+
+// E4: die drei Objekte, die die Bibliothek je Gebiet SELBST baut (siehe Kopf der Datei).
+const AVESMAPS_POLITICAL_TERRITORIES_EXPORT_DETAIL_OBJECT_FIELDS = ['detail', 'detail_overrides', 'coat'];
+
+// Die Felder in `detail`, in dieser Reihenfolge (Auftrag E4). `name`, `type`, `status` und `wiki_url` stehen schon am
+// Gebiet selbst und fehlen hier deshalb.
+const AVESMAPS_POLITICAL_TERRITORIES_EXPORT_DETAIL_FIELDS = [
+    'continent',
+    'founded_text',
+    'dissolved_text',
+    'form_of_government',
+    'capital_name',
+    'seat_name',
+    'ruler',
+    'language',
+    'currency',
+    'population',
+    'founder',
+    'political',
+    'trade_zone',
+    'trade_goods',
+    'geographic',
+    'blazon',
+    'affiliation_raw',
+];
+
+// Die Felder in `coat`, in dieser Reihenfolge.
+const AVESMAPS_POLITICAL_TERRITORIES_EXPORT_WAPPEN_FELDER = [
+    'state',
+    'source',
+    'origin',
+    'url',
+    'license_status',
+    'license',
+    'author',
+    'attribution',
+    'public',
+    'shown',
+];
+
+// Die Override-Schluessel des Wappens (wiki_territory_model.metadata_overrides_json; geschrieben vom Upload,
+// der Lokalisierung und „Entfernen" im Sync-Monitor).
+const AVESMAPS_POLITICAL_TERRITORIES_EXPORT_WAPPEN_OVERRIDE_KEYS = [
+    'coat_of_arms_url',
+    'coat_of_arms_license_status',
+    'coat_of_arms_author',
+    'coat_of_arms_note',
 ];
 
 // Die Felder je Flaeche. `territory_public_id` und `updated_at` stammen aus der Abfrage, nicht aus dem Mapper.
@@ -200,6 +269,230 @@ function avesmapsPoliticalTerritoriesExportSchalter(PDO $pdo, string $schluessel
 }
 
 /**
+ * Die Staging-Zeilen (political_territory_wiki_test) aller Gebiete: wiki_key -> Zeile. STRENG -- ein Lesefehler
+ * wirft (siehe Kopf der Datei). Nur die Spalten, die `detail` und `coat` brauchen.
+ *
+ * @return array<string, array<string,mixed>>
+ */
+function avesmapsPoliticalTerritoriesExportStaging(PDO $pdo): array
+{
+    $statement = $pdo->query(
+        'SELECT wiki_key, continent, founded_text, dissolved_text, form_of_government, capital_name, seat_name, ruler,
+                language, currency, population, founder, political, trade_zone, trade_goods, geographic, blazon,
+                affiliation_raw, coat_of_arms_url, coat_of_arms_license, coat_of_arms_license_status,
+                coat_of_arms_author, coat_of_arms_attribution
+           FROM political_territory_wiki_test'
+    );
+    $zeilen = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
+        $wikiKey = trim((string) ($zeile['wiki_key'] ?? ''));
+        if ($wikiKey !== '') {
+            $zeilen[$wikiKey] = $zeile;
+        }
+    }
+
+    return $zeilen;
+}
+
+/**
+ * Die Overrides (wiki_territory_model.metadata_overrides_json) aller Gebiete: wiki_key -> gelesenes Objekt. STRENG.
+ * ⚠️ `IS NOT NULL`, nie `<> ''`: die Spalte ist JSON, und MySQL lehnt den Vergleich mit '' ab (Fehler 3141).
+ *
+ * @return array<string, array<string,mixed>>
+ */
+function avesmapsPoliticalTerritoriesExportOverrides(PDO $pdo): array
+{
+    $statement = $pdo->query(
+        'SELECT wiki_key, metadata_overrides_json FROM wiki_territory_model WHERE metadata_overrides_json IS NOT NULL'
+    );
+    $overrides = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
+        $wikiKey = trim((string) ($zeile['wiki_key'] ?? ''));
+        $gelesen = json_decode((string) ($zeile['metadata_overrides_json'] ?? ''), true);
+        if ($wikiKey !== '' && is_array($gelesen) && $gelesen !== []) {
+            $overrides[$wikiKey] = $gelesen;
+        }
+    }
+
+    return $overrides;
+}
+
+/**
+ * REIN: das `detail`-Objekt und die Liste der Felder, deren Wert aus dem Override stammt.
+ *
+ * Wert: der wirksame Text; "" = ein BEWUSST leerer Override; null = kein Wert (kein Override, Staging leer).
+ *
+ * @return array{detail: array<string,?string>, overrides: list<string>}
+ */
+function avesmapsPoliticalTerritoriesExportDetail(array $staging, array $override): array
+{
+    $wirksam = avesmapsTerritoryDetailWirksam($staging, $override);
+    $detail = [];
+    $ausOverride = [];
+    foreach (AVESMAPS_POLITICAL_TERRITORIES_EXPORT_DETAIL_FIELDS as $feld) {
+        $eintrag = $wirksam[$feld];
+        if ($eintrag['override']) {
+            $ausOverride[] = $feld;
+            $detail[$feld] = $eintrag['wert'];
+        } else {
+            $detail[$feld] = $eintrag['wert'] === '' ? null : $eintrag['wert'];
+        }
+    }
+
+    return ['detail' => $detail, 'overrides' => $ausOverride];
+}
+
+/**
+ * REIN: was fuer eine Datei eine Wappen-Adresse meint.
+ *
+ *   custom          ein Upload in unserem Speicher (`/uploads/wappen/<slug>-custom.<ext>`, avesmapsWikiSyncMonitorUploadCoat)
+ *   wiki_localized  eine Wiki-Datei, die wir lokal abgelegt haben (`/uploads/…` ohne `-custom`:
+ *                   avesmapsWikiSyncMonitorSaveCoatLocal oder der Wappen-Zwischenspeicher `/uploads/wappen/cache/`)
+ *   wiki_staging    eine Adresse ausserhalb unseres Speichers -- der Wiki-Stand selbst
+ *   null            keine Adresse
+ *
+ * ⚠️ `origin` sagt, WAS die Datei ist, nicht welches Feld gewann (das ist `source`): eine absolute Wiki-Adresse, die
+ * ein Editor per Uebernahme in `political_territory.coat_of_arms_url` kopiert hat, ist `source: territory`, aber
+ * `origin: wiki_staging` -- der Wappen-Resolver nennt sie `own`, und genau diese Verwechslung beseitigt das Feld.
+ */
+function avesmapsPoliticalTerritoriesExportWappenArt(string $url): ?string
+{
+    $url = trim($url);
+    if ($url === '') {
+        return null;
+    }
+    $pfad = (string) (parse_url($url, PHP_URL_PATH) ?? '');
+    if (str_starts_with($url, '/uploads/')) {
+        return preg_match('/-custom\.[a-z0-9]+$/i', $pfad) === 1 ? 'custom' : 'wiki_localized';
+    }
+
+    // Eine Wiki-Adresse, deren Datei im Wappen-Zwischenspeicher liegt, IST eine Wiki-Datei bei uns.
+    return avesmapsPoliticalTerritoriesExportWappenDatei($url) !== null ? 'wiki_localized' : 'wiki_staging';
+}
+
+/**
+ * Die Datei in UNSEREM Speicher, die Legacy fuer eine Wappen-Adresse ausliefert -- oder null.
+ *
+ * ⚠️ Eine absolute Wiki-Adresse zeigt Legacy NUR ueber den Proxy api/app/coat.php, und der liefert ausschliesslich
+ * eine Kopie aus `/uploads/wappen/cache/<sha1(url)>.<ext>`: der Abruf nach draussen ist abgeriegelt
+ * (AVESMAPS_WIKI_DATEI_ABRUF_ERLAUBT = false), ein Fehlschuss ist ein kaputtes Bild. Gefragt wird deshalb dieselbe
+ * Datei, die avesmapsCoatLokaleKopie (coat-url.php) nennt -- ein Dateisystem-LESEN, kein Schreiben. Eine fremde
+ * Adresse (weder `/uploads/` noch das Wiki) liefert Legacy nicht; null.
+ */
+function avesmapsPoliticalTerritoriesExportWappenDatei(string $url): ?string
+{
+    $url = preg_replace('/\?v=\d+$/', '', trim($url)) ?? trim($url);
+    if ($url === '') {
+        return null;
+    }
+    if (str_starts_with($url, '/uploads/')) {
+        return $url;
+    }
+    $kopie = avesmapsCoatLokaleKopie($url);
+
+    return str_starts_with($kopie, '/uploads/') ? $kopie : null;
+}
+
+/**
+ * REIN: alle Fakten eines Gebietswappens -- dieselbe Rangfolge wie das Gate (avesmapsResolveGatedCoat): Override,
+ * dann `political_territory.coat_of_arms_url`, dann der Wiki-Stand. Liefert auch die privaten Angaben (Notiz,
+ * gesetzte Override-Schluessel, die durch „Entfernen" verdeckte Adresse); welche davon hinausgehen, entscheidet der
+ * Aufrufer -- der oeffentliche Export ueber avesmapsPoliticalTerritoriesExportWappenObjekt, der private Medienexport
+ * nennt alle.
+ *
+ * @return array<string,mixed>
+ */
+function avesmapsPoliticalTerritoriesExportWappenFakten(string $eigeneUrl, array $staging, array $override): array
+{
+    $eigeneUrl = trim($eigeneUrl);
+    $stagingUrl = trim((string) ($staging['coat_of_arms_url'] ?? ''));
+    $hatOverrideUrl = array_key_exists('coat_of_arms_url', $override);
+
+    if ($hatOverrideUrl) {
+        $url = trim((string) $override['coat_of_arms_url']);
+        $feld = 'override';
+    } elseif ($eigeneUrl !== '') {
+        $url = $eigeneUrl;
+        $feld = 'territory';
+    } else {
+        $url = $stagingUrl;
+        $feld = $stagingUrl !== '' ? 'staging' : null;
+    }
+    if ($hatOverrideUrl && $url === '') {
+        $zustand = 'none';
+    } elseif ($feld === 'override' || $feld === 'territory') {
+        $zustand = 'set';
+    } else {
+        $zustand = 'undecided';
+    }
+
+    $lizenzAusOverride = array_key_exists('coat_of_arms_license_status', $override);
+    $lizenz = $lizenzAusOverride
+        ? trim((string) $override['coat_of_arms_license_status'])
+        : trim((string) ($staging['coat_of_arms_license_status'] ?? ''));
+    $art = avesmapsPoliticalTerritoriesExportWappenArt($url);
+    // Die Angaben des Wiki-Stands (Klartext, Urheber, Nennung) gehoeren nur zu einem Bild, das die WIKI-Datei IST
+    // und dessen Lizenz niemand ueberschrieben hat. Ein Upload, der nichts angibt, hat keinen Wiki-Urheber.
+    $wikiBild = in_array($art, ['wiki_localized', 'wiki_staging'], true) && !$lizenzAusOverride;
+    $text = static fn (mixed $wert): ?string => ($wert === null || trim((string) $wert) === '') ? null : trim((string) $wert);
+
+    return [
+        'state' => $zustand,
+        'source' => $url === '' ? null : $feld,
+        'origin' => $art,
+        'url' => $url === '' ? null : (preg_replace('/\?v=\d+$/', '', $url) ?? $url),
+        'license_status' => $text($lizenz),
+        'license' => $wikiBild ? $text($staging['coat_of_arms_license'] ?? null) : null,
+        'author' => array_key_exists('coat_of_arms_author', $override)
+            ? $text($override['coat_of_arms_author'])
+            : ($wikiBild ? $text($staging['coat_of_arms_author'] ?? null) : null),
+        'attribution' => $wikiBild ? $text($staging['coat_of_arms_attribution'] ?? null) : null,
+        'public' => $url !== '' && avesmapsMediaLicenseIsPublic($lizenz),
+        // Die Datei, die Legacy wirklich ausliefert (unser Speicher oder die Kopie im Wappen-Zwischenspeicher).
+        'local_url' => $url === '' ? null : avesmapsPoliticalTerritoriesExportWappenDatei($url),
+        // Der Herkunfts-Schalter, dem das Gate folgt: Override und eigenes Feld sind „lokal", der Wiki-Stand „Wiki".
+        'herkunft' => $url === '' ? '' : ($feld === 'staging' ? 'wiki' : 'own'),
+        // Nur privat:
+        'note' => $text($override['coat_of_arms_note'] ?? null),
+        'override_keys' => array_values(array_filter(
+            AVESMAPS_POLITICAL_TERRITORIES_EXPORT_WAPPEN_OVERRIDE_KEYS,
+            static fn (string $schluessel): bool => array_key_exists($schluessel, $override)
+        )),
+        // Die Adresse, die ein „Entfernen" verdeckt -- ohne den leeren Override wuerde sie gelten.
+        'suppressed_url' => $zustand === 'none' ? ($eigeneUrl !== '' ? $eigeneUrl : ($stagingUrl !== '' ? $stagingUrl : null)) : null,
+    ];
+}
+
+/**
+ * REIN: das oeffentliche `coat`-Objekt aus den Fakten. Unter nicht oeffentlicher Lizenz bleiben nur `state`,
+ * `public: false` und `shown: false`; ein abgeschalteter Herkunfts-Schalter nimmt nur die Adresse weg (Herkunft und
+ * Lizenz bleiben genannt, wie bei den drei alten Feldern).
+ * ⚠️ `shown` verlangt zusaetzlich eine Datei, die Legacy ausliefern KANN (avesmapsPoliticalTerritoriesExportWappenDatei):
+ * eine Wiki-Adresse ohne Kopie im Zwischenspeicher steht zwar in den drei alten Feldern, erscheint aber als kaputtes
+ * Bild. `url` bleibt die gespeicherte Adresse -- auch dann, wenn nur die Kopie die Bytes traegt.
+ */
+function avesmapsPoliticalTerritoriesExportWappenObjekt(array $fakten, bool $lokaleWappenAn, bool $wikiWappenAn): array
+{
+    $oeffentlich = (bool) $fakten['public'];
+    $schalterAn = avesmapsCoatHerkunftErlaubt((string) $fakten['herkunft'], $lokaleWappenAn, $wikiWappenAn);
+    $gezeigt = $oeffentlich && $schalterAn && ($fakten['local_url'] ?? null) !== null;
+    $objekt = [
+        'state' => $fakten['state'],
+        'source' => $oeffentlich ? $fakten['source'] : null,
+        'origin' => $oeffentlich ? $fakten['origin'] : null,
+        'url' => ($oeffentlich && $schalterAn) ? $fakten['url'] : null,
+        'license_status' => $oeffentlich ? $fakten['license_status'] : null,
+        'license' => $oeffentlich ? $fakten['license'] : null,
+        'author' => $oeffentlich ? $fakten['author'] : null,
+        'attribution' => $oeffentlich ? $fakten['attribution'] : null,
+        'public' => $oeffentlich,
+        'shown' => $gezeigt,
+    ];
+
+    return avesmapsPoliticalTerritoriesExportProjektion($objekt, AVESMAPS_POLITICAL_TERRITORIES_EXPORT_WAPPEN_FELDER);
+}
+
+/**
  * Die aktiven Gebiete Aventuriens -- was `list` je Gebiet bauen wuerde, ohne den Papierkorb, mit
  * `updated_at`, mit dem geprueften Wappen.
  *
@@ -231,8 +524,9 @@ function avesmapsPoliticalTerritoriesExportGebiete(PDO $pdo, bool $lokaleWappenA
     $statement->execute(['continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT]);
     $zeilen = $statement->fetchAll(PDO::FETCH_ASSOC);
 
-    // Die zwei Wappen-Eingaben EINMAL fuer alle Gebiete (zwei kleine Vollscans), nie je Gebiet.
-    $eingaben = avesmapsLoadSettlementCoatGateInputs($pdo);
+    // Staging und Overrides EINMAL fuer alle Gebiete (zwei Vollscans), nie je Gebiet -- STRENG gelesen (Kopf der Datei).
+    $stagingJeSchluessel = avesmapsPoliticalTerritoriesExportStaging($pdo);
+    $overridesJeSchluessel = avesmapsPoliticalTerritoriesExportOverrides($pdo);
 
     $gebiete = [];
     foreach ($zeilen as $zeile) {
@@ -248,8 +542,9 @@ function avesmapsPoliticalTerritoriesExportGebiete(PDO $pdo, bool $lokaleWappenA
         $gebiet = avesmapsPoliticalTerritoriesExportProjektion($oeffentlich, AVESMAPS_POLITICAL_TERRITORIES_EXPORT_TERRITORY_FIELDS);
 
         $wikiKey = trim((string) ($zeile['wiki_key'] ?? ''));
-        $override = $eingaben['overrides'][$wikiKey] ?? [];
-        $stagingZeile = $eingaben['staging'][$wikiKey] ?? [];
+        // Ohne wiki_key gibt es weder Staging noch Override (wie in territory-detail.php).
+        $override = $wikiKey !== '' ? ($overridesJeSchluessel[$wikiKey] ?? []) : [];
+        $stagingZeile = $wikiKey !== '' ? ($stagingJeSchluessel[$wikiKey] ?? []) : [];
         $aufgeloest = avesmapsSettlementTerritoryCoat(
             trim((string) ($zeile['coat_of_arms_url'] ?? '')),
             $stagingZeile,
@@ -261,6 +556,16 @@ function avesmapsPoliticalTerritoriesExportGebiete(PDO $pdo, bool $lokaleWappenA
         );
         $gebiet['coat_license_status'] = avesmapsPoliticalTerritoriesExportWappenLizenz($aufgeloest, $override, $stagingZeile);
         $gebiet['coat_origin'] = (string) $aufgeloest['herkunft'];
+
+        // E4: Detailfelder und Wappenzustand (Kopf der Datei).
+        $detail = avesmapsPoliticalTerritoriesExportDetail($stagingZeile, $override);
+        $gebiet['detail'] = $detail['detail'];
+        $gebiet['detail_overrides'] = $detail['overrides'];
+        $gebiet['coat'] = avesmapsPoliticalTerritoriesExportWappenObjekt(
+            avesmapsPoliticalTerritoriesExportWappenFakten(trim((string) ($zeile['coat_of_arms_url'] ?? '')), $stagingZeile, $override),
+            $lokaleWappenAn,
+            $wikiWappenAn
+        );
 
         $gebiete[] = $gebiet;
     }
@@ -387,7 +692,7 @@ function avesmapsPoliticalTerritoriesExportAntwort(
  * `map_revision`: dieselbe Zeile wie avesmapsFetchMapRevision (api/app/map-features.php), fehlend = 0 --
  * dieselbe Zahl, die map-features.php als `revision` traegt. Sie hebt sich bei Politik-Schreibvorgaengen
  * NICHT und ist deshalb nur die Klammer zu den Schwester-Dateien.
- * `territories_revision`: der Fingerabdruck der vier Tabellen (siehe Kopf der Datei).
+ * `territories_revision`: der Fingerabdruck der sechs Tabellen (siehe Kopf der Datei und die Liste unten).
  *
  * @return array{map_revision:int, territories_revision:string}
  */
@@ -403,6 +708,11 @@ function avesmapsPoliticalTerritoriesExportStaende(PDO $pdo): array
         ['political_territory_geometry', 'updated_at'],
         ['political_territory_claim', 'updated_at'],
         ['political_territory_wiki', 'synced_at'],
+        // E4 (05.10.2026): `detail` und `coat` lesen das Staging und die Overrides. `synced_at` des Stagings hat
+        // kein ON UPDATE (ein Lizenz-Nachtrag bewegt es nicht -- der Inhalts-ETag schon); `updated_at` des Modells
+        // steigt bei jedem Override.
+        ['political_territory_wiki_test', 'synced_at'],
+        ['wiki_territory_model', 'updated_at'],
     ] as [$tabelle, $zeitspalte]) {
         $zeile = $pdo->query('SELECT COUNT(*) AS anzahl, MAX(' . $zeitspalte . ') AS neuester, MAX(id) AS hoechste FROM ' . $tabelle)
             ->fetch(PDO::FETCH_ASSOC);
@@ -421,7 +731,7 @@ function avesmapsPoliticalTerritoriesExportStaende(PDO $pdo): array
  * 💣 DER GRUND FUER DIE SCHLEIFE. Stand gelesen, dann Daten gelesen: speichert dazwischen jemand, nennt die
  * Antwort einen Stand, der ihre Daten NICHT beschreibt -- und Avesmaps3D haelt vier Dateien fuer
  * gleichstaendig, die es nicht sind. Also vorher und nachher lesen: gleich = in diesem Fenster wurde in
- * diesen vier Tabellen nichts geschrieben. Dieselbe Bauart wie avesmapsEcosystemRegionsExportLesen.
+ * diesen Tabellen nichts geschrieben. Dieselbe Bauart wie avesmapsEcosystemRegionsExportLesen.
  * Nach AVESMAPS_POLITICAL_TERRITORIES_EXPORT_VERSUCHE Fehlschlaegen wird geworfen, statt eine Antwort mit
  * falschem Stand zu geben (der Endpunkt macht daraus ein 503 mit Retry-After).
  *

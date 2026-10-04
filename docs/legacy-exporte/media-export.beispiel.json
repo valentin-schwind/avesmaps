@@ -1,0 +1,53 @@
+{
+    "ok": true,
+    "map_revision": 812,
+    "media_revision": "media-490d26b299f46ffa",
+    "switches": {
+        "settlement_images": true,
+        "coats_local": true,
+        "coats_wiki": true,
+        "citymaps": true,
+        "citymap_previews": true,
+        "game_literature": true,
+        "game_literature_covers": true
+    },
+    "counts": {
+        "items": 9,
+        "by_class": {
+            "citymap_full": 1,
+            "citymap_preview": 1,
+            "literature_cover": 2,
+            "settlement_coat": 2,
+            "settlement_image": 2,
+            "territory_coat": 1
+        }
+    },
+    "items": [
+        {
+            "legacy_media_key": "settlement-image:ort-1:/uploads/siedlungen/ort-1/ki.webp",
+            "media_class": "settlement_image",
+            "subject_kind": "place",
+            "subject_public_id": "ort-1",
+            "role": "gallery",
+            "sort_order": 2,
+            "local_url": "/uploads/siedlungen/ort-1/ki.webp",
+            "origin": "upload",
+            "legacy_rights_code": "ai_generated",
+            "legacy_public": true,
+            "suppressed": false
+        },
+        {
+            "legacy_media_key": "territory-coat:p-custom:override:/uploads/wappen/custom-custom.png",
+            "media_class": "territory_coat",
+            "subject_kind": "territory",
+            "subject_public_id": "p-custom",
+            "role": "coat",
+            "sort_order": 0,
+            "local_url": "/uploads/wappen/custom-custom.png",
+            "origin": "custom",
+            "legacy_rights_code": "own_work",
+            "legacy_public": true,
+            "suppressed": false
+        }
+    ]
+}

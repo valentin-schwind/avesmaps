@@ -298,6 +298,11 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
         }
     }
     $columnExists = static fn (string $column): bool => isset($existingColumns[$column]);
+    // 💣 SEIT 05.10.2026 HEILT DER OEFFENTLICHE KATALOG-GET NICHT MEHR SELBST (Auftrag Avesmaps3D: „GET muss lesend
+    // sein"). Wer hier eine Spalte ergaenzt UND sie in avesmapsCitymapsReadCatalog liest, bekommt nach dem Deploy auf
+    // dem GET eine 500 -- die Sammlung ist weg, bis ein Editor den Karten-Editor oeffnet (dessen Verteiler ruft dieses
+    // Ensure vor jeder Aktion). Also: Spalte zuerst ausliefern und einmal anlegen lassen, ERST DANACH lesen.
+    // citymaps-get-schreibfrei-test.php haelt fest, dass jede gelesene Spalte hier ueberhaupt angelegt wird.
     // thumb_auto_url: the "Autoget" preview, crawled off the map's own page. EDITOR-ONLY, BY CONSTRUCTION
     // (owner decision): it is a third party's image and we hold no licence for it, so it exists purely so
     // an editor can recognise the map in the list. It gets its own column rather than a flag on
@@ -494,8 +499,11 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
  * Index-Scan ueber 536 Zeilen -- deshalb braucht er keine Frist und keinen app_setting-Eintrag.
  *
  * ⚠️ EIN Fenster bleibt, und es ist Sekunden breit: setzt ein Editor eine Karte von „farbig" auf
- * „unbekannt", BEVOR dieser Lauf sie je gesehen hat, holt er sie einmal zurueck. Der erste Besucher
- * nach dem Deploy schliesst es -- der oeffentliche Katalog ruft ihn.
+ * „unbekannt", BEVOR dieser Lauf sie je gesehen hat, holt er sie einmal zurueck. Seit dem 05.10.2026
+ * ruft ihn NUR NOCH der Editor-Verteiler (api/edit/map/citymaps.php, vor JEDER Aktion, auch list/detail) --
+ * also immer, bevor ein Editor eine Karte ueberhaupt sieht; das Fenster ist damit zu. Der oeffentliche
+ * Katalog schreibt nicht mehr (Auftrag Avesmaps3D 04.10.2026) und ergaenzt color_mode lesend nach derselben
+ * Regel (avesmapsCitymapColorModeLesend).
  *
  * ⚠️ NICHT aus avesmapsCitymapsEnsureTables rufen (siehe dort) und nicht aus einer offenen
  * Transaktion: er steht neben DDL, und MySQL committet bei DDL implizit.
@@ -537,6 +545,19 @@ function avesmapsSetCitymapsEnabled(PDO $pdo, bool $enabled): array
 function avesmapsCitymapPreviewsEnabled(PDO $pdo): bool
 {
     return avesmapsAppSettingGet($pdo, AVESMAPS_CITYMAP_PREVIEWS_SETTING, '1') !== '0';
+}
+
+// Die zwei Schalter fuer den OEFFENTLICHEN Katalog-GET -- ohne DDL und streng (ein Lesefehler wirft, er wird nie
+// zu „an"). Auftrag Avesmaps3D 04.10.2026: GET /api/app/citymaps.php darf keinerlei Schemaheilung ausloesen; die
+// zwei Funktionen darueber legen app_setting an und bleiben den Editor-Pfaden.
+function avesmapsCitymapsEnabledLesend(PDO $pdo): bool
+{
+    return avesmapsAppSettingGetStreng($pdo, AVESMAPS_CITYMAPS_SETTING, '1') !== '0';
+}
+
+function avesmapsCitymapPreviewsEnabledLesend(PDO $pdo): bool
+{
+    return avesmapsAppSettingGetStreng($pdo, AVESMAPS_CITYMAP_PREVIEWS_SETTING, '1') !== '0';
 }
 
 function avesmapsSetCitymapPreviewsEnabled(PDO $pdo, bool $enabled): array
@@ -663,6 +684,23 @@ function avesmapsCitymapColorMode(mixed $raw): ?string
         return 'graustufen';
     }
     return in_array($value, AVESMAPS_CITYMAP_COLOR_MODES, true) ? $value : null;
+}
+
+/**
+ * REIN: der Farbmodus, wie ihn die Rueckfuellung schreiben WUERDE -- fuer den Lesepfad, der nicht mehr schreibt.
+ *
+ * Genau die Bedingung von avesmapsCitymapsEnsureColorModeBackfill (`color_mode IS NULL AND is_color IS NOT NULL`)
+ * und genau ihr Ergebnis (`is_color = 1` -> farbig, jeder andere Wert -> graustufen). Sonst gilt die gespeicherte
+ * Spalte. Damit ist die oeffentliche Antwort vor und nach der Rueckfuellung Zeichen fuer Zeichen dieselbe.
+ * ⚠️ Nur SQL-NULL loest den Rueckfall aus, nicht '' -- die Rueckfuellung trifft eine leere Zeichenkette ebenso wenig.
+ */
+function avesmapsCitymapColorModeLesend(mixed $colorMode, mixed $isColor): ?string
+{
+    if ($colorMode === null && $isColor !== null) {
+        return (int) $isColor === 1 ? 'farbig' : 'graustufen';
+    }
+
+    return avesmapsCitymapColorMode($colorMode);
 }
 
 function avesmapsCitymapIntOrNull(mixed $raw): ?int
@@ -803,12 +841,22 @@ function avesmapsCitymapEditorThumbUrl(array $row): string
 // point of that sentence is "no N+1", and types/related/sources each need their own batched pass.)
 //
 // Editor-only fields (*_license_note) and non-free images never enter the returned shape at all.
+//
+// 🔴 NUR LESEN, KEIN DDL (seit 05.10.2026, Auftrag Avesmaps3D 04.10.2026). Hier stand avesmapsCitymapsEnsureTables
+// -- fuenf CREATE TABLE, eine information_schema-Abfrage und bis zu 19 ALTER bei JEDEM oeffentlichen Abruf, und der
+// Endpunkt rief davor noch die Rueckfuellung is_color -> color_mode (ein echtes UPDATE). Geheilt und rueckgefuellt
+// wird jetzt nur noch auf den mutierenden Pfaden: der Editor-Verteiler (api/edit/map/citymaps.php) ruft die
+// Rueckfuellung vor JEDER Aktion, Upsert/Sync/Linkcheck rufen das Ensure. Fehlt eine Tabelle, ist das ein 500 --
+// kein stilles „keine Karten".
+// ⚠️ `color_mode` wird hier LESEND aus `is_color` ergaenzt, solange die Rueckfuellung eine Zeile noch nicht
+// gesehen hat (dieselbe Regel wie avesmapsCitymapsEnsureColorModeBackfill: is_color 1 -> farbig, sonst
+// graustufen). Die Rueckfuellung leert is_color in derselben Anweisung -- eine einmal rueckgefuellte oder von Hand
+// gesetzte Zeile hat is_color NULL, der Rueckfall trifft sie also nie und dreht keine Editorentscheidung um.
 function avesmapsCitymapsReadCatalog(PDO $pdo): array
 {
-    avesmapsCitymapsEnsureTables($pdo);
     $rows = $pdo->query(
         "SELECT id, public_id, title, parent_id, map_url, map_url_label, map_local_url, map_license,
-                thumb_url, thumb_local_url, thumb_license, art, color_mode, is_multilevel, is_labeled,
+                thumb_url, thumb_local_url, thumb_license, art, color_mode, is_color, is_multilevel, is_labeled,
                 is_official, is_spoiler, is_paid, has_scale, width_px, height_px, format,
                 valid_from_bf, valid_to_bf, author, publisher, note
            FROM citymap
@@ -821,7 +869,7 @@ function avesmapsCitymapsReadCatalog(PDO $pdo): array
     // Read ONCE, not per row: the switch is one app_setting, and asking for it 419 times would be the
     // same N+1 the political layer is already being punished for. Off = no preview leaves the box at all
     // -- filtered server-side like the licence gate, not blanked in the client.
-    $previewsOn = avesmapsCitymapPreviewsEnabled($pdo);
+    $previewsOn = avesmapsCitymapPreviewsEnabledLesend($pdo);
 
     $ids = array_map(static fn(array $r): int => (int) $r['id'], $rows);
     // id -> public_id, so parent/related can be emitted as PUBLIC ids (the surrogate id never goes out).
@@ -837,10 +885,13 @@ function avesmapsCitymapsReadCatalog(PDO $pdo): array
     $sourcesByPublicId = [];
     try {
         $sourcesByPublicId = avesmapsReadFeatureSourcesByEntityType($pdo, 'citymap');
-    } catch (Throwable) {
+    } catch (Throwable $fehler) {
         // Same reasoning as the link-state decoration in api/app/game-literature.php: a source list is a
         // decoration on the catalog, not the catalog. Losing it must not take the whole map collection
         // down -- the maps still render, just without their source line.
+        // ⚠️ Seit der Leser kein Ensure mehr faehrt (05.10.2026), heisst ein Fehler hier „Abfrage kaputt", nicht
+        // nur „noch nie angelegt" -- er wird protokolliert, sonst sieht er exakt aus wie „keine Quellen".
+        error_log('citymaps: Quellen nicht lesbar: ' . $fehler->getMessage());
         $sourcesByPublicId = [];
     }
 
@@ -857,7 +908,7 @@ function avesmapsCitymapsReadCatalog(PDO $pdo): array
             'map_local_url' => avesmapsCitymapPublicMapLocalUrl($row),
             'thumb' => $previewsOn ? avesmapsCitymapPublicThumbUrl($row) : '',
             'art' => (string) ($row['art'] ?? ''),
-            'color_mode' => avesmapsCitymapColorMode($row['color_mode'] ?? null),
+            'color_mode' => avesmapsCitymapColorModeLesend($row['color_mode'] ?? null, $row['is_color'] ?? null),
             'is_multilevel' => avesmapsCitymapTriBoolOut($row['is_multilevel']),
             'is_labeled' => avesmapsCitymapTriBoolOut($row['is_labeled']),
             'is_official' => avesmapsCitymapTriBoolOut($row['is_official']),

@@ -94,10 +94,17 @@ $pdo->exec('CREATE TABLE political_territory_claim (
 )');
 $pdo->exec('CREATE TABLE map_features (id INTEGER PRIMARY KEY, public_id TEXT, is_active INTEGER)');
 $pdo->exec('CREATE TABLE map_revision (id INTEGER PRIMARY KEY, revision INTEGER)');
+// Seit E4 (05.10.2026) liest der Export Detailfelder und Wappenangaben aus Staging und Overrides -- und stempelt
+// beide Tabellen (synced_at bzw. updated_at). Die Spalten wie in sql/schema.sql; die Inhalte prueft
+// political-territories-export-detail-test.php.
 $pdo->exec('CREATE TABLE political_territory_wiki_test (
-    wiki_key TEXT, coat_of_arms_url TEXT, coat_of_arms_license_status TEXT
+    id INTEGER PRIMARY KEY, wiki_key TEXT, continent TEXT, founded_text TEXT, dissolved_text TEXT, form_of_government TEXT,
+    capital_name TEXT, seat_name TEXT, ruler TEXT, language TEXT, currency TEXT, population TEXT, founder TEXT, political TEXT,
+    trade_zone TEXT, trade_goods TEXT, geographic TEXT, blazon TEXT, affiliation_raw TEXT, coat_of_arms_url TEXT,
+    coat_of_arms_license TEXT, coat_of_arms_license_status TEXT, coat_of_arms_author TEXT, coat_of_arms_attribution TEXT,
+    synced_at TEXT
 )');
-$pdo->exec('CREATE TABLE wiki_territory_model (wiki_key TEXT, metadata_overrides_json TEXT)');
+$pdo->exec('CREATE TABLE wiki_territory_model (id INTEGER PRIMARY KEY, wiki_key TEXT, metadata_overrides_json TEXT, updated_at TEXT)');
 
 // Ort 2 ist DEAKTIVIERT und trotzdem der Sitz der Grafschaft: ein haengender Verweis, den der Export nennt statt zu glaetten (H4).
 $pdo->exec("INSERT INTO map_features (id, public_id, is_active) VALUES (1, 'ort-1', 1), (2, 'ort-2', 0)");

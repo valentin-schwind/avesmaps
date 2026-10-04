@@ -483,10 +483,14 @@ The following endpoints are used by the Avesmaps app. They are reachable, but no
 /api/app/ecosystem-areas.php
 /api/app/ecosystem-regions.php
 /api/app/feature-sources.php
+/api/app/feature-sources-export.php
 /api/app/link-status.php
 /api/app/location-reviews.php
+/api/app/location-reviews-export.php
+/api/app/lore-export.php
 /api/app/map-features.php
 /api/app/map-search.php
+/api/app/media-export.php
 /api/app/political-derived-geometry-debug.php
 /api/app/political-territories-export.php
 /api/app/political-territories.php
@@ -499,6 +503,7 @@ The following endpoints are used by the Avesmaps app. They are reachable, but no
 /api/app/track.php
 /api/app/visitor-metrics.php
 /api/app/wiki-linkziele-export.php
+/api/app/wiki-redirects-export.php
 /api/app/wiki-zuordnung-export.php
 ```
 
@@ -592,6 +597,26 @@ GET /api/app/political-territories-export.php
   is large (several MB) and a `304` still costs one full read — fetch it on demand, never in a loop.
 - The old endpoint is unchanged: `political-territories.php?action=export` does not exist and would be
   editor-only like every GET action outside the public allow-list.
+- **Since 2026-10-05 (Legacy export E4) every territory carries three more keys**:
+  - `detail` — the effective detail fields of the infobox (`territory-detail.php`), override before staging, through
+    the SAME rule (`api/_internal/app/territory-detail-felder.php`): `continent, founded_text, dissolved_text,
+    form_of_government, capital_name, seat_name, ruler, language, currency, population, founder, political, trade_zone,
+    trade_goods, geographic, blazon, affiliation_raw`. A value is a string, **`""` for a deliberately empty override**,
+    or `null` for "no value". The BF overrides of founding/dissolution apply as in the infobox (an empty dissolution
+    override reads "besteht").
+  - `detail_overrides` — the fields whose value comes from the override, empty ones included.
+  - `coat` — `{ state, source, origin, url, license_status, license, author, attribution, public, shown }`.
+    `state`: `undecided` (no editorial decision; a wiki coat may still apply), `none` (deliberately no coat — an empty
+    override), `set` (editorially set). `source`: which field won (`override`, `territory`, `staging`). `origin`: what
+    the file is — `custom` (an upload, `…-custom.<ext>`), `wiki_localized` (a wiki file stored by us),
+    `wiki_staging` (the file lives only on the wiki) — a wiki address whose file sits in the coat cache
+    (`/uploads/wappen/cache/<sha1(url)>.<ext>`) counts as `wiki_localized`. `url` is the stored address without `?v=`. `license` (plain
+    text), `author` and `attribution` of the wiki state are only named for the wiki's own picture. `public`: the
+    licence gate passes; `shown`: additionally the origin switch is on AND Legacy can actually serve the file (a
+    wiki address without a cached copy is a broken image, because `coat.php` does not fetch from outside). Under a non-public licence only `state`,
+    `public: false` and `shown: false` go out — never the address, licence, origin or author.
+  - The three old coat fields stay as they were. Staging and overrides are read **strictly** (a read error is a
+    `500`, not "no coat"), and both tables are part of `territories_revision` now.
 
 ### `GET /api/app/wiki-linkziele-export.php` and `GET /api/app/wiki-zuordnung-export.php` — wiki link targets
 
@@ -640,6 +665,71 @@ GET /api/app/wiki-zuordnung-export.php   (X2)
 - Stamps, ETag and `503 data_changing` work like on `political-territories-export.php`; the stamps also
   cover the territory table, the redirect table and the dump run. ⚠️ X1 is large (about 10 MB uncompressed) —
   fetch it on demand, never in a loop.
+
+## Legacy exports for Avesmaps3D (E1–E5)
+
+Read-only exports built on request of Avesmaps3D (2026-10-04,
+`project-control/legacy-requests/2026-10-04-infopanel-domaenen-und-medien-exporte.md` in the avesmaps3D repo). All of
+them follow the pattern of the two exports above: GET only, no session (except export B), no write, no DDL, an
+allow-list of fields (a test fails for every unlisted field), the state read before and after the data (`503
+data_changing` with `Retry-After` after three moving attempts), a weak content ETag also as `X-Avesmaps-ETag`,
+`Cache-Control: no-cache, must-revalidate`, `304` on a match. The shared frame is
+`api/_internal/app/export-rahmen.php`; every test proves the read is write-free three ways (SQLite `PRAGMA
+query_only`, only `SELECT` statements, a hash of the whole database before and after). **Wiki keys go out exactly as
+stored** — the namespace stays part of the slug (`Inoffiziell:Táyârret` → `wiki:inoffiziell-t-y-rret`). Example
+responses (header, two entries, the counters): `docs/legacy-exporte/`. ⚠️ All of them are large and meant to be
+fetched on demand, never in a loop (STRATO).
+
+| Export | Endpoint | Content |
+|---|---|---|
+| E1 | `GET /api/app/map-features.php` | every `source_catalog` entry carries its `wiki_key` when it has one (payload version 28) |
+| E1+ | `GET /api/app/feature-sources-export.php` | the sources migration block: catalog with `url_hash` and `wiki_key`, corpora, **all** links except lore — approved **and** suppressed, with `origin`, `status`, `position` in Legacy's display order, `entity_active` |
+| E1++ | `GET /api/app/wiki-redirects-export.php` | `wiki_redirect_alias`: `alias_slug`, `canonical_wiki_key`, `count` |
+| E2/E2+ | `GET /api/app/lore-export.php` | all lore entries (every status), place rows (tombstones included), rules with conditions and region types, the lore source links with `origin`/`status` (suppressed included) and their catalog rows; `kinds_enabled` |
+| E3 | `GET /api/app/location-reviews-export.php` | visible reviews only, without `ip_hash`, `user_agent`, `request_origin`; counters total/visible/hidden/spam/orphaned |
+| E4 | `GET /api/app/political-territories-export.php` | `detail`, `detail_overrides`, `coat` (above) |
+| E5 A | `GET /api/app/media-export.php` | the public media manifest — exactly what Legacy shows everybody today |
+| E5 B | `GET /api/edit/migration/media-export.php` | **admin session**; every medium incl. non-public ones, suppressions, raw rights codes, notes, authors, upload stamps; plus `game_literature` and `citymaps` blocks with places/links incl. `origin`/`status` (suppressed included), the citymap build key and its own wiki-article assignment |
+
+Notes per export:
+
+- **E1+** `entity_active` is only known for the four soft-deleted map types (settlement, region, path, powerline) and is
+  `null` otherwise; links of deleted objects are listed (the map payload drops them), so orphans stay a finding.
+  `sources_revision` covers the tables plus the per-status distribution (a new tombstone changes neither count nor
+  timestamp); every source write path also raises `map_revision`. Editor ids (`created_by`, `updated_by`) never go
+  out.
+- **E2** `merkmale_json` and `field_origins_json` go out parsed as `merkmale` and `field_origins`. `lore_entry` has no
+  `raw_json` (the raw infobox parameters live in `merkmale`) and `lore_place` has **no `place_kind`** — a place row only
+  carries an unresolved wiki key; nothing is invented. `match_key` is the stored value; Legacy writes it on insert only,
+  so it can be stale after a rename. The unused `image_*` columns and `lore_rule.created_by` stay out. The per-kind
+  switches are the lore kill switch: a disabled kind is withheld with its places, rules and source links (like the
+  public lore endpoint); `kinds_enabled` names the state and `counts.withheld_entries` the number withheld. There is no lore revision counter and the lore editor does not raise
+  `map_revision`; `lore_revision` fingerprints the tables plus the status/origin/relation distributions.
+- **E3** `location_active` (and the orphan counters) mean `map_features.feature_type = 'location' AND is_active = 1`.
+  `hidden` and `spam` may overlap. Hidden and spam rows never go out, not even partly.
+- **E5** media classes: `settlement_image` (role `gallery`, legacy string entries go out as objects with
+  `legacy_form: "string"`), `settlement_coat`, `territory_coat` (the same facts as the E4 `coat`), `citymap_full`,
+  `citymap_preview`, `literature_cover`. `legacy_media_key` is Legacy's identity: `settlement-image:<place>:<url>`,
+  `settlement-coat:<place>:<url>`, `territory-coat:<territory>:<source>:<url>`, `citymap:<map>:full|preview:<url>`,
+  `adventure:<work>:cover:<url>`; a suppression without a file ends in `:none`. `legacy_rights_code` is the raw code,
+  `legacy_public` Legacy's own gate per class — not a new publication approval. Cover `origin`: `upload`, `autoget`,
+  `wiki_sync` (placed by the wiki reconcile, see `cover_source`) or `unknown`. Export A lists an item only when it is
+  public, its switch is on and its subject is public; it never carries notes, authors, stamps or `thumb_auto_url` (the
+  latter is not even read). Export B adds `stored_url, source_url, legacy_source, license_text, author, attribution,
+  note, uploaded_by, uploaded_at, shown, legacy_form, override_keys` and carries login names — it sits behind the
+  `admin` capability (checked before any read) and is sent `Cache-Control: private`. Bytes are not part of either
+  export; the request prefers a read-only copy of `uploads/` from the operator.
+- **`GET /api/app/citymaps.php` writes nothing any more** (since 2026-10-05, same request): no `CREATE`, no
+  `information_schema` probe, no back-fill `UPDATE`. `color_mode` is completed on read by the back-fill's own rule
+  (`avesmapsCitymapColorModeLesend`), so the answer is unchanged; the back-fill itself runs before every action of the
+  editor dispatcher (`api/edit/map/citymaps.php`). The switches are read strictly and without DDL. A missing table is a
+  `500` instead of a silent empty collection.
+- **The public map payload no longer carries a settlement coat's `uploaded_by`, `uploaded_at` and `note`** (found while
+  reviewing these exports: a login name and the internal note reached every visitor). `properties.coat` is an
+  allow-list now (`avesmapsSettlementCoatOeffentlich`); the editor keeps reading the full record from its own endpoint.
+  Same payload version 28 as E1.
+- ⚠️ Every API request — these included — still records one usage row in `api_metric` at shutdown (operational
+  telemetry in `bootstrap.php`, switchable via `config['api_metrics']['enabled']`). It never touches domain data.
 
 ## Machine access: the semantic SVG export
 

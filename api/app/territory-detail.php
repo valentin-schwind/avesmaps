@@ -17,40 +17,12 @@ require_once __DIR__ . '/../_internal/app/coat-display.php';
 require_once __DIR__ . '/../_internal/app/climate-membership.php';
 // For avesmapsEditModeNurFuerEditoren (the gate in front of the editor's view, top of the handler).
 require_once __DIR__ . '/../_internal/auth.php';
+// Die Feldliste und die Regel „Override vor Staging" stehen seit dem 05.10.2026 EINMAL dort -- der oeffentliche
+// Gebietsexport (Legacy-Export E4) liest dieselben wirksamen Werte.
+require_once __DIR__ . '/../_internal/app/territory-detail-felder.php';
 
 const AVESMAPS_TERRITORY_DETAIL_STAGING_TABLE = 'political_territory_wiki_test';
 const AVESMAPS_TERRITORY_DETAIL_MODEL_TABLE = 'wiki_territory_model';
-
-// Felder, die wir in die Infobox heben. Schluessel = Staging-Spalte = Override-Schluessel.
-const AVESMAPS_TERRITORY_DETAIL_FIELDS = [
-    'name',
-    'type',
-    'status',
-    'continent',
-    'founded_text',
-    'dissolved_text',
-    'form_of_government',
-    'capital_name',
-    'seat_name',
-    'ruler',
-    'language',
-    'currency',
-    'population',
-    'founder',
-    'political',
-    'trade_zone',
-    'trade_goods',
-    'geographic',
-    'blazon',
-    'affiliation_raw',
-    'wiki_url',
-];
-
-// Formatiert ein BF-Jahr fuer die Anzeige. 9999 (Ongoing-Sentinel) -> "besteht",
-// negativ -> "<n> v. BF", sonst "<n> BF" (0 BF = Bosparans Fall ist gueltig).
-function avesmapsTerritoryDetailFormatBf(int $year): string {
-    return avesmapsFormatBfYear($year);
-}
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -127,35 +99,9 @@ try {
         $decoded = json_decode($overridesJson, true);
         $overrides = is_array($decoded) ? $decoded : [];
 
-        // 3) Effektiv = Override ?? Staging.
-        foreach (AVESMAPS_TERRITORY_DETAIL_FIELDS as $key) {
-            $value = array_key_exists($key, $overrides)
-                ? (string) $overrides[$key]
-                : (string) ($staging[$key] ?? '');
-            $value = trim($value);
-            if ($value !== '') {
-                $fields[$key] = $value;
-            }
-        }
-
-        // 3b) Gegruendet/Aufgeloest: die STEUERNDEN Werte sind die BF-Spalten (founded_start_bf/
-        //     dissolved_end_bf) — Overrides liegen i.d.R. dort, nicht auf dem *_text. Die Schleife oben
-        //     traegt nur den Text-Override??Staging-Text ein; hier den BF-Override nachziehen, damit die
-        //     Infobox/Editor-Wiki-Daten den effektiven (ueberschriebenen) Zeitwert zeigen.
-        //     Prioritaet: Text-Override (bewusst gesetzt) > BF-Override > Staging-Text.
-        if (!array_key_exists('founded_text', $overrides) && array_key_exists('founded_start_bf', $overrides)) {
-            $bf = trim((string) $overrides['founded_start_bf']);
-            if ($bf === '') {
-                unset($fields['founded_text']);
-            } else {
-                $fields['founded_text'] = avesmapsTerritoryDetailFormatBf((int) $bf);
-            }
-        }
-        if (!array_key_exists('dissolved_text', $overrides) && array_key_exists('dissolved_end_bf', $overrides)) {
-            $bf = trim((string) $overrides['dissolved_end_bf']);
-            // Leerer Override = bewusst "besteht" (z.B. Besatzungs-Korrektur), nicht "kein Wert".
-            $fields['dissolved_text'] = $bf === '' ? 'besteht' : avesmapsTerritoryDetailFormatBf((int) $bf);
-        }
+        // 3) Effektiv = Override ?? Staging, samt der Sonderregel fuer Gruendung/Aufloesung (BF-Override) --
+        //    die Regel steht in api/_internal/app/territory-detail-felder.php; die Infobox zeigt nur Nicht-Leeres.
+        $fields = avesmapsTerritoryDetailInfoboxFelder($staging, $overrides);
 
         // 4) Wappen: canonical precedence (Override -> political_territory -> Staging) + public-domain gate
         //    + cache-bust now live in ONE place (api/_internal/coat-url.php), so this infobox, the map label

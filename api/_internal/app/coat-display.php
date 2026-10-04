@@ -309,6 +309,25 @@ function avesmapsCoatDisplayUrl(string $gatedUrl, bool $coatsEnabled): string
  * das Bild-Gate direkt daneben, und ein Bypass hier waere eine zweite, schwaechere Tuer zu Bildern,
  * die nicht oeffentlich sein duerfen.
  */
+/**
+ * REIN: das Ortswappen, wie es in die OEFFENTLICHE Kartennutzlast darf -- eine Positivliste.
+ *
+ * 🔴 BEFUND VOM 05.10.2026 (Pruefung der Legacy-Exporte fuer Avesmaps3D): map-features.php reichte `properties.coat`
+ * unveraendert durch, sobald das Wappen das Lizenz-Gate bestand. Der Upload-Weg (settlement-coat-upload.php) legt
+ * dort aber den LOGIN-NAMEN des Hochladenden (`uploaded_by`), den Zeitpunkt und die interne Notiz (`note`, oft ein
+ * Prompt) ab -- und jeder Besucher bekam sie. Kein Leser im Browser braucht sie: der Editor holt sein Wappen ueber
+ * den eigenen Endpunkt (avesmapsWikiSettlementCoatInfo) und sieht dort weiter den vollen Datensatz.
+ * ⚠️ Eine Liste, kein Ausschluss: ein Feld, das kuenftig an das Wappen kommt, faellt hier still HERAUS statt still
+ * hinein. Wer eines oeffentlich braucht, traegt es hier ein.
+ *
+ * @param array<string,mixed> $coat
+ * @return array<string,mixed>
+ */
+function avesmapsSettlementCoatOeffentlich(array $coat): array
+{
+    return array_intersect_key($coat, array_flip(['url', 'source', 'license_status', 'author', 'attribution', 'wiki_url']));
+}
+
 function avesmapsSettlementCoatIsPublic(mixed $coat): bool
 {
     if (!is_array($coat)) {

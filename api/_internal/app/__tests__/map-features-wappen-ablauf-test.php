@@ -145,6 +145,24 @@ assert(!isset($r['properties']['coat']['url']) || $r['properties']['coat']['url'
     'und bekommt keines angehaengt -- ein Platzhalter an einem Ort, der nie eines hatte, sieht aus '
     . 'wie Datenverlust');
 
+// ---- 2b. Login-Name und Notiz bleiben im Editor (Befund 05.10.2026) ----------------------------
+// 🔴 Der Upload-Weg legt `uploaded_by` (den Login-Namen), `uploaded_at` und die interne Notiz ins Wappen. Die
+// oeffentliche Nutzlast darf sie nicht tragen -- bei keiner Schalterstellung (avesmapsSettlementCoatOeffentlich).
+foreach ([[true, true], [false, false]] as [$lokal, $wiki]) {
+    $mitStempel = $ortMit('own');
+    $mitStempel['properties_json'] = json_encode(['coat' => [
+        'url' => '/uploads/wappen/own/loc-1-ab.png', 'source' => 'own', 'license_status' => 'ai_generated',
+        'author' => 'Zeichnerin', 'note' => 'GEHEIM-PROMPT', 'uploaded_by' => 'geheim-login', 'uploaded_at' => '2026-10-01T10:00:00Z',
+    ]], JSON_UNESCAPED_SLASHES);
+    $wappen = avesmapsMapFeatureRowToGeoJsonFeature($mitStempel, [], [], true, $lokal, $wiki)['properties']['coat'] ?? [];
+    foreach (['uploaded_by', 'uploaded_at', 'note'] as $privat) {
+        assert(!array_key_exists($privat, $wappen), "2b: 🔴 '$privat' geht nicht in die oeffentliche Nutzlast (lokal=" . var_export($lokal, true) . ')');
+    }
+    assert(($wappen['url'] ?? '') !== '' && ($wappen['source'] ?? '') === 'own', '2b: Adresse und Herkunft bleiben');
+}
+$voll = avesmapsSettlementCoatOeffentlich(['url' => 'u', 'source' => 'wiki', 'license_status' => 'public_domain', 'author' => 'a', 'attribution' => 'n', 'wiki_url' => 'w', 'note' => 'x', 'neu' => 'y']);
+assert(array_keys($voll) === ['url', 'source', 'license_status', 'author', 'attribution', 'wiki_url'], '2b: eine Positivliste -- ein neues Feld faellt heraus');
+
 // ---- 3. Die zwei Schalter sind PARAMETER, nicht Variablen des Hauptskripts ---------------------
 // 💣 DIE ZUSICHERUNG, DIE DEN AUSFALL VERHINDERT HAETTE. Steht sie nicht in der Signatur, greift
 // die Funktion die Werte aus einem Scope ab, in dem es sie nicht gibt.

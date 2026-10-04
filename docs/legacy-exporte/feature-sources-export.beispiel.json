@@ -1,0 +1,89 @@
+{
+    "ok": true,
+    "map_revision": 812,
+    "sources_revision": "src-117aca36ce84d7c9",
+    "counts": {
+        "sources": 3,
+        "corpora": 1,
+        "links": 5,
+        "by_status": {
+            "approved": 4,
+            "suppressed": 1
+        },
+        "by_origin": {
+            "manual": 3,
+            "wiki_publication": 2
+        }
+    },
+    "corpora": [
+        {
+            "corpus_key": "garetien.de",
+            "label": "Garetien-Wiki",
+            "form": "belegstelle",
+            "source_type": "briefspiel",
+            "license": "cc-by-nc-sa-3.0",
+            "attribution": "Beispiel-Autor / garetien.de",
+            "is_official": false
+        }
+    ],
+    "sources": [
+        {
+            "id": 1,
+            "url_hash": "a27b06a80b168014ae20f208792d151367d9d710b64bfc9c280b78f08aba24d8",
+            "wiki_key": null,
+            "url": "https://garetien.de/Moor",
+            "label": "Eupelmunder Moor",
+            "type": "briefspiel",
+            "official": false,
+            "license": "cc-by-nc-sa-3.0",
+            "attribution": "Beispiel-Autor / garetien.de",
+            "corpus": "garetien.de",
+            "own_fields": [
+                "license"
+            ],
+            "no_corpus": false
+        },
+        {
+            "id": 2,
+            "url_hash": "a3e5d48e466f832251068969eb03fe9989104cc2086791e7b798e148e9e9923a",
+            "wiki_key": "wiki:geographia-aventurica",
+            "url": "",
+            "label": "Geographia Aventurica",
+            "type": "regionalspielhilfe",
+            "official": true,
+            "license": null,
+            "attribution": null,
+            "corpus": null,
+            "own_fields": [],
+            "no_corpus": false
+        }
+    ],
+    "links": [
+        {
+            "entity_type": "path",
+            "entity_public_id": "weg-1",
+            "source_id": 2,
+            "source_url_hash": "a3e5d48e466f832251068969eb03fe9989104cc2086791e7b798e148e9e9923a",
+            "status": "suppressed",
+            "origin": "wiki_publication",
+            "reference_kind": "ausfuehrlich",
+            "pages": "40-41",
+            "note": null,
+            "position": 0,
+            "entity_active": true
+        },
+        {
+            "entity_type": "settlement",
+            "entity_public_id": "ort-1",
+            "source_id": 1,
+            "source_url_hash": "a27b06a80b168014ae20f208792d151367d9d710b64bfc9c280b78f08aba24d8",
+            "status": "approved",
+            "origin": "manual",
+            "reference_kind": null,
+            "pages": null,
+            "note": "Handnotiz",
+            "position": 1,
+            "entity_active": true
+        }
+    ]
+}

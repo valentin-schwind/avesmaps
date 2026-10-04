@@ -1,0 +1,208 @@
+{
+    "ok": true,
+    "map_revision": 812,
+    "lore_revision": "lore-3b9e1d7c50a2f846",
+    "kinds_enabled": {
+        "flora": true,
+        "fauna": true,
+        "spezies": false,
+        "ware": true
+    },
+    "counts": {
+        "entries": 3,
+        "withheld_entries": 1,
+        "places": 3,
+        "rules": 2,
+        "rule_terms": 3,
+        "rule_term_types": 3,
+        "orphaned_rule_terms": 1,
+        "sources": 2,
+        "links": 2,
+        "links_by_status": {
+            "approved": 1,
+            "suppressed": 1
+        },
+        "links_by_origin": {
+            "manual": 1,
+            "wiki_publication": 1
+        }
+    },
+    "entries": [
+        {
+            "wiki_key": "wiki:alraune",
+            "kind": "flora",
+            "name": "Alraune",
+            "wiki_title": "Alraune",
+            "wiki_url": "https://de.wiki-aventurica.de/wiki/Alraune",
+            "gruppe": "Heilpflanze",
+            "typ": "Kraut",
+            "lebensraum": "Wald",
+            "synonyme": "Mandragora",
+            "merkmale": {
+                "verbreitung": "[[Weiden]], [[Kosch]]"
+            },
+            "continent": "Aventurien",
+            "origin": "wiki",
+            "status": "active",
+            "field_origins": {
+                "gruppe": "manual"
+            },
+            "match_key": "alraune"
+        },
+        {
+            "wiki_key": "wiki:leinoel",
+            "kind": "ware",
+            "name": "Leinöl",
+            "wiki_title": "Leinöl",
+            "wiki_url": null,
+            "gruppe": null,
+            "typ": null,
+            "lebensraum": null,
+            "synonyme": null,
+            "merkmale": null,
+            "continent": null,
+            "origin": "wiki",
+            "status": "suppressed",
+            "field_origins": null,
+            "match_key": "leinl"
+        }
+    ],
+    "places": [
+        {
+            "entry_wiki_key": "wiki:alraune",
+            "place_wiki_key": "wiki:kosch",
+            "place_title": "Kosch",
+            "relation": "verbreitung",
+            "sort_order": 1,
+            "origin": "wiki",
+            "status": "suppressed"
+        },
+        {
+            "entry_wiki_key": "wiki:alraune",
+            "place_wiki_key": "wiki:inoffiziell-angbarer-kraeutergarten",
+            "place_title": "Inoffiziell:Angbarer Kräutergarten",
+            "relation": "vorkommen",
+            "sort_order": 9999,
+            "origin": "manual",
+            "status": "active"
+        }
+    ],
+    "rules": [
+        {
+            "id": 7,
+            "entry_wiki_key": "wiki:alraune",
+            "relation": "verbreitung",
+            "origin": "manual",
+            "status": "active",
+            "sort_order": 0,
+            "terms": [
+                {
+                    "seq": 0,
+                    "join_op": "und",
+                    "area_public_id": "8d0c2a3e-0000-4000-8000-000000000001",
+                    "climate_from": null,
+                    "climate_to": null,
+                    "region_types": [
+                        {
+                            "kind": "vegetation",
+                            "region_type": "wald"
+                        }
+                    ]
+                },
+                {
+                    "seq": 1,
+                    "join_op": "oder",
+                    "area_public_id": null,
+                    "climate_from": "gemaessigt",
+                    "climate_to": "subtropisch",
+                    "region_types": []
+                }
+            ]
+        },
+        {
+            "id": 8,
+            "entry_wiki_key": "wiki:alraune",
+            "relation": "verbreitung",
+            "origin": "wiki_verbreitung",
+            "status": "active",
+            "sort_order": 0,
+            "terms": [
+                {
+                    "seq": 0,
+                    "join_op": "und",
+                    "area_public_id": null,
+                    "climate_from": null,
+                    "climate_to": null,
+                    "region_types": [
+                        {
+                            "kind": "vegetation",
+                            "region_type": "auwald"
+                        },
+                        {
+                            "kind": "vegetation",
+                            "region_type": "sumpf"
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "sources": [
+        {
+            "id": 1,
+            "url_hash": "66226a29e064b84277de35c54aa294920768df7af6264f9cf8f89e8d36f029ac",
+            "wiki_key": "wiki:zoo-botanica-aventurica",
+            "url": "",
+            "label": "Zoo-Botanica Aventurica",
+            "type": "regionalspielhilfe",
+            "official": true,
+            "license": null,
+            "attribution": null,
+            "corpus": null,
+            "own_fields": [],
+            "no_corpus": false
+        },
+        {
+            "id": 2,
+            "url_hash": "d9a65df94b0e1940c14f3186ec3a199347ce1f8e4a783994fff52cfe6e9f563e",
+            "wiki_key": null,
+            "url": "https://example.org/kraeuterkunde",
+            "label": "Kräuterkunde",
+            "type": "sonstiges",
+            "official": false,
+            "license": null,
+            "attribution": null,
+            "corpus": null,
+            "own_fields": [],
+            "no_corpus": false
+        }
+    ],
+    "links": [
+        {
+            "entity_type": "lore",
+            "entity_public_id": "wiki:alraune",
+            "source_id": 1,
+            "source_url_hash": "66226a29e064b84277de35c54aa294920768df7af6264f9cf8f89e8d36f029ac",
+            "status": "suppressed",
+            "origin": "wiki_publication",
+            "reference_kind": "ausfuehrlich",
+            "pages": "88",
+            "note": null,
+            "position": 0,
+            "entity_active": null
+        },
+        {
+            "entity_type": "lore",
+            "entity_public_id": "wiki:alraune",
+            "source_id": 2,
+            "source_url_hash": "d9a65df94b0e1940c14f3186ec3a199347ce1f8e4a783994fff52cfe6e9f563e",
+            "status": "approved",
+            "origin": "manual",
+            "reference_kind": null,
+            "pages": null,
+            "note": null,
+            "position": 1,
+            "entity_active": null
+        }
+    ]
+}

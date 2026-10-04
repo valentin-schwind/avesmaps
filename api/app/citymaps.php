@@ -12,11 +12,22 @@ declare(strict_types=1);
 //
 // Deliberately NOT part of the map-features payload (§6): a link-state flip would force
 // avesmapsNextMapRevision() and invalidate the whole ~14 MB payload for every client over a marker.
+//
+// 🔴 DIESER GET SCHREIBT NICHTS -- AUCH KEIN SCHEMA (seit 05.10.2026, Auftrag Avesmaps3D 04.10.2026: „GET muss lesend
+// sein"). Bis dahin liefen je Abruf 17 CREATE TABLE IF NOT EXISTS, 12 information_schema-Abfragen und ein echtes
+// UPDATE (die Rueckfuellung is_color -> color_mode). Selbstheilung und Rueckfuellung gehoeren in die mutierenden
+// Pfade: der Editor-Verteiler (api/edit/map/citymaps.php) ruft die Rueckfuellung vor JEDER Aktion, Upsert, Sync und
+// Linkcheck rufen das Ensure. Hier gelten nur Leser ohne DDL; die Schalter werden STRENG gelesen (ein Lesefehler ist
+// ein 500, nie „an" -- es sind Notaus-Schalter). Fehlt eine Tabelle, ist das ein 500 statt einer stillen leeren
+// Sammlung. Gewacht von api/_internal/app/__tests__/citymaps-get-schreibfrei-test.php.
+// ⚠️ Die EINE Ausnahme gilt jeder Anfrage dieses Servers und gehoert nicht zu diesem Endpunkt: der Betriebszaehler
+// `api_metric` (Abschlussroutine in bootstrap.php) zaehlt die Anfrage -- Telemetrie, keine Fachdaten, abschaltbar
+// ueber `config['api_metrics']['enabled']`.
 
 require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/app/citymaps.php';
-// Link states travel with the catalog (Spec §1.7). Read-only here -- the store's DDL is self-healing, so
-// a fresh deploy answers with 'unchecked' everywhere until the first sync runs.
+// Link states travel with the catalog (Spec §1.7). Read-only here -- a fresh deploy answers with 'unchecked'
+// everywhere until the first linkcheck run creates and fills the registry.
 require_once __DIR__ . '/../_internal/linkcheck/store.php';
 
 try {
@@ -40,16 +51,13 @@ try {
     // Kill switch (Spec §3.3): the owner's "emergency off" for the whole collection. Enforced HERE, not
     // in the client -- the rows must not leave the box at all. The flag still ships so the frontend can
     // say why the section is gone rather than silently rendering nothing.
-    if (!avesmapsCitymapsEnabled($pdo)) {
+    if (!avesmapsCitymapsEnabledLesend($pdo)) {
         avesmapsJsonResponse(200, ['ok' => true, 'citymaps' => [], 'citymaps_enabled' => false]);
     }
 
-    // Der Bestand von `is_color` auf `color_mode` (Owner 07.09.2026). Selbstbegrenzend und ohne
-    // Marker -- die Begruendung samt Riegel steht bei der Funktion. Er steht HIER und nicht in der
-    // Bibliothek, weil avesmapsCitymapsEnsureTables aus der RECHEN-Haelfte des Syncs erreicht wird
-    // und die in keine Nutztabelle schreiben darf (sync-plan-purity-test.php).
-    avesmapsCitymapsEnsureColorModeBackfill($pdo);
-
+    // ⚠️ Die Rueckfuellung is_color -> color_mode (Owner 07.09.2026) stand bis zum 05.10.2026 HIER. Sie laeuft jetzt nur
+    // noch im Editor-Verteiler; der Katalog ergaenzt color_mode lesend nach derselben Regel
+    // (avesmapsCitymapColorModeLesend), die Antwort ist also dieselbe.
     $citymaps = avesmapsCitymapsReadCatalog($pdo);
 
     // Decorate each link with its checked state (Spec §1.7, the embedded path): ONE extra query for the
@@ -62,7 +70,9 @@ try {
     $linkStates = [];
     try {
         $linkStates = avesmapsLinkCheckStatesByEntityType($pdo, 'citymap');
-    } catch (Throwable) {
+    } catch (Throwable $fehler) {
+        // Ins Protokoll, nie an den Aufrufer: ohne Ensure ist ein Fehler hier eine kaputte Abfrage, kein Normalfall.
+        error_log('citymaps: Linkstatus nicht lesbar: ' . $fehler->getMessage());
         $linkStates = [];
     }
     foreach ($citymaps as $index => $citymap) {
@@ -85,7 +95,7 @@ try {
         // The pictures are already gone from the payload when this is false (ReadCatalog blanks them).
         // The flag ships so the render can drop the "© Ulisses Spiele" credit with them: no covers on
         // screen means no credit needed -- the same rule the adventure covers follow.
-        'citymap_previews_enabled' => avesmapsCitymapPreviewsEnabled($pdo),
+        'citymap_previews_enabled' => avesmapsCitymapPreviewsEnabledLesend($pdo),
     ]);
 } catch (PDOException $exception) {
     avesmapsErrorResponse(500, 'server_error', 'Citymaps could not be loaded from the database.');

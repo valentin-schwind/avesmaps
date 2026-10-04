@@ -1,0 +1,172 @@
+{
+    "ok": true,
+    "map_revision": 812,
+    "territories_revision": "pt-97e772d5ee6d4fd2",
+    "territories": [
+        {
+            "public_id": "p-reich",
+            "name": "Reich",
+            "short_name": "",
+            "type": "Kaiserreich",
+            "wiki_type": "",
+            "parent_public_id": null,
+            "status": "besteht",
+            "color": "#888888",
+            "opacity": 0.33,
+            "min_zoom": null,
+            "max_zoom": null,
+            "valid_from_bf": null,
+            "valid_to_bf": null,
+            "valid_label": "",
+            "wiki_key": "wiki:reich",
+            "wiki_url": "",
+            "capital_place_public_id": null,
+            "seat_place_public_id": null,
+            "sort_order": 1,
+            "updated_at": "2026-09-01 10:00:00.000",
+            "coat_of_arms_url": "https://de.wiki-aventurica.de/images/reich.png",
+            "coat_license_status": "public_domain",
+            "coat_origin": "wiki",
+            "detail": {
+                "continent": "Aventurien",
+                "founded_text": "900 BF",
+                "dissolved_text": "besteht",
+                "form_of_government": "Monarchie",
+                "capital_name": null,
+                "seat_name": null,
+                "ruler": "Kaiserin Rohaja",
+                "language": "",
+                "currency": null,
+                "population": "1 Mio.",
+                "founder": null,
+                "political": null,
+                "trade_zone": null,
+                "trade_goods": null,
+                "geographic": null,
+                "blazon": null,
+                "affiliation_raw": null
+            },
+            "detail_overrides": [
+                "founded_text",
+                "dissolved_text",
+                "ruler",
+                "language"
+            ],
+            "coat": {
+                "state": "undecided",
+                "source": "staging",
+                "origin": "wiki_localized",
+                "url": "https://de.wiki-aventurica.de/images/reich.png",
+                "license_status": "public_domain",
+                "license": "public domain",
+                "author": "Beispiel-Zeichner",
+                "attribution": null,
+                "public": true,
+                "shown": true
+            }
+        },
+        {
+            "public_id": "p-keins",
+            "name": "Keins",
+            "short_name": "",
+            "type": "Baronie",
+            "wiki_type": "",
+            "parent_public_id": null,
+            "status": "",
+            "color": "#888888",
+            "opacity": 0.33,
+            "min_zoom": null,
+            "max_zoom": null,
+            "valid_from_bf": null,
+            "valid_to_bf": null,
+            "valid_label": "",
+            "wiki_key": "wiki:keins",
+            "wiki_url": "",
+            "capital_place_public_id": null,
+            "seat_place_public_id": null,
+            "sort_order": 4,
+            "updated_at": "2026-09-01 10:00:00.000",
+            "coat_of_arms_url": "",
+            "coat_license_status": "",
+            "coat_origin": "",
+            "detail": {
+                "continent": null,
+                "founded_text": null,
+                "dissolved_text": null,
+                "form_of_government": null,
+                "capital_name": null,
+                "seat_name": null,
+                "ruler": null,
+                "language": null,
+                "currency": null,
+                "population": null,
+                "founder": null,
+                "political": null,
+                "trade_zone": null,
+                "trade_goods": null,
+                "geographic": null,
+                "blazon": null,
+                "affiliation_raw": null
+            },
+            "detail_overrides": [],
+            "coat": {
+                "state": "none",
+                "source": null,
+                "origin": null,
+                "url": null,
+                "license_status": null,
+                "license": null,
+                "author": null,
+                "attribution": null,
+                "public": false,
+                "shown": false
+            }
+        }
+    ],
+    "geometries": [
+        {
+            "public_id": "g-reich",
+            "territory_public_id": "p-reich",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            0,
+                            0
+                        ],
+                        [
+                            10,
+                            0
+                        ],
+                        [
+                            10,
+                            10
+                        ],
+                        [
+                            0,
+                            10
+                        ],
+                        [
+                            0,
+                            0
+                        ]
+                    ]
+                ]
+            },
+            "valid_from_bf": null,
+            "valid_to_bf": null,
+            "min_zoom": null,
+            "max_zoom": null,
+            "updated_at": "2026-09-01 11:00:00.000"
+        }
+    ],
+    "claims": [
+        {
+            "territory_public_id": "p-keins",
+            "claimant_public_id": "p-reich",
+            "sort_order": 1,
+            "source": "manual"
+        }
+    ]
+}

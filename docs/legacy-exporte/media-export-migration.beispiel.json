@@ -1,0 +1,219 @@
+{
+    "ok": true,
+    "map_revision": 812,
+    "media_revision": "media-490d26b299f46ffa",
+    "switches": {
+        "settlement_images": true,
+        "coats_local": true,
+        "coats_wiki": true,
+        "citymaps": true,
+        "citymap_previews": true,
+        "game_literature": true,
+        "game_literature_covers": true
+    },
+    "counts": {
+        "items": 17,
+        "by_class": {
+            "citymap_full": 1,
+            "citymap_preview": 2,
+            "literature_cover": 3,
+            "settlement_coat": 4,
+            "settlement_image": 3,
+            "territory_coat": 4
+        },
+        "shown": 9,
+        "not_public": 4,
+        "suppressed": 3,
+        "game_literature": 3,
+        "citymaps": 2
+    },
+    "items": [
+        {
+            "legacy_media_key": "settlement-image:ort-1:/uploads/siedlungen/ort-1/ki.webp",
+            "media_class": "settlement_image",
+            "subject_kind": "place",
+            "subject_public_id": "ort-1",
+            "role": "gallery",
+            "sort_order": 2,
+            "local_url": "/uploads/siedlungen/ort-1/ki.webp",
+            "origin": "upload",
+            "legacy_rights_code": "ai_generated",
+            "legacy_public": true,
+            "suppressed": false,
+            "stored_url": "/uploads/siedlungen/ort-1/ki.webp",
+            "source_url": null,
+            "legacy_source": null,
+            "license_text": null,
+            "author": null,
+            "attribution": null,
+            "note": "Beispiel: Prompt bzw. Kommentar (roh)",
+            "uploaded_by": "beispiel-login",
+            "uploaded_at": "2026-09-02T10:00:00Z",
+            "shown": true,
+            "legacy_form": "object",
+            "override_keys": null
+        },
+        {
+            "legacy_media_key": "territory-coat:p-keins:override:none",
+            "media_class": "territory_coat",
+            "subject_kind": "territory",
+            "subject_public_id": "p-keins",
+            "role": "coat",
+            "sort_order": 0,
+            "local_url": null,
+            "origin": null,
+            "legacy_rights_code": null,
+            "legacy_public": false,
+            "suppressed": true,
+            "stored_url": "https://de.wiki-aventurica.de/images/keins.png",
+            "source_url": null,
+            "legacy_source": "override",
+            "license_text": null,
+            "author": null,
+            "attribution": null,
+            "note": null,
+            "uploaded_by": null,
+            "uploaded_at": null,
+            "shown": false,
+            "legacy_form": null,
+            "override_keys": [
+                "coat_of_arms_url"
+            ]
+        }
+    ],
+    "game_literature": [
+        {
+            "public_id": "werk-1",
+            "wiki_key": "wiki:inoffiziell-heldenwerk",
+            "title": "Heldenwerk",
+            "status": "approved",
+            "origin": "wiki",
+            "authors": "Autorin A, Autor B",
+            "field_origins": {
+                "title": "manual"
+            },
+            "synced_at": "2026-09-05 10:00:00",
+            "wiki_url": "https://de.wiki-aventurica.de/wiki/Inoffiziell:Heldenwerk",
+            "link_ulisses": null,
+            "link_fshop": "https://fshop.example/held",
+            "cover_url": "/uploads/questcovers/heldenwerk.webp",
+            "cover_license": "permission_granted",
+            "cover_author": "Ulisses",
+            "cover_note": "Beispiel: Rechtenotiz",
+            "cover_uploaded_by": "beispiel-login",
+            "cover_uploaded_at": "2026-09-05 11:00:00",
+            "cover_auto_state": null,
+            "cover_source": null,
+            "places": [
+                {
+                    "sort_order": 0,
+                    "raw_name": "Gareth",
+                    "target_kind": "settlement",
+                    "target_public_id": "ort-1",
+                    "target_wiki_key": "wiki:gareth",
+                    "territory_path": null,
+                    "role": "start",
+                    "origin": "wiki",
+                    "status": "approved",
+                    "created_from_source_id": null
+                },
+                {
+                    "sort_order": 1,
+                    "raw_name": "Punin",
+                    "target_kind": "settlement",
+                    "target_public_id": null,
+                    "target_wiki_key": "wiki:punin",
+                    "territory_path": null,
+                    "role": "play",
+                    "origin": "wiki",
+                    "status": "suppressed",
+                    "created_from_source_id": null
+                }
+            ],
+            "links": [
+                {
+                    "label": "Leseprobe",
+                    "url": "https://ulisses.example/lp",
+                    "is_paid": null,
+                    "sort_order": 0,
+                    "origin": "manual",
+                    "status": "suppressed"
+                }
+            ]
+        }
+    ],
+    "citymaps": [
+        {
+            "public_id": "karte-1",
+            "wiki_key": "index:gareth:ga:1",
+            "title": "Gareth",
+            "status": "approved",
+            "origin": "wiki",
+            "article": {
+                "url": "https://de.wiki-aventurica.de/wiki/Gareth-Karte",
+                "key": "wiki:gareth-karte",
+                "title": "Gareth-Karte",
+                "origin": "manual",
+                "no_article": false
+            },
+            "author": "Zeichnerin",
+            "map_url": "https://shop.example/gareth",
+            "map_url_label": "Gareth-Box",
+            "is_paid": true,
+            "map_license": "own_work",
+            "map_license_note": "Beispiel: Rechtenotiz",
+            "map_license_author": "Karten-Urheber",
+            "map_uploaded_by": "beispiel-login",
+            "map_uploaded_at": "2026-09-04 10:00:00",
+            "thumb_license": "permission_granted",
+            "thumb_license_note": null,
+            "thumb_license_author": "Ulisses",
+            "thumb_uploaded_by": null,
+            "thumb_uploaded_at": null,
+            "thumb_origin": "auto",
+            "thumb_auto_state": "ok",
+            "places": [
+                {
+                    "sort_order": 0,
+                    "raw_name": "Gareth",
+                    "target_kind": "settlement",
+                    "target_public_id": "ort-1",
+                    "target_wiki_key": "wiki:gareth",
+                    "territory_path": [
+                        "wiki:mittelreich"
+                    ],
+                    "origin": "wiki",
+                    "status": "approved"
+                },
+                {
+                    "sort_order": 1,
+                    "raw_name": "Alt-Gareth",
+                    "target_kind": "unresolved",
+                    "target_public_id": null,
+                    "target_wiki_key": null,
+                    "territory_path": null,
+                    "origin": "wiki",
+                    "status": "suppressed"
+                }
+            ],
+            "links": [
+                {
+                    "label": "F-Shop",
+                    "url": "https://fshop.example/1",
+                    "is_paid": true,
+                    "sort_order": 0,
+                    "origin": "manual",
+                    "status": "approved"
+                },
+                {
+                    "label": "Alter Link",
+                    "url": "https://alt.example/",
+                    "is_paid": null,
+                    "sort_order": 1,
+                    "origin": "wiki",
+                    "status": "suppressed"
+                }
+            ]
+        }
+    ]
+}

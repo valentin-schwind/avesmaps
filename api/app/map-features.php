@@ -186,7 +186,13 @@ require_once __DIR__ . '/../_internal/app/map-features-cache.php';
 //    noch kein Punkt das Feld (das bringt erst der Admin-Lauf `innerorts_aus_wiki`), der Inhalt
 //    aendert sich also erst mit ihm -- ein Stempel, der die Form der Liste anzeigt, gehoert aber zur
 //    Form, nicht zum ersten Wert: jede spaetere Aenderung am Feld bewegt `map_revision` ohnehin.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 27;
+// 28 (05.10.2026): jede Zeile in `source_catalog` traegt ihren `wiki_key`, wenn sie einen hat (Legacy-Export
+//    E1, Auftrag Avesmaps3D 04.10.2026 -- die Identitaet der URL-losen Publikationen). Ein neues FELD bewegt
+//    `map_revision` nicht; ohne den Bump bekaeme jeder warme Abrufer sein 304 samt Katalog ohne Schluessel --
+//    und Avesmaps3D legt die Antwort ab. Im selben Sprung: `properties.coat` eines Ortes verliert `uploaded_by`,
+//    `uploaded_at` und `note` (Login-Name und interne Notiz gingen bis dahin an jeden Besucher;
+//    avesmapsSettlementCoatOeffentlich in coat-display.php).
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 28;
 
 // 🔴 avesmapsMapFeaturesWikiNamespaces() UND die zugehoerige Typ-Zuordnung stehen NICHT hier,
 // sondern in api/_internal/app/feature-sources.php, direkt neben avesmapsFeatureSourcesDeriveKanon,
@@ -990,6 +996,9 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $buildingTypes 
         if ($angezeigt !== (string) ($properties['coat']['url'] ?? '')) {
             $properties['coat'] = ['url' => $angezeigt, 'source' => (string) ($properties['coat']['source'] ?? '')];
         }
+        // 🔴 Login-Name, Hochladezeit und interne Notiz bleiben im Editor (avesmapsSettlementCoatOeffentlich, Befund
+        // vom 05.10.2026) -- dieselbe Nutzlastversion 28 traegt es zu den warmen Abrufern.
+        $properties['coat'] = avesmapsSettlementCoatOeffentlich($properties['coat']);
     }
 
     // Genauer Bauwerkstyp (Festung/Turm/…) + Ruine aus der Registry an die verbundene Wiki-Siedlung

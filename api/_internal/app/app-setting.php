@@ -118,6 +118,28 @@ function avesmapsAppSettingGetWithoutDdl(PDO $pdo, string $key, string $default 
 }
 
 /**
+ * Einen Schalter lesen -- OHNE DDL und STRENG: ein Lesefehler WIRFT, er wird nie zur Vorgabe.
+ *
+ * Der Unterschied zu avesmapsAppSettingGetWithoutDdl ist genau die Fehlerrichtung, und er ist tragend, sobald
+ * der Schalter ein NOTAUS ist: dort hiesse „Lesefehler = Vorgabe" „Lesefehler = an", und eine Sammlung, die der
+ * Owner abgeschaltet hat, ginge bei einem einzigen Aussetzer der Datenbank wieder hinaus. Gebaut fuer die
+ * oeffentlichen GETs, die laut Auftrag von Avesmaps3D (04.10.2026) keinerlei Schemaheilung ausloesen duerfen
+ * (avesmapsAppSettingGet faehrt bei jedem Aufruf CREATE TABLE IF NOT EXISTS app_setting).
+ * ⚠️ Eine fehlende Zeile ist KEIN Fehler -- dann gilt die Vorgabe, wie ueberall. Eine fehlende TABELLE schon.
+ */
+function avesmapsAppSettingGetStreng(PDO $pdo, string $key, string $default = ''): string
+{
+    $statement = $pdo->prepare('SELECT setting_value FROM app_setting WHERE setting_key = :k LIMIT 1');
+    if ($statement === false) {
+        throw new RuntimeException('app_setting ist nicht lesbar.');
+    }
+    $statement->execute(['k' => $key]);
+    $value = $statement->fetchColumn();
+
+    return $value === false ? $default : (string) $value;
+}
+
+/**
  * Read MANY settings in ONE query, WITHOUT the self-healing DDL. Same motivation as
  * avesmapsAppSettingGetWithoutDdl, extended to a caller that needs several keys at once: map-search.php
  * used to read citymaps_enabled, adventures_enabled and four lore_kind_*_enabled keys as SIX separate

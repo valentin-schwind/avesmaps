@@ -1,0 +1,15 @@
+{
+    "ok": true,
+    "redirects_revision": "redir-9f0640830c2ba21f",
+    "count": 3,
+    "redirects": [
+        {
+            "alias_slug": "inoffiziell-tayarret",
+            "canonical_wiki_key": "wiki:inoffiziell-t-y-rret"
+        },
+        {
+            "alias_slug": "mittelreich",
+            "canonical_wiki_key": "wiki:heiliges-neues-kaiserreich-vom-greifenthron-zu-gareth"
+        }
+    ]
+}

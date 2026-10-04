@@ -348,9 +348,14 @@ function avesmapsReadFeatureSources(PDO $pdo, string $entityType, string $entity
 // settlement/region/path: that merge is a per-element map_features lookup (an N+1 by construction) and it
 // only exists for entity types that predate the catalog. An entity with no approved sources is simply
 // absent from the map.
+//
+// 🔴 KEIN ENSURE MEHR (05.10.2026). Bis dahin stand hier avesmapsEnsureFeatureSourceTables -- zwei CREATE TABLE,
+// neun information_schema-Abfragen und gegebenenfalls ALTERs bei JEDEM Abruf des oeffentlichen Kartensammlungs-
+// Katalogs, dem einzigen Aufrufer. Der Auftrag von Avesmaps3D (04.10.2026) verlangt einen GET ohne jede Schema-
+// heilung; geheilt wird auf den Schreibwegen des Quellen-Editors, die dieselbe Funktion weiter rufen. Fehlt eine
+// Tabelle, wirft die Abfrage -- der Aufrufer faengt es und zeigt den Katalog ohne Quellenzeile.
 function avesmapsReadFeatureSourcesByEntityType(PDO $pdo, string $entityType): array
 {
-    avesmapsEnsureFeatureSourceTables($pdo);
     $statement = $pdo->prepare(
         "SELECT fs.entity_public_id, s.url, s.label, s.source_type, s.is_official, s.license, s.attribution
            FROM feature_sources fs
@@ -2832,16 +2837,19 @@ function avesmapsLoadFeatureSourceCatalog(PDO $pdo): array {
                      WHERE fs.source_id = s.id AND fs.status = 'approved'"
             . avesmapsFeatureSourceLiveEntityClause('fs') . "  )";
     };
+    // Same clause as the refs below: a source whose only links hang on deleted elements is
+    // not in use and has no business in the shared catalog.
+    // ⚠️ DREI Anlaeufe, vom vollstaendigsten zum kahlsten (Begruendung oben: dieser Pfad faehrt kein DDL,
+    // und ein leerer Katalog hiesse KEINE Quelle auf der ganzen Karte). `wiki_key` kam als eigener
+    // Anlauf dazu (Legacy-Export E1, 04.10.2026), damit eine Datenbank ohne die Spalte nicht auch noch
+    // Lizenz und Namensnennung verliert.
     $statement = false;
-    try {
-        // Same clause as the refs below: a source whose only links hang on deleted elements is
-        // not in use and has no business in the shared catalog.
-        $statement = $pdo->query($abfrage(", s.license, s.attribution"));
-    } catch (Throwable $error) {
+    foreach ([", s.license, s.attribution, s.wiki_key", ", s.license, s.attribution", ""] as $spalten) {
         try {
-            $statement = $pdo->query($abfrage(""));
-        } catch (Throwable $zweiter) {
-            return [];
+            $statement = $pdo->query($abfrage($spalten));
+            break;
+        } catch (Throwable $error) {
+            $statement = false;
         }
     }
     if ($statement === false) {
@@ -2865,6 +2873,17 @@ function avesmapsLoadFeatureSourceCatalog(PDO $pdo): array {
         }
         if ($attribution !== '') {
             $eintrag['attribution'] = $attribution;
+        }
+        // 🔴 DIE IDENTITAET DER URL-LOSEN QUELLEN (Legacy-Export E1, Auftrag Avesmaps3D 04.10.2026). Eine
+        // Publikation ohne Shop-Link hat `url = ''`; ihre Identitaet ist `sha256('wikipub:' . wiki_key)`
+        // (avesmapsFeatureSourceHash). Ohne den Schluessel war sie aus der Nutzlast nicht wiederzufinden --
+        // gemessen 359 von 3.906 Quellen mit 20.631 Verknuepfungen, und zehn Titel kommen doppelt vor.
+        // ⚠️ Wie Lizenz und Nennung: leer wird WEGGELASSEN (fehlt = kein Wiki-Schluessel). `url_hash` reist
+        // bewusst NICHT hier mit -- 64 Zeichen an jeder der rund 3.900 Zeilen zahlte jeder Besucher bei jedem
+        // Kartenaufbau; er steht im Migrationsblock GET /api/app/feature-sources-export.php.
+        $wikiKey = trim((string) ($row['wiki_key'] ?? ''));
+        if ($wikiKey !== '') {
+            $eintrag['wiki_key'] = $wikiKey;
         }
         $eintrag = avesmapsFeatureSourceApplyCorpusKey($eintrag, (string) $row['url'], $korpora);
         $catalog[(int) $row['id']] = $eintrag;

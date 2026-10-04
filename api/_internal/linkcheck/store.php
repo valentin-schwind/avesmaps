@@ -75,9 +75,13 @@ function avesmapsLinkCheckEnsureTables(PDO $pdo): void
 // path (§1.7): api/app/game-literature.php ships the status inside its own payload, so a dialog needs no
 // second roundtrip. One JOIN over the registry, never an IN(…) of every hash in the catalog and never
 // N+1. An entity whose links were never synced is simply absent -> the caller renders 'unchecked'.
+//
+// 🔴 KEIN ENSURE (seit 05.10.2026): die zwei Aufrufer sind die oeffentlichen Katalog-GETs der Kartensammlung und der
+// Literatur, und ein GET heilt kein Schema (Auftrag Avesmaps3D 04.10.2026). Beide fangen einen Fehler hier ab und
+// zeigen „unchecked"; angelegt werden die Tabellen vom Linkcheck-Lauf selbst (avesmapsLinkCheckSyncEntityType,
+// avesmapsLinkCheckStep).
 function avesmapsLinkCheckStatesByEntityType(PDO $pdo, string $entityType): array
 {
-    avesmapsLinkCheckEnsureTables($pdo);
     $statement = $pdo->prepare(
         "SELECT lr.entity_public_id, lr.field, ls.state, ls.http_status, ls.last_checked_at
            FROM link_ref lr
