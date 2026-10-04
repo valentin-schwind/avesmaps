@@ -376,6 +376,9 @@ const SVGX_TYPE_VOCAB = {
 	tal: { de: "Tal", en: "valley" },
 	flussdelta: { de: "Flussdelta", en: "river delta" },
 	insel: { de: "Insel", en: "island" },
+	gletscher: { de: "Gletscher", en: "glacier" },
+	flachkueste: { de: "Flachküste", en: "flat coast" },
+	steilkueste: { de: "Steilküste", en: "cliff coast" },
 	// Klima
 	polar: { de: "Polar", en: "polar" },
 	subpolar: { de: "Subpolar", en: "subpolar" },

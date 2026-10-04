@@ -583,6 +583,8 @@ const INFO_HEADER_IMAGE_BY_ART = {
 	dschungel: "dschungel",
 	wuestenoase: "wuestenoase",
 	kulturlandschaft: "kulturlandschaft",
+	// Owner 2026-10-04: keine eigenen Bilder -- der Gletscher borgt das Gebirge, die zwei Kuesten die Kueste.
+	gletscher: "gebirge", flachkueste: "kueste", steilkueste: "kueste",
 	wadi: "wadi",
 	fluss: "fluss", flusstal: "fluss", wasserfall: "fluss",
 	// Eigenes Vokabular: "Flussland/Flusstal" wird am / geschnitten, "Flussdelta" bleibt ganz.

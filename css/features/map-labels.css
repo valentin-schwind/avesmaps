@@ -113,6 +113,15 @@ body.edit-mode .map-label.leaflet-marker-draggable img {
 .map-label--tundra span {
 	color: #dbe8e8; /* Tundra: blasses Eisgrau */
 }
+.map-label--gletscher span {
+	color: #e0f0f6; /* Gletscher: Eisweiss mit kaltem Blaustich */
+}
+.map-label--flachkueste span {
+	color: #dff0e4; /* Flachkueste: helles Strand-/Seegruen, eine Spur sandiger als die Kueste */
+}
+.map-label--steilkueste span {
+	color: #bcd9d8; /* Steilkueste: kuehles Schiefergruen, dunkler als die Kueste */
+}
 .map-label--kueste span {
 	color: #d2e9dd; /* Küste: blasses Seegrün */
 }

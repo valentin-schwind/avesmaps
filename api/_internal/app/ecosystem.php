@@ -188,6 +188,21 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     // (ECOSYSTEM_HYDRO_HOEHENSTUFEN, js/map-features/map-features-ecosystem-hydrologie.js) und
     // bleiben ausdruecklich erhalten.
 
+    // Owner 2026-10-04: drei neue Formen. Alle drei sind FORMEN des Landes, also Topographie -- und
+    // keine ist ein Zwilling einer bestehenden Art:
+    //   gletscher    ein Eisstrom/Eisfeld; fuers Reisen schwerer als Huegelland, aber weniger hart
+    //                als ein Gebirge (Startwerte unten in avesmapsEcosystemFillMissingTypeDefaults).
+    //   flachkueste  die Kueste, die in die Tiefebene ausläuft (Strand, Marschkueste, Duenen).
+    //   steilkueste  die Kueste, die als Kante der Hochebene abbricht (Kliff, Felskueste).
+    // Die allgemeine `kueste` BLEIBT: 5 Beschriftungen/1 Flaeche tragen sie, und eine Kueste ohne
+    // Aussage zur Form ist weiter eine gueltige Angabe.
+    // 💣 Beide Kuesten bekommen `affects_paths = 0` wie `kueste` (siehe avesmapsEcosystemSeedRegionTypes):
+    // eine Kuestenflaeche soll keinen Weg einer Landschaft zuschlagen, der nur an ihr entlangfuehrt.
+    // 🪤 Sortierplatz 130 bleibt wie oben beschrieben frei; deshalb ab 140.
+    ['topographie', 'gletscher', 'Gletscher', 140],
+    ['topographie', 'flachkueste', 'Flachküste', 150],
+    ['topographie', 'steilkueste', 'Steilküste', 160],
+
     ['vegetation', 'wald', 'Wald', 10],
     // Owner 2026-08-29 (Garetien-Import, Entwurf §3.4): ein Urwald ist NICHT dasselbe wie ein
     // Dschungel -- der Dschungel ist eine Klimaaussage (tropisch), der Urwald eine Aussage ueber
@@ -1277,10 +1292,27 @@ function avesmapsEcosystemRetireVorgebirge(PDO $pdo): void
 function avesmapsEcosystemFillMissingTypeDefaults(PDO $pdo, ?array $startwerte = null): void
 {
     // Die Tafel: [kind, type_key, grain, levels, maximalhoehe, durchschnittshoehe, tempofaktor, offroad].
-    // Heute leer -- siehe den Block darueber. Sie steht INLINE und nicht als Konstante auf Dateiebene:
+    // Leer vom 09.09.2026 bis 04.10.2026 -- siehe den Block darueber. Seit dem 04.10.2026 tragen sie die
+    // drei neuen Formen (Owner-Auftrag: Gletscher aus Huegelland/Hochebene mit staerkeren Werten,
+    // Flachkueste aus Kueste + Tiefebene, Steilkueste aus Kueste + Hochebene). Gewaehlt, nicht gemessen.
+    // Der Tempofaktor ist das Verhaeltnis 0,75 geteilt durch den offroad_factor -- dieselbe Rechnung,
+    // die die Migration travel-values-migration.php fuer jede Art ohne GA-Zeile anstellt; Hochebene
+    // steht live auf 0,682 (offroad 1,10), und beide Zahlen muessen zusammen wandern.
+    // Sie steht INLINE und nicht als Konstante auf Dateiebene:
     // PHP hoistet Funktionen, aber keine `const` (const-vor-benutzung-test.php), und diese Funktion wird
     // weit oben gerufen.
-    $startwerte ??= [];
+    $startwerte ??= [
+        // Gletscher: Huegelland (4,5 / 2 / 600 / 300, offroad 1,30) und Hochebene (offroad 1,10, Tempo 0,682),
+        // beides etwas haerter -- Eis ist glatt, aber zerklueftet und gefaehrlich: Tempo 0,75 / 1,60 = 0,469.
+        // Hoehe/Mittel 800/400: Verhaeltnis 0,5 wie das Huegelland, unter der Klemme von rund 0,67.
+        ['topographie', 'gletscher', 4.5, 2, 800, 400, 0.469, 1.60],
+        // Flachkueste: Kueste (6,0 / 1 / 80 / 40) mit der Tiefebene (nichts bremst: 0,750 / 1,00),
+        // eine Spur flacher als die allgemeine Kueste.
+        ['topographie', 'flachkueste', 6.0, 1, 60, 30, 0.750, 1.00],
+        // Steilkueste: Kueste mit der Hochebene (offroad 1,10, Tempo 0,682) -- die Kante bricht ab,
+        // darum groeber und hoeher als die Kueste (5,0 / 2 / 200 / 100).
+        ['topographie', 'steilkueste', 5.0, 2, 200, 100, 0.682, 1.10],
+    ];
 
     foreach ($startwerte as [$kind, $typeKey, $grain, $levels, $max, $mean, $tempo, $offroad]) {
         foreach ([
@@ -1327,6 +1359,18 @@ function avesmapsEcosystemSeedRegionTypes(PDO $pdo): void
             'label' => $label,
             'sort_order' => $sortOrder,
         ]);
+        // 💣 `affects_paths` der beiden neuen Kuesten: der ALTER weiter oben setzt die Spalte fuer
+        // `kueste` EINMAL beim Nachruesten und nie wieder, eine spaeter gesaete Art bekaeme also die
+        // Vorgabe 1. Gesetzt wird nur, wenn die Zeile GERADE ENTSTANDEN ist (rowCount) -- eine Zeile,
+        // die der Owner inzwischen umgestellt hat, bleibt unberuehrt.
+        if ($insert->rowCount() > 0 && in_array($typeKey, ['flachkueste', 'steilkueste'], true)) {
+            try {
+                $pdo->prepare('UPDATE ecosystem_region_type SET affects_paths = 0 WHERE kind = :k AND type_key = :t')
+                    ->execute(['k' => $kind, 't' => $typeKey]);
+            } catch (PDOException) {
+                // Spalte (noch) nicht da -- der ALTER oben legt sie vor dem Seed an.
+            }
+        }
     }
 }
 

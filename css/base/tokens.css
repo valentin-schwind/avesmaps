@@ -462,6 +462,13 @@
 	   brown-grey -- all 251 islands would render as mountains. Sandy beige-olive: reads as LAND against
 	   see (#4c89c6) and meer (#2d5f8a), and stays apart from gebirge (#7a6c5e) and hochebene (#9a9b82). */
 	--color-ecosystem-topographie-insel: #b2a273;           /* island, sandy beige-olive -- dry land ringed by water */
+	/* Owner 2026-10-04. Gletscher: blasses Eisblau, heller und kaelter als jeder andere Ton der Ebene -- er soll neben
+	   gebirge (#7a6c5e) und hochebene (#9a9b82) sofort als Eis lesen, ohne dem See (--color-water) zu aehneln. */
+	--color-ecosystem-topographie-gletscher: #bcd6e0;       /* glacier, pale ice blue -- lighter and cooler than any rock tone */
+	/* Die zwei Kuesten bleiben in der Familie der Kueste (#3f9e9a, tuerkis), je eine Spur zur Form hin: die Flachkueste
+	   heller und sandiger (sie laeuft in die Tiefebene aus), die Steilkueste dunkler und grauer (sie bricht als Fels ab). */
+	--color-ecosystem-topographie-flachkueste: #77b3a5;     /* flat coast, light sandy teal -- shallows and beach */
+	--color-ecosystem-topographie-steilkueste: #3d6e73;     /* cliff coast, dark slate teal -- rock meeting water */
 
 	/* Namenstoene der Kartenbeschriftungen als TOKEN (Owner 14.09.2026: „gib ihnen passende
 	   variationen"). Berg-/Hügelkette, Hügel und Felsformation waren im Beschriftungsdialog wählbar und

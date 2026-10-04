@@ -231,7 +231,10 @@ $geschrieben = avesmapsTravelValuesWriteLandscapeFactors($pdo, $plan['factors'])
 // gehoert der HOEHENSTUFE einer Gebirgsflaeche (`vorgebirge` 800, `mittelgebirge` 1500, getrennt),
 // nicht einer eigenen Art. Begruendung im Kopf von avesmapsEcosystemRetireVorgebirge.
 // ⚠️ Die Zahl geht damit zum ersten Mal ZURUECK; wer sie liest, soll den Sprung sehen.
-assert($geschrieben === 22, "zweiundzwanzig Zeilen geschrieben, bekommen: $geschrieben");
+// 25 seit dem 04.10.2026: Gletscher, Flachkueste und Steilkueste kamen als topographische Formen dazu.
+// Ihre Werte stehen NICHT hier, sondern in der Startwerte-Tafel (Block L); diese frische Anlage hat sie
+// noch nicht gefuellt und bekommt fuer alle drei den rechnerischen Rueckfall (offroad 1,00 -> Basis).
+assert($geschrieben === 25, "fuenfundzwanzig Zeilen geschrieben, bekommen: $geschrieben");
 
 $nachher = $spalte($pdo);
 assert($nah((float) $nachher['suempfe_moore'], 0.100, 0.0005), 'Sumpf 0,100: ' . $nachher['suempfe_moore']);
@@ -522,7 +525,8 @@ foreach ($liste as $zeile) { $nachSchluessel[$zeile['type_key']] = $zeile; }
 // eine Zeile Code im Fenster -- genau deshalb wandert die Zahl hier mit.
 // 23 seit dem 01.09.2026 (Vor-/Mittelgebirge, Editorenwunsch), 22 wieder seit dem 09.09.2026:
 // dieselbe Art gestrichen (avesmapsEcosystemRetireVorgebirge).
-assert(count($liste) === 22, 'zweiundzwanzig Landschaftsarten im Fenster: ' . count($liste));
+// 25 seit dem 04.10.2026 (Gletscher, Flachkueste, Steilkueste).
+assert(count($liste) === 25, 'fuenfundzwanzig Landschaftsarten im Fenster: ' . count($liste));
 foreach (['kind', 'type_key', 'label', 'factor', 'source', 'area_count'] as $feld) {
     assert(array_key_exists($feld, $liste[0]), "jede Zeile traegt `$feld`");
 }
@@ -794,22 +798,44 @@ assert($fremdL['terrain_mean_height'] === null,
     '⚠️ keine andere Art wird nebenbei gefuellt: ' . json_encode($fremdL));
 $pruefungen++;
 
-// 🔴 UND DIE MODULTAFEL IST LEER -- ohne Argument schreibt die Funktion NICHTS. Das ist der Zustand
-// seit dem Streichen des Vor-/Mittelgebirges, und er steht hier, damit eine spaeter eingetragene
-// Produktivart nicht unbemerkt bleibt: wer die Tafel fuellt, faellt hier auf und schreibt seine
-// eigenen Zusicherungen daneben.
+// 🔴 DIE MODULTAFEL TRAEGT GENAU DREI ARTEN -- Gletscher, Flachkueste, Steilkueste (Owner-Auftrag
+// 04.10.2026) -- und ohne Argument schreibt die Funktion NUR deren Zeilen. Bis zum 04.10.2026 war sie
+// leer (Vor-/Mittelgebirge gestrichen, 09.09.2026); der Test steht hier, damit eine spaeter
+// eingetragene Produktivart nicht unbemerkt bleibt: wer die Tafel fuellt, faellt hier auf und schreibt
+// seine eigenen Zusicherungen daneben.
 $pdoL->exec("UPDATE ecosystem_region_type SET terrain_mean_height = NULL, terrain_speed_factor = NULL,
               terrain_grain = NULL, terrain_levels = NULL, terrain_avg_height = NULL,
               offroad_factor = 1.00");
 avesmapsEcosystemFillMissingTypeDefaults($pdoL);
-$leerL = (int) $pdoL->query(
-    'SELECT COUNT(*) FROM ecosystem_region_type
+$gefuelltL = $pdoL->query(
+    "SELECT type_key, terrain_grain, terrain_levels, terrain_avg_height, terrain_mean_height,
+            terrain_speed_factor, offroad_factor
+       FROM ecosystem_region_type
       WHERE terrain_mean_height IS NOT NULL OR terrain_speed_factor IS NOT NULL
          OR terrain_grain IS NOT NULL OR terrain_levels IS NOT NULL
-         OR terrain_avg_height IS NOT NULL OR offroad_factor <> 1.00'
-)->fetchColumn();
-assert($leerL === 0, '🔴 die Modultafel ist leer, es wird nichts geschrieben: ' . $leerL . ' Zeilen gefuellt');
-$pruefungen++;
+         OR terrain_avg_height IS NOT NULL OR offroad_factor <> 1.00
+      ORDER BY type_key"
+)->fetchAll(PDO::FETCH_ASSOC);
+$gefuelltSchluessel = array_column($gefuelltL, 'type_key');
+assert($gefuelltSchluessel === ['flachkueste', 'gletscher', 'steilkueste'],
+    '🔴 die Modultafel fuellt genau die drei neuen Formen und sonst nichts: ' . json_encode($gefuelltSchluessel));
+$werteL = array_column($gefuelltL, null, 'type_key');
+// Gletscher: staerker als Huegelland (offroad 1,30) UND Hochebene (1,10) -- und langsamer als beide
+// (Huegelland 0,75, Hochebene 0,682), aber weniger hart als das Gebirge (offroad 2,20 / Tempo 0,20).
+assert((float) $werteL['gletscher']['offroad_factor'] > 1.30 && (float) $werteL['gletscher']['offroad_factor'] < 2.20,
+    'Gletscher bremst staerker als Huegelland, aber weniger als Gebirge: ' . json_encode($werteL['gletscher']));
+assert((float) $werteL['gletscher']['terrain_speed_factor'] < 0.682 && (float) $werteL['gletscher']['terrain_speed_factor'] > 0.20,
+    'Gletscher: Tempofaktor zwischen Gebirge (0,20) und Hochebene (0,682): ' . json_encode($werteL['gletscher']));
+// Das Tempo ist das VERHAELTNIS 0,75 / offroad -- dieselbe Rechnung wie die Migration fuer jede Art ohne
+// GA-Zeile. Wandert eine der beiden Zahlen allein, widerspricht sich die Tafel selbst.
+foreach ($werteL as $schluesselL => $zeileL) {
+    assert($nah((float) $zeileL['terrain_speed_factor'], 0.75 / (float) $zeileL['offroad_factor'], 0.0015),
+        "$schluesselL: Tempofaktor = 0,75 / offroad_factor: " . json_encode($zeileL));
+}
+// Die Kuesten: Flachkueste wie Kueste/Tiefebene (nichts bremst), Steilkueste wie Hochebene (1,10).
+assert((float) $werteL['flachkueste']['offroad_factor'] === 1.0, 'Flachkueste bremst nicht (Tiefebene/Kueste)');
+assert((float) $werteL['steilkueste']['offroad_factor'] === 1.10, 'Steilkueste wie die Hochebene');
+$pruefungen += 6;
 
 // 💣 UND SIE WIRD WIRKLICH GERUFEN. Eine Mutationsprobe am 01.09.2026 hat den Aufruf aus
 // avesmapsEcosystemEnsureTables entfernt und ist unbemerkt durchgelaufen -- die Zusicherungen oben

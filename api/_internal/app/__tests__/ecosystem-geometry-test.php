@@ -317,7 +317,8 @@ ecosystemTestThrows(static fn() => avesmapsEcosystemReadKind('wetter'), 'an unkn
 // als Beschriftungsart (Begruendung im Kopf von avesmapsEcosystemRetireVorgebirge). Die Zahl geht
 // damit als einzige dieser Reihe wieder ZURUECK -- wer sie liest, soll den Sprung sehen und nicht
 // eine der Zeilen darueber fuer falsch halten.
-assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 36, 'the seed is 36 rows');
+// 39 seit 2026-10-04: drei topographische Formen -- Gletscher, Flachkueste und Steilkueste (Owner-Auftrag).
+assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 39, 'the seed is 39 rows');
 
 $byKind = [];
 foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortOrder]) {
@@ -327,7 +328,8 @@ foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortO
 }
 assert(count($byKind['derographisch']) === 4, 'derographisch: 4');
 // 12 wieder seit dem 09.09.2026 (Vor-/Mittelgebirge gestrichen, siehe unten).
-assert(count($byKind['topographie']) === 12, 'topographie: 12');
+// 15 seit dem 04.10.2026: Gletscher, Flachkueste, Steilkueste.
+assert(count($byKind['topographie']) === 15, 'topographie: 15');
 assert(count($byKind['vegetation']) === 12, 'vegetation: 12');
 assert(count($byKind['klima']) === 8, 'klima: 8 -- and the dividers are always one fewer');
 

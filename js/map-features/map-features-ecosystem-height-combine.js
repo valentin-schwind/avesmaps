@@ -55,6 +55,7 @@ const ECOSYSTEM_TERRAIN_METHOD_BY_TYPE = {
 	// bequemsten -- und braucht entweder ein gröberes Raster oder einen Gradienten ohne Nachbarabfragen.
 	gebirge: "perlin",
 	huegelland: "warp",
+	gletscher: "warp",   // Owner 2026-10-04: Eigenschaften wie Huegelland, nur staerker
 };
 // 🔧 „ridged" (2026-07-29) ist gebaut, getestet und liefert das Gratbild, auf das der Owner gezeigt
 // hat -- es steht hier nur BEWUSST noch nicht drin. Zuweisen wäre eine Zeile oben.

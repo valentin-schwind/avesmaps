@@ -540,6 +540,11 @@ const ECOSYSTEM_LABEL_STYLE_BY_TYPE = {
 	// Zwischen Wald und Steppe: ein Ackergürtel schmiegt sich an Siedlungen und Flüsse, er zieht sich
 	// nicht über eine Steppenweite -- ist aber mehr als ein einzelnes Waldstück.
 	kulturlandschaft: { size: 16, minZoom: 3 },
+	// Gletscher: eine Flaeche wie das Gebirge, aber kleiner und selten -- ein Eisfeld, kein ganzer Zug.
+	gletscher: { size: 16, minZoom: 3 },
+	// Eine Kueste ist ein BAND am Meer; Label wie die allgemeine Kueste (Vorgabe), erst ab Zoom 3.
+	flachkueste: { size: 16, minZoom: 3 },
+	steilkueste: { size: 16, minZoom: 3 },
 	see: { size: 16, minZoom: 4 },
 	wald: { size: 15, minZoom: 4 },
 	berggipfel: { size: 15, minZoom: 4 },
