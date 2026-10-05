@@ -126,27 +126,57 @@ dann ein **fremdes** Raster für unverändert und stempelte es nur. Zusicherung 
 
 ---
 
-## 4. Was damit noch offen ist — die eigentliche Wurzel
+## 4. Die Wurzel — gebaut am 06.10.2026 (Owner: „mach den fingerprint pro gebirge")
 
-🔧 **`avesmapsTerrainPeaksFingerprint` bleibt GLOBAL.** Ein bewegter Gipfel macht weiter alle 69
-Gebirge „veraltet", der Lauf läuft weiter über alle 69 — er kostet jetzt nur fast nichts mehr
-(ein Stempel-UPDATE statt eines 250-KB-Blobs) und **beendet die Schleife**, weil danach nichts mehr
-veraltet ist.
-
-⭐ **Der richtige Fix wäre ein Fingerabdruck pro Gebirge**, und das Projekt kennt die Lehre bereits
-wörtlich — im Test `terrain-store-test.php` steht sie für den Nachbarfall:
+`avesmapsTerrainPeaksFingerprint` war **global**: alle Gipfel in einem Wert. Deshalb machte ein
+bewegter Gipfel alle 69 Gebirge „veraltet". Dieselbe Falle ist beim Nachbarn `ecosystem_revision`
+ausdrücklich vermieden worden — die Lehre steht wörtlich in `terrain-store-test.php`:
 
 > „`ecosystem_revision` IS NOT IN ANY STAMP. It is ONE GLOBAL counter […] 901 jumps in one working
-> day. The raster stock would have been „stale" 901 times, at 8 s of recomputation each. **After the
-> third time nobody presses the button**, and then a raster whose stamp says „stale" is what the map
-> runs on."
+> day […] **After the third time nobody presses the button**, and then a raster whose stamp says
+> „stale" is what the map runs on."
 
-Genau diese Falle ist beim Gipfel-Fingerabdruck eingebaut. Sie zu beseitigen heißt, die Zuordnung
-Gipfel → Gebirge serverseitig zu kennen (heute lebt sie im Browser,
-`assignEcosystemPeaksToAreas`) — ein eigener Entwurf, mit Punkt-in-Polygon.
+**Gebaut: `avesmapsTerrainPeaksFingerprintFuerKasten($kasten, $alleGipfel)`** — zwei Hälften, und
+beide sind nötig:
 
-🔧 **`avesmapsTerrainReadStampInputs` läuft bei JEDEM Upload** und scannt dabei alle Gipfel-Labels
-plus alle höhentragenden Flächen — bei 69 Gebirgen 69× derselbe Full-Scan pro Lauf.
+- **(a) die Gipfel IM Kasten** des Rasters: Lage und Höhe gehen direkt ins Höhenfeld.
+- **(b) je solchem Gipfel der Abstand zu seinem nächsten Nachbarn** — und der darf überall liegen.
+  Daran klemmt sein Radius (`min(…, max(0,72 × separation, minRadius), 150)`).
+
+🔴 **Damit ist er vollständig, und zwar ohne Rand um den Kasten:** Ein fremder Gipfel wirkt **nur**
+über (b), ein neuer eigener über (a). Die Reichweite steckt schon in (b).
+
+🪤 **Die Client-Liste der Gipfel-IDs war vorgeschlagen und ist verworfen.** Sie hätte den Fall „ein
+NEUER Gipfel liegt jetzt in dieser Fläche" nicht erfasst — sie kennt nur die Gipfel, aus denen das
+alte Raster entstand. Der Kasten kennt ihn. Und sie hätte die Zusage „THE SERVER STAMPS, NOT THE
+CLIENT" angekratzt, die der Kasten vollständig wahrt (er kommt aus `origin_x/y`, `width_px`,
+`height_px`, `cell_size_mapunits` der eigenen Zeile).
+
+💣 **EIN FINGERABDRUCK MIT LÜCKE IST SCHLIMMER ALS DER GLOBALE.** Der globale meldete zu oft
+„veraltet" — laut, teuer, aber sicher. Einer mit Lücke meldet „aktuell" für ein Raster, das es nicht
+ist, und dann rechnet die Wegfindung auf einem Gelände, das der Editor nie gesehen hat. Deshalb
+prüft der Test beide Hälften **einzeln**, mit Gegenprobe (C2: ein fremder Gipfel *ohne* Nachbarschaft
+darf nichts ändern — sonst misst C1 nur die Anzahl).
+
+💣 **Die Naht ist die teuerste Stelle:** Schreibweg und Status müssen denselben Wert rechnen, sonst
+gilt **jedes** Raster für immer als veraltet. Das Status-SELECT brauchte dafür drei zusätzliche
+Spalten (`cell_size_mapunits`, `origin_x`, `origin_y`) — **genau dieselbe Falle, die dort eine Zeile
+tiefer schon für die fünf V12-Regler ausgeschrieben steht.** Festgenagelt in F1–F3.
+
+### Der N+1 ist mit gefallen
+
+`avesmapsTerrainReadStampInputs` fuhr **zwei** Queries je Upload; der zweite (JOIN über
+`ecosystem_area` × `ecosystem_region`) las die höhentragenden Flächen — und zwar **nur** für den
+globalen Stempel, in den ihre `geometry_revision` eingingen. Der Fingerabdruck je Gebirge braucht
+das nicht: die eigene `geometry_revision` steht ohnehin in derselben Zeile. Bei 69 Requests pro Lauf
+war das 69× ein JOIN für nichts. Jetzt **ein** Query (F4/F5).
+
+⚠️ **Nicht gemessen:** ob der verbleibende Gipfel-Scan teuer ist. `map_features` wird nirgends im
+Repo angelegt (Schema in der Live-DB, AGENTS.md §10), die Indizes sind von hier aus nicht lesbar.
+Ein `EXPLAIN` auf den Scan beantwortet das in einer Zeile.
+
+🔴 **Der globale Erzeuger bleibt als Funktion stehen**, mit Totmarke: `terrain-store-test.php` hält
+an ihm die `ecosystem_revision`-Lehre fest. Er hat keinen Aufrufer im Pfad mehr (F2).
 
 ---
 
