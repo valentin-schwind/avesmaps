@@ -161,16 +161,6 @@ function avesmapsTerrainAreaFingerprint(array $areaRow): string
  * @param list<array{public_id:string,x:float,y:float,height_schritt:?float}> $peaks
  * @param list<array{public_id:string,geometry_revision:int}> $heightAreas
  */
-/**
- * 🔴 NICHT MEHR IM PFAD (seit 06.10.2026). Der GLOBALE Gipfel-Stempel -- ein bewegter Gipfel
- * machte damit alle 69 Gebirgsraster "veraltet", und genau das hat am 05.10.2026 den PHP-Pool
- * gesaettigt (202 Uploads mit je >250 KB in 76 Minuten gegen 757 Gipfelbewegungen).
- *
- * ⭐ Der Nachfolger ist `avesmapsTerrainPeaksFingerprintFuerKasten` -- JE GEBIRGE, und beide
- * Leser (Schreibweg und Status) rufen ihn. Diese Funktion hier hat nur noch Test-Aufrufer:
- * `terrain-store-test.php` haelt an ihr die Lehre fest, dass `ecosystem_revision` in KEINEM
- * Stempel steht. 💣 Wer sie wieder in einen Pfad holt, holt die Lawine zurueck.
- */
 function avesmapsTerrainPeaksFingerprint(array $peaks, array $heightAreas): string
 {
     $peakParts = [];
@@ -193,125 +183,6 @@ function avesmapsTerrainPeaksFingerprint(array $peaks, array $heightAreas): stri
     return sha1(implode('|', $peakParts) . '#' . implode('|', $areaParts));
 }
 
-/**
- * REIN: der Kasten, den ein gespeichertes Raster abdeckt.
- *
- * Die Zeile traegt Ursprung, Pixelzahl und Zellweite -- der Kasten ist daraus gerechnet und wird
- * deshalb nie gepflegt (AGENTS.md §10, bbox-Lehre: eine Zahl, die man rechnen kann, wird bei jedem
- * Lesen gerechnet).
- *
- * ⚠️ PDO liefert diese Spalten als STRING. Numerisch lesen, sonst ist der Kasten leer und der
- * Fingerabdruck erfasst keinen einzigen Gipfel -- das waere die stille Luecke, gegen die der ganze
- * Umbau steht.
- *
- * @param array<string,mixed> $zeile
- * @return array{min_x:float,min_y:float,max_x:float,max_y:float}|null
- */
-function avesmapsTerrainRasterKasten(array $zeile): ?array
-{
-    $cell = (float) ($zeile['cell_size_mapunits'] ?? 0);
-    $breite = (int) ($zeile['width_px'] ?? 0);
-    $hoehe = (int) ($zeile['height_px'] ?? 0);
-    if ($cell <= 0.0 || $breite <= 0 || $hoehe <= 0) {
-        return null;
-    }
-    $ox = (float) ($zeile['origin_x'] ?? 0);
-    $oy = (float) ($zeile['origin_y'] ?? 0);
-
-    return [
-        'min_x' => $ox,
-        'min_y' => $oy,
-        'max_x' => $ox + ($breite * $cell),
-        'max_y' => $oy + ($hoehe * $cell),
-    ];
-}
-
-/**
- * Der Gipfel-Fingerabdruck EINES Gebirges (06.10.2026, Owner: "mach den fingerprint pro gebirge").
- *
- * 🔴 WARUM ES DEN GLOBALEN ERSETZT. `avesmapsTerrainPeaksFingerprint` hasht ALLE Gipfel in einen
- * Wert; ein einziger bewegter Gipfel machte damit alle 69 Gebirgsraster "veraltet". Der Editor sah
- * "69 veraltet", startete den Rasterlauf, bewegte den naechsten Gipfel, sah wieder "69 veraltet" --
- * gemessen am Ausfall vom 05.10.2026: 202 Uploads mit je >250 KB in 76 Minuten gegen 757
- * Gipfelbewegungen. Dieselbe Falle ist beim Nachbarn `ecosystem_revision` ausdruecklich vermieden
- * worden (siehe terrain-store-test.php: "901 jumps in one working day [...] After the third time
- * nobody presses the button").
- *
- * 🔴 UND WARUM ER TROTZDEM VOLLSTAENDIG IST -- zwei Haelften, beide noetig:
- *   (a) die Gipfel IM Kasten: Lage und Hoehe gehen direkt ins Hoehenfeld.
- *   (b) je solchem Gipfel der Abstand zu seinem naechsten Nachbarn, und der darf UEBERALL liegen.
- *       Daran klemmt sein Radius (`min(..., max(0,72 x separation, minRadius), 150)`,
- *       map-features-ecosystem-height-field.js) -- ein fremder Gipfel, der naechster Nachbar wird,
- *       veraendert das Raster also, ohne dass ein eigener sich bewegt.
- * Ein fremder Gipfel wirkt NUR ueber (b), ein neuer eigener ueber (a). Deshalb braucht es keinen
- * Rand um den Kasten: die Reichweite steckt schon in (b).
- *
- * 💣 EIN FINGERABDRUCK MIT LUECKE IST SCHLIMMER ALS DER GLOBALE. Der globale meldete zu oft
- * "veraltet" -- laut und teuer, aber sicher. Einer mit Luecke meldet "aktuell" fuer ein Raster, das
- * es nicht ist, und dann rechnet die Wegfindung auf einem Gelaende, das der Editor nie gesehen hat.
- *
- * 💣 DER KASTEN IST EINSCHLIESSLICH. Das Gitter deckt origin..origin+n*cell ab; ein Gipfel genau auf
- * der Kante gehoert dazu, und ein exklusiver Vergleich verlore ihn lautlos.
- *
- * ⚠️ Gerechnet wird je Gipfel-INDEX, nicht je Position: zwei Gipfel auf demselben Punkt (am
- * Livebestand gibt es gleichnamige Dubletten) behalten so jeder ihren eigenen Abstand -- wie
- * `separations` im Browser, das eine Map je Punktobjekt fuehrt.
- *
- * @param array{min_x:float,min_y:float,max_x:float,max_y:float}            $kasten
- * @param list<array{public_id:string,x:float,y:float,height_schritt:?float}> $alleGipfel
- */
-function avesmapsTerrainPeaksFingerprintFuerKasten(array $kasten, array $alleGipfel): string
-{
-    $punkte = [];
-    foreach ($alleGipfel as $gipfel) {
-        $x = $gipfel['x'] ?? null;
-        $y = $gipfel['y'] ?? null;
-        if (!is_numeric($x) || !is_numeric($y)) {
-            continue;
-        }
-        $hoehe = $gipfel['height_schritt'] ?? null;
-        $punkte[] = [
-            'id' => (string) ($gipfel['public_id'] ?? ''),
-            'x' => (float) $x,
-            'y' => (float) $y,
-            'h' => is_numeric($hoehe) ? (float) $hoehe : null,
-        ];
-    }
-
-    $anzahl = count($punkte);
-    $teile = [];
-    for ($i = 0; $i < $anzahl; $i++) {
-        $p = $punkte[$i];
-        if ($p['x'] < $kasten['min_x'] || $p['x'] > $kasten['max_x']
-            || $p['y'] < $kasten['min_y'] || $p['y'] > $kasten['max_y']) {
-            continue;
-        }
-        // (b): der Abstand zum naechsten Nachbarn, ueber ALLE Gipfel -- auch die weit draussen.
-        $naechster = INF;
-        for ($j = 0; $j < $anzahl; $j++) {
-            if ($j === $i) {
-                continue;
-            }
-            $abstand = hypot($p['x'] - $punkte[$j]['x'], $p['y'] - $punkte[$j]['y']);
-            if ($abstand < $naechster) {
-                $naechster = $abstand;
-            }
-        }
-        // ⚠️ Ein einzelner Gipfel weit und breit hat keinen Nachbarn -- er bekommt 'inf', nicht 0.
-        // Als 0 gelesen waere sein Radius auf null geklemmt, und der Stempel behauptete eine
-        // Abhaengigkeit, die es nicht gibt.
-        $teile[] = $p['id']
-            . ':' . sprintf('%.4F', $p['x'])
-            . ':' . sprintf('%.4F', $p['y'])
-            . ':' . ($p['h'] === null ? 'null' : sprintf('%.2F', $p['h']))
-            . ':' . (is_finite($naechster) ? sprintf('%.4F', $naechster) : 'inf');
-    }
-    // Sortiert, damit die Reihenfolge der Zeilen die Antwort nicht aendert -- derselbe Grund wie
-    // beim globalen Stempel.
-    sort($teile);
-
-    return sha1(implode('|', $teile));
-}
 // ---- the raster store ------------------------------------------------------------------------
 // 💣 STILL NO EnsureTables. See the note at the top of this file.
 
@@ -345,20 +216,24 @@ function avesmapsTerrainReadStampInputs(PDO $pdo): array
         ];
     }
 
-    // 🔴 DER ZWEITE QUERY IST AM 06.10.2026 GEFALLEN -- und mit ihm ein Scan je Upload.
-    //
-    // Er las, welche Flaechen ueberhaupt ein Hoehenfeld tragen, und zwar NUR fuer den GLOBALEN
-    // Gipfel-Fingerabdruck: dort gingen die `geometry_revision` aller Gebirge mit ein, weil eine
-    // geaenderte Flaechengeometrie einen Gipfel von einer Flaeche in die andere wandern lassen
-    // kann. Der Fingerabdruck JE GEBIRGE braucht das nicht: er fragt den KASTEN des eigenen
-    // Rasters, und die eigene `geometry_revision` steht ohnehin in derselben Zeile.
-    //
-    // ⚠️ Gemessen am Ausfall vom 05.10.2026: ein Rasterlauf macht 69 Requests (einen je Flaeche,
-    // ausdruecklich so -- siehe `avesmapsTerrainHeightmapPut`), und dieser JOIN lief in jedem.
-    // 💣 Faellt die Fingerabdruck-Regel je zurueck auf etwas Globales, kommt dieser Query mit
-    // zurueck -- nicht der Leser allein.
+    // Which areas carry a height field at all: the gate is region_type = 'gebirge'
+    // (map-features-ecosystem-loader.js:330 and -height-render.js). `huegelland: "warp"` already
+    // stands written in -height-combine.js:57 and waits for the gate to open -- when it does, this
+    // list grows HERE and nowhere else.
+    $heightAreas = [];
+    $statement = $pdo->query(
+        "SELECT a.public_id, a.geometry_revision FROM ecosystem_area a
+           INNER JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
+          WHERE a.is_active = 1 AND r.kind = 'topographie' AND r.region_type = 'gebirge'"
+    );
+    foreach ($statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $heightAreas[] = [
+            'public_id' => (string) $row['public_id'],
+            'geometry_revision' => (int) $row['geometry_revision'],
+        ];
+    }
 
-    return ['peaks' => $peaks];
+    return ['peaks' => $peaks, 'height_areas' => $heightAreas];
 }
 
 /**
@@ -372,61 +247,6 @@ function avesmapsTerrainReadStampInputs(PDO $pdo): array
  * a client-supplied stamp could claim currency the raster does not have, and nothing downstream
  * re-checks.
  */
-/**
- * REIN: ist das gespeicherte Raster Byte fuer Byte dasselbe wie das angebotene?
- *
- * 🔴 DER RIEGEL GEGEN DEN SICH SELBST NACHLADENDEN LAUF (06.10.2026). `avesmapsTerrainPeaksFingerprint`
- * ist GLOBAL -- ein einziger bewegter Gipfel macht ALLE Gebirgsraster "veraltet". Der Editor sieht
- * "69 veraltet", startet den Lauf, bewegt den naechsten Gipfel, sieht wieder "69 veraltet". Gemessen
- * am Access-Log des Ausfalls vom 05.10.2026: 202 Uploads mit je >250 KB in 76 Minuten gegen 757
- * Gipfelbewegungen. Die RASTER der uebrigen 68 Gebirge aendern sich dabei NICHT -- nur ihr Stempel.
- *
- * 💣 DIE STEMPEL WERDEN TROTZDEM NACHGEZOGEN, und daran haengt die ganze Wirkung: ohne das bleibt
- * das Gebirge "veraltet", und der naechste Lauf laedt es wieder hoch. Gespart wird der 250-KB-Blob,
- * nicht die Aktualisierung.
- *
- * ⚠️ Die Blob-Gleichheit wird in der DATENBANK verglichen (`samples = :blob`) und als bool
- * hereingereicht -- so reisen die 250 KB nicht durch PHP, nur um verworfen zu werden.
- *
- * 💣 JEDES Formfeld zaehlt. Dasselbe Bytemuster an einem anderen Ursprung ist ein anderes Raster;
- * wer ein Feld vergisst, laesst ein um eine Zelle verschobenes Gebirge stehen -- lautlos, weil die
- * Zellzahl stimmt.
- *
- * ⚠️ Verglichen wird NUMERISCH, nicht mit `===`: PDO liefert diese Spalten als STRING, und ein
- * strikter Vergleich der Rohwerte haette jedes Raster fuer veraendert gehalten -- der Riegel waere
- * wirkungslos gewesen, ohne dass ein Test rot wird.
- *
- * @param array<string,mixed>|null $gespeichert die vorhandene Zeile, oder null
- * @param array<string,mixed>      $neu         die Form des angebotenen Rasters
- */
-function avesmapsTerrainRasterBlobGleich(?array $gespeichert, array $neu, bool $blobGleich): bool
-{
-    if ($gespeichert === null || !$blobGleich) {
-        return false;
-    }
-    foreach (['cell_size_mapunits', 'origin_x', 'origin_y', 'width_px', 'height_px', 'sample_bytes'] as $feld) {
-        // 🪤 Erst die Anwesenheit, dann der Wert: eine halb gelesene Zeile darf nicht als
-        // Gleichheit durchgehen, und 0.0 ist ein GUELTIGER Ursprung (die Karte beginnt bei 0).
-        if (!array_key_exists($feld, $gespeichert) || !array_key_exists($feld, $neu)) {
-            return false;
-        }
-        if ((float) $gespeichert[$feld] !== (float) $neu[$feld]) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-/**
- * 🔴 `written` bleibt die Zahl der geschriebenen RASTER. `gebirgsRasterHochladen` liest sie als
- * "hochgeladen" (map-features-ecosystem-height-render.js) -- ein unveraendertes Gebirge ist nicht
- * hochgeladen, es ist aktuell. Dafuer ein eigenes Feld, statt `written` zu verbiegen.
- */
-function avesmapsTerrainRasterUnveraendertAntwort(int $storedBytes): array
-{
-    return ['written' => 0, 'skipped' => 0, 'unchanged' => 1, 'stored_bytes' => $storedBytes];
-}
 function avesmapsTerrainHeightmapPut(PDO $pdo, array $payload, int $userId): array
 {
     $areaPublicId = avesmapsNormalizeSingleLine((string) ($payload['area'] ?? ''), 36);
@@ -488,66 +308,13 @@ function avesmapsTerrainHeightmapPut(PDO $pdo, array $payload, int $userId): arr
     // of the area on a diagonal range) give a typical 3 to 6x, and it spares a compression-format
     // agreement between CompressionStream and PHP's zlib.
     $compressed = gzdeflate($samples, 6);
-
-    // 🔴 DER RIEGEL: ist dieses Raster schon so gespeichert, wird nur gestempelt, nicht geschrieben.
-    // Siehe avesmapsTerrainRasterBlobGleich -- der Vergleich laeuft IN der Datenbank, damit die
-    // 250 KB nicht durch PHP reisen.
-    $vorhanden = $pdo->prepare(
-        'SELECT cell_size_mapunits, origin_x, origin_y, width_px, height_px, sample_bytes,
-                CASE WHEN samples = :blob THEN 1 ELSE 0 END AS blob_gleich
-           FROM ecosystem_area_heightmap WHERE area_id = :area LIMIT 1'
-    );
-    $vorhanden->execute(['area' => (int) $areaRow['id'], 'blob' => $compressed]);
-    $alteZeile = $vorhanden->fetch(PDO::FETCH_ASSOC);
-    $neueForm = [
-        'cell_size_mapunits' => $cell,
-        'origin_x' => $originX,
-        'origin_y' => $originY,
-        'width_px' => (int) $width,
-        'height_px' => (int) $height,
-        'sample_bytes' => strlen($samples),
-    ];
-    $terrainStempel = avesmapsTerrainAreaFingerprint($areaRow);
-    // 🔴 JE GEBIRGE, nicht global (06.10.2026). Der Kasten kommt aus dem ANGEBOTENEN Raster --
-    // genau dem, das hier gespeichert wird. Der Leser daneben rechnet ihn aus der gespeicherten
-    // Zeile; beide muessen denselben Wert ergeben, sonst gilt jedes Raster fuer immer als veraltet.
-    $kasten = avesmapsTerrainRasterKasten($neueForm);
-    // ⚠️ Ohne Kasten (Raster ohne Ausdehnung) bleibt der Stempel leer statt falsch: ein leerer
-    // Wert ist von jedem echten verschieden, das Raster gilt also als veraltet -- die sichere
-    // Richtung. `avesmapsTerrainGuardRasterShape` weist solche Raster ohnehin vorher ab.
-    $peaksStempel = $kasten === null
-        ? ''
-        : avesmapsTerrainPeaksFingerprintFuerKasten($kasten, $inputs['peaks']);
-    if ($alteZeile !== false
-        && avesmapsTerrainRasterBlobGleich($alteZeile, $neueForm, (bool) (int) ($alteZeile['blob_gleich'] ?? 0))
-    ) {
-        // 💣 Die Stempel MUESSEN nach, sonst bleibt das Gebirge "veraltet" und der naechste Lauf
-        // laedt es erneut hoch -- genau die Schleife, gegen die dieser Riegel steht.
-        $stempeln = $pdo->prepare(
-            'UPDATE ecosystem_area_heightmap
-                SET geometry_revision = :rev, terrain_fingerprint = :terrain,
-                    peaks_fingerprint = :peaks, computed_by = :user,
-                    computed_at = CURRENT_TIMESTAMP(3)
-              WHERE area_id = :area'
-        );
-        $stempeln->execute([
-            'rev' => (int) $areaRow['geometry_revision'],
-            'terrain' => $terrainStempel,
-            'peaks' => $peaksStempel,
-            'user' => $userId > 0 ? $userId : null,
-            'area' => (int) $areaRow['id'],
-        ]);
-
-        return avesmapsTerrainRasterUnveraendertAntwort(strlen($compressed));
-    }
-
     $insert->execute([
         'area' => (int) $areaRow['id'], 'cell' => $cell, 'ox' => $originX, 'oy' => $originY,
         'w' => (int) $width, 'h' => (int) $height,
         'blob' => $compressed, 'bytes' => strlen($samples),
         'rev' => (int) $areaRow['geometry_revision'],
-        'terrain' => $terrainStempel,
-        'peaks' => $peaksStempel,
+        'terrain' => avesmapsTerrainAreaFingerprint($areaRow),
+        'peaks' => avesmapsTerrainPeaksFingerprint($inputs['peaks'], $inputs['height_areas']),
         'user' => $userId > 0 ? $userId : null,
     ]);
 
@@ -581,13 +348,7 @@ function avesmapsTerrainHeightmapCleanup(PDO $pdo): array
 function avesmapsTerrainHeightmapStatus(PDO $pdo): array
 {
     $inputs = avesmapsTerrainReadStampInputs($pdo);
-    // 🔴 JE GEBIRGE (06.10.2026): der Kasten der GESPEICHERTEN Zeile, dieselbe Rechnung wie im
-    // Schreibweg. Eine Flaeche ohne Raster hat keinen Kasten und braucht den Wert nicht -- sie
-    // zaehlt als `missing`, nicht als `stale`.
-    $erwarteterPeaksStempel = static function (array $row) use ($inputs): string {
-        $kasten = avesmapsTerrainRasterKasten($row);
-        return $kasten === null ? '' : avesmapsTerrainPeaksFingerprintFuerKasten($kasten, $inputs['peaks']);
-    };
+    $currentPeaks = avesmapsTerrainPeaksFingerprint($inputs['peaks'], $inputs['height_areas']);
 
     $statement = $pdo->query(
         "SELECT a.public_id, a.geometry_revision, r.name AS region_name, r.region_type,
@@ -601,12 +362,7 @@ function avesmapsTerrainHeightmapStatus(PDO $pdo): array
                 a.terrain_bergform, a.terrain_rauschen, a.terrain_talbreite,
                 a.terrain_einschnitt, a.terrain_sattel,
                 h.geometry_revision AS stamped_revision, h.terrain_fingerprint, h.peaks_fingerprint,
-                h.width_px, h.height_px, h.sample_bytes, h.computed_at,
-                -- 💣 DIESE DREI TRAGEN DEN KASTEN, aus dem der Gipfel-Fingerabdruck je Gebirge
-                -- entsteht (06.10.2026). Fehlen sie, ist der Kasten null, der Vergleichswert leer --
-                -- und JEDES Raster gilt fuer immer als veraltet, waehrend der Schreibweg mit dem
-                -- echten Kasten stempelt. Genau dieselbe Falle wie bei den fuenf V12-Reglern oben.
-                h.cell_size_mapunits, h.origin_x, h.origin_y
+                h.width_px, h.height_px, h.sample_bytes, h.computed_at
            FROM ecosystem_area a
            INNER JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
            LEFT JOIN ecosystem_area_heightmap h ON h.area_id = a.id
@@ -622,7 +378,7 @@ function avesmapsTerrainHeightmapStatus(PDO $pdo): array
         $isStale = $hasRaster && (
             (int) $row['stamped_revision'] !== (int) $row['geometry_revision']
             || (string) $row['terrain_fingerprint'] !== avesmapsTerrainAreaFingerprint($row)
-            || (string) $row['peaks_fingerprint'] !== $erwarteterPeaksStempel($row)
+            || (string) $row['peaks_fingerprint'] !== $currentPeaks
         );
         if (!$hasRaster) { $missing++; } elseif ($isStale) { $stale++; }
         $areas[] = [
