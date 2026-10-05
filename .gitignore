@@ -79,3 +79,11 @@ uploads/map/*.zip
 # unbefolgbar, wenn die Liste zu 56 Zeilen Rauschen wird, in denen die eigene Aenderung
 # untergeht. Gleiche Begruendung wie .superpowers/ weiter oben.
 verify-*
+
+# Testlauf-Rückstand: die Testläufe leiten console.warn/error in output_<pid>.log im
+# Wurzelverzeichnis um. Am 05.10.2026 lagen dort 513 Stück vom 15.09.2026, 507 davon LEER
+# (zusammen 9 KB) -- sie tragen nichts, kosten aber genau das, was die zwei Blöcke darüber
+# schon einmal gekostet haben: "git status" wird unlesbar, und damit wird die Regel aus
+# AGENTS.md §9 ("erst git status, dann NUR eigene Pfade stagen") unbefolgbar. Sie ist im
+# geteilten Arbeitsbaum die einzige Regel, die die Arbeit fremder Sitzungen schützt.
+output_*.log
