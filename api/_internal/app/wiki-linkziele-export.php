@@ -39,10 +39,18 @@ declare(strict_types=1);
 // 🔴 Aus der Tabelle `wiki_redirect_alias` wird NUR gelesen. Der Export der Weiterleitungen (E1++) ist eine andere
 // Baustelle und wird hier nicht benutzt.
 //
-// ⚠️ Eine Vorlage wie {{Pol|Baronie Raulsmark}} im Feld Staat ist KEIN Link dieses Exports -- ob sie auf die Seite
-// verweist, steht in der Vorlage, nicht im Quelltext (Kommentar in link-ziele.php). Gemessen am Dump vom
-// 08.09.2026 betrifft das rund 1.045 von 2.827 Siedlungs-Staat-Feldern. Wie viele Felder solche Vorlagen statt Links
-// tragen, steht im Kopf von X1 (`vorlagen_in_feldern`), damit die Luecke sichtbar ist, statt als „keine Links" zu gelten.
+// 🔴 {{Pol|X}} und {{Reg|X}} ZAEHLEN ALS LINK -- aber nur dort, und mit eigenem Merkmal (Owner 05.10.2026, „Pol/Reg ja"):
+// {{Pol|X}} im Feld STAAT, {{Reg|X}} im Feld REGION, Ziel = X, kanonisiert wie jedes andere Ziel, `art: "vorlage"`
+// (Wikilinks tragen `art: "wikilink"`). Beleg: Vorlage:Pol hat laut Wiki genau einen Parameter, „Uebergeordnete politische
+// Region" -- also den Seitentitel der Region, aus der die Infobox die politische Zugehoerigkeit liest. MEHR ALS
+// „uebergeordnete politische Region" behaupten wir damit nicht: das Ziel ist nicht „der Landesherr", sondern die Region, die
+// die Infobox dort nennt. (Fuer Vorlage:Reg hat der Owner dieselbe Behandlung bestimmt; der Beleg gilt ausdruecklich fuer Pol.)
+// ⚠️ ANDERE Vorlagen ({{Reichsstadt|…}}, Zeilenvorlagen) sind weiter KEIN Link und werden nur gezaehlt (`vorlagen_in_feldern`).
+// ⚠️ Gemessen am Dump vom 08.09.2026: 873 {{Pol|…}}-Vorkommen in Staat-Feldern, 18 {{Reg|…}} in Region-Feldern.
+//
+// 🔴 X1 IST JE ARTIKEL, NICHT JE OBJEKT (Owner 05.10.2026, „X1 je Artikel ja" -- Abweichung vom Auftrag „je Objekt", gewollt): ein Weg
+// mit 56 Abschnitten teilt EINE Seite, und je Objekt stuende sie 56-mal da (X1 war so rund 10 MB gross). Der Schluessel ist der
+// kanonische Wiki-Key der Seite; welche Kartenobjekte an ihm haengen, sagt X2 (`wiki_key -> public_id`).
 //
 // ⚠️ Keine Drossel: wie map-features.php. Die Antworten sind gross (X1 mehrere hundert KB) -- ein Werkzeug holt sie auf
 // Zuruf, nie in einer Schleife (CLAUDE.md, STRATO).
@@ -135,6 +143,13 @@ const AVESMAPS_WIKI_LINKZIELE_FELDER = [
         'regionen' => ['regionen', 'region', 'lage'],
         'verlauf' => ['verlauf'],
     ],
+];
+
+// Welche Vorlage in welchem Feld als Link zaehlt: Feldname => Vorlagenname (klein). Eine Tafel, kein Muster im Code -- eine
+// dritte Vorlage waere eine Zeile hier, und die Gegenprobe (Test D) liest genau diese Tafel.
+const AVESMAPS_WIKI_LINKZIELE_VORLAGEN_ALS_LINK = [
+    'staat' => ['pol' => 'Pol'],
+    'region' => ['reg' => 'Reg'],
 ];
 
 // Wie oft gelesen wird, bevor der Endpunkt aufgibt, weil sich der Stand waehrend des Lesens bewegt.
@@ -313,10 +328,11 @@ function avesmapsWikiLinkzieleTitelDaten(string $titel, array $aliase, array $in
  * Gelesen wird der ROHWERT des Infobox-Parameters (vor der Bereinigung, die das Ziel wegwirft) mit denselben
  * Infobox-Helfern wie die Parser des Haus (`ExtractInfoboxBlock`, `ParseTemplateParams`, `NormFields`, `Field`).
  *
- * @return array{felder: array<string, list<array{anzeige:string, ziel:string}>>, befuellt:int, vorlagen: array<string,int>, infobox:bool}
- *   `felder`   nur Felder mit mindestens einem Link, in der Reihenfolge der Positivliste
+ * @return array{felder: array<string, list<array<string,string>>>, befuellt:int, vorlagen: array<string,int>, infobox:bool}
+ *   `felder`   nur Felder mit mindestens einem Link, in der Reihenfolge der Positivliste; jeder Link {anzeige, ziel, art
+ *              ('wikilink'|'vorlage'), vorlage? ('Pol'|'Reg')}, Wikilinks und Vorlagen-Links in Quelltext-Reihenfolge
  *   `befuellt` Felder der Positivliste, die einen nichtleeren Wert tragen
- *   `vorlagen` {{Name|Text}} mit blankem Textargument in befuellten Feldern (Name => Anzahl) -- die sichtbare Luecke
+ *   `vorlagen` {{Name|Text}} mit blankem Textargument in befuellten Feldern, die NICHT als Link gefuehrt werden (Name => Anzahl)
  *   `infobox`  ob die Seite eine Infobox traegt
  */
 function avesmapsWikiLinkzieleSeite(string $wikitext, string $seitenArt): array
@@ -339,18 +355,44 @@ function avesmapsWikiLinkzieleSeite(string $wikitext, string $seitenArt): array
             continue;
         }
         $ergebnis['befuellt']++;
-        $paare = avesmapsWikiLinkZielePaare($roh);
-        if ($paare !== []) {
-            $ergebnis['felder'][$name] = $paare;
+
+        // Wikilinks mit ihrer Position im Wert ...
+        $links = [];
+        foreach (avesmapsWikiLinkZielePaareMitPosition($roh) as $paar) {
+            $links[] = ['pos' => $paar['pos'], 'anzeige' => $paar['anzeige'], 'ziel' => $paar['ziel'], 'art' => 'wikilink'];
         }
-        // Vorlagen mit einem blanken Textargument ({{Pol|Baronie Raulsmark}}) -- der Fall, den dieser Export NICHT als Link
-        // fuehrt. Gezaehlt wird in JEDEM befuellten Feld, auch dort, wo daneben echte Wikilinks stehen (Gareth: Staat traegt
-        // „{{Pol|Baronie Raulsmark}}; [[Reichsstadt]]"). Zeilenvorlagen mit Link-Argument ({{Strasse|[[X]]|…}}) zaehlen nicht.
-        // Das Verlaufsfeld ist per Bauart eine Kette von Zeilenvorlagen ({{Abzweigung links|Name}}) und waere reines Rauschen.
-        if ($name !== 'verlauf' && preg_match_all('/\{\{\s*([^{}|]+?)\s*\|\s*([^{}|\[\]=]+?)\s*(?:\||\}\})/u', $roh, $vorlagen) >= 1) {
-            foreach ($vorlagen[1] as $vorlage) {
-                $vorlage = trim((string) $vorlage);
-                $ergebnis['vorlagen'][$vorlage] = ($ergebnis['vorlagen'][$vorlage] ?? 0) + 1;
+        // ... und die Vorlagen, die in DIESEM Feld als Link zaehlen ({{Pol|X}} bei staat, {{Reg|X}} bei region).
+        $alsLink = AVESMAPS_WIKI_LINKZIELE_VORLAGEN_ALS_LINK[$name] ?? [];
+        $verbraucht = [];
+        if ($alsLink !== [] && preg_match_all('/\{\{\s*([^{}|]+?)\s*\|\s*([^{}|\[\]=]+?)\s*\}\}/u', $roh, $treffer, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) >= 1) {
+            foreach ($treffer as $vorlageTreffer) {
+                $vorlage = $alsLink[mb_strtolower(trim((string) $vorlageTreffer[1][0]), 'UTF-8')] ?? null;
+                $ziel = trim((string) $vorlageTreffer[2][0]);
+                if ($vorlage === null || $ziel === '') {
+                    continue;
+                }
+                $links[] = ['pos' => (int) $vorlageTreffer[0][1], 'anzeige' => $ziel, 'ziel' => $ziel, 'art' => 'vorlage', 'vorlage' => $vorlage];
+                $verbraucht[(int) $vorlageTreffer[0][1]] = true;
+            }
+        }
+        if ($links !== []) {
+            usort($links, static fn(array $a, array $b): int => $a['pos'] <=> $b['pos']);
+            $ergebnis['felder'][$name] = array_map(static function (array $link): array {
+                unset($link['pos']);
+
+                return $link;
+            }, $links);
+        }
+
+        // Alle uebrigen Vorlagen mit blankem Textargument: nicht als Link, aber sichtbar gezaehlt. Das Verlaufsfeld ist per Bauart
+        // eine Kette von Zeilenvorlagen ({{Abzweigung links|Name}}) und waere reines Rauschen.
+        if ($name !== 'verlauf' && preg_match_all('/\{\{\s*([^{}|]+?)\s*\|\s*([^{}|\[\]=]+?)\s*(?:\||\}\})/u', $roh, $vorlagen, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) >= 1) {
+            foreach ($vorlagen as $vorlage) {
+                if (isset($verbraucht[(int) $vorlage[0][1]])) {
+                    continue;
+                }
+                $vorlagenName = trim((string) $vorlage[1][0]);
+                $ergebnis['vorlagen'][$vorlagenName] = ($ergebnis['vorlagen'][$vorlagenName] ?? 0) + 1;
             }
         }
     }
@@ -718,11 +760,15 @@ function avesmapsWikiLinkzieleZuordnungAntwort(array $staende, array $zuordnung)
 }
 
 /**
- * REIN: X1 -- die Linkziele je Objekt und Wiki-Feld, mit Zaehlern zur Gegenprobe.
+ * REIN: X1 -- die Linkziele je ARTIKEL (je Wiki-Seite) und Wiki-Feld, mit Zaehlern zur Gegenprobe.
  *
- * Zaehler (`kopf.artikel`) zaehlen je ARTIKEL (je Wiki-Seite), nicht je Objekt: ein Weg liegt in bis zu 57 Abschnitten,
- * und alle teilen denselben Artikel -- je Objekt gezaehlt waere jeder Link 57-mal in der Statistik. `objekte_je_art` zaehlt
- * je Objekt.
+ * 🔴 JE ARTIKEL, nicht je Objekt (Owner 05.10.2026): der Schluessel ist der kanonische Wiki-Key der Seite; die Zuordnung zu
+ * Kartenobjekten liefert X2. Ein Weg in 56 Abschnitten steht EINMAL da. Die Artikel sind nach Schluessel sortiert (ein fester
+ * Inhalt, damit der Inhalts-ETag nicht wackelt).
+ *
+ * Kopf: `artikel` zaehlt je Artikel, `objekte_je_art` je Objekt (aus der Zuordnung von X2). Ein Objekt ohne Schluessel (fremde
+ * Adresse) steht in `objekte_ohne_schluessel`; ein Schluessel, dessen Seite der Dump nicht hat, in `ohne_wikitext` (mit der Zahl
+ * der Objekte, die daran haengen).
  *
  * @param array<string,int|string> $staende
  * @param array{objekte: list<array<string,mixed>>, je_art: array<string,array<string,int>>, ohne_schluessel:int} $zuordnung
@@ -731,62 +777,65 @@ function avesmapsWikiLinkzieleZuordnungAntwort(array $staende, array $zuordnung)
  */
 function avesmapsWikiLinkzieleLinkAntwort(array $staende, array $zuordnung, array $seiten, int $kollisionen, array $index = []): array
 {
-    $objekte = [];
-    $ohneWikitext = [];
     $jeArt = [];
     foreach (AVESMAPS_WIKI_LINKZIELE_ARTEN as $art) {
         if ($art !== 'gebiet') {
             $jeArt[$art] = ['mit_zuweisung' => 0, 'mit_wikitext' => 0, 'ohne_wikitext' => 0];
         }
     }
+    $ohneWikitext = [];   // Schluessel => {wiki_key, grund, objekte}
     foreach ($zuordnung['objekte'] as $objekt) {
         $art = (string) $objekt['art'];
         if ($art === 'gebiet') {
-            continue; // X1 kennt Siedlung, Weg, Region, Kraftlinie, Landschaft -- Gebiete stehen in X2 (ihre Schluessel zaehlen unten trotzdem als Kartenobjekt)
+            continue; // X1 kennt Siedlung, Weg, Region, Kraftlinie, Landschaft -- Gebiete stehen in X2
         }
         $key = $objekt['wiki_key'] ?? null;
         $jeArt[$art]['mit_zuweisung']++;
-        $seite = $key !== null ? ($seiten[$key] ?? null) : null;
-        if ($seite === null) {
-            $jeArt[$art]['ohne_wikitext']++;
-            // Warum: die Seite fehlt im Dump-Lauf, oder sie steht darin, ist aber von einer Art (Herrschaftsgebiet), fuer die
-            // dieser Export keine Felder fuehrt.
-            $ohneWikitext[] = [
-                'public_id' => $objekt['public_id'],
-                'art' => $art,
-                'wiki_key' => $key,
-                'grund' => $key !== null && isset($index[$key]) ? 'seitenart_ohne_felder' : 'seite_nicht_im_dump',
-            ];
+        if ($key !== null && isset($seiten[$key])) {
+            $jeArt[$art]['mit_wikitext']++;
             continue;
         }
-        $jeArt[$art]['mit_wikitext']++;
-        $objekte[] = [
-            'public_id' => $objekt['public_id'],
-            'art' => $art,
+        $jeArt[$art]['ohne_wikitext']++;
+        if ($key === null) {
+            continue; // ohne Schluessel: gezaehlt in `objekte_ohne_schluessel`, es gibt keine Seite zu nennen
+        }
+        $ohneWikitext[$key] ??= [
             'wiki_key' => $key,
-            'ns' => avesmapsWikiLinkzieleNamensraum($seite['titel'])['ns'],
-            'ns_name' => avesmapsWikiLinkzieleNamensraum($seite['titel'])['ns_name'],
-            'seite_art' => $seite['seite_art'],
-            'seite_titel' => $seite['titel'],
-            'felder' => (object) $seite['felder'],
+            // Warum: die Seite fehlt im Dump-Lauf, oder sie steht darin, ist aber von einer Art, fuer die dieser Export keine Felder fuehrt.
+            'grund' => isset($index[$key]) ? 'seitenart_ohne_felder' : 'seite_nicht_im_dump',
+            'objekte' => 0,
         ];
+        $ohneWikitext[$key]['objekte']++;
     }
+    ksort($ohneWikitext);
 
-    // --- Zaehler je Artikel -----------------------------------------------------------------------------------------
+    // --- Die Artikel und ihre Zaehler -------------------------------------------------------------------------------
     $kartenSchluessel = [];
     foreach ($zuordnung['objekte'] as $objekt) {
         if (($objekt['wiki_key'] ?? null) !== null) {
             $kartenSchluessel[(string) $objekt['wiki_key']] = true;
         }
     }
+    ksort($seiten);
+    $artikel = [];
     $felderBefuellt = 0;
     $felderMitLink = 0;
     $linksGesamt = 0;
     $linksPipe = 0;
+    $linksVorlage = 0;
     $zieleAnzahl = [];   // ziel_key => Anzahl der Links
     $zielTitel = [];     // ziel_key => erster Titel
     $vorlagen = [];
-    foreach ($seiten as $seite) {
+    foreach ($seiten as $key => $seite) {
+        $namensraum = avesmapsWikiLinkzieleNamensraum($seite['titel']);
+        $artikel[] = [
+            'wiki_key' => (string) $key,
+            'ns' => $namensraum['ns'],
+            'ns_name' => $namensraum['ns_name'],
+            'seite_art' => $seite['seite_art'],
+            'seite_titel' => $seite['titel'],
+            'felder' => (object) $seite['felder'],
+        ];
         $felderBefuellt += (int) $seite['befuellt'];
         foreach ($seite['vorlagen'] as $name => $anzahl) {
             $vorlagen[$name] = ($vorlagen[$name] ?? 0) + $anzahl;
@@ -796,6 +845,7 @@ function avesmapsWikiLinkzieleLinkAntwort(array $staende, array $zuordnung, arra
             foreach ($paare as $paar) {
                 $linksGesamt++;
                 $linksPipe += $paar['anzeige'] !== $paar['ziel'] ? 1 : 0;
+                $linksVorlage += ($paar['art'] ?? '') === 'vorlage' ? 1 : 0;
                 $zielKey = (string) $paar['ziel_key'];
                 $zieleAnzahl[$zielKey] = ($zieleAnzahl[$zielKey] ?? 0) + 1;
                 $zielTitel[$zielKey] ??= $paar['ziel'];
@@ -817,8 +867,6 @@ function avesmapsWikiLinkzieleLinkAntwort(array $staende, array $zuordnung, arra
     foreach (array_slice($ohne, 0, AVESMAPS_WIKI_LINKZIELE_TOP_OHNE_OBJEKT, true) as $zielKey => $anzahl) {
         $top[] = ['ziel_key' => $zielKey, 'ziel' => $zielTitel[$zielKey], 'links' => $anzahl];
     }
-    arsort($vorlagen);
-    ksort($vorlagen);
     uksort($vorlagen, static fn(string $a, string $b): int => ($vorlagen[$b] <=> $vorlagen[$a]) ?: strcmp($a, $b));
 
     return [
@@ -830,12 +878,14 @@ function avesmapsWikiLinkzieleLinkAntwort(array $staende, array $zuordnung, arra
         'dump' => ['run_id' => $staende['dump_lauf'], 'abgeschlossen' => $staende['dump_abgeschlossen']],
         'kopf' => [
             'objekte_je_art' => $jeArt,
+            'objekte_ohne_schluessel' => $zuordnung['ohne_schluessel'],
             'artikel' => [
-                'mit_wikitext' => count($seiten),
+                'mit_wikitext' => count($artikel),
                 'felder_befuellt' => $felderBefuellt,
                 'felder_mit_link' => $felderMitLink,
                 'links_gesamt' => $linksGesamt,
                 'links_pipe' => $linksPipe,
+                'links_vorlage' => $linksVorlage,
                 'ziele_verschieden' => count($zieleAnzahl),
                 'ziele_mit_kartenobjekt' => $mit,
                 'ziele_ohne_kartenobjekt' => count($ohne),
@@ -844,8 +894,8 @@ function avesmapsWikiLinkzieleLinkAntwort(array $staende, array $zuordnung, arra
             'vorlagen_in_feldern' => (object) array_slice($vorlagen, 0, 15, true),
             'seiten_schluesselkollision' => $kollisionen,
         ],
-        'objekte' => $objekte,
-        'ohne_wikitext' => $ohneWikitext,
+        'artikel' => $artikel,
+        'ohne_wikitext' => array_values($ohneWikitext),
     ];
 }
 
@@ -871,9 +921,10 @@ function avesmapsWikiLinkzieleLesen(PDO $pdo, string $variante): array
 
         $seiten = [];
         if ($variante !== 'zuordnung') {
+            // X1 fuehrt keine Gebiets-Infobox: nur die Schluessel der uebrigen Objekte brauchen ihren Wikitext.
             $gebraucht = [];
             foreach ($zuordnung['objekte'] as $objekt) {
-                if (($objekt['wiki_key'] ?? null) !== null) {
+                if (($objekt['wiki_key'] ?? null) !== null && $objekt['art'] !== 'gebiet') {
                     $gebraucht[(string) $objekt['wiki_key']] = true;
                 }
             }

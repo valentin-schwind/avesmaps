@@ -626,15 +626,17 @@ assignment wins"). The two answers are meant to be joined on `wiki_key` / `ziel_
 written, no live request to the wiki. Details and example answers: `docs/wiki-linkziele-export.md`.
 
 ```text
-GET /api/app/wiki-linkziele-export.php   (X1)
+GET /api/app/wiki-linkziele-export.php   (X1, one entry per ARTICLE)
 -> { "ok": true, map_revision, ecosystem_revision, territories_revision, aliase_stempel,
      "dump": { run_id, abgeschlossen },
-     "kopf": { objekte_je_art, artikel: { mit_wikitext, felder_befuellt, felder_mit_link, links_gesamt,
-               links_pipe, ziele_verschieden, ziele_mit_kartenobjekt, ziele_ohne_kartenobjekt },
+     "kopf": { objekte_je_art, objekte_ohne_schluessel,
+               artikel: { mit_wikitext, felder_befuellt, felder_mit_link, links_gesamt, links_pipe,
+                          links_vorlage, ziele_verschieden, ziele_mit_kartenobjekt, ziele_ohne_kartenobjekt },
                haeufigste_ziele_ohne_kartenobjekt (top 30), vorlagen_in_feldern, seiten_schluesselkollision },
-     "objekte": [ { public_id, art, wiki_key, ns, ns_name, seite_art, seite_titel,
-                    felder: { <field>: [ { anzeige, ziel, ns, ns_name, ziel_key, weiterleitung_auf? } ] } } ],
-     "ohne_wikitext": [ { public_id, art, wiki_key, grund } ] }
+     "artikel": [ { wiki_key, ns, ns_name, seite_art, seite_titel,
+                    felder: { <field>: [ { anzeige, ziel, art ("wikilink"|"vorlage"), vorlage? ("Pol"|"Reg"),
+                                           ns, ns_name, ziel_key, weiterleitung_auf? } ] } } ],
+     "ohne_wikitext": [ { wiki_key, grund, objekte } ] }
 
 GET /api/app/wiki-zuordnung-export.php   (X2)
 -> { "ok": true, map_revision, ecosystem_revision, territories_revision, aliase_stempel,
@@ -651,20 +653,28 @@ GET /api/app/wiki-zuordnung-export.php   (X2)
   with its prefix. `weiterleitung_auf` appears only when a redirect changed the key and names the target
   page's title and namespace (`null` where the dump does not know the page) — so a redirect across
   namespaces reads as `ns` against `weiterleitung_auf.ns`.
+- **X1 is one entry per article (wiki page), not per object** (owner decision 2026-10-05): the key is the
+  article's canonical `wiki_key`, and which map objects hang on it is X2's job (`wiki_key -> public_id`). A way in 56
+  sections is one entry (this halved X1 to about 4 MB). `kopf.artikel` counts per article, `kopf.objekte_je_art` per
+  object (via X2); articles are sorted by key.
+- **`{{Pol|X}}` in the field `staat` and `{{Reg|X}}` in the field `region` are links** with `art: "vorlage"` (and
+  `vorlage: "Pol"|"Reg"`), target X, canonicalised like every other target; wikilinks carry `art: "wikilink"`. The
+  wiki's Vorlage:Pol has one parameter, the page title of the superordinate political region — that is all the
+  export claims for `ziel` (not "the sovereign"). Any other template (`{{Reichsstadt|…}}`, or `{{Pol|…}}` in another
+  field) is not a link and is only counted (`vorlagen_in_feldern`).
 - **X1 reads the wikitext from the dump sandbox** (`wiki_dump_hybrid_state`, the newest completed `dump_read`
   run, named in `dump`), because the stored infobox values have lost the link target. Objects whose page the
-  run does not have are listed in `ohne_wikitext` with a reason — never as empty fields.
+  run does not have are listed in `ohne_wikitext` per key, with a reason and the number of objects — never as empty fields.
 - **The fields are an allow-list per page kind** (`AVESMAPS_WIKI_LINKZIELE_FELDER`): the infobox fields the
-  legacy parsers read, plus the eight neighbours; any other infobox field stays out. Only wikilinks count.
-  ⚠️ A template such as `{{Pol|Baronie Raulsmark}}` is **not** a link of this export; the head counts them
-  (`vorlagen_in_feldern`) so the gap is visible.
+  legacy parsers read, plus the eight neighbours; any other infobox field stays out. Only wikilinks and the
+  two templates above count.
 - **X2 is only what is assigned**: the map nest (`wiki_settlement` / `wiki_region` / `wiki_path` /
   `wiki_powerline`) with a `wiki_url`, never the flat `wiki_url` (that one is guessed); landscape areas by
   `wiki_url` or `wiki_region_key`; territories by a stored `wiki:` key. Nothing is derived from a name. The
   number of objects without an assignment is given per `art`.
 - Stamps, ETag and `503 data_changing` work like on `political-territories-export.php`; the stamps also
-  cover the territory table, the redirect table and the dump run. ⚠️ X1 is large (about 10 MB uncompressed) —
-  fetch it on demand, never in a loop.
+  cover the territory table, the redirect table and the dump run. ⚠️ X1 is about 4 MB uncompressed and X2 about 1.6 MB —
+  fetch them on demand, never in a loop.
 
 ## Legacy exports for Avesmaps3D (E1–E5)
 

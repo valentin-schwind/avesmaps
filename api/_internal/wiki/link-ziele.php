@@ -24,6 +24,35 @@ declare(strict_types=1);
 // Quelltext, sondern in der Vorlage. Das Wiki wird hier nie gefragt.
 
 /**
+ * Alle Wikilinks eines Feldwerts, in der Reihenfolge des Quelltexts, jeden einzeln, MIT der Byte-Position des Links im
+ * Feldwert (`pos`). Die Position braucht, wer Wikilinks mit anderen Fundstellen desselben Werts in Quelltext-Reihenfolge
+ * mischt (api/_internal/app/wiki-linkziele-export.php: {{Pol|…}} neben [[…]]).
+ *
+ * @return list<array{anzeige:string, ziel:string, pos:int}>
+ */
+function avesmapsWikiLinkZielePaareMitPosition(string $rawValue): array
+{
+    if (trim($rawValue) === '' || !str_contains($rawValue, '[[')) {
+        return [];
+    }
+    if (preg_match_all('/\[\[\s*([^\]\|#<>\[]+?)\s*(?:#[^\]\|]*)?(?:\|([^\]]*))?\]\]/u', $rawValue, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) < 1) {
+        return [];
+    }
+
+    $paare = [];
+    foreach ($matches as $match) {
+        $ziel = trim((string) ($match[1][0] ?? ''));
+        $anzeige = trim((string) ($match[2][0] ?? '')); // leer bei [[Name]]
+        if ($ziel === '') {
+            continue;
+        }
+        $paare[] = ['anzeige' => $anzeige !== '' ? $anzeige : $ziel, 'ziel' => $ziel, 'pos' => (int) $match[0][1]];
+    }
+
+    return $paare;
+}
+
+/**
  * Alle Wikilinks eines Feldwerts, in der Reihenfolge des Quelltexts, jeden einzeln.
  *
  * `anzeige` ist der Text nach dem Pipe, bei „[[Ziel]]" das Ziel selbst. `ziel` ist der Seitentitel ohne
@@ -33,22 +62,8 @@ declare(strict_types=1);
  */
 function avesmapsWikiLinkZielePaare(string $rawValue): array
 {
-    if (trim($rawValue) === '' || !str_contains($rawValue, '[[')) {
-        return [];
-    }
-    if (preg_match_all('/\[\[\s*([^\]\|#<>\[]+?)\s*(?:#[^\]\|]*)?(?:\|([^\]]*))?\]\]/u', $rawValue, $matches, PREG_SET_ORDER) < 1) {
-        return [];
-    }
-
-    $paare = [];
-    foreach ($matches as $match) {
-        $ziel = trim((string) ($match[1] ?? ''));
-        $anzeige = trim((string) ($match[2] ?? '')); // leer bei [[Name]]
-        if ($ziel === '') {
-            continue;
-        }
-        $paare[] = ['anzeige' => $anzeige !== '' ? $anzeige : $ziel, 'ziel' => $ziel];
-    }
-
-    return $paare;
+    return array_map(
+        static fn(array $paar): array => ['anzeige' => $paar['anzeige'], 'ziel' => $paar['ziel']],
+        avesmapsWikiLinkZielePaareMitPosition($rawValue)
+    );
 }

@@ -12,8 +12,9 @@ declare(strict_types=1);
  *   A  Links zerlegen ([[Ziel]], [[Ziel|Anzeige]], [[Ziel#Abschnitt|Anzeige]], mehrere, Gareth) -- und dass die alte
  *      Tafel `avesmapsWikiSettlementLinkTargets` nach dem Umbau dasselbe liefert wie vorher
  *   B  Namensraum und Schluessel: Hauptraum und Inoffiziell:-Seite bleiben zwei Artikel; Weiterleitung ueber Namensraeume
- *   C  Eine Seite -> ihre Linkfelder; NUR Felder der Positivliste (Test gegen zusaetzliche Felder)
- *   D  Beide Exporte gegen eine SQLite-Fixture: Inhalt, Zaehler, Weiterleitung, fehlender Wikitext, Namensraum
+ *   C  Eine Seite -> ihre Linkfelder; NUR Felder der Positivliste (Test gegen zusaetzliche Felder); {{Pol|X}}/{{Reg|X}} als
+ *      Link mit art "vorlage", andere Vorlagen nur gezaehlt
+ *   D  Beide Exporte gegen eine SQLite-Fixture: Inhalt, Zaehler, Weiterleitung, fehlender Wikitext, Namensraum; X1 JE ARTIKEL
  *   E  🔴 NUR LESEND (Mutationstest): jede Anweisung ein SELECT, Datenbankinhalt davor = danach, kein Schreibwort im Quelltext
  *   F  Der Stand bewegt sich waehrend des Lesens -> Ausnahme (Endpunkt: 503 data_changing)
  *   G  Verdrahtung: zwei Endpunkte, nur GET, keine Anmeldung; die Nest-Liste gleich der des Konfliktzentrums
@@ -157,6 +158,11 @@ assert($gareth === [
 $gleich = avesmapsWikiLinkZielePaare('[[A|x]] und [[B|x]]');
 assert(count($gleich) === 2 && $gleich[1]['ziel'] === 'B', 'A3: dieselbe Anzeige, zwei Ziele: beide stehen da');
 
+// A3b: die Position (Byte-Offset im Feldwert) -- und die Liste ohne Position ist dieselbe wie vorher.
+$mitPos = avesmapsWikiLinkZielePaareMitPosition('ab [[A]] cd [[B|x]]');
+assert(array_column($mitPos, 'pos') === [3, 12] && array_column($mitPos, 'ziel') === ['A', 'B'], 'A3b: Positionen der Wikilinks');
+assert(avesmapsWikiLinkZielePaare('ab [[A]] cd [[B|x]]') === [['anzeige' => 'A', 'ziel' => 'A'], ['anzeige' => 'x', 'ziel' => 'B']], 'A3b: Paare ohne pos, unveraendert');
+
 // A4: kein Link, leerer Wert, leeres Ziel.
 assert(avesmapsWikiLinkZielePaare('') === [] && avesmapsWikiLinkZielePaare('nur Text') === [] && avesmapsWikiLinkZielePaare('[[|x]]') === [], 'A4: nichts zu finden');
 
@@ -220,7 +226,8 @@ $garethText = <<<'WIKI'
 |Wappen={{Boximage|Wappen Gareth Stadt 1. Var 3.png}}
 |Region={{Reg|Herz des Kontinents}}
 |Staat={{Pol|Baronie Raulsmark}}; [[Reichsstadt]] (nur [[Alt-Gareth]])
-|Handelszone=GAR
+|Handelszone={{IZ|Foo}}
+|Tempel={{Pol|Falsch}}
 |Verkehrswege=[[Reichsstraße 2|Reichsstraßen 2]] und [[Reichsstraße 3|3]], [[Gardel]]
 |Bearbeiter=[[Nicht Exportieren]]
 |Positionskarte={{Positionskarte|X=169|Y=225|Text=[[Gareth]]}}
@@ -231,15 +238,31 @@ $garethText = <<<'WIKI'
 Text.
 WIKI;
 $seite = avesmapsWikiLinkzieleSeite($garethText, 'settlement');
-assert(array_keys($seite['felder']) === ['staat', 'verkehrswege', 'nachbar_n', 'nachbar_so', 'nachbar_s'], 'C1: nur Felder der Positivliste, in deren Reihenfolge, und nur mit Link');
+assert(array_keys($seite['felder']) === ['region', 'staat', 'verkehrswege', 'nachbar_n', 'nachbar_so', 'nachbar_s'], 'C1: nur Felder der Positivliste, in deren Reihenfolge, und nur mit Link');
 assert(count($seite['felder']['verkehrswege']) === 3 && $seite['felder']['verkehrswege'][1]['ziel'] === 'Reichsstraße 3', 'C2: Gareth Verkehrswege: drei Links');
-assert($seite['felder']['staat'][0]['ziel'] === 'Reichsstadt', 'C3: Staat: die zwei echten Wikilinks');
-assert($seite['felder']['nachbar_s'][0] === ['anzeige' => 'Silkwiesen', 'ziel' => 'Silkwiesen (Siedlung)'], 'C4: Nachbar Sued, SÜD -> sud');
-assert($seite['vorlagen'] === ['Reg' => 1, 'Pol' => 1], 'C5: {{Reg|…}} und {{Pol|…}} werden als Luecke GEZAEHLT, nicht als Link gefuehrt');
+assert($seite['felder']['verkehrswege'][0] === ['anzeige' => 'Reichsstraßen 2', 'ziel' => 'Reichsstraße 2', 'art' => 'wikilink'], 'C2b: ein Wikilink traegt art "wikilink"');
+assert($seite['felder']['nachbar_s'][0] === ['anzeige' => 'Silkwiesen', 'ziel' => 'Silkwiesen (Siedlung)', 'art' => 'wikilink'], 'C4: Nachbar Sued, SÜD -> sud');
+// 🔴 {{Pol|X}} im Feld Staat und {{Reg|X}} im Feld Region sind Links mit art "vorlage" -- in QUELLTEXT-REIHENFOLGE neben den Wikilinks.
+assert($seite['felder']['staat'] === [
+    ['anzeige' => 'Baronie Raulsmark', 'ziel' => 'Baronie Raulsmark', 'art' => 'vorlage', 'vorlage' => 'Pol'],
+    ['anzeige' => 'Reichsstadt', 'ziel' => 'Reichsstadt', 'art' => 'wikilink'],
+    ['anzeige' => 'Alt-Gareth', 'ziel' => 'Alt-Gareth', 'art' => 'wikilink'],
+], 'C3: Staat: {{Pol|…}} zuerst (steht im Quelltext zuerst), dann die zwei Wikilinks');
+assert($seite['felder']['region'] === [['anzeige' => 'Herz des Kontinents', 'ziel' => 'Herz des Kontinents', 'art' => 'vorlage', 'vorlage' => 'Reg']], 'C3b: {{Reg|…}} im Feld Region');
+// Die Reihenfolge ist die des Quelltexts, nicht „erst Wikilinks, dann Vorlagen".
+$gemischt = avesmapsWikiLinkzieleSeite("{{Infobox Siedlung\n|Staat=[[A]] und {{Pol|B}}, [[C]]\n}}", 'settlement');
+assert(array_column($gemischt['felder']['staat'], 'ziel') === ['A', 'B', 'C'], 'C3c: Wikilinks und Vorlagen-Links in Quelltext-Reihenfolge');
+// Andere Vorlagen und Pol/Reg im FALSCHEN Feld sind kein Link, aber sichtbar gezaehlt.
+assert($seite['vorlagen'] === ['IZ' => 1, 'Pol' => 1], 'C5: andere Vorlagen und {{Pol|…}} ausserhalb von Staat werden GEZAEHLT, nicht als Link gefuehrt');
+assert(!isset($seite['felder']['handelszone']) && !isset($seite['felder']['tempel']), 'C5b: {{IZ|Foo}} und {{Pol|Falsch}} (Tempel) sind kein Link');
+assert(avesmapsWikiLinkzieleSeite("{{Infobox Siedlung\n|Staat={{Pol|}}\n}}", 'settlement')['felder'] === [], 'C5c: leere Vorlage ergibt keinen Link');
+assert(avesmapsWikiLinkzieleSeite("{{Infobox Siedlung\n|Staat={{pol|Klein}}\n}}", 'settlement')['felder']['staat'][0]['vorlage'] === 'Pol', 'C5d: der Vorlagenname gilt ohne Rücksicht auf Gross-/Kleinschreibung, ausgegeben wird „Pol"');
+// Die Tafel, die entscheidet, was als Link zaehlt, ist die einzige Stelle.
+assert(AVESMAPS_WIKI_LINKZIELE_VORLAGEN_ALS_LINK === ['staat' => ['pol' => 'Pol'], 'region' => ['reg' => 'Reg']], 'C5e: genau Pol/Staat und Reg/Region');
 // 🔴 Positivliste: ein Infobox-Feld ausserhalb der Liste (Bearbeiter, Positionskarte, Wappen) kommt nirgends vor.
 $json = json_encode($seite, JSON_UNESCAPED_UNICODE);
 assert(!str_contains($json, 'Nicht Exportieren') && !str_contains($json, 'Boximage'), 'C6: zusaetzliche Infobox-Felder fallen STILL heraus');
-assert($seite['befuellt'] === 7, 'C7: befuellte Felder der Positivliste (region, staat, handelszone, verkehrswege, 3 Nachbarn)');
+assert($seite['befuellt'] === 8, 'C7: befuellte Felder der Positivliste (region, staat, handelszone, tempel, verkehrswege, 3 Nachbarn)');
 
 assert(avesmapsWikiLinkzieleSeite('kein Infobox [[Link]]', 'settlement')['infobox'] === false, 'C8: Seite ohne Infobox');
 assert(avesmapsWikiLinkzieleSeite($garethText, 'territory')['felder'] === [], 'C9: Seitenart ohne Positivliste -> nichts');
@@ -248,7 +271,7 @@ assert(avesmapsWikiLinkzieleSeite($garethText, 'territory')['felder'] === [], 'C
 $wegText = "{{Infobox Straße\n|Name=Reichsstraße 2\n|Regionen=[[Garetien]], [[Weiden]]\n|Verlauf={{Straße|[[Gareth]]|[[Havena]]}}{{Abzweigung links|Kuslik}}\n}}";
 $weg = avesmapsWikiLinkzieleSeite($wegText, 'path');
 assert(array_keys($weg['felder']) === ['lage', 'verlauf'] && $weg['felder']['lage'][1]['ziel'] === 'Weiden', 'C10: Weg: lage = Regionen');
-assert(array_column($weg['felder']['verlauf'], 'ziel') === ['Gareth', 'Havena'] && $weg['vorlagen'] === [], 'C11: Verlauf: Links in Reihenfolge, Zeilenvorlagen sind kein Rauschen im Kopf');
+assert(array_column($weg['felder']['verlauf'], 'ziel') === ['Gareth', 'Havena'] && $weg['vorlagen'] === [] && array_unique(array_column($weg['felder']['verlauf'], 'art')) === ['wikilink'], 'C11: Verlauf: Links in Reihenfolge, Zeilenvorlagen sind kein Rauschen im Kopf');
 
 // Die Positivliste selbst: keine leere Liste, nur Kleinbuchstaben/Ziffern als Alias (so bildet NormFields die Schluessel).
 foreach (AVESMAPS_WIKI_LINKZIELE_FELDER as $art => $felder) {
@@ -305,6 +328,7 @@ function fixtureBauen(): ProtokollPdo
         [2, 'geb-name', 'Baronie', 'name:foo', null, 'Aventurien', 1, '2026-09-01 00:00:00'],
         [3, 'geb-inaktiv', 'Baronie', 'wiki:baronie-x', null, 'Aventurien', 0, '2026-09-01 00:00:00'],
         [4, 'geb-myranor', 'Reich', 'wiki:myranor', null, 'Myranor', 1, '2026-09-01 00:00:00'],
+        [5, 'geb-djuimen', 'Stadtstaat', 'wiki:dju-imen', null, 'Aventurien', 1, '2026-09-01 00:00:00'],
     ] as $zeile) {
         $gebiet->execute($zeile);
     }
@@ -319,7 +343,7 @@ function fixtureBauen(): ProtokollPdo
 
     $seite = $pdo->prepare('INSERT INTO wiki_dump_hybrid_state (run_id, normalized_title, entity_kind, wikitext, wikitext_found_at) VALUES (?,?,?,?,?)');
     $gesehen = '2026-09-02 06:00:00';
-    $garethText = "{{Infobox Siedlung\n|Name=Gareth\n|Staat={{Pol|Baronie Raulsmark}}; [[Reichsstadt]]\n|Verkehrswege=[[Reichsstraße 2|Reichsstraßen 2]] und [[Reichsstraße 3|3]], [[Gardel]], [[Zedernstraße]]\n|Bearbeiter=[[Nicht Exportieren]]\n|NORD=[[Natzungen]]\n}}";
+    $garethText = "{{Infobox Siedlung\n|Name=Gareth\n|Region={{Reg|Herz des Kontinents}}\n|Staat={{Pol|Baronie Raulsmark}}; [[Reichsstadt]]\n|Handelszone={{IZ|Foo}}\n|Verkehrswege=[[Reichsstraße 2|Reichsstraßen 2]] und [[Reichsstraße 3|3]], [[Gardel]], [[Zedernstraße]]\n|Bearbeiter=[[Nicht Exportieren]]\n|NORD=[[Natzungen]]\n}}";
     foreach ([
         [5, 'Gareth', 'settlement', $garethText, $gesehen],
         [5, 'Reichsstraße 2', 'path', "{{Infobox Straße\n|Name=Reichsstraße 2\n|Regionen=[[Garetien]]\n|Verlauf={{Straße|[[Gareth]]|[[Havena]]}}\n}}", $gesehen],
@@ -363,33 +387,52 @@ assert(!isset($je['geb-name']) && !isset($je['geb-inaktiv']) && !isset($je['geb-
 $kopf = $x2['kopf'];
 assert($kopf['objekte_mit_zuweisung'] === count($x2['objekte']) && $kopf['objekte_ohne_schluessel'] === 1, 'D16: Kopf: Zahl der Objekte, davon 1 ohne Schluessel (fremde Adresse)');
 assert($kopf['je_art']['siedlung'] === ['zugewiesen' => 5, 'ohne_zuweisung' => 2], 'D17: Siedlung: 5 zugewiesen (Gareth, Inoffiziell-Seite, fehlt, fremd, Weiterleitung), 2 ohne (ort-ohne, ort-nest-leer)');
-assert($kopf['je_art']['weg'] === ['zugewiesen' => 2, 'ohne_zuweisung' => 0] && $kopf['je_art']['gebiet'] === ['zugewiesen' => 1, 'ohne_zuweisung' => 1], 'D18: Weg und Gebiet');
+assert($kopf['je_art']['weg'] === ['zugewiesen' => 2, 'ohne_zuweisung' => 0] && $kopf['je_art']['gebiet'] === ['zugewiesen' => 2, 'ohne_zuweisung' => 1], 'D18: Weg und Gebiet');
 assert($kopf['je_art']['landschaft'] === ['zugewiesen' => 2, 'ohne_zuweisung' => 1], 'D19: Landschaft ohne Klimaband');
 
 $x1 = avesmapsWikiLinkzieleLesen($pdo, 'linkziele');
 assert($x1['dump'] === ['run_id' => 5, 'abgeschlossen' => '2026-09-02 07:00:00.000'], 'D20: der juengste ABGESCHLOSSENE Lauf, nicht der laufende und nicht der alte');
+// 🔴 JE ARTIKEL: der Schluessel ist der Wiki-Key der Seite; Objekte stehen in X2.
+assert(!array_key_exists('objekte', $x1) && is_array($x1['artikel']), 'D20b: X1 hat `artikel`, kein `objekte`');
 $o1 = [];
-foreach ($x1['objekte'] as $objekt) {
-    $o1[$objekt['public_id']] = $objekt;
+foreach ($x1['artikel'] as $artikel) {
+    assert(!isset($o1[$artikel['wiki_key']]), 'D20c: jeder Artikel steht genau einmal da');
+    $o1[$artikel['wiki_key']] = $artikel;
 }
-$g = $o1['ort-gareth'];
-assert($g['wiki_key'] === 'wiki:gareth' && $g['ns'] === 0 && $g['seite_art'] === 'settlement', 'D21: Gareth in X1');
-assert(array_keys((array) $g['felder']) === ['staat', 'verkehrswege', 'nachbar_n'], 'D22: Gareth: nur Positivlisten-Felder mit Link');
+$schluessel = array_column($x1['artikel'], 'wiki_key');
+$sortiert = $schluessel;
+sort($sortiert, SORT_STRING);
+assert($schluessel === $sortiert, 'D20e: die Artikel sind nach Wiki-Key sortiert (fester Inhalt, stabiler ETag)');
+foreach ($x1['artikel'] as $artikel) {
+    assert(array_diff(array_keys($artikel), ['wiki_key', 'ns', 'ns_name', 'seite_art', 'seite_titel', 'felder']) === [], 'D20f: der Artikel traegt keine Objektfelder (public_id, art) -- die liefert X2');
+}
+// Die zwei Abschnitte der Reichsstrasse 2 teilen EINEN Eintrag.
+assert(isset($o1['wiki:reichsstrasse-2']) && count(array_filter($x1['artikel'], static fn(array $a): bool => $a['wiki_key'] === 'wiki:reichsstrasse-2')) === 1, '🔴 D20g: weg-a und weg-b stehen als EIN Artikel da');
+
+$g = $o1['wiki:gareth'];
+assert($g['ns'] === 0 && $g['seite_art'] === 'settlement' && $g['seite_titel'] === 'Gareth', 'D21: Gareth in X1');
+assert(array_keys((array) $g['felder']) === ['region', 'staat', 'verkehrswege', 'nachbar_n'], 'D22: Gareth: nur Positionslisten-Felder mit Link');
 $vw = $g['felder']->verkehrswege;
 assert(array_column($vw, 'ziel') === ['Reichsstraße 2', 'Reichsstraße 3', 'Gardel', 'Zedernstraße'], 'D23: „2" -> Reichsstrasse 2, „3" -> Reichsstrasse 3, Gardel');
 assert(array_column($vw, 'ziel_key') === ['wiki:reichsstrasse-2', 'wiki:reichsstrasse-3', 'wiki:gardel', 'wiki:raschtulsweg'], 'D24: jedes Ziel traegt seinen kanonischen Key; „Zedernstrasse" ueber die Weiterleitung');
 assert($vw[3]['weiterleitung_auf']['wiki_key'] === 'wiki:raschtulsweg' && !isset($vw[0]['weiterleitung_auf']), 'D25: weiterleitung_auf nur bei der getroffenen Weiterleitung');
 assert(!str_contains(json_encode($x1, JSON_UNESCAPED_UNICODE), 'Nicht Exportieren'), '🔴 D26: ein Infobox-Feld ausserhalb der Positivliste geht NIE hinaus');
+// 🔴 Pol/Reg: art "vorlage", kanonisiert wie jedes Ziel.
+$staat = $g['felder']->staat;
+assert($staat[0]['art'] === 'vorlage' && $staat[0]['vorlage'] === 'Pol' && $staat[0]['ziel'] === 'Baronie Raulsmark' && $staat[0]['ziel_key'] === 'wiki:baronie-raulsmark' && $staat[0]['ns'] === 0, '🔴 D26b: {{Pol|X}} als Link: Ziel X, kanonischer Key, art "vorlage"');
+assert($staat[1]['art'] === 'wikilink' && $staat[1]['ziel_key'] === 'wiki:reichsstadt' && !isset($staat[1]['vorlage']), 'D26c: der Wikilink daneben bleibt "wikilink"');
+assert($g['felder']->region[0]['art'] === 'vorlage' && $g['felder']->region[0]['vorlage'] === 'Reg' && $g['felder']->region[0]['ziel_key'] === 'wiki:herz-des-kontinents', 'D26d: {{Reg|X}} im Feld Region');
 
-assert($o1['weg-a']['felder']->lage[0]['ziel'] === 'Garetien' && $o1['weg-a']['seite_art'] === 'path', 'D27: Weg: lage');
-assert(array_column($o1['weg-b']['felder']->verlauf, 'ziel') === ['Gareth', 'Havena'], 'D28: Weg: Verlauf in Reihenfolge');
-assert($o1['kraft-1']['felder']->regionen[0]['ziel'] === 'Weiden', 'D29: Kraftlinie: regionen');
-assert($o1['label-weiden']['seite_art'] === 'region' && $o1['land-weiden']['seite_art'] === 'region', 'D30: Landschaft und Region-Beschriftung lesen dieselbe Seite');
-assert(!isset($o1['geb-weiden']), 'D31: Herrschaftsgebiete stehen in X2, nicht in X1');
+assert($o1['wiki:reichsstrasse-2']['felder']->lage[0]['ziel'] === 'Garetien' && $o1['wiki:reichsstrasse-2']['seite_art'] === 'path', 'D27: Weg: lage');
+assert(array_column($o1['wiki:reichsstrasse-2']['felder']->verlauf, 'ziel') === ['Gareth', 'Havena'], 'D28: Weg: Verlauf in Reihenfolge');
+assert($o1['wiki:schwarze-linie']['felder']->regionen[0]['ziel'] === 'Weiden', 'D29: Kraftlinie: regionen');
+assert($o1['wiki:weiden']['seite_art'] === 'region', 'D30: Region-Beschriftung und Landschaft teilen den EINEN Artikel „Weiden"');
+assert(!isset($o1['wiki:herzogtum-weiden']), 'D31: Herrschaftsgebiete stehen in X2, nicht in X1 (Seitenart territory fuehrt keine Felder)');
+assert(!isset($o1['wiki:dju-imen']), '🔴 D31b: ein Gebiet, dessen Key auf eine Siedlungsseite zeigt, zieht diese Seite NICHT in X1 (nur Objekte ausser Gebieten brauchen ihren Wikitext)');
 
 // 🔴 Namensraum in X1: die Inoffiziell:-Seite und ihre Linkziele.
-$d = $o1['ort-djuimen'];
-assert($d['wiki_key'] === 'wiki:inoffiziell-dju-imen' && $d['ns'] === 222 && $d['seite_titel'] === "Inoffiziell:Dju'imen", 'D32: die Seite selbst: Key, ns 222, Titel mit Praefix');
+$d = $o1['wiki:inoffiziell-dju-imen'];
+assert($d['ns'] === 222 && $d['ns_name'] === 'Inoffiziell' && $d['seite_titel'] === "Inoffiziell:Dju'imen", 'D32: die Seite selbst: Key, ns 222, Titel mit Praefix');
 $nachbarn = [];
 foreach (['nachbar_n', 'nachbar_o', 'nachbar_w'] as $feld) {
     $nachbarn[$feld] = $d['felder']->$feld[0];
@@ -398,32 +441,50 @@ assert($nachbarn['nachbar_o']['ziel'] === 'Inoffiziell:Rossbergen' && $nachbarn[
 assert($nachbarn['nachbar_w']['ziel'] === "Dju'imen" && $nachbarn['nachbar_w']['ns'] === 0 && $nachbarn['nachbar_w']['ziel_key'] === 'wiki:dju-imen', 'D34: derselbe Titel OHNE Praefix ist die offizielle Seite -- ein anderer Key');
 assert($nachbarn['nachbar_n']['ziel_key'] === 'wiki:inoffiziell-dju-imen' && $nachbarn['nachbar_n']['ns'] === 0 && $nachbarn['nachbar_n']['weiterleitung_auf']['ns'] === 222 && $nachbarn['nachbar_n']['weiterleitung_auf']['titel'] === "Inoffiziell:Dju'imen", 'D35: Weiterleitung ueber Namensraeume in X1: Ziel 0, Weiterleitung 222');
 
-// ohne_wikitext
+// ohne_wikitext: je SCHLUESSEL mit der Zahl der Objekte
 $ohne = [];
 foreach ($x1['ohne_wikitext'] as $zeile) {
-    $ohne[$zeile['public_id']] = $zeile;
+    $ohne[$zeile['wiki_key']] = $zeile;
 }
-assert(isset($ohne['ort-fehlt']) && $ohne['ort-fehlt']['grund'] === 'seite_nicht_im_dump', 'D36: Objekt, dessen Seite der Dump nicht hat, steht in ohne_wikitext');
-assert(isset($ohne['ort-fremd']) && $ohne['ort-fremd']['wiki_key'] === null, 'D37: auch das Objekt ohne Schluessel steht dort');
-assert(!isset($o1['ort-fehlt']), 'D38: es gibt dafuer keine leeren Felder, die wie „keine Links" aussaehen');
+assert(isset($ohne['wiki:nicht-im-dump']) && $ohne['wiki:nicht-im-dump']['grund'] === 'seite_nicht_im_dump' && $ohne['wiki:nicht-im-dump']['objekte'] === 1, 'D36: Schluessel, dessen Seite der Dump nicht hat, steht in ohne_wikitext, mit der Zahl der Objekte');
+assert(array_keys($ohne['wiki:nicht-im-dump']) === ['wiki_key', 'grund', 'objekte'], 'D37: ohne_wikitext traegt keine public_id (X2 liefert die Zuordnung)');
+assert(!isset($o1['wiki:nicht-im-dump']) && $x1['kopf']['objekte_ohne_schluessel'] === 1, 'D38: keine leeren Felder, die wie „keine Links" aussaehen; das Objekt ohne Schluessel steht im Kopf');
 
-// Zaehler
+// Zaehler (je Artikel)
 $a = $x1['kopf']['artikel'];
-assert($a['mit_wikitext'] === 5, 'D39: fuenf Artikel (Gareth, Reichsstrasse 2, Schwarze Linie, Weiden, Inoffiziell-Seite); die Hauptraum-Seite hat kein Objekt');
-assert($a['links_gesamt'] === array_sum(array_map(static fn(array $o): int => array_sum(array_map('count', (array) $o['felder'])), array_values(array_filter($x1['objekte'], static fn(array $o): bool => in_array($o['public_id'], ['ort-gareth', 'weg-a', 'kraft-1', 'label-weiden', 'ort-djuimen'], true))))), 'D40: Zaehler je Artikel, Gegenprobe aus den Objekten (Reichsstrasse 2 einmal, nicht je Abschnitt)');
-assert($a['links_pipe'] === 2, 'D41: Pipe-Links (Anzeige != Ziel): nur „Reichsstraßen 2" und „3" bei Gareth');
+assert($a['mit_wikitext'] === count($x1['artikel']) && $a['mit_wikitext'] === 5, 'D39: fuenf Artikel (Gareth, Reichsstrasse 2, Schwarze Linie, Weiden, Inoffiziell-Seite); die Hauptraum-Seite hat kein Objekt');
+$gezaehlt = 0;
+$vorlageLinks = 0;
+$pipe = 0;
+foreach ($x1['artikel'] as $artikel) {
+    foreach ((array) $artikel['felder'] as $links) {
+        $gezaehlt += count($links);
+        foreach ($links as $link) {
+            $vorlageLinks += $link['art'] === 'vorlage' ? 1 : 0;
+            $pipe += $link['anzeige'] !== $link['ziel'] ? 1 : 0;
+        }
+    }
+}
+assert($a['links_gesamt'] === $gezaehlt, 'D40: Zaehler je Artikel, Gegenprobe aus der Antwort (Reichsstrasse 2 einmal, nicht je Abschnitt)');
+assert($a['links_vorlage'] === $vorlageLinks && $vorlageLinks === 2, 'D40b: zwei Vorlagen-Links (Pol und Reg bei Gareth)');
+assert($a['links_pipe'] === $pipe && $pipe === 2, 'D41: Pipe-Links (Anzeige != Ziel): nur „Reichsstraßen 2" und „3" bei Gareth');
 assert($a['ziele_mit_kartenobjekt'] + $a['ziele_ohne_kartenobjekt'] === $a['ziele_verschieden'], 'D42: Ziele mit + ohne Kartenobjekt = verschiedene Ziele');
-$mit = ['wiki:gareth' => 0];
 $top = array_column($x1['kopf']['haeufigste_ziele_ohne_kartenobjekt'], 'ziel_key');
 assert(in_array('wiki:havena', $top, true) && !in_array('wiki:reichsstrasse-2', $top, true) && !in_array('wiki:weiden', $top, true), 'D43: Top-Liste: Havena hat kein Kartenobjekt, Reichsstrasse 2 und Weiden schon');
-assert($x1['kopf']['vorlagen_in_feldern'] == (object) ['Pol' => 1], 'D44: die Pol-Luecke steht im Kopf');
-assert($x1['kopf']['objekte_je_art']['siedlung']['mit_wikitext'] === 3 && $x1['kopf']['objekte_je_art']['siedlung']['ohne_wikitext'] === 2 && !isset($x1['kopf']['objekte_je_art']['gebiet']), 'D45: Siedlung 3 mit (Gareth, Inoffiziell-Seite, Weiterleitung) / 2 ohne Wikitext (fehlt, fremd); X1 fuehrt kein Gebiet');
+assert($x1['kopf']['vorlagen_in_feldern'] == (object) ['IZ' => 1], 'D44: Pol/Reg sind jetzt Links und stehen NICHT mehr in der Luecke; die uebrige Vorlage {{IZ|…}} schon');
+$s = $x1['kopf']['objekte_je_art']['siedlung'];
+assert($s['mit_wikitext'] === 3 && $s['ohne_wikitext'] === 2 && !isset($x1['kopf']['objekte_je_art']['gebiet']), 'D45: Objekte je Art ueber X2: Siedlung 3 mit (Gareth, Inoffiziell-Seite, Weiterleitung) / 2 ohne Wikitext (fehlt, fremd); X1 fuehrt kein Gebiet');
+// Jeder Schluessel eines Artikels ist in X2 einem Objekt zugeordnet (X2 liefert die Zuordnung).
+$x2Schluessel = array_column($x2['objekte'], 'wiki_key');
+foreach ($x1['artikel'] as $artikel) {
+    assert(in_array($artikel['wiki_key'], $x2Schluessel, true), 'D45b: ' . $artikel['wiki_key'] . ' kommt in X2 vor');
+}
 
 // Ohne abgeschlossenen Lauf: ehrlich leer, kein Fehler.
 $leer = fixtureBauen();
 $leer->exec("UPDATE wiki_sync_runs SET status = 'failed'");
 $ohneLauf = avesmapsWikiLinkzieleLesen($leer, 'linkziele');
-assert($ohneLauf['dump'] === ['run_id' => 0, 'abgeschlossen' => ''] && $ohneLauf['objekte'] === [] && count($ohneLauf['ohne_wikitext']) > 0, 'D46: ohne Dump-Lauf stehen ALLE Objekte in ohne_wikitext');
+assert($ohneLauf['dump'] === ['run_id' => 0, 'abgeschlossen' => ''] && $ohneLauf['artikel'] === [] && count($ohneLauf['ohne_wikitext']) > 0, 'D46: ohne Dump-Lauf stehen ALLE Schluessel in ohne_wikitext');
 
 // Der ETag haengt am Inhalt.
 $etag1 = avesmapsWikiLinkzieleETag(json_encode($x1), 'linkziele');
@@ -534,15 +595,15 @@ assert($deren === $unsere, 'G6: dieselben vier Nester wie AVESMAPS_CONFLICT_CLAI
 // G7: die Antwort-Schluessel sind die dokumentierten (Test gegen zusaetzliche Felder in den Antworten).
 $fixture = fixtureBauen();
 $x1 = avesmapsWikiLinkzieleLesen($fixture, 'linkziele');
-$erlaubtObjekt = ['public_id', 'art', 'wiki_key', 'ns', 'ns_name', 'seite_art', 'seite_titel', 'felder'];
+$erlaubtObjekt = ['wiki_key', 'ns', 'ns_name', 'seite_art', 'seite_titel', 'felder'];
 $alleFelder = [];
 foreach (AVESMAPS_WIKI_LINKZIELE_FELDER as $liste) {
     foreach (array_keys($liste) as $feldName) {
         $alleFelder[$feldName] = true;
     }
 }
-$erlaubtLink = ['anzeige', 'ziel', 'ns', 'ns_name', 'ziel_key', 'weiterleitung_auf'];
-foreach ($x1['objekte'] as $objekt) {
+$erlaubtLink = ['anzeige', 'ziel', 'art', 'vorlage', 'ns', 'ns_name', 'ziel_key', 'weiterleitung_auf'];
+foreach ($x1['artikel'] as $objekt) {
     assert(array_diff(array_keys($objekt), $erlaubtObjekt) === [], 'G7: unbekanntes Objektfeld in X1: ' . implode(',', array_diff(array_keys($objekt), $erlaubtObjekt)));
     foreach ((array) $objekt['felder'] as $feldName => $links) {
         assert(isset($alleFelder[$feldName]), "G7: Feld $feldName steht nicht in der Positivliste");
