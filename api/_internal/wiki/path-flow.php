@@ -121,11 +121,44 @@ function avesmapsPathFlowCombineOrientations(array $occurrences, array $wayPubli
 //                   directed neighbours after a flip+sync sequence)
 //   factor is NEVER touched; a flow object left empty is removed entirely (flow => null).
 // $currentFlowByPublicId: public_id => raw properties.flow (array|null) for ALL way segments.
-function avesmapsPathFlowPlanWrites(array $dirByPublicId, array $currentFlowByPublicId): array {
+// Welche Abschnitte tragen eine VON HAND gesetzte Richtung ABSEITS der Hauptkette?
+// 🔴 DIE GRENZE IST DIE HAUPTKETTE: der Verlauf-Sync besitzt sie (ein Editor-Flip DORT wird
+// weiterhin ueberschrieben -- Anforderung 4 des Ursprungsentwurfs), der Editor besitzt die
+// ABZWEIGUNGEN. Genau diese Grenze zieht `avesmapsPathFlowPlanSetDir` seit dem 06.07.2026
+// ("Anchors off the chain (spurs) ... are only protected, never consulted"); der Sync-Pfad zog
+// sie nicht, und das fiel nicht auf, weil es im Bestand fast keine Abzweig-Richtungen gab --
+// live genau EINE, am Grossen Fluss.
+// ⚠️ Nur `source: editor` ist geschuetzt. Eine Abzweig-Richtung, die der Sync selbst geschrieben
+// hat, darf er auch wieder raeumen.
+function avesmapsPathFlowEditorSpurDirs(array $coordinatesByPublicId, array $currentFlowByPublicId): array {
+    $chain = avesmapsPathFlowChainOrientation($coordinatesByPublicId);
+    $geschuetzt = [];
+    foreach ($currentFlowByPublicId as $publicId => $flowRaw) {
+        $publicId = (string) $publicId;
+        if (isset($chain[$publicId])) {
+            continue;  // auf der Kette -- die gehoert dem Sync
+        }
+        if (avesmapsPathFlowNormalize($flowRaw) === null) {
+            continue;  // gar keine Richtung
+        }
+        if ((string) (($flowRaw['source'] ?? '')) !== 'editor') {
+            continue;  // nicht von Hand gesetzt
+        }
+        $geschuetzt[] = $publicId;
+    }
+    sort($geschuetzt, SORT_STRING);
+    return $geschuetzt;
+}
+
+function avesmapsPathFlowPlanWrites(array $dirByPublicId, array $currentFlowByPublicId, array $protectedPublicIds = []): array {
     $writes = [];
     $set = 0;
     $cleared = 0;
     $unchanged = 0;
+    $geschuetzt = [];
+    foreach ($protectedPublicIds as $pid) {
+        $geschuetzt[(string) $pid] = true;
+    }
     foreach ($currentFlowByPublicId as $publicId => $currentRaw) {
         $publicId = (string) $publicId;
         $current = is_array($currentRaw) ? $currentRaw : [];
@@ -133,6 +166,15 @@ function avesmapsPathFlowPlanWrites(array $dirByPublicId, array $currentFlowByPu
         if (isset($dirByPublicId[$publicId])) {
             $new['dir'] = $dirByPublicId[$publicId];
             $new['source'] = 'verlauf-sync';
+        } elseif (isset($geschuetzt[$publicId])) {
+            // 💣 Handarbeit an einer Abzweigung bleibt stehen. Ohne diese Zeile loescht jedes
+            // "Verlauf uebernehmen" die Richtungen, die ein Editor einzeln gesetzt hat -- still,
+            // ohne Meldung, und genau die Arbeit, fuer die Meldung #7996 den Knopf bestellt hat.
+            // ⚠️ Der Deckel: die Vorgabe ist LEER, der Schutz muss also ausdruecklich hereingereicht
+            // werden. Ein Aufrufer, der ihn vergisst, verhaelt sich wie vor dem 05.10.2026 -- das
+            // ist die sichere Richtung (er loescht zu viel, er schreibt nichts Falsches).
+            $unchanged++;
+            continue;
         } else {
             unset($new['dir'], $new['source']);
         }
@@ -443,6 +485,36 @@ function avesmapsPathFlowPlanSetDir(array $coordinatesByPublicId, array $anchorD
     return ['ok' => true, 'reason' => null, 'dir_by_public_id' => $dirByPublicId];
 }
 
+// Ordnet die RICHTUNGSLOSEN Abschnitte eines Wegs ein (Meldung #7996): liegt einer auf der
+// Hauptkette, ist er eine Abzweigung, oder ist er so kurz, dass der Endpunkt-Clusterer seine
+// beiden Enden zu EINEM Knoten zieht (dann ist er aus dem Kantengraph geworfen und von `set_dir`
+// grundsaetzlich nicht erreichbar)?
+// ⚠️ Nur fuer die AUSKUNFT gebaut -- sie entscheidet nichts, sie zaehlt. Die Reihenfolge der
+// Pruefung ist tragend: ein Stummel steht nie in `$chain`, also muss er VOR der Kettenfrage
+// erkannt werden, sonst zaehlt er faelschlich als Abzweigung.
+function avesmapsPathFlowCountUndirected(array $coordinatesByPublicId, array $currentFlowByPublicId): array {
+    $chain = avesmapsPathFlowChainOrientation($coordinatesByPublicId);
+    $nodes = avesmapsPathFlowEndpointNodes($coordinatesByPublicId);
+    $zahl = ['chain' => 0, 'spurs' => 0, 'stubs' => 0];
+    foreach ($currentFlowByPublicId as $publicId => $flowRaw) {
+        if (avesmapsPathFlowNormalize($flowRaw) !== null) {
+            continue;
+        }
+        $publicId = (string) $publicId;
+        $ends = $nodes[$publicId] ?? null;
+        if ($ends === null || $ends['a'] === $ends['b']) {
+            $zahl['stubs']++;
+            continue;
+        }
+        if (isset($chain[$publicId])) {
+            $zahl['chain']++;
+            continue;
+        }
+        $zahl['spurs']++;
+    }
+    return $zahl;
+}
+
 // Derivation consistency (Yaquir lesson): independent hops can disagree (a mis-matched
 // station routes a hop backwards along the river), which would write head-on arrows onto
 // ONE physical chain. Project every derived dir onto the way's main chain: the majority
@@ -703,7 +775,14 @@ function avesmapsWikiPathFlowDeriveForWay(PDO $pdo, array $config, string $wikiK
     $coordinatesByPublicId = array_map(static fn(array $segment) => $segment['coordinates'] ?? [], $waySegments);
     $reconciled = avesmapsPathFlowReconcileChainDirs($coordinatesByPublicId, $combined['dir_by_public_id']);
     $currentFlowByPublicId = array_map(static fn(array $segment) => $segment['flow'], $waySegments);
-    $plan = avesmapsPathFlowPlanWrites($reconciled['dir_by_public_id'], $currentFlowByPublicId);
+    // 💣 Von Hand gesetzte Abzweig-Richtungen ueberleben den Sync (Meldung #7996). Dies ist der
+    // EINZIGE Aufrufer von PlanWrites -- gezaehlt, nicht vermutet; kommt je einer dazu, braucht er
+    // dieselbe Zeile, sonst loescht er die Handarbeit wieder.
+    $plan = avesmapsPathFlowPlanWrites(
+        $reconciled['dir_by_public_id'],
+        $currentFlowByPublicId,
+        avesmapsPathFlowEditorSpurDirs($coordinatesByPublicId, $currentFlowByPublicId)
+    );
 
     $segmentsUpdated = [];
     if (!$dryRun && $plan['writes'] !== []) {
@@ -789,10 +868,31 @@ function avesmapsWikiPathSetFlow(PDO $pdo, string $publicId, array $options, boo
     $setDir = ($options['set_dir'] ?? false) === true;
     $factorRaw = $options['factor'] ?? null;
     $hasFactor = is_numeric($factorRaw);
+    // Richtung je ABSCHNITT (Meldung #7996, Entwurf 2026-10-05-flussrichtung-je-abschnitt-design.md):
+    // ein Deltaarm ist geometrisch nicht entscheidbar, also muss ein Mensch ihn einzeln richten
+    // koennen. 🔴 `scope` gilt NUR fuer `flip`; der Stroemungsfaktor ist per Owner-Design way-weit
+    // (Ursprungsentwurf §6) und `set_dir` ist von Natur aus eine Aussage ueber die KETTE -- ein
+    // `scope` an allen dreien waere eine Regel mit drei Bedeutungen.
+    $scopeRaw = $options['scope'] ?? 'way';
+    if ($scopeRaw !== 'way' && $scopeRaw !== 'segment') {
+        throw new RuntimeException('scope must be "way" or "segment".');
+    }
+    $segmentScope = $scopeRaw === 'segment';
+    $dirRaw = $options['dir'] ?? null;
+    $hasDir = $dirRaw !== null && $dirRaw !== '';
+    if ($hasDir && $dirRaw !== 'forward' && $dirRaw !== 'reverse') {
+        throw new RuntimeException('dir must be "forward" or "reverse".');
+    }
     if ($flip && $setDir) {
         throw new RuntimeException('flip and set_dir are mutually exclusive.');
     }
-    if (!$flip && !$setDir && !$hasFactor) {
+    // 💣 `dir` IST segmentbezogen und schliesst beide Kettenwuensche aus -- sonst muesste jemand
+    // entscheiden, ob erst die Kette oder erst der Abschnitt gilt, und das ist keine Frage, die ein
+    // Formular stellen sollte.
+    if ($hasDir && ($flip || $setDir)) {
+        throw new RuntimeException('dir cannot be combined with flip or set_dir.');
+    }
+    if (!$flip && !$setDir && !$hasFactor && !$hasDir) {
         throw new RuntimeException('No flow change requested.');
     }
 
@@ -844,11 +944,42 @@ function avesmapsWikiPathSetFlow(PDO $pdo, string $publicId, array $options, boo
     $working = $currentFlow;
     $writes = [];
     $summary = ['flipped' => 0, 'directed' => 0, 'factor_updated' => 0, 'conflicts_cleared' => 0];
-    if ($flip) {
+    if ($hasDir) {
+        // Richtung EINES Abschnitts, von Hand. 🔴 Die Zielmenge bleibt die Way-Gruppe: geschrieben
+        // wird ueber dieselbe Tafel wie way-weit, nur mit genau einem Eintrag -- so bleiben Audit,
+        // Revisionsbump und Undo unveraendert gueltig (Entwurf §3.1).
+        $current = is_array($working[$publicId] ?? null) ? $working[$publicId] : [];
+        $new = $current;
+        $new['dir'] = (string) $dirRaw;
+        $new['source'] = 'editor';
+        if ($new != $current) {
+            $working[$publicId] = $new;
+            $writes[$publicId] = ['flow' => $new];
+            $summary['directed']++;
+        }
+    } elseif ($flip) {
         if ($directedBefore === 0) {
             throw new RuntimeException('This river has no direction yet (use set_dir).');
         }
-        $plan = avesmapsPathFlowPlanFlip($working);
+        // 💣 Der Einzelfall reicht PlanFlip eine Tafel mit EINEM Eintrag, statt in ihr einen
+        // Scope-Zweig zu bauen: sie ist eine reine Funktion mit drei Aufrufer-Pfaden, und ein
+        // Zweig in ihr waere in allen drei zu pruefen.
+        if ($segmentScope) {
+            // ⚠️ `flip` erfindet nie eine Richtung. Ohne diese Absage liefe ein Einzel-flip auf
+            // einem dirlosen Abschnitt leer durch und saehe wie ein verschluckter Klick aus.
+            // 🔴 DIESE EINE Absage ist DEUTSCH, die uebrigen in dieser Datei bleiben englisch --
+            // und das ist Absicht, kein Ausrutscher. Die anderen treffen nur einen fehlerhaften
+            // Aufruf (zwei Wuensche zugleich, unbekannter Wert); diese kann einen ECHTEN Editor
+            // treffen, naemlich wenn ein gecachter Client den alten Knopfzustand schickt. Sie
+            // landet dann als Toast vor ihm -- und ein englischer Satz an dieser Stelle ist genau
+            // die Meldung #7996, die diesen Umbau ausgeloest hat.
+            if (avesmapsPathFlowNormalize($working[$publicId] ?? null) === null) {
+                throw new RuntimeException('Dieser Abschnitt hat keine Richtung, die sich umdrehen ließe \u2014 erst eine Richtung setzen.');
+            }
+            $plan = avesmapsPathFlowPlanFlip([$publicId => $working[$publicId] ?? null]);
+        } else {
+            $plan = avesmapsPathFlowPlanFlip($working);
+        }
         $summary['flipped'] = $plan['flipped'];
         foreach ($plan['writes'] as $pid => $write) {
             $working[$pid] = $write['flow'];
@@ -886,9 +1017,16 @@ function avesmapsWikiPathSetFlow(PDO $pdo, string $publicId, array $options, boo
                 default => 'No unambiguous segment chain found.',
             });
         }
-        if ($plan['dir_by_public_id'] === []) {
-            throw new RuntimeException('Main chain is already fully directed (use flip).');
-        }
+        // 🔴 „ES GIBT NICHTS ZU TUN" IST KEIN FEHLER (Meldung #7996). Hier stand bis zum
+        // 05.10.2026 ein Wurf mit dem englischen Satz „Main chain is already fully directed
+        // (use flip)." -- Editoren sehen eine deutsche Oberflaeche, und der Satz sagte das
+        // Falsche: fertig ist die KETTE, nicht der Fluss. Am Grossen Fluss waren in diesem
+        // Moment 24 von 79 Abschnitten ohne Richtung (22 Abzweigungen, 2 Stummel), und der
+        // Editor bekam eine Fehlermeldung, die ihm das Gegenteil erzaehlte.
+        // ⚠️ Die ANDEREN Absagen bleiben Fehler (anchors_conflict, no_anchor_on_chain, no_chain):
+        // dort ist wirklich etwas zu klaeren. Nur dieser eine Fall hoert auf, einer zu sein.
+        // 💣 Der Client prueft `result.ok !== true` und wirft -- mit ok:true laeuft er in den
+        // Erfolgspfad, die Meldung muss also DORT richtig sein, nicht im catch.
         foreach ($plan['dir_by_public_id'] as $pid => $dir) {
             $new = is_array($working[$pid] ?? null) ? $working[$pid] : [];
             $new['dir'] = $dir;
@@ -912,6 +1050,10 @@ function avesmapsWikiPathSetFlow(PDO $pdo, string $publicId, array $options, boo
     if (!$dryRun && $writes !== []) {
         $segmentsUpdated = avesmapsWikiPathFlowApplyWrites($pdo, $writes, $waySegments, $userId);
     }
+    // Die Auskunft fuer den Editor: WARUM sind noch Abschnitte ohne Richtung? Gerechnet aus
+    // `$working`, also dem Stand NACH dieser Aktion -- eine Zahl, die den Zustand von vorher
+    // nennt, waere direkt neben dem Erfolg ein Widerspruch.
+    $offen = avesmapsPathFlowCountUndirected($coordinatesByPublicId, $working);
     return [
         'ok' => true,
         'dry_run' => $dryRun,
@@ -919,6 +1061,13 @@ function avesmapsWikiPathSetFlow(PDO $pdo, string $publicId, array $options, boo
         'name' => (string) $target['name'],
         'segments' => count($waySegments),
         'directed_before' => $directedBefore,
+        // 🔴 Die WIRKUNG, nicht der Wunsch. `{set_dir, scope:"segment"}` laeuft way-weit (scope gilt
+        // nur dem flip), und `{dir}` schreibt einen Abschnitt, ohne dass jemand scope geschickt hat
+        // -- aus dem Anfragefeld abgelesen loege dieses Feld in beide Richtungen.
+        'scope' => ($hasDir || ($flip && $segmentScope)) ? 'segment' : 'way',
+        'undirected_on_chain' => $offen['chain'],
+        'undirected_spurs' => $offen['spurs'],
+        'undirected_stubs' => $offen['stubs'],
     ] + $summary + [
         'writes' => count($writes),
         'segments_updated' => $segmentsUpdated,

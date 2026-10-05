@@ -44,6 +44,11 @@ function populatePathEditForm(path, { ganzeStrasse = false } = {}) {
 		renderPathWikiReference();
 	}
 	if (typeof renderPathFlowSection === "function") {
+		// Die Rueckmeldung gehoert dem Abschnitt, der sie ausgeloest hat -- beim Oeffnen des
+		// naechsten muss sie weg, sonst liest ein Editor sie als Aussage ueber DIESEN (Meldung #7996).
+		if (typeof pathFlowClearStatus === "function") {
+			pathFlowClearStatus();
+		}
 		renderPathFlowSection();
 	}
 	mountPathEditFeatureSources(path);
@@ -516,6 +521,11 @@ function populatePathEditFormFromLastSettings(path) {
 		renderPathWikiReference();
 	}
 	if (typeof renderPathFlowSection === "function") {
+		// Die Rueckmeldung gehoert dem Abschnitt, der sie ausgeloest hat -- beim Oeffnen des
+		// naechsten muss sie weg, sonst liest ein Editor sie als Aussage ueber DIESEN (Meldung #7996).
+		if (typeof pathFlowClearStatus === "function") {
+			pathFlowClearStatus();
+		}
 		renderPathFlowSection();
 	}
 	mountPathEditFeatureSources(path);

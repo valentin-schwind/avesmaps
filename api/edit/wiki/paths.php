@@ -169,6 +169,12 @@ try {
                     'flip' => ($payload['flip'] ?? false) === true,
                     'set_dir' => ($payload['set_dir'] ?? false) === true,
                     'factor' => $payload['factor'] ?? null,
+                    // Richtung je ABSCHNITT (Meldung #7996): `scope` begrenzt den flip auf das
+                    // genannte Segment, `dir` setzt dessen Richtung von Hand. Beide Werte prueft
+                    // die Bibliothek -- hier wird NICHT vorsortiert, sonst gaebe es zwei Stellen,
+                    // die entscheiden, was gueltig ist.
+                    'scope' => $payload['scope'] ?? null,
+                    'dir' => $payload['dir'] ?? null,
                 ],
                 !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
                 (int) ($user['id'] ?? 0)
@@ -203,7 +209,17 @@ try {
 
         // map_features-Cache invalidieren, wenn echt geschrieben wurde (Clients sehen die Zuordnung).
         if (in_array($action, ['backfill_verlauf_source', 'apply_verlauf_case', 'apply_verlauf_cases_clean', 'derive_flow', 'derive_flow_all', 'set_flow', 'add_weitere', 'remove_weitere'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
-            avesmapsWikiSyncNextMapRevision($pdo);
+            // 💣 EIN LEERLAUF DARF DEN STEMPEL NICHT ANFASSEN (seit 05.10.2026). `set_flow`
+            // antwortet fuer „die Hauptkette ist schon fertig" seit Meldung #7996 mit ok:true
+            // statt zu werfen -- vorher endete derselbe Klick VOR dieser Zeile. Ohne den Riegel
+            // entwertet jeder Klick auf „Richtung vervollstaendigen" den ETag der ~21-MB-Nutzlast
+            // fuer JEDEN Besucher, obwohl sich kein Byte geaendert hat.
+            // ⚠️ Nur fuer set_flow geprueft: die uebrigen Aktionen melden `writes` nicht und
+            // behalten ihr Verhalten. `avesmapsWikiPathFlowApplyWrites` bumpt ohnehin selbst,
+            // sobald es wirklich schreibt -- diese Zeile ist der Nachzug fuer die Leser.
+            if ($action !== 'set_flow' || (int) ($response['writes'] ?? 0) > 0) {
+                avesmapsWikiSyncNextMapRevision($pdo);
+            }
         }
 
         if ($response === null) {

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Strömungsrichtung je Abschnitt — Mockup</title>
+<style>
+/* Die Tokens sind ABSCHRIFTEN aus css/base/tokens.css, damit das Mockup ohne das
+   Gerüst des Projekts rendert. Sie stehen bewusst AUSSERHALB des Vertrags: geprüft
+   wird, was dieser Entwurf ZUSAGT, nicht die Tokendatei. */
+:root {
+	--color-panel: #fffdf9;
+	--color-text: #2e271e;
+	--color-text-muted: #706557;
+	--color-divider: rgba(125, 115, 96, 0.30);
+	--color-button-soft: #efe9db;
+	--color-button-soft-text: #564b3b;
+	--color-button-soft-border: #cdbda0;
+	--color-button-soft-hover: #e7ddc9;
+	--color-accent-brown: #7a5a3a;
+	--font-size-caption: 11px;
+	--font-weight-bold: 700;
+	--radius-md: 8px;
+	--space-4: 6px;
+	--space-6: 8px;
+	--space-8: 10px;
+	--shadow-button-hover: 0 4px 10px rgba(52, 41, 32, 0.14);
+}
+/* 🔴 DUNKEL IST OPT-IN, KEIN prefers-color-scheme. css/base/tokens.css sagt das ausdrücklich:
+   „Dark is OPT-IN via :root[data-theme='dark'] — deliberately NOT prefers-color-scheme, because
+   the map tiles are light and auto-dark panels would clash over them." Ein Mockup, das
+   automatisch umschaltet, zeigt einen Zustand, den das Produkt nicht kennt — benutze den
+   Umschalter oben. (Der erste Entwurf dieses Mockups hatte beides und wäre damit die Vorlage für
+   einen Fehler gewesen.) */
+:root[data-theme="dark"] {
+	--color-panel: #312e26;
+	--color-text: #eee7da;
+	--color-text-muted: #b4a895;
+	--color-divider: rgba(207, 197, 171, 0.24);
+	--color-button-soft: #3a362c;
+	--color-button-soft-text: #eae1cf;
+	--color-button-soft-border: #585142;
+	--color-button-soft-hover: #453f32;
+	/* ⚠️ Im Dunkeln ist das Akzentbraun ein helles Tan -- ohne diese Zeile stand der
+	   Sektionstitel im dunklen Mockup auf dem hellen Wert und war kaum lesbar. */
+	--color-accent-brown: #c9a97e;
+	--shadow-button-hover: 0 4px 10px rgba(0, 0, 0, 0.38);
+}
+body {
+	margin: 0;
+	padding: 24px 16px 48px;
+	background: var(--color-panel);
+	color: var(--color-text);
+	font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+.wrap { max-width: 980px; margin: 0 auto; }
+h1 { font-size: 18px; margin: 0 0 4px; }
+h2 { font-size: 14px; margin: 28px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--color-divider); }
+.hint { color: var(--color-text-muted); font-size: 12px; margin: 0 0 18px; }
+.faelle { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.fall { border: 1px dashed var(--color-divider); border-radius: var(--radius-md); padding: 12px; }
+.fall > h3 { font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
+	text-transform: uppercase; letter-spacing: .04em; color: var(--color-accent-brown); margin: 0 0 10px; }
+
+/* ── Das Gerüst der echten Sektion, abgeschrieben aus index.html + seinen Blättern.
+      Diese Regeln sind KEIN Teil des Vertrags: sie bauen nur die Umgebung nach, in der
+      die zugesagten Knöpfe stehen. ── */
+.label-edit-section { border: 1px solid var(--color-divider); border-radius: var(--radius-md); padding: 10px; }
+.label-edit-section-title { font-size: var(--font-size-caption); font-weight: var(--font-weight-bold);
+	text-transform: uppercase; letter-spacing: .04em; color: var(--color-accent-brown); margin-bottom: 8px; }
+.report-section__cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-6) var(--space-8); }
+.location-report-form__field { display: flex; flex-direction: column; gap: var(--space-6); }
+.location-report-form__status { font-size: 12px; color: var(--color-text-muted); margin: 8px 0 0; }
+.location-edit-fieldrow { display: flex; gap: 4px; }
+.location-edit-fieldrow input { flex: 1 1 auto; min-width: 0; border-radius: var(--radius-md);
+	border: 1px solid var(--color-button-soft-border); background: var(--color-panel);
+	color: var(--color-text); padding: 6px 8px; font: inherit; }
+.location-report-form__button { border-radius: var(--radius-md); border: 1px solid transparent;
+	padding: 6px 10px; font: inherit; cursor: pointer; }
+@media (max-width: 640px) { .report-section__cols { grid-template-columns: 1fr; } }
+
+/* ══ VERTRAG: css/components/region-sync.css ══
+   Die drei Knöpfe der Richtungsspalte stehen im BESTEHENDEN Flex-Container. `flex-wrap`
+   ist die tragende Eigenschaft: mit dem dritten Knopf bricht die Zeile in der schmalen
+   Spalte um, statt sie aufzuziehen. Dieser Umbau fügt dem Blatt KEINE Regel hinzu —
+   genau das sagt der Vertrag zu. */
+.label-wiki-reference__buttons {
+	display: flex;
+	gap: 4px;
+	flex-wrap: wrap;
+}
+/* ══ VERTRAG ENDE ══ */
+
+/* ══ VERTRAG: css/components/location-report-dialog.css ══
+   Alle Richtungsknöpfe sind WEICH. Keiner von ihnen ist die Haupthandlung des Dialogs
+   (das ist „Speichern“), und eine Zeilen- bzw. Abschnittshandlung wird im Haus nie
+   gefüllt — AGENTS.md §12. */
+.location-report-form__button--secondary {
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	border-color: var(--color-button-soft-border);
+}
+.location-report-form__button--secondary:not(:disabled):hover {
+	background: var(--color-button-soft-hover);
+	box-shadow: var(--shadow-button-hover);
+	transform: translateY(-1px);
+}
+/* ══ VERTRAG ENDE ══ */
+</style>
+</head>
+<body>
+<div class="wrap">
+	<h1>Strömungsrichtung je Abschnitt</h1>
+	<p class="hint">
+		Entwurf <code>docs/superpowers/specs/2026-10-05-flussrichtung-je-abschnitt-design.md</code> ·
+		Meldung #7996 (Thomas), Großer Fluss – Delta.
+		<strong>Kein neues CSS:</strong> der dritte Knopf steht im bestehenden Container, die
+		Unterscheidung macht die Beschriftung — <em>„(dieser Abschnitt)“</em> gegen das schon
+		vorhandene <em>„(ganzer Fluss)“</em>.
+		<button type="button" onclick="document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'"
+			class="location-report-form__button location-report-form__button--secondary">Hell / Dunkel</button>
+	</p>
+
+	<h2>Die vier Zustände der Sektion „Strömung“</h2>
+	<div class="faelle">
+
+		<div class="fall">
+			<h3>1 · Fluss ganz ohne Richtung — erst die Kette</h3>
+			<div class="label-edit-section">
+				<div class="label-edit-section-title">Strömung</div>
+				<div class="report-section__cols">
+					<div class="location-report-form__field">
+						<span>Richtung: <strong>unbekannt</strong></span>
+						<span class="label-wiki-reference__buttons">
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Richtung festlegen (ganzer Fluss)</button>
+						</span>
+					</div>
+					<label class="location-report-form__field">
+						<span>Strömungsfaktor (flussaufwärts ×)</span>
+						<div class="location-edit-fieldrow">
+							<input type="number" min="1" step="0.1" value="2.0" />
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Übernehmen</button>
+						</div>
+					</label>
+				</div>
+				<p class="location-report-form__status"></p>
+			</div>
+			<p class="hint" style="margin:8px 0 0">
+				<strong>Kein Abschnitts-Knopf.</strong> Wohin ein Deltaarm fließt, kann niemand
+				entscheiden, solange der Hauptstrom keine Richtung hat — und technisch sperrt ein
+				zuerst gerichteter Abzweig die Kette aus (<code>no_anchor_on_chain</code>: dann
+				müssten alle 44 Kettenabschnitte des Großen Flusses von Hand gesetzt werden).
+			</p>
+		</div>
+
+		<div class="fall">
+			<h3>2 · Voll gerichtet: nur noch umdrehen</h3>
+			<div class="label-edit-section">
+				<div class="label-edit-section-title">Strömung</div>
+				<div class="report-section__cols">
+					<div class="location-report-form__field">
+						<span>Richtung: <strong>bekannt (manuell)</strong></span>
+						<span class="label-wiki-reference__buttons">
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Richtung umdrehen (ganzer Fluss)</button>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Pfeil umdrehen (dieser Abschnitt)</button>
+						</span>
+					</div>
+					<label class="location-report-form__field">
+						<span>Strömungsfaktor (flussaufwärts ×)</span>
+						<div class="location-edit-fieldrow">
+							<input type="number" min="1" step="0.1" value="2.0" />
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Übernehmen</button>
+						</div>
+					</label>
+				</div>
+				<p class="location-report-form__status"></p>
+			</div>
+		</div>
+
+		<div class="fall">
+			<h3>3 · Deltaarm: Fluss gerichtet, dieser Abschnitt nicht</h3>
+			<div class="label-edit-section">
+				<div class="label-edit-section-title">Strömung</div>
+				<div class="report-section__cols">
+					<div class="location-report-form__field">
+						<span>Richtung: <strong>unbekannt</strong></span>
+						<span class="label-wiki-reference__buttons">
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Richtung umdrehen (ganzer Fluss)</button>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Richtung vervollständigen</button>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Richtung setzen (dieser Abschnitt)</button>
+						</span>
+					</div>
+					<label class="location-report-form__field">
+						<span>Strömungsfaktor (flussaufwärts ×)</span>
+						<div class="location-edit-fieldrow">
+							<input type="number" min="1" step="0.1" value="2.0" />
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Übernehmen</button>
+						</div>
+					</label>
+				</div>
+				<p class="location-report-form__status"></p>
+			</div>
+			<p class="hint" style="margin:8px 0 0">
+				<strong>Das ist Thomas' Fall:</strong> ein Deltaarm ohne Richtung an einem
+				gerichteten Fluss. Am Großen Fluss 22-mal so.
+			</p>
+		</div>
+
+		<div class="fall">
+			<h3>3b · Teilgerichtet, dieser Abschnitt gerichtet</h3>
+			<div class="label-edit-section">
+				<div class="label-edit-section-title">Strömung</div>
+				<div class="report-section__cols">
+					<div class="location-report-form__field">
+						<span>Richtung: <strong>bekannt (aus Wiki)</strong></span>
+						<span class="label-wiki-reference__buttons">
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Richtung umdrehen (ganzer Fluss)</button>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Richtung vervollständigen</button>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Pfeil umdrehen (dieser Abschnitt)</button>
+						</span>
+					</div>
+					<label class="location-report-form__field">
+						<span>Strömungsfaktor (flussaufwärts ×)</span>
+						<div class="location-edit-fieldrow">
+							<input type="number" min="1" step="0.1" value="2.0" />
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Übernehmen</button>
+						</div>
+					</label>
+				</div>
+				<p class="location-report-form__status"></p>
+			</div>
+			<p class="hint" style="margin:8px 0 0">
+				<strong>Der häufigste Zustand:</strong> am Großen Fluss 55 von 79 Abschnitten.
+				Drei Knöpfe ist das Maximum — „festlegen“ und „umdrehen“ schließen sich je Ebene aus.
+			</p>
+		</div>
+
+		<div class="fall">
+			<h3>4 · Nach „Richtung vervollständigen“ — die neue Auskunft</h3>
+			<div class="label-edit-section">
+				<div class="label-edit-section-title">Strömung</div>
+				<div class="report-section__cols">
+					<div class="location-report-form__field">
+						<span>Richtung: <strong>unbekannt</strong></span>
+						<span class="label-wiki-reference__buttons">
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Richtung umdrehen (ganzer Fluss)</button>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Richtung vervollständigen</button>
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Richtung setzen (dieser Abschnitt)</button>
+						</span>
+					</div>
+					<label class="location-report-form__field">
+						<span>Strömungsfaktor (flussaufwärts ×)</span>
+						<div class="location-edit-fieldrow">
+							<input type="number" min="1" step="0.1" value="2.0" />
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Übernehmen</button>
+						</div>
+					</label>
+				</div>
+				<p class="location-report-form__status">
+					Der durchgehende Lauf hat überall Pfeile. 22 Abzweigungen und 2 sehr kurze
+					Abschnitte haben noch keinen Pfeil — auf der Karte anklicken und dort
+					„Richtung setzen“.
+				</p>
+			</div>
+			<p class="hint" style="margin:8px 0 0">
+				Heute steht hier <em>„Fehler: Main chain is already fully directed (use flip).“</em> —
+				englisch, und sachlich falsch: fertig ist die <em>Hauptkette</em>, nicht der Fluss.
+			</p>
+		</div>
+
+		<div class="fall">
+			<h3>5 · Einteiliger Weg — wie bisher</h3>
+			<div class="label-edit-section">
+				<div class="label-edit-section-title">Strömung</div>
+				<div class="report-section__cols">
+					<div class="location-report-form__field">
+						<span>Richtung: <strong>bekannt (manuell)</strong></span>
+						<span class="label-wiki-reference__buttons">
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Richtung umdrehen</button>
+						</span>
+					</div>
+					<label class="location-report-form__field">
+						<span>Strömungsfaktor (flussaufwärts ×)</span>
+						<div class="location-edit-fieldrow">
+							<input type="number" min="1" step="0.1" value="2.0" />
+							<button type="button" class="location-report-form__button location-report-form__button--secondary">Übernehmen</button>
+						</div>
+					</label>
+				</div>
+				<p class="location-report-form__status"></p>
+			</div>
+			<p class="hint" style="margin:8px 0 0">
+				Ein Weg aus EINEM Abschnitt: kein zweiter Knopf, und <strong>auch kein Zusatz
+				„(ganzer Fluss)“</strong> — es gibt nichts zu unterscheiden. Der Zusatz gilt beiden
+				Zweigen, nicht nur dem „festlegen“.
+			</p>
+		</div>
+
+	</div>
+
+	<h2>Was der Vertrag oben zusagt</h2>
+	<ul class="hint">
+		<li><strong>Keine neue CSS-Regel.</strong> Der dritte Knopf passt in
+			<code>.label-wiki-reference__buttons</code>, weil der Container <code>flex-wrap: wrap</code>
+			trägt. Eine eigene Rezeptur für „Knopfgruppe mit Zwischenzeile“ wäre die nächste
+			Doppelung — dieses Haus hat sie bei den Listenzeilen siebenmal bezahlt.</li>
+		<li><strong>Alle Knöpfe weich.</strong> Ein gefüllter Knopf in einer Abschnittshandlung
+			multipliziert sich mit der Zahl der Abschnitte (AGENTS §12).</li>
+		<li><strong>Die Unterscheidung steht in der Beschriftung</strong>, nicht in einer Farbe und
+			nicht in einem Symbol: „(dieser Abschnitt)“ gegen „(ganzer Fluss)“. Letzteres ist seit
+			dem Ursprungsentwurf die Hausformel.</li>
+		<li><strong>Der Zusatz „(ganzer Fluss)“ gilt BEIDEN Zweigen</strong> — „umdrehen“ wie
+			„festlegen“ — und kommt nur bei mehr als einem Abschnitt (Fall 5).</li>
+		<li><strong>Erst die Kette, dann die Arme:</strong> der Abschnitts-Knopf erscheint nur,
+			wenn der Fluss schon eine Richtung hat (Fall 1).</li>
+		<li><strong>Die Knöpfe stehen nach Ebenen:</strong> erst die zwei des Flusses, dann der des
+			Abschnitts. „Richtung vervollständigen“ trägt kein Geltungswort — zwischen zwei
+			„(dieser Abschnitt)“-Beschriftungen gelesen wird es zur Handlung des Abschnitts.</li>
+		<li><strong>Kein Algorithmus-Jargon im Text.</strong> „Hauptkette“ ist der Diameter-Walk
+			und steht im ganzen <code>index.html</code> null Mal. Der Editor sieht Pfeile — und ein
+			richtungsloser Abschnitt ist genau daran erkennbar, dass er keinen hat.</li>
+	</ul>
+
+	<h2>Was NICHT im Bild ist</h2>
+	<ul class="hint">
+		<li><code>forward</code> / <code>reverse</code> — Zeichenrichtung, für einen Menschen
+			bedeutungslos. „Richtung setzen“ setzt einen Pfeil, der Editor sieht ihn und dreht ihn
+			bei Bedarf. Dasselbe Muster wie bei der ganzen Kette.</li>
+		<li>Der Strömungsfaktor bleibt <strong>way-weit</strong> (Owner-Design) und wird nicht angefasst.</li>
+		<li>Der Popup-Shortcut bleibt way-weit und zweizuständig.</li>
+	</ul>
+</div>
+</body>
+</html>
