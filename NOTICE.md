@@ -26,8 +26,14 @@ hier und im Fenster „Hinweise" der Karte:
 - Lizenz-URI: https://de.wiki-aventurica.de/wiki/Kartenpaket/Lizenz
 
 Orts-, Kreuzungs- und Wegdaten wurden aus [avespfade.de](https://avespfade.de/)
-teilweise abgeleitet und ergänzt. Laut avespfade wurden einzelne Ortspositionen
-teils an das Dereglobus-Projekt angelehnt.
+von Oliver Hackstein und Florian Mazur teilweise abgeleitet und ergänzt. Laut
+avespfade wurden einzelne Ortspositionen teils an das Dereglobus-Projekt angelehnt.
+
+Avespfade war von 2014 bis 2026 der Routenplaner für Aventurien. Seine Macher haben
+das Projekt im Oktober 2026 in den Ruhestand geschickt und von dort auf Avesmaps
+verwiesen. Ein Teil des Wegenetzes, mit dem Avesmaps heute Reisen rechnet, stammt
+aus ihrer Arbeit; die Würdigung steht im Fenster „Hinweise“ unter „Inhalte und
+Datenquellen“.
 
 Quellen:
 
