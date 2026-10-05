@@ -171,9 +171,24 @@ globalen Stempel, in den ihre `geometry_revision` eingingen. Der Fingerabdruck j
 das nicht: die eigene `geometry_revision` steht ohnehin in derselben Zeile. Bei 69 Requests pro Lauf
 war das 69× ein JOIN für nichts. Jetzt **ein** Query (F4/F5).
 
-⚠️ **Nicht gemessen:** ob der verbleibende Gipfel-Scan teuer ist. `map_features` wird nirgends im
-Repo angelegt (Schema in der Live-DB, AGENTS.md §10), die Indizes sind von hier aus nicht lesbar.
-Ein `EXPLAIN` auf den Scan beantwortet das in einer Zeile.
+✅ **Der verbleibende Gipfel-Scan ist billig — am 06.10.2026 an der Live-Datenbank gemessen**, und
+das widerlegt die Vermutung, die diesen Absatz zuerst gefüllt hat. `EXPLAIN` auf
+`WHERE feature_type = 'label' AND is_active = 1 AND feature_subtype IN ('berggipfel','vulkan')`:
+
+```
+type: range   key: idx_map_features_type_active   rows: 229   Extra: Using index condition
+```
+
+Ein Index-Range-Scan über **229** Zeilen, kein `ALL` über die ~12.000 der Tabelle. 🔴 **Ein Cache
+dafür wäre Überkonstruktion** — und er wäre riskant gewesen: sein Schlüssel müsste jede Änderung an
+Gipfeln *und* Flächen erfassen, und ein zu grober Schlüssel liefert veraltete Fingerabdrücke, also
+genau den gefährlichen Zustand („aktuell", obwohl nicht).
+
+⭐ Der entfernte **zweite** Query bleibt trotzdem richtig entfernt: er lief 69× pro Lauf für einen
+Wert, den niemand mehr liest. Billig und überflüssig ist immer noch überflüssig.
+
+⚠️ Dass `map_features` nirgends im Repo angelegt wird (Schema in der Live-DB, AGENTS.md §10), bleibt
+die Ursache dafür, dass so eine Frage nur mit DB-Zugang zu beantworten ist.
 
 🔴 **Der globale Erzeuger bleibt als Funktion stehen**, mit Totmarke: `terrain-store-test.php` hält
 an ihm die `ecosystem_revision`-Lehre fest. Er hat keinen Aufrufer im Pfad mehr (F2).
