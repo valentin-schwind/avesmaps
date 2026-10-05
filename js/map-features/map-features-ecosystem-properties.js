@@ -2259,7 +2259,11 @@
 			if (generation !== terrainSaveGeneration) {
 				return { hochgeladen: false, grund: "Höhenberechnung abgebrochen." };
 			}
-			setTerrainStatus(ergebnisRaster?.hochgeladen
+			// ⚠️ Drei Faelle, nicht zwei: unveraendert ist ein Erfolg, aber kein Upload --
+			// "hochgeladen (0 KB)" waere eine Falschaussage (Riegel vom 06.10.2026).
+			setTerrainStatus(ergebnisRaster?.unveraendert
+				? "Gelände gespeichert — das Höhenfeld war bereits aktuell."
+				: ergebnisRaster?.hochgeladen
 				? "Gelände gespeichert, Höhenfeld hochgeladen ("
 					+ Math.round((ergebnisRaster.bytes || 0) / 1024) + " KB)."
 				: "Gelände gespeichert — das Höhenfeld wurde NICHT hochgeladen.",

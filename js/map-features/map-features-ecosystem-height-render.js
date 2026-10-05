@@ -1060,7 +1060,17 @@
 				? ecosystemHeightmapToBase64(samples)
 				: null,
 		}).then((antwort) => ({
-			hochgeladen: Number(antwort?.written || 0) > 0,
+			// 💣 `unchanged` ZAEHLT ALS HOCHGELADEN. Seit dem Riegel vom 06.10.2026 antwortet
+			// `heightmap_put` mit `{written: 0, unchanged: 1}`, wenn das gespeicherte Raster Byte
+			// fuer Byte dasselbe ist -- dann wird nur gestempelt. Das Hoehenfeld IST gespeichert.
+			// Ohne diese Zeile wirft der Aufrufer in map-features-ecosystem-properties.js einen
+			// Fehler ueber ein Feld, dem nichts fehlt ("Das Hoehenfeld wurde nicht hochgeladen."),
+			// und der Sammellauf faerbt seine Zeile rot. Gemessen am Ausfall vom 05.10.2026 ist
+			// der unveraenderte Fall der HAEUFIGE: ein bewegter Gipfel stempelt 69 Gebirge um,
+			// deren Raster sich nicht aendern.
+			hochgeladen: Number(antwort?.written || 0) > 0 || Number(antwort?.unchanged || 0) > 0,
+			// Fuer die Meldung: "war bereits aktuell" statt "hochgeladen (0 KB)".
+			unveraendert: Number(antwort?.unchanged || 0) > 0,
 			zellen: samples.length,
 			bytes: samples.length * 2,
 			// Blieb das Gebirge flach (kein Gipfel, keine Maximalhöhe)? Der Sammellauf nennt diese

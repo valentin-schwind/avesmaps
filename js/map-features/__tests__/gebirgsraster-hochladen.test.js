@@ -157,6 +157,37 @@ pruefe("der Upload laeuft durch und schickt ein vollstaendiges Raster", async ()
 	assert.ok(ergebnis.hochgeladen, "der Erfolg wurde nicht gemeldet");
 });
 
+pruefe("ein UNVERAENDERTES Raster ist ein Erfolg, kein Fehlschlag", async () => {
+	// 💣 DIE NAHT, DIE FAST GEBROCHEN WAERE (06.10.2026). Seit dem Riegel antwortet `heightmap_put`
+	// mit `{written: 0, unchanged: 1}`, wenn das gespeicherte Raster Byte fuer Byte dasselbe ist --
+	// dann wird nur gestempelt, und der 250-KB-Blob bleibt liegen. Wer nur `written > 0` liest,
+	// haelt das fuer einen Fehlschlag: `map-features-ecosystem-properties.js` WIRFT dann
+	// ("Das Höhenfeld wurde nicht hochgeladen.") und der Statustext faerbt sich rot -- ueber ein
+	// Hoehenfeld, dem nichts fehlt.
+	//
+	// ⚠️ Und das ist der HAEUFIGE Fall, nicht der seltene: `avesmapsTerrainPeaksFingerprint` ist
+	// global, ein bewegter Gipfel stempelt alle 69 Gebirge um, und 68 davon haben dasselbe Raster.
+	const { sandkasten } = ladeRenderModul(
+		() => Promise.resolve({ written: 0, unchanged: 1, stored_bytes: 1234 }),
+		UMGEBUNG
+	);
+	const ergebnis = await sandkasten.window.AvesmapsEcosystemHeightRender.hochladen(FLAECHE);
+	assert.ok(ergebnis.hochgeladen,
+		"ein unveraendertes Raster wurde als Fehlschlag gemeldet -- der Aufrufer wirft darauf");
+	assert.strictEqual(ergebnis.unveraendert, true,
+		"`unveraendert` fehlt -- die Meldung sagt dann \"hochgeladen (0 KB)\" statt \"war bereits aktuell\"");
+});
+
+pruefe("ein echter Fehlschlag bleibt ein Fehlschlag", async () => {
+	// ⚠️ Die Gegenprobe zur Zeile darueber: `written: 0` OHNE `unchanged` heisst, dass nichts
+	// gespeichert ist. Wer den Riegel zu weit fasst, verschluckt genau diesen Fall -- und dann
+	// meldet der Sammellauf Erfolg fuer ein Gebirge, das kein Hoehenfeld hat.
+	const { sandkasten } = ladeRenderModul(() => Promise.resolve({ written: 0 }), UMGEBUNG);
+	const ergebnis = await sandkasten.window.AvesmapsEcosystemHeightRender.hochladen(FLAECHE);
+	assert.strictEqual(ergebnis.hochgeladen, false,
+		"`written: 0` ohne `unchanged` muss ein Fehlschlag bleiben");
+});
+
 pruefe("die Zellweite ist die des SPEICHERS, nicht die der Anzeige", async () => {
 	// 💣 Die Anzeige darf einen Deckel tragen (grobes Raster beim Ziehen am Regler). Der Speicherlauf
 	// darf ihn NICHT erben -- sonst liegt in der Wegfindung ein Gelaende mit vier- bis achtfacher

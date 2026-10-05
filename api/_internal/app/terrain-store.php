@@ -247,6 +247,61 @@ function avesmapsTerrainReadStampInputs(PDO $pdo): array
  * a client-supplied stamp could claim currency the raster does not have, and nothing downstream
  * re-checks.
  */
+/**
+ * REIN: ist das gespeicherte Raster Byte fuer Byte dasselbe wie das angebotene?
+ *
+ * 🔴 DER RIEGEL GEGEN DEN SICH SELBST NACHLADENDEN LAUF (06.10.2026). `avesmapsTerrainPeaksFingerprint`
+ * ist GLOBAL -- ein einziger bewegter Gipfel macht ALLE Gebirgsraster "veraltet". Der Editor sieht
+ * "69 veraltet", startet den Lauf, bewegt den naechsten Gipfel, sieht wieder "69 veraltet". Gemessen
+ * am Access-Log des Ausfalls vom 05.10.2026: 202 Uploads mit je >250 KB in 76 Minuten gegen 757
+ * Gipfelbewegungen. Die RASTER der uebrigen 68 Gebirge aendern sich dabei NICHT -- nur ihr Stempel.
+ *
+ * 💣 DIE STEMPEL WERDEN TROTZDEM NACHGEZOGEN, und daran haengt die ganze Wirkung: ohne das bleibt
+ * das Gebirge "veraltet", und der naechste Lauf laedt es wieder hoch. Gespart wird der 250-KB-Blob,
+ * nicht die Aktualisierung.
+ *
+ * ⚠️ Die Blob-Gleichheit wird in der DATENBANK verglichen (`samples = :blob`) und als bool
+ * hereingereicht -- so reisen die 250 KB nicht durch PHP, nur um verworfen zu werden.
+ *
+ * 💣 JEDES Formfeld zaehlt. Dasselbe Bytemuster an einem anderen Ursprung ist ein anderes Raster;
+ * wer ein Feld vergisst, laesst ein um eine Zelle verschobenes Gebirge stehen -- lautlos, weil die
+ * Zellzahl stimmt.
+ *
+ * ⚠️ Verglichen wird NUMERISCH, nicht mit `===`: PDO liefert diese Spalten als STRING, und ein
+ * strikter Vergleich der Rohwerte haette jedes Raster fuer veraendert gehalten -- der Riegel waere
+ * wirkungslos gewesen, ohne dass ein Test rot wird.
+ *
+ * @param array<string,mixed>|null $gespeichert die vorhandene Zeile, oder null
+ * @param array<string,mixed>      $neu         die Form des angebotenen Rasters
+ */
+function avesmapsTerrainRasterBlobGleich(?array $gespeichert, array $neu, bool $blobGleich): bool
+{
+    if ($gespeichert === null || !$blobGleich) {
+        return false;
+    }
+    foreach (['cell_size_mapunits', 'origin_x', 'origin_y', 'width_px', 'height_px', 'sample_bytes'] as $feld) {
+        // 🪤 Erst die Anwesenheit, dann der Wert: eine halb gelesene Zeile darf nicht als
+        // Gleichheit durchgehen, und 0.0 ist ein GUELTIGER Ursprung (die Karte beginnt bei 0).
+        if (!array_key_exists($feld, $gespeichert) || !array_key_exists($feld, $neu)) {
+            return false;
+        }
+        if ((float) $gespeichert[$feld] !== (float) $neu[$feld]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
+ * 🔴 `written` bleibt die Zahl der geschriebenen RASTER. `gebirgsRasterHochladen` liest sie als
+ * "hochgeladen" (map-features-ecosystem-height-render.js) -- ein unveraendertes Gebirge ist nicht
+ * hochgeladen, es ist aktuell. Dafuer ein eigenes Feld, statt `written` zu verbiegen.
+ */
+function avesmapsTerrainRasterUnveraendertAntwort(int $storedBytes): array
+{
+    return ['written' => 0, 'skipped' => 0, 'unchanged' => 1, 'stored_bytes' => $storedBytes];
+}
 function avesmapsTerrainHeightmapPut(PDO $pdo, array $payload, int $userId): array
 {
     $areaPublicId = avesmapsNormalizeSingleLine((string) ($payload['area'] ?? ''), 36);
@@ -308,13 +363,57 @@ function avesmapsTerrainHeightmapPut(PDO $pdo, array $payload, int $userId): arr
     // of the area on a diagonal range) give a typical 3 to 6x, and it spares a compression-format
     // agreement between CompressionStream and PHP's zlib.
     $compressed = gzdeflate($samples, 6);
+
+    // 🔴 DER RIEGEL: ist dieses Raster schon so gespeichert, wird nur gestempelt, nicht geschrieben.
+    // Siehe avesmapsTerrainRasterBlobGleich -- der Vergleich laeuft IN der Datenbank, damit die
+    // 250 KB nicht durch PHP reisen.
+    $vorhanden = $pdo->prepare(
+        'SELECT cell_size_mapunits, origin_x, origin_y, width_px, height_px, sample_bytes,
+                CASE WHEN samples = :blob THEN 1 ELSE 0 END AS blob_gleich
+           FROM ecosystem_area_heightmap WHERE area_id = :area LIMIT 1'
+    );
+    $vorhanden->execute(['area' => (int) $areaRow['id'], 'blob' => $compressed]);
+    $alteZeile = $vorhanden->fetch(PDO::FETCH_ASSOC);
+    $neueForm = [
+        'cell_size_mapunits' => $cell,
+        'origin_x' => $originX,
+        'origin_y' => $originY,
+        'width_px' => (int) $width,
+        'height_px' => (int) $height,
+        'sample_bytes' => strlen($samples),
+    ];
+    $terrainStempel = avesmapsTerrainAreaFingerprint($areaRow);
+    $peaksStempel = avesmapsTerrainPeaksFingerprint($inputs['peaks'], $inputs['height_areas']);
+    if ($alteZeile !== false
+        && avesmapsTerrainRasterBlobGleich($alteZeile, $neueForm, (bool) (int) ($alteZeile['blob_gleich'] ?? 0))
+    ) {
+        // 💣 Die Stempel MUESSEN nach, sonst bleibt das Gebirge "veraltet" und der naechste Lauf
+        // laedt es erneut hoch -- genau die Schleife, gegen die dieser Riegel steht.
+        $stempeln = $pdo->prepare(
+            'UPDATE ecosystem_area_heightmap
+                SET geometry_revision = :rev, terrain_fingerprint = :terrain,
+                    peaks_fingerprint = :peaks, computed_by = :user,
+                    computed_at = CURRENT_TIMESTAMP(3)
+              WHERE area_id = :area'
+        );
+        $stempeln->execute([
+            'rev' => (int) $areaRow['geometry_revision'],
+            'terrain' => $terrainStempel,
+            'peaks' => $peaksStempel,
+            'user' => $userId > 0 ? $userId : null,
+            'area' => (int) $areaRow['id'],
+        ]);
+
+        return avesmapsTerrainRasterUnveraendertAntwort(strlen($compressed));
+    }
+
     $insert->execute([
         'area' => (int) $areaRow['id'], 'cell' => $cell, 'ox' => $originX, 'oy' => $originY,
         'w' => (int) $width, 'h' => (int) $height,
         'blob' => $compressed, 'bytes' => strlen($samples),
         'rev' => (int) $areaRow['geometry_revision'],
-        'terrain' => avesmapsTerrainAreaFingerprint($areaRow),
-        'peaks' => avesmapsTerrainPeaksFingerprint($inputs['peaks'], $inputs['height_areas']),
+        'terrain' => $terrainStempel,
+        'peaks' => $peaksStempel,
         'user' => $userId > 0 ? $userId : null,
     ]);
 
