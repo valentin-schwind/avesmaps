@@ -676,7 +676,7 @@ GET /api/app/wiki-zuordnung-export.php   (X2)
   cover the territory table, the redirect table and the dump run. ⚠️ X1 is about 4 MB uncompressed and X2 about 1.6 MB —
   fetch them on demand, never in a loop.
 
-## Legacy exports for Avesmaps3D (E1–E5)
+## Legacy exports for Avesmaps3D (E1–E6)
 
 Read-only exports built on request of Avesmaps3D (2026-10-04,
 `project-control/legacy-requests/2026-10-04-infopanel-domaenen-und-medien-exporte.md` in the avesmaps3D repo). All of
@@ -700,6 +700,7 @@ fetched on demand, never in a loop (STRATO).
 | E4 | `GET /api/app/political-territories-export.php` | `detail`, `detail_overrides`, `coat` (above) |
 | E5 A | `GET /api/app/media-export.php` | the public media manifest — exactly what Legacy shows everybody today |
 | E5 B | `GET /api/edit/migration/media-export.php` | **admin session**; every medium incl. non-public ones, suppressions, raw rights codes, notes, authors, upload stamps; plus `game_literature` and `citymaps` blocks with places/links incl. `origin`/`status` (suppressed included), the citymap build key and its own wiki-article assignment |
+| E6 | `GET /api/app/uploads-export.php` | Every media file under `uploads/`: path, size, mtime. One GET answers "what changed?" so Avesmaps3D fetches only new or altered files instead of 2,483 conditional requests. No bytes, no SHA-256, no database. Only the extensions in `AVESMAPS_UPLOADS_EXPORT_ENDUNGEN` are listed; `uploads/db-backups/` and `uploads/dumps/` are never entered. |
 
 Notes per export:
 
@@ -738,6 +739,11 @@ Notes per export:
   reviewing these exports: a login name and the internal note reached every visitor). `properties.coat` is an
   allow-list now (`avesmapsSettlementCoatOeffentlich`); the editor keeps reading the full record from its own endpoint.
   Same payload version 28 as E1.
+- **E6** is the only export that touches no database. Its `$stand` for `avesmapsExportStabilLesen` is the fingerprint
+  of the *directories* (count and mtimes), not of the files — a directory raises its mtime when an entry is added,
+  removed or renamed, which is what makes a recursive listing describe no single moment. A file overwritten in place
+  is deliberately *not* covered here; the consumer books size, ETag and `Last-Modified` from the file response, never
+  from this listing.
 - ⚠️ Every API request — these included — still records one usage row in `api_metric` at shutdown (operational
   telemetry in `bootstrap.php`, switchable via `config['api_metrics']['enabled']`). It never touches domain data.
 

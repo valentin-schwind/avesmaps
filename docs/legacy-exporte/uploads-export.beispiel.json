@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "uploads_revision": "uploads-0f3a9c2b17d4e850",
+  "counts": { "files": 2483, "bytes": 241172480 },
+  "truncated": false,
+  "items": [
+    { "path": "/uploads/siedlungen/4711/ansicht-1.webp", "bytes": 182344, "mtime": 1759600000 },
+    { "path": "/uploads/wappen/own/gareth-custom.png", "bytes": 24180, "mtime": 1759612345 }
+  ]
+}
