@@ -78,166 +78,135 @@ im Datensatz.
 
 ---
 
-## 3. Der Riegel — gebaut am 06.10.2026
+## 3. Was gebaut ist — zweiter Anlauf, ein Schritt
 
-**Ort: `avesmapsTerrainHeightmapPut` (`api/_internal/app/terrain-store.php`, Aktion `heightmap_put`).**
+🪤 **Der erste Anlauf ist live gescheitert und wurde zurückgerollt** (`754c664f0`). Er verglich das
+angebotene Raster in SQL gegen das gespeicherte — ein ~250 KB großer Binärparameter gegen eine
+BLOB-Spalte. MySQL warf, `api_metric` verbuchte **7× `edit/map/ecosystem|server_error`** (kein
+`|leer`, also eine sauber gefangene Ausnahme), der Browser meldete `ERR_HTTP2_PROTOCOL_ERROR`.
+💣 **Kein Test hatte gewarnt:** die Fixturen laufen auf SQLite, und das kennt die
+Kollations-Einschränkung nicht — dieselbe Klasse wie AGENTS.md §9 („Ein SQLite-Test kann eine
+MySQL-Regression ERZWINGEN"), nur andersherum.
 
-🔴 **Serverseitig, und das ist tragend.** Der Rasterlauf läuft im Browser
-(`AvesmapsEcosystemHeightRender.hochladen`, `map-features-ecosystem-height-render.js:1052`), und
-`heightmap_put` hat **genau einen Aufrufer**. Ein Riegel im Browser wäre durch Neuladen umgehbar und
-würde einen zweiten Lauf aus einem zweiten Tab nicht sehen. Serverseitig sieht er alle.
+🔴 **Die Lehre, die den zweiten Anlauf bestimmt: der Vergleich war überflüssig.** Das Raster wird
+*aus* (Gipfeln + Reglern + Geometrie) gerechnet — sind deren drei Stempel gleich **und** ist die Form
+gleich, *ist* es dasselbe Raster. Kein Binärparameter, keine neue SQL-Konstruktion. Und damit
+gehören Riegel und Fingerabdruck in **einen** Schritt: der Riegel ohne den Fingerabdruck je Gebirge
+wäre ohnehin wirkungslos gewesen, weil sich die globalen Stempel bei jedem bewegten Gipfel ändern.
 
-🪤 **Der erste Entwurf wollte an `map_feature_locks` fragen („arbeitet jemand an diesem Gebirge?")
-und ist verworfen.** Er hätte eine Sperre gegen eine Sperre gesetzt und drei neue Fragen aufgeworfen
-(welche Labels gehören zum Gebirge, was ist mit der eigenen Sperre, was bei verfallener Sperre) —
-während die Messung zeigt, dass gar nichts gesperrt werden muss: **die Raster der anderen 68 Gebirge
-ändern sich beim Bewegen eines Gipfels NICHT.** Nur ihr Stempel sagt „veraltet".
+**Drei reine Funktionen, alle getestet:**
 
-**Gebaut ist deshalb: ein unverändertes Raster wird gestempelt, nicht geschrieben.**
+| Funktion | Aufgabe |
+|---|---|
+| `avesmapsTerrainRasterKasten` | der Kasten eines Rasters aus Ursprung + Pixel × Zellweite |
+| `avesmapsTerrainPeaksFingerprintFuerKasten` | der Gipfel-Stempel **eines** Gebirges |
+| `avesmapsTerrainRasterIstAktuell` | gibt es überhaupt etwas zu schreiben? |
 
-`heightmap_put` vergleicht vor dem Schreiben, ob das angebotene Raster Byte für Byte dem
-gespeicherten gleicht (`avesmapsTerrainRasterBlobGleich`, rein und getestet). Wenn ja:
+**Der Fingerabdruck je Gebirge — zwei Hälften, beide nötig:**
 
-- Der 250-KB-Blob wird **nicht** geschrieben.
-- 💣 **Die beiden Fingerabdrücke und `geometry_revision` werden TROTZDEM nachgezogen** — und daran
-  hängt die ganze Wirkung. Ohne das bleibt das Gebirge „veraltet", der nächste Lauf lädt es wieder
-  hoch, und der Riegel hätte die Schleife nicht gebrochen, sondern nur einen Schreibvorgang gespart.
-- Die Antwort sagt `{written: 0, unchanged: 1}`. 🔴 `written` bleibt die Zahl der geschriebenen
-  Raster, weil `gebirgsRasterHochladen` sie als „hochgeladen" liest — ein unverändertes Gebirge ist
-  nicht hochgeladen, es ist aktuell. Eigenes Feld statt `written` verbiegen.
-
-⚠️ **Der Blob-Vergleich läuft IN der Datenbank** (`CASE WHEN samples = :blob`), nicht in PHP: sonst
-reisten 250 KB durch den Prozess, nur um verworfen zu werden — und genau diese Bytes sind der Grund,
-aus dem der Riegel existiert.
-
-💣 **Jedes Formfeld zählt** (Zellweite, Ursprung x/y, Breite, Höhe, Bytezahl). Dasselbe Bytemuster an
-einem anderen Ursprung ist ein anderes Raster; wer ein Feld vergisst, lässt ein um eine Zelle
-verschobenes Gebirge stehen — lautlos, weil die Zellzahl stimmt.
-
-⚠️ **Verglichen wird NUMERISCH, nicht mit `===`.** PDO liefert diese Spalten als String; ein strikter
-Vergleich der Rohwerte hätte jedes Raster für verändert gehalten, und der Riegel wäre wirkungslos
-gewesen, **ohne dass ein Test rot wird**.
-
-🪤 **Und die Lücke, die erst die Mutationsprobe fand:** die Anwesenheitsprüfung
-(`array_key_exists`) ist nur bei einem Raster am **Kartennullpunkt** die Rettung. Sonst fällt ein
-fehlendes Feld zufällig durch den Wertvergleich (`(float) null` = 0.0 gegen 100.0) — bei Ursprung 0/0
-ist 0.0 aber der erwartete Wert, und ein fehlendes Feld läse sich als Gleichheit. Der Riegel hielte
-dann ein **fremdes** Raster für unverändert und stempelte es nur. Zusicherung A6b.
-
----
-
-## 4. Die Wurzel — gebaut am 06.10.2026 (Owner: „mach den fingerprint pro gebirge")
-
-`avesmapsTerrainPeaksFingerprint` war **global**: alle Gipfel in einem Wert. Deshalb machte ein
-bewegter Gipfel alle 69 Gebirge „veraltet". Dieselbe Falle ist beim Nachbarn `ecosystem_revision`
-ausdrücklich vermieden worden — die Lehre steht wörtlich in `terrain-store-test.php`:
-
-> „`ecosystem_revision` IS NOT IN ANY STAMP. It is ONE GLOBAL counter […] 901 jumps in one working
-> day […] **After the third time nobody presses the button**, and then a raster whose stamp says
-> „stale" is what the map runs on."
-
-**Gebaut: `avesmapsTerrainPeaksFingerprintFuerKasten($kasten, $alleGipfel)`** — zwei Hälften, und
-beide sind nötig:
-
-- **(a) die Gipfel IM Kasten** des Rasters: Lage und Höhe gehen direkt ins Höhenfeld.
-- **(b) je solchem Gipfel der Abstand zu seinem nächsten Nachbarn** — und der darf überall liegen.
+- **(a) die Gipfel IM Kasten**: Lage und Höhe gehen direkt ins Höhenfeld.
+- **(b) je solchem Gipfel der Abstand zu seinem nächsten Nachbarn**, und der darf überall liegen.
   Daran klemmt sein Radius (`min(…, max(0,72 × separation, minRadius), 150)`).
 
-🔴 **Damit ist er vollständig, und zwar ohne Rand um den Kasten:** Ein fremder Gipfel wirkt **nur**
-über (b), ein neuer eigener über (a). Die Reichweite steckt schon in (b).
+🔴 **Damit ist er vollständig, ohne Rand um den Kasten:** Ein fremder Gipfel wirkt **nur** über (b),
+ein neuer eigener über (a).
 
-🪤 **Die Client-Liste der Gipfel-IDs war vorgeschlagen und ist verworfen.** Sie hätte den Fall „ein
+🪤 **Eine Client-Liste der Gipfel-IDs war vorgeschlagen und ist verworfen.** Sie hätte den Fall „ein
 NEUER Gipfel liegt jetzt in dieser Fläche" nicht erfasst — sie kennt nur die Gipfel, aus denen das
 alte Raster entstand. Der Kasten kennt ihn. Und sie hätte die Zusage „THE SERVER STAMPS, NOT THE
-CLIENT" angekratzt, die der Kasten vollständig wahrt (er kommt aus `origin_x/y`, `width_px`,
-`height_px`, `cell_size_mapunits` der eigenen Zeile).
+CLIENT" angekratzt, die der Kasten vollständig wahrt (er kommt aus der eigenen Zeile).
 
 💣 **EIN FINGERABDRUCK MIT LÜCKE IST SCHLIMMER ALS DER GLOBALE.** Der globale meldete zu oft
 „veraltet" — laut, teuer, aber sicher. Einer mit Lücke meldet „aktuell" für ein Raster, das es nicht
-ist, und dann rechnet die Wegfindung auf einem Gelände, das der Editor nie gesehen hat. Deshalb
-prüft der Test beide Hälften **einzeln**, mit Gegenprobe (C2: ein fremder Gipfel *ohne* Nachbarschaft
-darf nichts ändern — sonst misst C1 nur die Anzahl).
+ist, und dann rechnet die Wegfindung auf einem Gelände, das der Editor nie gesehen hat. Der Test
+prüft beide Hälften **einzeln**, mit Gegenprobe (B10: ein fremder Gipfel *ohne* Nachbarschaft darf
+nichts ändern — sonst misst B9 nur die Anzahl).
+
+**Der Riegel:** Sind alle drei Stempel **und** die Form gleich, wird **gar nichts** geschrieben —
+kein Blob, kein UPDATE. Die Antwort sagt `{written: 0, unchanged: 1}`. 🔴 `written` bleibt die Zahl
+der geschriebenen Raster, weil `gebirgsRasterHochladen` sie als „hochgeladen" liest; ein
+unverändertes Gebirge ist nicht hochgeladen, es ist aktuell.
+
+💣 **Die Form muss mitgeprüft werden.** Die Stempel decken Gipfel, Regler und Geometrie ab — *nicht*
+eine geänderte Zellweite oder Pixelzahl, die aus einer Code-Änderung kommen kann
+(`ECOSYSTEM_HYDRO_ZELLWEITE` stand schon einmal anders). Ohne die Prüfung bliebe ein Raster in alter
+Auflösung liegen und gälte als aktuell.
 
 💣 **Die Naht ist die teuerste Stelle:** Schreibweg und Status müssen denselben Wert rechnen, sonst
 gilt **jedes** Raster für immer als veraltet. Das Status-SELECT brauchte dafür drei zusätzliche
 Spalten (`cell_size_mapunits`, `origin_x`, `origin_y`) — **genau dieselbe Falle, die dort eine Zeile
-tiefer schon für die fünf V12-Regler ausgeschrieben steht.** Festgenagelt in F1–F3.
+tiefer schon für die fünf V12-Regler ausgeschrieben steht.**
 
-### Der N+1 ist mit gefallen
+## 4. Der N+1 ist mit gefallen
 
 `avesmapsTerrainReadStampInputs` fuhr **zwei** Queries je Upload; der zweite (JOIN über
 `ecosystem_area` × `ecosystem_region`) las die höhentragenden Flächen — und zwar **nur** für den
 globalen Stempel, in den ihre `geometry_revision` eingingen. Der Fingerabdruck je Gebirge braucht
-das nicht: die eigene `geometry_revision` steht ohnehin in derselben Zeile. Bei 69 Requests pro Lauf
-war das 69× ein JOIN für nichts. Jetzt **ein** Query (F4/F5).
+das nicht: die eigene `geometry_revision` steht in derselben Zeile. Bei 69 Requests pro Lauf war das
+69× ein JOIN für nichts. Jetzt **ein** Query.
 
-✅ **Der verbleibende Gipfel-Scan ist billig — am 06.10.2026 an der Live-Datenbank gemessen**, und
-das widerlegt die Vermutung, die diesen Absatz zuerst gefüllt hat. `EXPLAIN` auf
-`WHERE feature_type = 'label' AND is_active = 1 AND feature_subtype IN ('berggipfel','vulkan')`:
+✅ **Der verbleibende Gipfel-Scan ist billig — an der Live-Datenbank gemessen** (06.10.2026):
 
 ```
 type: range   key: idx_map_features_type_active   rows: 229   Extra: Using index condition
 ```
 
-Ein Index-Range-Scan über **229** Zeilen, kein `ALL` über die ~12.000 der Tabelle. 🔴 **Ein Cache
-dafür wäre Überkonstruktion** — und er wäre riskant gewesen: sein Schlüssel müsste jede Änderung an
-Gipfeln *und* Flächen erfassen, und ein zu grober Schlüssel liefert veraltete Fingerabdrücke, also
-genau den gefährlichen Zustand („aktuell", obwohl nicht).
-
-⭐ Der entfernte **zweite** Query bleibt trotzdem richtig entfernt: er lief 69× pro Lauf für einen
-Wert, den niemand mehr liest. Billig und überflüssig ist immer noch überflüssig.
-
-⚠️ Dass `map_features` nirgends im Repo angelegt wird (Schema in der Live-DB, AGENTS.md §10), bleibt
-die Ursache dafür, dass so eine Frage nur mit DB-Zugang zu beantworten ist.
+Ein Index-Range-Scan über 229 Zeilen, kein `ALL` über die ~12.000 der Tabelle. 🔴 **Ein Cache wäre
+Überkonstruktion** — und riskant: sein Schlüssel müsste jede Änderung an Gipfeln *und* Flächen
+erfassen, und ein zu grober Schlüssel liefert veraltete Stempel, also genau den gefährlichen
+Zustand.
 
 🔴 **Der globale Erzeuger bleibt als Funktion stehen**, mit Totmarke: `terrain-store-test.php` hält
-an ihm die `ecosystem_revision`-Lehre fest. Er hat keinen Aufrufer im Pfad mehr (F2).
+an ihm die `ecosystem_revision`-Lehre fest. Er hat keinen Aufrufer im Pfad mehr.
 
----
+⚠️ **Beim ersten Lauf nach dem Deploy gelten alle 69 Gebirge als veraltet** — die gespeicherten
+Stempel sind noch die globalen Werte, gegen die neue Rechnung stimmt keiner. Einmal durchrechnen,
+danach greift der Riegel.
 
 ## 5. Fallen
 
-💣 **Der Riegel lässt den Lauf nicht auf der Hälfte stehen.** Er lehnt nichts ab und bricht nichts
-ab — er schreibt nur weniger. Ein Lauf über 69 Gebirge läuft durch wie vorher; das war der
-entscheidende Vorzug gegenüber der verworfenen Sperre, die am 40. Gebirge ein `409` geworfen hätte.
+💣 **Der Riegel lässt den Lauf nicht auf der Hälfte stehen.** Er lehnt nichts ab und bricht nichts ab
+— er schreibt nur weniger. Ein Lauf über 69 Gebirge läuft durch wie vorher; das war der entscheidende
+Vorzug gegenüber der zuerst erwogenen Sperre, die am 40. Gebirge ein `409` geworfen hätte.
 
-💣 **Keine Transaktion, und bewusst keine.** Der Riegel liest, entscheidet und schreibt entweder ein
-UPDATE oder den INSERT — alles einzeln, wie vorher. 🔴 Wer hier eine Transaktion um beides legt, muss
-wissen, dass `Ensure`-Helfer in MySQL implizit committen (AGENTS.md §11, Quellen-Umbau Schritt 5) und
-ein `commit()` danach „There is no active transaction" wirft, während alles geschrieben ist.
+💣 **Keine Transaktion, und bewusst keine.** Gelesen, entschieden, dann entweder nichts oder der
+INSERT — alles einzeln, wie vorher. 🔴 Wer hier eine Transaktion um beides legt, muss wissen, dass
+`Ensure`-Helfer in MySQL implizit committen (AGENTS.md §11) und ein `commit()` danach „There is no
+active transaction" wirft, während alles geschrieben ist.
 
 🪤 **Die Datei ist CRLF.** Mehrzeilige Edits darauf sind die Falle aus AGENTS.md §9; der Einbau lief
-deshalb über ein Skript, das die Ankerstellen **genau einmal** finden muss und sonst nichts schreibt
-(`preg_replace`-null-Falle). Zeilenenden nach dem Einbau gegengeprüft.
+über ein Skript, das jede Ankerstelle **genau einmal** finden muss und sonst nichts schreibt.
 
-⚠️ **Der Blob-Vergleich setzt voraus, dass `gzdeflate` deterministisch ist.** Gleiche Eingabe, gleiche
-Stufe (6), gleiche Ausgabe — das gilt für zlib, aber es ist eine Annahme über eine Bibliothek. Sollte
-sie je brechen, ist die Folge harmlos: der Riegel greift nicht mehr und es wird geschrieben wie
-vorher.
-
----
+🪤 **Und eine Falle beim Bau selbst, die sofort zuschlug:** Die Schutzprüfung des Einbau-Skripts
+(„steht der Blob-Vergleich wirklich nicht mehr drin?") schlug an **meinem eigenen erklärenden
+Kommentar** an, der die verbotene Zeichenkette zitierte. Der Kommentar ist umformuliert, statt die
+Prüfung aufzuweichen. Dieselbe Lehre gilt dem Test: seine Wächter D1/D2 lesen den Quelltext
+**durch den Tokenizer**, also ohne Kommentare — sonst hätte die Warnung vor dem Muster am Muster
+angeschlagen.
 
 ## 6. Tests
 
-`api/_internal/app/__tests__/gebirgsraster-unveraendert-test.php` — **21 Zusicherungen**, drei Teile:
+`api/_internal/app/__tests__/gebirgsraster-stempel-test.php` — **40 Zusicherungen**, vier Teile:
 
-- **A) die Entscheidung** (rein, ohne DB): gleiche Form + gleicher Blob → nicht schreiben; jedes
-  einzelne abweichende Formfeld → schreiben; fehlende Zeile → schreiben; fehlendes Feld → keine
-  Gleichheit, auch am Kartennullpunkt (A6b); Zahlen als PDO-Strings → numerischer Vergleich.
-- **B) der Rückgabewert** nennt das unveränderte Raster beim Namen, statt `written` zu verbiegen.
-- **C) der Einbau**, am Quelltext festgenagelt **mit dem Tokenizer** (nicht `preg_replace`, siehe
-  AGENTS.md §11, sync-monitor-Falle): der Blob-Vergleich steht in SQL, der Riegel steht VOR dem
-  INSERT, und sein Zweig zieht **beide** Stempel nach und kehrt zurück.
+- **A) der Kasten** aus Ursprung + Pixel × Zellweite, auch mit PDO-Strings, und `null` ohne Ausdehnung.
+- **B) der Fingerabdruck je Gebirge**: beide Hälften einzeln, mit Gegenprobe (B10), Reihenfolge-
+  Stabilität, einschließender Kastenkante, neuem Gipfel im Kasten (B8).
+- **C) der Riegel**: jeder der drei Stempel einzeln, jedes Formfeld einzeln, PDO-Strings, und ein
+  fehlendes Feld am Kartennullpunkt (C9) — dort ist die Anwesenheitsprüfung die einzige Rettung,
+  weil `(float) null` genau der erwartete Wert wäre.
+- **D) der Einbau**, per Tokenizer: **kein Blob-Vergleich** (D1/D2 — der Wächter gegen den
+  gescheiterten ersten Anlauf), beide Leser rufen denselben Erzeuger (D3), der globale Stempel ist
+  aus dem Pfad (D4), die drei SELECT-Spalten (D5), der Riegel steht vor dem INSERT (D6), ein Query
+  statt zwei (D7/D8).
 
-**Mutationsprobe (06.10.2026), mit Byte-Gegenprobe:** 6 Mutationen, 4 sofort gefangen, 1 äquivalent
-(`!=` statt `(float)`-Vergleich — bei numerischen Spalten verhaltensgleich), **1 überlebte und hat
-eine echte Testlücke aufgedeckt** (die Anwesenheitsprüfung, siehe A6b oben). Nach Ergänzung gefangen.
+**Mutationsprobe (06.10.2026), mit Byte-Gegenprobe:** 8 Mutationen, 7 anwendbar, **alle 7 gefangen**.
 
-**Ganzes Testfeld vor dem Push gefahren** (Muster aus `deploy-avesmaps-strato.yml`): 437 PHP-Dateien,
-davon rot nur das vorbestehende `linkcheck/link-url-test.php` (echter DNS-Abruf, kein
-Regressionssignal); 592 JS-Dateien, null rot.
+**Ganzes Testfeld vor dem Push:** 437 PHP (rot nur das vorbestehende `linkcheck/link-url-test.php`,
+echter DNS-Abruf), 592 JS, null rot.
 
----
+🔧 **Nie gegen die echte Datenbank gefahren** — und genau daran ist der erste Anlauf gescheitert.
+Deshalb vor diesem Push abgesprochen, dass unmittelbar danach ein Handgriff an einem einzelnen
+Gebirge geprüft wird.
 
 ## 7. Was dieser Entwurf NICHT löst
 
