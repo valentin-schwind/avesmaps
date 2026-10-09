@@ -86,9 +86,10 @@ assert.strictEqual(showMarker(versteckt, 5), true, "wer ihn gefunden hat, sieht 
 assert.strictEqual(showLabel(versteckt, 5), true, "samt Namen");
 
 // --- 5. 💣 EIN PRUEFHAKEN ZEIGT SEINE FUNDE, auch versteckte --------------------------------------
-// Owner 2026-08-14. Ein versteckter Ort ohne Weganbindung IST eine Anbindungsluecke; stuende der
-// Versteckt-Riegel ueber dem Pruefhaken, waere „verstecken" ein Weg, den Pruefhaken stillzulegen --
-// und der Editor saehe die Luecke nie wieder.
+// Owner 2026-08-14. Stuende der Versteckt-Riegel ueber dem Pruefhaken, waere „verstecken" ein Weg,
+// den Pruefhaken stillzulegen. Die Reihenfolge wird hier an einer Fundliste geprueft, in der der Ort
+// STEHT -- ob er dort hineinkommt, entscheidet der Haken selbst: „Unverbunden" nimmt verborgene Orte
+// seit 09.10.2026 gar nicht mehr auf (Discord #144, location-connectivity-index.test.js).
 reset();
 visibleTypes = new Set();          // Ortsgroesse AUS -- der Fund muss trotzdem durch
 checkedToggles.add("#toggleUnconnected");

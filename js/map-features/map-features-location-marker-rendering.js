@@ -269,11 +269,13 @@ function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds
 	if (resolveLocationCheckFinding(entry, visibilityContext)) {
 		return isMarkerEntryInRenderBounds(entry, renderBounds);
 	}
-	// 💣 HIER, UND NUR HIER: nach den Pruefhaken, vor allem anderen. Ein versteckter Ort OHNE
-	// Weganbindung ist weiterhin eine Anbindungsluecke und muss seinen pinken Ring bekommen -- „ein
-	// Pruefhaken ZEIGT seine Funde" (Owner 2026-08-14). Stuende dieser Riegel darueber, waere
-	// „verstecken" ein Weg, den Pruefhaken stillzulegen, und der Editor saehe die Luecke nie wieder.
+	// 💣 HIER, UND NUR HIER: nach den Pruefhaken, vor allem anderen. Was ein Pruefhaken findet, zeigt
+	// er auch dann, wenn der Ort verborgen ist -- „ein Pruefhaken ZEIGT seine Funde" (Owner
+	// 2026-08-14). Stuende dieser Riegel darueber, waere „verbergen" ein Weg, Pruefhaken stillzulegen.
 	// Stuende er darunter, wuerde ein versteckter Nodix im Kraftlinien-Modus doch leuchten.
+	// 🔴 Ob ein verborgener Ort ueberhaupt ein FUND ist, entscheidet der Haken selbst, nicht dieser
+	// Riegel: „Unverbunden" zaehlt verborgene Orte seit 09.10.2026 nicht mehr (Discord #144,
+	// computeLocationConnectivityIndex in js/routing/route-graph-routing.js).
 	if (isHiddenLocation(entry.location)) {
 		const hiddenToggleChecked = visibilityContext
 			? visibilityContext.hiddenToggleChecked

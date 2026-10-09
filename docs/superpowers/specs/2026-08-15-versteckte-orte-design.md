@@ -132,6 +132,11 @@ Anbindungslücke und muss seinen pinken Ring bekommen — sonst versteckt das ne
 genau dem Editor, der sie sucht. Stünde der Riegel darüber, wäre „versteckt" ein Weg, den Prüfhaken
 stillzulegen.
 
+🔴 **Nachtrag 09.10.2026 (Discord #144, Owner-GO):** Der erste Halbsatz gilt nicht mehr — ein
+verborgener Ort ohne Weganbindung ist **kein** Befund von „Unverbunden", weil er meist absichtlich
+ohne Weg bleibt. Die Riegel-Reihenfolge bleibt; entschieden wird im Haken selbst
+(`computeLocationConnectivityIndex`, gespeichertes `isHidden`). Dasselbe gilt für den Satz in §6.3.
+
 ⚠️ Umgekehrt gilt: **im Kraftlinien-Modus schlägt „versteckt" den Nodix-Zweig.** Ein versteckter
 Nodix ist versteckt. Wer beides will, hakt „Versteckte Orte" an.
 

@@ -370,7 +370,7 @@ function hasForeignPathOverPoint(grid, lat, lng, ownPathIds) {
 // The editor's two marker tools (docs/superpowers/specs/2026-07-15-unverbundene-orte-marker-design.md,
 // Discord #25) share ONE pass over ONE connectivity graph -- building it twice for ~5200 paths would
 // be pure waste when both checkboxes are on:
-//   unconnected     -- 0 drawn ways AND not a powerline endpoint (an Anbindungsluecke).
+//   unconnected     -- 0 drawn ways AND not a powerline endpoint AND not verborgen (an Anbindungsluecke).
 //   sparseCrossings -- ein aufloesbarer Durchgangsknoten: genau SPARSE_CROSSING_WAY_COUNT Arme,
 //                      eine Wegart. Powerlines don't count here -- a Kreuzung is a way node, and
 //                      Kraftlinien only ever attach to Nodices.
@@ -396,7 +396,14 @@ function computeLocationConnectivityIndex() {
             return;
         }
         const arms = collectGraphNodeArms(connectivityGraph, location.name);
-        if (!arms.count && !powerlineConnectedPublicIds.has(location.publicId)) {
+        // 🔴 Ein VERBORGENER Ort ist keine Anbindungsluecke (Owner 09.10.2026, Discord #144): wer
+        // einen Ort verbirgt, laesst ihn meist absichtlich ohne Weg -- der pinke Ring meldete also
+        // genau die Orte, an denen es nichts zu reparieren gibt. Bis dahin galt das Gegenteil
+        // (15.08.2026, „ein versteckter Ort ohne Weg bleibt ein Editorbefund").
+        // 💣 Gelesen wird das GESPEICHERTE Merkmal `isHidden`, nie isHiddenLocation(): jene sagt nach
+        // der Aufdeckung in dieser Sitzung `false`, und dann tauchte der Ring wieder auf, sobald ein
+        // Editor den Ort per Suche gefunden hat.
+        if (!arms.count && !powerlineConnectedPublicIds.has(location.publicId) && !location.isHidden) {
             unconnected.add(location.publicId);
         }
         // Regel 1: genau zwei Arme. Regel 2: kein fremder Weg laeuft ueber den Punkt hinweg.

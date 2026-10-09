@@ -94,6 +94,23 @@ const rebuilt = getUnconnectedLocationPublicIds();
 assert.notStrictEqual(rebuilt, unconnected, "invalidation forces a fresh index");
 assert.deepStrictEqual([...rebuilt].sort(), ["pid-C", "pid-K0"]);
 
+// --- Verborgene Orte sind keine Anbindungsluecke (Owner 09.10.2026, Discord #144) ----------------
+// V ist ein gewoehnlicher Ort ohne Weg -> Fund. H ist VERBORGEN und ohne Weg -> kein Fund. HA ist
+// verborgen UND in dieser Sitzung aufgedeckt -> trotzdem kein Fund: gelesen wird das gespeicherte
+// Merkmal, nicht die Aufdeckung (sonst kaeme der Ring zurueck, sobald ein Editor den Ort sucht).
+// HW ist verborgen und HAT einen Weg -> war nie ein Fund und bleibt keiner.
+const verborgen = (name, x) => ({ ...loc(name, x, 0), isHidden: true });
+locationData = [loc("V", 300, 0), verborgen("H", 310), verborgen("HA", 320), verborgen("HW", 330), loc("HWb", 340, 0)];
+pathData = [path_("hw", "Weg", [330, 0], [340, 0])];
+powerlineData = [];
+global.avesmapsRevealedHiddenLocationIds = new Set(["pid-HA"]);
+locationConnectivityIndex = null;
+const unverbunden = getUnconnectedLocationPublicIds();
+assert.deepStrictEqual([...unverbunden].sort(), ["pid-V"], "nur der gewoehnliche Ort ohne Weg ist ein Fund");
+assert.strictEqual(unverbunden.has("pid-H"), false, "ein verborgener Ort ohne Weg ist keine Anbindungsluecke");
+assert.strictEqual(unverbunden.has("pid-HA"), false, "auch nicht, wenn er in dieser Sitzung aufgedeckt wurde");
+delete global.avesmapsRevealedHiddenLocationIds;
+
 // --- Der Split an aufliegenden Stuetzpunkten -----------------------------------------------------
 // 💣 S1 liegt als INNERER Vertex auf dem Weg s-p (200,0)->(220,0). Der Router sieht dort einen
 // vollwertigen Knoten (avesmapsAddClientCompatiblePathConnection splittet round-5), der Pruefhaken
