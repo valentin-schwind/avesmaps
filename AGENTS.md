@@ -741,6 +741,27 @@ is the default, English is opt-in. Therefore:
   gemessen Reisegruppe zu Fuss auf der Reichsstrasse **5,07** gegen **5,18**, Flusssegler **5,95**
   gegen **6,00**. Owner: „die tempowerte sollen auch fuer die karte gelten“. Siehe den Eintrag
   „Die Tempowerte gelten auch fuer die Karte“ in §11.
+- 💣 **STRATOs Webserver nimmt höchstens 1000 JSON-WERTE je Anfrage — und antwortet darüber mit einer
+  HTML-Seite „400 Bad Request", bevor PHP sie sieht.** Live gemessen am 09.10.2026 (Discord: „Fläche-058
+  lässt sich nicht vom Meer ausschneiden / mit Windhagberge vereinigen"): 498 Punkte (996 Zahlen + 4
+  Felder) gehen durch, 499 nicht; die BYTEZAHL spielt keine Rolle (5 KB mit 1001 Werten scheitern, 85 KB
+  als EINE Zeichenkette gehen durch). Es gilt für JEDEN Endpunkt, auch für die öffentliche Routen-API.
+  Daneben eine zweite Grenze: über rund **128 KiB** je Anfrage antwortet er **413**. ⭐ Abhilfe ist der
+  **Umschlag**: `{"avesmaps_umschlag": "<JSON>"}` ist für den Filter EIN Wert, `avesmapsReadJsonRequest`
+  (`api/_internal/bootstrap.php`) packt aus, und der Endpunkt sieht nichts davon. 🔴 **Verpackt wird an
+  `fetch`, nicht bei den Aufrufern** (`js/app/json-umschlag.js`): über 80 Stellen schicken JSON, und eine
+  Hilfsfunktion bände nur die, an die jemand gedacht hat. Verpackt wird NUR, was über 900 Werte trägt —
+  jede gewöhnliche Anfrage geht byte-gleich hinaus, der Riegel kann also nichts verschlechtern.
+  💣 **Jedes Dokument lädt die Datei selbst, vor seinem ersten Absender** — die Editorfenster sind eigene
+  iframe-Dokumente mit eigenem `fetch`; eine neue Editorseite ohne diese Zeile hätte die Grenze wieder.
+  Der Test zählt jede Seite mit `fetch(` nach. ⚠️ Wer einen Rumpf an `avesmapsReadJsonRequest` vorbei
+  selbst liest (heute `curve-labels-run.php`), muss `avesmapsJsonUmschlagAuspacken` selbst rufen.
+  🔧 **Offen:** fünf Landschaftsflächen liegen über 128 KiB (zwei „Meer", „Grasland der Großen Taiga",
+  „Altenforst", „Wald-370") und lassen sich auch verpackt nicht speichern; der Landschafts-Kanal meldet
+  das jetzt lesbar, die übrigen Editoren zeigen weiter nur die Statuszahl.
+  🪤 Die Fehlermeldung war nutzlos („update_area_geometry fehlgeschlagen (400)") — wer eine 400 ohne
+  eigene Meldung sieht, prüft zuerst, ob die Antwort HTML war. Tests: `js/app/__tests__/json-umschlag.test.js`,
+  `api/_internal/__tests__/json-umschlag-test.php`.
 - Several edit endpoints leak `getMessage()` to clients (info disclosure,
   milestone M1).
 

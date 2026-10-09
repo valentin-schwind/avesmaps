@@ -76,6 +76,9 @@ try {
     // avesmapsReadJsonRequest(), das auf Leere ausdruecklich wirft.
     $rohRumpf = (string) file_get_contents('php://input');
     $rumpf = $rohRumpf === '' ? [] : (json_decode($rohRumpf, true) ?: []);
+    // Derselbe Umschlag wie in avesmapsReadJsonRequest (js/app/json-umschlag.js verpackt grosse
+    // Anfragen) -- dieser Endpunkt liest seinen Rumpf selbst und muss ihn deshalb selbst auspacken.
+    $rumpf = is_array($rumpf) ? avesmapsJsonUmschlagAuspacken($rumpf) : [];
 
     // 🔴 EINE REINE LESEAKTION FUER DIE VORSCHAU -- und sie steht VOR dem Sammellauf, weil sie
     // sonst nie erreicht wuerde.

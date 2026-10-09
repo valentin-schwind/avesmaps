@@ -110,6 +110,9 @@ function avesmapsEcosystemKurvenAusAntwortAnwenden(result) {
 	}
 }
 
+// 💣 Eine Fläche mit mehr als ~498 Ecken ist mehr als 1000 JSON-Werte, und so viele nimmt STRATOs
+// Webserver nicht an (HTML-400 vor PHP; Discord 09.10.2026, Fläche-058). Verpackt wird dafür NICHT hier,
+// sondern für jede Anfrage der Seite an EINER Stelle: js/app/json-umschlag.js umhüllt `fetch`.
 async function postEcosystemEdit(action, payload = {}) {
 	if (!ECOSYSTEM_EDIT_API_URL) {
 		throw new Error("Der Landschaften-Editor ist auf diesem Host nicht erreichbar.");
@@ -130,7 +133,12 @@ async function postEcosystemEdit(action, payload = {}) {
 	const result = await readJsonResponse(response, null);
 
 	if (!response.ok || result?.ok !== true) {
-		const error = new Error(apiErrorMessage(result, `${action} fehlgeschlagen (${response.status}).`));
+		// Die Grössengrenze des Webservers antwortet mit einer HTML-Seite, also ohne eigene Meldung --
+		// „update_area_geometry fehlgeschlagen (413)" sagte dem Editor nicht, was er tun kann.
+		const zuGross = response.status === 413
+			? "Zu groß zum Speichern: der Server nimmt höchstens 128 KiB je Änderung an. Bitte die Fläche vereinfachen oder teilen."
+			: "";
+		const error = new Error(zuGross || apiErrorMessage(result, `${action} fehlgeschlagen (${response.status}).`));
 		// V3.3 braucht EINEN Fehlschlag getrennt von allen anderen: `conflict` (HTTP 409) heisst, dass
 		// jemand anderes diese Fläche verschoben hat -- dann ist die lokale Kopie wertlos und nur der
 		// Lesepfad kann es klären. Ohne den Code am Fehler müsste der Aufrufer den deutschen Text prüfen.

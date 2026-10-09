@@ -256,7 +256,45 @@ function avesmapsReadJsonRequest(): array {
         throw new InvalidArgumentException('Die Anfrage enthaelt kein gueltiges JSON-Objekt.');
     }
 
-    return $payload;
+    return avesmapsJsonUmschlagAuspacken($payload);
+}
+
+// 💣 DER UMSCHLAG (09.10.2026). STRATOs Webserver weist jede JSON-Anfrage mit mehr als 1000 EINZELNEN
+// WERTEN ab -- mit einer HTML-Seite „400 Bad Request", bevor PHP sie je sieht. Gemessen am Live-Server:
+// 498 Punkte (996 Zahlen + 4 Felder) gehen durch, 499 nicht; die Bytezahl spielt keine Rolle (5 KB mit
+// 1001 Werten scheitern, 85 KB als EINE Zeichenkette gehen durch). Das traf jede Landschaftsfläche mit
+// mehr als ~498 Ecken: „Ausschneiden" und „Vereinigen" an Fläche-058 (Discord 09.10.2026) liefen genau
+// daran auf, und es gilt für JEDEN Endpunkt, auch für die öffentliche Routen-API.
+//
+// Ein Client, der grosse Strukturen schickt, verpackt deshalb seine ganze Nutzlast als EINE Zeichenkette:
+// `{"avesmaps_umschlag": "<JSON>"}`. Für den Filter ist das ein einziger Wert; hier wird sie ausgepackt,
+// und der Endpunkt sieht dieselbe Nutzlast wie vorher. Wer nichts verpackt, merkt keinen Unterschied.
+//
+// ⚠️ Gegen die zweite Grenze hilft er nicht: über rund 128 KiB je Anfrage antwortet der Webserver 413,
+// verpackt oder nicht.
+// 🔴 NUR wenn der Umschlag der EINZIGE Schlüssel ist -- eine echte Nutzlast mit diesem Feld daneben
+// wird nie umgedeutet.
+function avesmapsJsonUmschlagAuspacken(array $payload): array {
+    if (count($payload) !== 1 || !array_key_exists('avesmaps_umschlag', $payload)) {
+        return $payload;
+    }
+    if (!is_string($payload['avesmaps_umschlag'])) {
+        throw new InvalidArgumentException('Der Anfrage-Umschlag muss eine JSON-Zeichenkette sein.');
+    }
+
+    try {
+        $inhalt = json_decode($payload['avesmaps_umschlag'], true, 512, JSON_THROW_ON_ERROR);
+    } catch (JsonException $exception) {
+        throw new InvalidArgumentException('Der Anfrage-Umschlag enthaelt ungueltiges JSON.');
+    }
+
+    // Dieselbe Prüfung wie für eine unverpackte Nutzlast oben -- der Umschlag ändert nichts daran,
+    // was ein Endpunkt annimmt.
+    if (!is_array($inhalt)) {
+        throw new InvalidArgumentException('Der Anfrage-Umschlag enthaelt kein gueltiges JSON-Objekt.');
+    }
+
+    return $inhalt;
 }
 
 function avesmapsCreatePdo(array $databaseConfig): PDO {
