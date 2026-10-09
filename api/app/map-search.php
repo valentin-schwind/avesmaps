@@ -132,7 +132,10 @@ try {
     // Innerorts (Entwurf 2026-09-26-innerorts-praedikat-design.md §7): die von der Karte genommenen
     // Stadtviertel/Bauwerke -- $rows traegt nur aktive Zeilen. Eine kleine Abfrage (LIKE-Vorfilter).
     $innerortsVonDerKarte = avesmapsFetchInnerortsVonDerKarteRows($pdo);
-    $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit, $inSettlementRows, $pdo, $citymapRows, $gameLiteratureRows, $loreRows, $offmapRows, imBearbeitenModus: $imBearbeitenModus, innerortsVonDerKarte: $innerortsVonDerKarte);
+    // Die ART der Kartenobjekte (Discord #145): Bauwerkstyp und Gottheit aus der Registry, ueber den
+    // Titel ihrer Wiki-Zuweisung -- dieselbe Tafel, die die Kartennutzlast an die Infobox heftet.
+    $bauwerksarten = avesmapsLoadWikiSyncBuildingTypes($pdo);
+    $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit, $inSettlementRows, $pdo, $citymapRows, $gameLiteratureRows, $loreRows, $offmapRows, imBearbeitenModus: $imBearbeitenModus, innerortsVonDerKarte: $innerortsVonDerKarte, bauwerksarten: $bauwerksarten);
 
     avesmapsJsonResponse(200, [
         'ok' => true,
@@ -243,7 +246,11 @@ function avesmapsBuildMapSearchResults(
     // Der zwoelfte, ebenfalls BENANNT: die von der Karte genommenen innerorts-Punkte
     // (avesmapsFetchInnerortsVonDerKarteRows). Vorgabe leer -- ein Aufrufer ohne sie verliert nur
     // diese Treffer, nichts sonst.
-    array $innerortsVonDerKarte = []
+    array $innerortsVonDerKarte = [],
+    // Der dreizehnte, BENANNT: die Bauwerks-Registry (avesmapsLoadWikiSyncBuildingTypes), aus der die
+    // suchbare ART der Kartenobjekte kommt (Discord #145). Vorgabe leer -- ohne sie ist nur der Name
+    // und die Ortsgroesse suchbar, wie vor dem 09.10.2026.
+    array $bauwerksarten = []
 ): array {
     $normalizedQuery = avesmapsNormalizeSearchText($query);
     if ($normalizedQuery === '') {
@@ -280,7 +287,7 @@ function avesmapsBuildMapSearchResults(
             }
         }
 
-        $entry = avesmapsBuildSearchEntry($row);
+        $entry = avesmapsBuildSearchEntry($row, $bauwerksarten);
         if ($entry === null) {
             continue;
         }
@@ -513,7 +520,7 @@ function avesmapsBuildMapSearchResults(
 
     $mapped = array_map(
         static function (array $entry): array {
-            unset($entry['score'], $entry['search_texts'], $entry['group_key']);
+            unset($entry['score'], $entry['search_texts'], $entry['art_texts'], $entry['group_key']);
             $entry['public_ids'] = array_values(array_unique($entry['public_ids'] ?? []));
             return $entry;
         },
@@ -542,7 +549,7 @@ function avesmapsBuildMapSearchResults(
     return $mapped;
 }
 
-function avesmapsBuildSearchEntry(array $row): ?array {
+function avesmapsBuildSearchEntry(array $row, array $bauwerksarten = []): ?array {
     $properties = avesmapsDecodeJsonColumnForSearch($row['properties_json'] ?? null);
     $featureType = (string) ($row['feature_type'] ?? $properties['feature_type'] ?? '');
     $featureSubtype = (string) ($row['feature_subtype'] ?? $properties['feature_subtype'] ?? '');
@@ -561,6 +568,7 @@ function avesmapsBuildSearchEntry(array $row): ?array {
             'name' => $name,
             'type_label' => avesmapsLocationSearchTypeLabel($featureSubtype),
             'search_texts' => [$name, $featureSubtype, $properties['settlement_class_label'] ?? '', avesmapsReadSearchWikiUrl($properties)],
+            'art_texts' => avesmapsLocationSearchArtTexts($properties, $bauwerksarten),
         ]);
     }
 
@@ -716,7 +724,7 @@ function avesmapsBuildSearchResult(array $row, array $fields): array {
         'search_texts' => $fields['search_texts'] ?? [],
     ];
 
-    foreach (['min_zoom', 'max_zoom', 'show_label', 'group_key', 'wiki_key'] as $optionalField) {
+    foreach (['min_zoom', 'max_zoom', 'show_label', 'group_key', 'wiki_key', 'art_texts'] as $optionalField) {
         if (array_key_exists($optionalField, $fields)) {
             $result[$optionalField] = $fields[$optionalField];
         }
@@ -764,6 +772,39 @@ function avesmapsSearchKindOrder(string $kind): int {
         'in_settlement' => 6,
         default => 99,
     };
+}
+
+/**
+ * Die suchbare ART eines Kartenorts (Discord #145): die vom Editor gesetzte Ortsart (`place_kind`),
+ * dazu Bauwerkstyp und Gottheit aus der Registry ueber den Titel seiner Wiki-Zuweisung. Dieselbe
+ * Rangfolge wie die Typzeile der Infobox (locationTypeLabelForDisplay) -- gesucht wird, was dort steht.
+ * Gewertet wird sie NACHRANGIG (art_texts, avesmapsCalculateSearchScore).
+ *
+ * 🔴 EIN VERBORGENER ORT BEKOMMT KEINE ART. Owner-Regel vom 15.08.2026: „Wer den Namen kennt, findet
+ * ihn; wer nur über die Karte scrollt, nicht." Ueber „Tempel" fuende man sonst den verborgenen Tempel,
+ * ohne seinen Namen zu kennen -- und die Auswahl deckt ihn auf.
+ *
+ * @param array<string, mixed> $properties
+ * @param array<string, array{type?:string, deity?:string}> $bauwerksarten avesmapsLoadWikiSyncBuildingTypes
+ * @return list<string>
+ */
+function avesmapsLocationSearchArtTexts(array $properties, array $bauwerksarten): array {
+    if (avesmapsReadSearchBoolean($properties['is_hidden'] ?? false)) {
+        return [];
+    }
+    $wikiSettlement = is_array($properties['wiki_settlement'] ?? null) ? $properties['wiki_settlement'] : [];
+    $titel = trim((string) ($wikiSettlement['title'] ?? ''));
+    $registry = ($titel !== '' && isset($bauwerksarten[$titel])) ? $bauwerksarten[$titel] : [];
+    // 🔴 VORRANG, keine Vereinigung: die Ortsart des Editors ERSETZT den Wiki-Bauwerkstyp, wie in der
+    // Typzeile. Ein ueberschriebener Wiki-Typ ist nicht mehr suchbar -- sonst faende „Brunnen" einen Ort,
+    // dessen Zeile „Oase" sagt.
+    $placeKind = trim((string) ($properties['place_kind'] ?? ''));
+    $arten = [$placeKind !== '' ? $placeKind : trim((string) ($registry['type'] ?? ''))];
+    foreach (avesmapsDeitiesFromStored((string) ($registry['deity'] ?? '')) as $gottheit) {
+        $arten[] = $gottheit;
+    }
+
+    return array_values(array_unique(array_filter($arten, static fn (string $art): bool => $art !== '')));
 }
 
 function avesmapsLocationSearchTypeLabel(string $subtype): string {

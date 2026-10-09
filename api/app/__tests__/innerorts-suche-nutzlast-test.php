@@ -282,7 +282,9 @@ foreach (token_get_all($suche) as $t) {
     $ohneKommentare .= (is_array($t) && in_array($t[0], [T_COMMENT, T_DOC_COMMENT], true)) ? '' : (is_array($t) ? $t[1] : $t);
 }
 assert(str_contains($ohneKommentare, '$innerortsVonDerKarte = avesmapsFetchInnerortsVonDerKarteRows($pdo);')
-    && str_contains($ohneKommentare, 'innerortsVonDerKarte: $innerortsVonDerKarte)'), 'der Endpunkt holt und uebergibt die genommenen Punkte');
+    // ⚠️ `[,)]` statt einer festen `)`: seit 09.10.2026 folgt ein weiterer benannter Parameter
+    // (bauwerksarten, Discord #145) -- gefragt ist, ob DIESER uebergeben wird, nicht ob er der letzte ist.
+    && preg_match('/innerortsVonDerKarte: \$innerortsVonDerKarte\s*[,)]/', $ohneKommentare) === 1, 'der Endpunkt holt und uebergibt die genommenen Punkte');
 $pruefungen++;
 
 echo "innerorts-suche-nutzlast: alle {$pruefungen} Zusicherungen gruen\n";

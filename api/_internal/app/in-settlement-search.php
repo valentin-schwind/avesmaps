@@ -42,6 +42,64 @@ require_once __DIR__ . '/settlement-places.php';
 require_once __DIR__ . '/innerorts-anschluss.php';
 
 /**
+ * title -> {type, ruined, deity} aus der Bauwerks-Registry. Try/catch, falls die Spalten (noch) fehlen.
+ *
+ * 🔴 ZWEI LESER, EINE TAFEL: die Kartennutzlast heftet daraus Bauwerkstyp, Ruine und Gottheit an
+ * properties.wiki_settlement (api/app/map-features.php), die Kartensuche macht daraus die suchbare
+ * ART eines Kartenobjekts (api/app/map-search.php, Discord #145: „Akademie" soll alle Akademien
+ * finden). Bis 09.10.2026 stand die Funktion im Nutzlast-Endpunkt; der laesst sich nicht einbinden,
+ * und eine zweite Abfrage in der Suche waere eine zweite Fassung derselben Rueckfallregel geworden.
+ * Hier liegt sie, weil BEIDE Endpunkte diese Datei ohnehin laden.
+ *
+ * @return array<string, array{type:string, ruined:bool, deity:string}>
+ */
+function avesmapsLoadWikiSyncBuildingTypes(PDO $pdo): array {
+    try {
+        $statement = $pdo->query(
+            'SELECT title, building_type, is_ruined, deity FROM wiki_sync_pages
+             WHERE (building_type IS NOT NULL AND building_type <> \'\')
+                OR (deity IS NOT NULL AND deity <> \'\')'
+        );
+    } catch (Throwable $error) {
+        // 💣 ZWEITER ANLAUF OHNE `deity`. Die Spalte legt nur avesmapsWikiSettlementEnsureSchema an,
+        // und die laeuft NUR im Sync-Pfad -- zwischen einem Deploy und dem ersten Dump-Lauf (und auf
+        // jeder frischen Installation) gibt es sie nicht. Ohne diesen Rueckfall liefert der Fehler
+        // eine LEERE Map, und dann verliert JEDE Infobox ihren building_type: aus „Tempel" wird
+        // wieder „Dorf" -- stumm, und niemand ordnet das einem SELECT zu.
+        // ⚠️ Kein DDL an dieser Stelle: das ist der heisseste Pfad ueberhaupt (AGENTS.md §10,
+        // Pool-Vorfall 17.07.2026).
+        try {
+            $statement = $pdo->query(
+                'SELECT title, building_type, is_ruined, \'\' AS deity FROM wiki_sync_pages
+                 WHERE building_type IS NOT NULL AND building_type <> \'\''
+            );
+        } catch (Throwable $zweiterVersuch) {
+            return [];
+        }
+    }
+    if ($statement === false) {
+        return [];
+    }
+    $map = [];
+    foreach ($statement->fetchAll() as $row) {
+        $title = trim((string) ($row['title'] ?? ''));
+        if ($title === '') {
+            continue;
+        }
+        $map[$title] = [
+            'type' => (string) ($row['building_type'] ?? ''),
+            'ruined' => !empty($row['is_ruined']),
+            // Die Gottheit einer Kultstaette (Discord #54) reist denselben Weg wie building_type:
+            // aus der Registry an properties.wiki_settlement geheftet, NICHT als eigenes
+            // properties-Feld gespeichert -- eine Quelle, kein Editor-Feld, keine Handarbeit
+            // fuer 775 Tempel.
+            'deity' => (string) ($row['deity'] ?? ''),
+        ];
+    }
+    return $map;
+}
+
+/**
  * Registry-Zeilen mit Ortsbezug: Bauwerke (wiki_sync_pages.standort) + Wege
  * (wiki_path_staging.lage_raw). Nur Zeilen MIT Rohwert -- ohne ihn gibt es nichts zu
  * entscheiden. Beide Mengen sind klein gefiltert (~500 bzw. ~140 Zeilen); die Ortsaufloesung
@@ -380,6 +438,10 @@ function avesmapsBuildInSettlementSearchEntries(array $registryRows, array $sett
             // ⚠️ Der Unterschied zum Stadtnamen darueber: die Gottheit gehoert dem OBJEKT,
             // die Stadt nur seinem Behaelter.
             'search_texts' => array_merge([$title], $deities),
+            // Die ART des Objekts („Magierakademie", „Tempel") ist suchbar, aber NACHRANGIG
+            // (Discord #145): avesmapsCalculateSearchScore wertet art_texts hinter jedem Namenstreffer.
+            // Es ist die Art, die die Typzeile ohnehin zeigt -- gefunden wird, was man dort liest.
+            'art_texts' => [(string) ($registryRow['type_label'] ?? '')],
         ];
     }
 

@@ -899,12 +899,20 @@ function searchSpotlightEntries(query) {
 // NOTE: the two sides still NORMALISE differently (ue vs u for umlauts). That divergence is older than
 // this function and is deliberately not touched here -- see
 // docs/superpowers/specs/2026-08-02-spotlight-kartensammlungen-design.md §7.
+// 🔴 Die ART eines Treffers zaehlt NACHRANGIG (Discord #145): ihre vier Stufen liegen hinter jedem
+// Namenstreffer. Zwilling von AVESMAPS_SEARCH_ART_SCORE_OFFSET (api/_internal/app/map-search-scoring.php) --
+// ohne den Versatz schoebe „Fe" ueber „Festung" jede Burg vor „Ferdok".
+const SPOTLIGHT_SEARCH_ART_SCORE_OFFSET = 4;
+
 function getSpotlightSearchScore(entry, normalizedQuery) {
-	const candidates = entry.normalizedSearchTexts || [entry.name, entry.typeLabel, ...(entry.aliases || [])]
+	const candidates = entry.normalizedSearchTexts || [entry.name, entry.searchTypeLabel ?? entry.typeLabel, ...(entry.aliases || [])]
+		.map(normalizeSpotlightSearchText)
+		.filter(Boolean);
+	const artCandidates = entry.normalizedArtTexts || (entry.artTexts || [])
 		.map(normalizeSpotlightSearchText)
 		.filter(Boolean);
 	const words = String(normalizedQuery || "").split(" ").filter(Boolean);
-	if (!words.length || !candidates.length) {
+	if (!words.length || (!candidates.length && !artCandidates.length)) {
 		return Infinity;
 	}
 
@@ -913,6 +921,9 @@ function getSpotlightSearchScore(entry, normalizedQuery) {
 		let bestForWord = Infinity;
 		candidates.forEach((candidate) => {
 			bestForWord = Math.min(bestForWord, scoreSpotlightWord(candidate, word));
+		});
+		artCandidates.forEach((candidate) => {
+			bestForWord = Math.min(bestForWord, scoreSpotlightWord(candidate, word) + SPOTLIGHT_SEARCH_ART_SCORE_OFFSET);
 		});
 		if (!Number.isFinite(bestForWord)) {
 			return Infinity;
@@ -1282,7 +1293,10 @@ function getSpotlightSearchEntries() {
 	if (!spotlightSearchEntryCache || spotlightSearchEntryCacheSignature !== signature) {
 		spotlightSearchEntryCache = buildSpotlightSearchEntries().map((entry) => ({
 			...entry,
-			normalizedSearchTexts: [entry.name, entry.typeLabel, ...(entry.aliases || [])]
+			normalizedSearchTexts: [entry.name, entry.searchTypeLabel ?? entry.typeLabel, ...(entry.aliases || [])]
+				.map(normalizeSpotlightSearchText)
+				.filter(Boolean),
+			normalizedArtTexts: (entry.artTexts || [])
 				.map(normalizeSpotlightSearchText)
 				.filter(Boolean),
 		}));
@@ -1407,16 +1421,44 @@ function buildSpotlightSearchEntries() {
 function buildSpotlightLocationEntries() {
 	return locationMarkers
 		.filter((entry) => entry?.location && !isCrossingLocation(entry.location))
-		.map((entry) => ({
-			id: `location:${entry.publicId || entry.name}`,
-			kind: "location",
-			name: entry.name,
-			typeLabel: entry.locationTypeLabel || tr("type." + entry.locationType + ".singular", LOCATION_TYPE_CONFIG[entry.locationType]?.singularLabel || "") || tr("spotlight.type.location", "Ort"),
-			stateHint: spotlightLocationStateHint(entry.location),
-			publicIds: [entry.publicId].filter(Boolean),
-			locationEntry: entry,
-			aliases: [entry.location?.description, entry.location?.wikiUrl],
-		}));
+		.map((entry) => {
+			const classLabel = entry.locationTypeLabel || tr("type." + entry.locationType + ".singular", LOCATION_TYPE_CONFIG[entry.locationType]?.singularLabel || "") || tr("spotlight.type.location", "Ort");
+			const art = spotlightLocationArt(entry.location);
+			return {
+				id: `location:${entry.publicId || entry.name}`,
+				kind: "location",
+				name: entry.name,
+				// Die Zeile nennt die ART, wo es eine gibt („Festung" statt „Besondere Bauwerke/Stätten",
+				// Discord #145) -- sonst saehe man bei einer Suche nach „Festung" nicht, warum der Treffer da ist.
+				typeLabel: art.label || classLabel,
+				// ⚠️ Die Ortsgroesse bleibt VOLL suchbar wie bisher; nur die Art zaehlt nachrangig (artTexts).
+				searchTypeLabel: classLabel,
+				artTexts: art.texts,
+				stateHint: spotlightLocationStateHint(entry.location),
+				publicIds: [entry.publicId].filter(Boolean),
+				locationEntry: entry,
+				aliases: [entry.location?.description, entry.location?.wikiUrl],
+			};
+		});
+}
+
+// Art eines Kartenorts fuer die Suche (Discord #145): `label` fuer die Typzeile (wie die Infobox: „Rahja-Tempel"),
+// `texts` fuer die nachrangige Suche. Zwilling von avesmapsLocationSearchArtTexts (api/app/map-search.php).
+// 🔴 Ein VERBORGENER Ort ist ueber seine Art NICHT auffindbar („Wer den Namen kennt, findet ihn", Owner
+// 15.08.2026) -- gelesen wird das gespeicherte Merkmal, nicht die Aufdeckung dieser Sitzung.
+// ⚠️ Fehlt locationArt (der Bauer liegt in map-features-location-marker-entry.js), gibt es keine Art --
+// die Zeile faellt auf die Ortsgroesse zurueck wie vor dem 09.10.2026.
+function spotlightLocationArt(location) {
+	if (!location || typeof locationArt !== "function" || typeof locationDeities !== "function") {
+		return { label: "", texts: [] };
+	}
+	const art = locationArt(location);
+	const deities = locationDeities(location);
+	const label = art && deities[0] ? `${deities[0]}-${art}` : art;
+	return {
+		label,
+		texts: location.isHidden ? [] : [art, ...deities].filter(Boolean),
+	};
 }
 
 // Ist die Karte im Editormodus (`?edit=1`)? 🔴 Fehlt die Konstante, gilt das FRONTEND: fuer die Suche ist

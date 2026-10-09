@@ -3,6 +3,33 @@
  * This file contains only function declarations and no top-level execution.
  */
 
+// Die ART eines Ortes -- Stufe 1 und 2 der Typzeile darunter, ohne Ortsgroesse und ohne Zusaetze:
+// die vom Editor gesetzte Ortsart, sonst der Bauwerkstyp aus dem Wiki, sonst "".
+// 🔴 Herausgezogen am 09.10.2026, weil die Suche dieselbe Frage stellt (Discord #145: „Akademie" soll
+// alle Akademien finden) -- eine zweite Fassung der Rangfolge liefe auseinander, und dann fuende die
+// Suche etwas anderes, als die Infobox nennt. Ihr Zwilling auf dem Server ist
+// avesmapsLocationSearchArtTexts (api/app/map-search.php).
+function locationArt(location) {
+	if (!location) {
+		return "";
+	}
+	const placeKind = String(location.placeKind || "").trim();
+	if (placeKind) {
+		return placeKind;
+	}
+	const wikiSettlement = location.wikiSettlement;
+	return wikiSettlement && wikiSettlement.building_type ? String(wikiSettlement.building_type) : "";
+}
+
+// Die Gottheiten einer Kultstaette (Discord #54), alle -- gespeichert mehrwertig („Ingerimm,Rondra").
+function locationDeities(location) {
+	const wikiSettlement = location && location.wikiSettlement;
+	return String((wikiSettlement && wikiSettlement.deity) || "")
+		.split(",")
+		.map((deity) => deity.trim())
+		.filter(Boolean);
+}
+
 // Die Typzeile der Infobox: was fuer ein Ort ist das?
 //
 // Drei Stufen, absichtlich in dieser Reihenfolge:
@@ -25,16 +52,9 @@ function locationTypeLabelForDisplay(location) {
 		return "";
 	}
 	const wikiSettlement = location.wikiSettlement;
-	const placeKind = String(location.placeKind || "").trim();
-	let label = String(location.locationTypeLabel || "");
-	let carriesAKind = false;
-	if (placeKind) {
-		label = placeKind;
-		carriesAKind = true;
-	} else if (wikiSettlement && wikiSettlement.building_type) {
-		label = String(wikiSettlement.building_type);
-		carriesAKind = true;
-	}
+	const art = locationArt(location);
+	let label = art || String(location.locationTypeLabel || "");
+	let carriesAKind = Boolean(art);
 	// 🔴 DAS EIGENE FELD GEWINNT (Owner 15.08.2026: „die infobox soll auch das eigene feld lesen").
 	// Bis dahin las diese Zeile NUR wikiSettlement.is_ruined -- am Livebestand trugen 70 Orte das
 	// eigene Feld, 44 das aus dem Wiki, und 31 NUR das eigene: die sagten im Spotlight „Ruine" und in
@@ -55,7 +75,7 @@ function locationTypeLabelForDisplay(location) {
 	// 🔴 Sie steht NUR in der Registry (wiki_settlement), genau wie building_type darueber. Ein
 	// eigenes properties-Feld waere eine zweite Wahrheit und Handarbeit fuer 775 Tempel.
 	// Mehrwertig gespeichert („Ingerimm,Rondra") -- die Zeile nennt die erste.
-	const deity = String((wikiSettlement && wikiSettlement.deity) || "").split(",")[0].trim();
+	const deity = locationDeities(location)[0] || "";
 	if (deity) {
 		label = label ? deity + "-" + label : deity;
 		// ⚠️ carriesAKind mitsetzen: die Ruinen-Regel darunter haengt „(Ruine)" nur an ein Label,

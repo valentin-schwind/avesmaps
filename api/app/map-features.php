@@ -1121,52 +1121,8 @@ function avesmapsNormalizeLegacyMapFeatureProperties(array $properties): array {
     return $properties;
 }
 
-// title -> {type, ruined} aus der Bauwerks-Registry. Try/catch, falls die Spalten (noch) fehlen.
-function avesmapsLoadWikiSyncBuildingTypes(PDO $pdo): array {
-    try {
-        $statement = $pdo->query(
-            'SELECT title, building_type, is_ruined, deity FROM wiki_sync_pages
-             WHERE (building_type IS NOT NULL AND building_type <> \'\')
-                OR (deity IS NOT NULL AND deity <> \'\')'
-        );
-    } catch (Throwable $error) {
-        // 💣 ZWEITER ANLAUF OHNE `deity`. Die Spalte legt nur avesmapsWikiSettlementEnsureSchema an,
-        // und die laeuft NUR im Sync-Pfad -- zwischen einem Deploy und dem ersten Dump-Lauf (und auf
-        // jeder frischen Installation) gibt es sie nicht. Ohne diesen Rueckfall liefert der Fehler
-        // eine LEERE Map, und dann verliert JEDE Infobox ihren building_type: aus „Tempel" wird
-        // wieder „Dorf" -- stumm, und niemand ordnet das einem SELECT zu.
-        // ⚠️ Kein DDL an dieser Stelle: das ist der heisseste Pfad ueberhaupt (AGENTS.md §10,
-        // Pool-Vorfall 17.07.2026).
-        try {
-            $statement = $pdo->query(
-                'SELECT title, building_type, is_ruined, \'\' AS deity FROM wiki_sync_pages
-                 WHERE building_type IS NOT NULL AND building_type <> \'\''
-            );
-        } catch (Throwable $zweiterVersuch) {
-            return [];
-        }
-    }
-    if ($statement === false) {
-        return [];
-    }
-    $map = [];
-    foreach ($statement->fetchAll() as $row) {
-        $title = trim((string) ($row['title'] ?? ''));
-        if ($title === '') {
-            continue;
-        }
-        $map[$title] = [
-            'type' => (string) ($row['building_type'] ?? ''),
-            'ruined' => !empty($row['is_ruined']),
-            // Die Gottheit einer Kultstaette (Discord #54) reist denselben Weg wie building_type:
-            // aus der Registry an properties.wiki_settlement geheftet, NICHT als eigenes
-            // properties-Feld gespeichert -- eine Quelle, kein Editor-Feld, keine Handarbeit
-            // fuer 775 Tempel.
-            'deity' => (string) ($row['deity'] ?? ''),
-        ];
-    }
-    return $map;
-}
+// Der Lader der Bauwerkstypen (title -> {type, ruined, deity}) steht seit 09.10.2026 in
+// api/_internal/app/in-settlement-search.php: die Kartensuche liest dieselbe Tafel (Discord #145).
 
 // Loads the settlement->political lookup used to build each place's infobox political line: an in-memory
 // model of the CURRENT-era territory hierarchy, built from ONE join over the (small) territory tables.

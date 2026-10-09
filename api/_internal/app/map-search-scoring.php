@@ -22,7 +22,17 @@ require_once __DIR__ . '/../text/ascii-fold.php';
  * The entry scores as badly as its WEAKEST word: a query is only satisfied to the degree its worst
  * part is. A single-word query walks the identical path as before -- one word, its own score -- which
  * is what keeps the common case bit-for-bit unchanged.
+ *
+ * 🔴 DIE ART ZAEHLT NACHRANGIG (Discord #145, 09.10.2026: „Akademie" soll alle Akademien finden).
+ * `art_texts` traegt die Art eines Objekts („Festung", „Magierakademie", die Gottheit); ein Treffer
+ * dort zaehlt erst HINTER jedem Namenstreffer -- seine vier Stufen liegen um
+ * AVESMAPS_SEARCH_ART_SCORE_OFFSET versetzt. 💣 Ohne den Versatz wuerde Tippen nach Namen schlechter:
+ * „Fe" traefe ueber „Festung" jede Burg mit derselben Stufe wie „Ferdok", und weil gleich gute
+ * Treffer alphabetisch sortiert werden, schoeben sich die Burgen vor die gesuchte Stadt.
+ * Ein Eintrag OHNE art_texts laeuft unveraendert.
  */
+const AVESMAPS_SEARCH_ART_SCORE_OFFSET = 4;
+
 function avesmapsCalculateSearchScore(array $entry, string $normalizedQuery): ?int {
     $words = array_values(array_filter(preg_split('/\s+/', $normalizedQuery) ?: [], static fn (string $w): bool => $w !== ''));
     if ($words === []) {
@@ -36,7 +46,14 @@ function avesmapsCalculateSearchScore(array $entry, string $normalizedQuery): ?i
             $candidates[] = $candidate;
         }
     }
-    if ($candidates === []) {
+    $artCandidates = [];
+    foreach ($entry['art_texts'] ?? [] as $artText) {
+        $candidate = avesmapsNormalizeSearchText((string) $artText);
+        if ($candidate !== '') {
+            $artCandidates[] = $candidate;
+        }
+    }
+    if ($candidates === [] && $artCandidates === []) {
         return null;
     }
 
@@ -46,6 +63,13 @@ function avesmapsCalculateSearchScore(array $entry, string $normalizedQuery): ?i
         foreach ($candidates as $candidate) {
             $score = avesmapsScoreSearchWord($candidate, $word);
             if ($score !== null) {
+                $bestForWord = $bestForWord === null ? $score : min($bestForWord, $score);
+            }
+        }
+        foreach ($artCandidates as $candidate) {
+            $score = avesmapsScoreSearchWord($candidate, $word);
+            if ($score !== null) {
+                $score += AVESMAPS_SEARCH_ART_SCORE_OFFSET;
                 $bestForWord = $bestForWord === null ? $score : min($bestForWord, $score);
             }
         }
