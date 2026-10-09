@@ -221,6 +221,13 @@ $("#toggleOpenPathEnds").change(() => {
 // Owner 01.09.2026. ⚠️ Nicht syncLocationMarkerVisibility wie die Nachbarn: dieser Haken faerbt VIER
 // Objektarten zugleich (Ort, Weg, Flaeche, Beschriftung). avesmapsSyncWikiZuweisungCheck zieht alle
 // vier in EINEM Aufruf nach -- getrennt stuende nach dem Umlegen die halbe Karte im alten Zustand.
+// Owner 09.10.2026: „Zu große Flächen" -- färbt nur Landschaftsflächen, also genügt deren Neuzeichnen.
+$("#toggleBigAreas").change(() => {
+	if (typeof avesmapsSyncGroesseCheck === "function") {
+		avesmapsSyncGroesseCheck();
+	}
+	syncPlannerStateToUrl();
+});
 $("#toggleNoWikiAssignment").change(() => {
 	if (typeof avesmapsSyncWikiZuweisungCheck === "function") {
 		avesmapsSyncWikiZuweisungCheck();

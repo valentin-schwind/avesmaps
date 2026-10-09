@@ -63,13 +63,41 @@
 
 	// ---- die Rechnung ---------------------------------------------------------------------------------
 
+	// 🔴 DIE ZÄHLUNG STEHT IN ecosystem-groesse.js (avesmapsEcosystemPunkte) -- dieselbe, die der
+	// Hinweisstreifen und der Prüfhaken „Zu große Flächen" benutzen. Stand hier eine eigene, zeigten
+	// Fenster und Streifen an derselben Fläche zwei verschiedene Punktzahlen (09.10.2026).
 	function countGeometryPoints(geometry) {
-		const polygons = geometry?.type === "MultiPolygon" ? geometry.coordinates : [geometry?.coordinates || []];
+		return avesmapsEcosystemPunkte(geometry);
+	}
 
-		return polygons.reduce(
-			(sum, polygon) => sum + (polygon || []).reduce((inner, ring) => inner + Math.max(0, (ring || []).length - 1), 0),
-			0
-		);
+	// Die Leiste „86 → 21 KB von 128 KB" unter der Punktzahl (Owner 09.10.2026: „anzeigen, wenn sie
+	// zuviel punkte gemalt und KB produziert haben"). Sie zeigt das ERGEBNIS des Reglers, damit man beim
+	// Ziehen sieht, ab wann die Fläche wieder speicherbar ist. Stufen und Grenze aus ecosystem-groesse.js.
+	function renderSimplifySize(baseGeometry, result, strength) {
+		const box = element("groesse");
+		if (!box || typeof avesmapsEcosystemFlaechenGroesse !== "function") {
+			return;
+		}
+		const vorher = avesmapsEcosystemFlaechenGroesse(baseGeometry);
+		const nachher = strength > 0 ? avesmapsEcosystemFlaechenGroesse(result) : vorher;
+		const stufe = avesmapsEcosystemGroesseStufe(nachher.bytes);
+		const werte = {
+			vorher: avesmapsEcosystemKb(vorher.bytes),
+			nachher: avesmapsEcosystemKb(nachher.bytes),
+			grenze: AVESMAPS_SPEICHER_GRENZE_BYTES / 1024,
+		};
+		box.dataset.stufe = stufe;
+		box.style.setProperty("--ecosystem-groesse-anteil", String(Math.min(1, nachher.bytes / AVESMAPS_SPEICHER_GRENZE_BYTES)));
+		const text = element("groesse-text");
+		if (text) {
+			const zahlen = strength > 0
+				? avesmapsGroesseTr("ecosystem.size.barChange", "{vorher} → {nachher} von {grenze} KB", werte)
+				: avesmapsGroesseTr("ecosystem.size.bar", "{vorher} von {grenze} KB", werte);
+			const zusatz = stufe === "zu_gross"
+				? avesmapsGroesseTr("ecosystem.size.barTooBig", " – zu groß zum Speichern")
+				: stufe === "gross" ? avesmapsGroesseTr("ecosystem.size.barBig", " – nah an der Grenze") : "";
+			text.textContent = zahlen + zusatz;
+		}
 	}
 
 	// Ein Ring auf (höchstens) `targetCount` Ecken. Der Schlusspunkt wiederholt den ersten (GeoJSON) und
@@ -166,6 +194,7 @@
 				? `${vorher} → ${nachher} Punkte (${Math.max(0, vorher - nachher)} weniger)`
 				: `${vorher} Punkte — der Regler steht auf 0, es ändert sich nichts.`;
 		}
+		renderSimplifySize(simplifyBaseGeometry, result, strength);
 		simplifyPreviewLayer = L.polygon(geometryToLatLngs(result), {
 			pane: "measurementPane",
 			color: getComputedStyle(document.documentElement).getPropertyValue("--color-marker-active").trim(),
@@ -265,7 +294,13 @@
 			}
 			say(`Vereinfacht: ${vorher} → ${nachher} Punkte.`, "success");
 		} catch (error) {
-			setSimplifyError(error?.message || "Die Fläche konnte nicht vereinfacht werden.");
+			// Im Vereinfachen-Fenster ist „bitte vereinfachen" kein Rat -- hier heisst es: weiter schieben.
+			setSimplifyError(error?.code === "zu_gross"
+				? avesmapsGroesseTr("ecosystem.size.simplifyMore", "Noch zu groß zum Speichern ({kb} von {grenze} KB) – den Regler weiter nach rechts schieben.", {
+					kb: avesmapsEcosystemKb(avesmapsEcosystemFlaechenGroesse(simplifyGeometry(simplifyBaseGeometry, strength)).bytes),
+					grenze: AVESMAPS_SPEICHER_GRENZE_BYTES / 1024,
+				})
+				: (error?.message || "Die Fläche konnte nicht vereinfacht werden."));
 		} finally {
 			simplifyBusy = false;
 		}

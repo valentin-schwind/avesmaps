@@ -439,6 +439,23 @@
 				void loadEcosystemAreas();
 			}
 		} catch (error) {
+			// 💣 ZU GROSS IST KEIN NETZFEHLER: dieselbe Arbeitsgeometrie scheitert bei jedem Versuch wieder,
+			// und jeder weitere Strich macht sie nur grösser. Sie wird deshalb auf den gespeicherten Stand
+			// zurückgesetzt -- sonst schickte der nächste Strich „alter Stand + Strich" und scheiterte erneut,
+			// und „Fläche vereinfachen" (das den GESPEICHERTEN Stand vereinfacht) hülfe dagegen nicht.
+			if (error?.code === "zu_gross") {
+				const gespeichert = areaGeometry(area);
+				brushWorkingGeometry = gespeichert;
+				brushDirty = false;
+				brushErsteAenderungMs = 0;
+				if (gespeichert) {
+					zeichnePinselflaeche(gespeichert, String(area.public_id));
+				}
+				say(`${error.message} ${typeof tr === "function"
+					? tr("ecosystem.size.brushDiscarded", "Die letzten Striche wurden verworfen.")
+					: "Die letzten Striche wurden verworfen."}`, "warning");
+				return;
+			}
 			say(error?.message || "Der Strich konnte nicht gespeichert werden.", "warning");
 			// Verworfen wird NICHTS: der Editor sieht seinen Stand weiter und kann es erneut versuchen.
 		} finally {

@@ -355,6 +355,23 @@
 	   ⚠️ Wird auch im JS gelesen (Canvas kennt kein `var()`); der Rueckfall dort ist die Notbremse.
 	   Gepinnt wie seine Nachbarn: liegt auf den IMMER-hellen Kartenkacheln, kein Dark-Override. */
 	--color-check-duplicate-label: #6a1b9a;
+	/* Pruefhaken „Zu große Flächen" (Owner 09.10.2026): die Kontur einer Landschaftsflaeche, die zum Speichern
+	   zu gross ist oder ab 75 % der Grenze nah daran. Grenze und Stufen in js/map-features/ecosystem-groesse.js.
+	   🔴 EIN TON, ZWEI STRICHSTAERKEN (5 gegen 3 px, ecosystemAreaStyle). Ein zweiter Ton fuer „nah dran"
+	   war ein dunkles Gold, und er trug nicht: er ist zugleich --color-warning, verschwimmt mit den
+	   Fuellungen Kulturlandschaft, Wadi und Insel, und bei Rot-Gruen-Schwaeche liegen Orange und Gold
+	   kaum 15 auseinander -- „bald zu gross" und „wird abgelehnt" saehen gleich aus. Die Dicke sieht jeder.
+	   💣 Gemessen, nicht gewaehlt: das Rot der Karte ist voll (Wegpunkt, offenes Wegende, Wiki-Zuweisung,
+	   Scheinwerfer), also ORANGE. RGB-Abstand mindestens 76 zu jeder FLAECHEN-Farbe und jeder anderen
+	   FLAECHEN-Marke (Wiki-Zuweisung 139, Umriss unter dem Zeiger in „Grenze aus Territorien" 80, Zielwahl
+	   120, die naechste Fuellung Wueste 123) und zum Wegpunkt (78) -- dieselbe Schwelle wie
+	   --color-check-duplicate-label darueber.
+	   ⚠️ EINE Ausnahme, benannt: der Ring „Offene Wegenden" (--color-marker-open-path-end-ring) liegt nur 35
+	   entfernt. Er ist ein gestrichelter 26-px-Ring um einen PUNKT mit weissem Innenring, diese Marke eine
+	   Flaechenkontur -- die Form trennt sie, nicht der Ton. Ein Orange, das von Bernstein UND Wegende-Rot
+	   je 76 entfernt waere, gibt es nicht (die beiden liegen 109 auseinander).
+	   Gepinnt wie die Nachbarn: die Linie liegt auf den immer hellen Kartenkacheln. */
+	--color-check-area-size: #ff6d00;
 
 	/* „Grenze aus Territorien" (Fall #68) -- die Territoriumsumrisse, solange das Fenster offen ist
 	   (leise), und der Umriss unter dem Zeiger (laut). Gepinnt wie die Ringe darueber: beides liegt auf

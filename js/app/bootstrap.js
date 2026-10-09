@@ -642,6 +642,8 @@ if (IS_EDIT_MODE) {
     document.getElementById("toggleSparseCrossings")?.removeAttribute("disabled");
     document.getElementById("toggleOpenPathEndsControl")?.removeAttribute("hidden");
     document.getElementById("toggleOpenPathEnds")?.removeAttribute("disabled");
+    document.getElementById("toggleBigAreasControl")?.removeAttribute("hidden");
+    document.getElementById("toggleBigAreas")?.removeAttribute("disabled");
     document.getElementById("toggleNoWikiAssignmentControl")?.removeAttribute("hidden");
     document.getElementById("toggleNoWikiAssignment")?.removeAttribute("disabled");
     document.getElementById("toggleDuplicateLabelsControl")?.removeAttribute("hidden");
@@ -674,6 +676,7 @@ if (IS_EDIT_MODE) {
     document.getElementById("toggleUnconnected")?.setAttribute("disabled", "disabled");
     document.getElementById("toggleSparseCrossings")?.setAttribute("disabled", "disabled");
     document.getElementById("toggleOpenPathEnds")?.setAttribute("disabled", "disabled");
+    document.getElementById("toggleBigAreas")?.setAttribute("disabled", "disabled");
     document.getElementById("toggleNoWikiAssignment")?.setAttribute("disabled", "disabled");
     document.getElementById("toggleDuplicateLabels")?.setAttribute("disabled", "disabled");
     document.getElementById("toggleNodix")?.setAttribute("disabled", "disabled");

@@ -659,7 +659,7 @@ $renderNode = static function (array $node, string $parentPath, int $depth) use 
                 </div>
             </section>
         </main>
-        <script src="../js/app/json-umschlag.js?v=20261009-umschlag"></script>
+        <script src="../js/app/json-umschlag.js?v=20261009-groesse"></script>
         <!-- ⚠️ ZUERST: svg-export-build.js zeichnet die Kurvenform der Kraftlinien mit der
              GETEILTEN Regel (avesmapsPowerlineCurvedPoints) -- dieselbe, die die Karte fährt.
              Fehlt sie, wirft der Abzug laut, statt die Linien still gerade zu zeichnen. -->

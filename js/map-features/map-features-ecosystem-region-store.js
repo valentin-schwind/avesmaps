@@ -110,6 +110,92 @@ function avesmapsEcosystemKurvenAusAntwortAnwenden(result) {
 	}
 }
 
+// ---- die Grösse eines Speichervorgangs (09.10.2026) ------------------------------------------------
+//
+// Owner: „kannst du den leuten anzeigen, wenn sie zuviel punkte gemalt und KB produziert haben".
+// STRATOs Webserver nimmt höchstens 128 KiB je Anfrage (413 vor PHP, Regel in ecosystem-groesse.js).
+// Bis dahin erfuhr der Editor davon nur als „update_area_geometry fehlgeschlagen (413)".
+//
+// 🔴 GEMESSEN WIRD HIER, IM SCHREIBKANAL, und nicht bei den Gesten. Geometrie schreiben Zeichnen,
+// Pinsel, Ecken-Ziehen, alle „Mit anderer Fläche"-Befehle, Zerschneiden, Herauslösen, Verschieben,
+// Vereinfachen, Kopieren und der Territorien-Import -- alle durch postEcosystemEdit. Eine Prüfung je
+// Geste bände die, an die jemand gedacht hat.
+// 💣 Gemessen wird der Rumpf, wie er WIRKLICH hinausgeht -- durch den Umschlag (js/app/json-umschlag.js)
+// --, nicht eine Schätzung: der Riegel lehnt sonst Anfragen ab, die durchgingen, oder lässt welche durch,
+// die scheitern.
+function ecosystemEditRumpfBytes(rumpf) {
+	const gesendet = typeof avesmapsJsonUmschlagRumpf === "function" ? avesmapsJsonUmschlagRumpf(rumpf) : rumpf;
+	return typeof avesmapsUtf8Bytes === "function" ? avesmapsUtf8Bytes(gesendet) : String(gesendet).length;
+}
+
+// Die zwei Aktionen, die eine FLÄCHE schreiben. Nur sie reden mit dem Hinweisstreifen: eine Trennlinie
+// der Klimazonen trägt auch `geometry_geojson`, ist aber keine Fläche -- sie bekäme sonst „Die neue
+// Fläche wird groß" und räumte nebenbei den Streifen einer wirklich neuen Fläche weg.
+const ECOSYSTEM_FLAECHEN_SCHREIBER = new Set(["update_area_geometry", "create_area"]);
+
+// Was der Hinweisstreifen über diesen Speichervorgang sagen soll -- oder null, wenn er keine Fläche trägt.
+function ecosystemEditGroessenMeldung(action, payload, bytes) {
+	const geometrie = payload && payload.geometry_geojson;
+	if (!ECOSYSTEM_FLAECHEN_SCHREIBER.has(action) || !geometrie || typeof avesmapsEcosystemPunkte !== "function") {
+		return null;
+	}
+	const publicId = String(payload.public_id || "");
+	const layer = publicId && typeof ecosystemLayers !== "undefined" && ecosystemLayers instanceof Map
+		? ecosystemLayers.get(publicId)
+		: null;
+
+	return {
+		publicId,
+		name: String(layer?._ecosystemArea?.region_name || ""),
+		punkte: avesmapsEcosystemPunkte(geometrie),
+		bytes,
+	};
+}
+
+function ecosystemEditGroesseMelden(meldung) {
+	if (meldung && typeof avesmapsEcosystemGroesseMelden === "function") {
+		avesmapsEcosystemGroesseMelden(meldung);
+	}
+}
+
+// Der Fehler, wenn etwas zu groß ist -- EIN Bauer für den Riegel im Schreibkanal und die Vorabprüfung
+// der Gesten mit zwei Schreibvorgängen. `code` ist eigens `zu_gross`: kein Aufrufer darf ihn für einen
+// Konflikt halten (409 lädt neu) oder für einen Netzfehler (der lädt zum Wiederholen ein).
+function ecosystemGroesseFehler(meldung, bytes) {
+	const zahlen = meldung
+		? avesmapsEcosystemGroesseText(meldung.punkte, bytes)
+		: `${avesmapsEcosystemKb(bytes)} / ${AVESMAPS_SPEICHER_GRENZE_BYTES / 1024} KB`;
+	const error = new Error(meldung
+		? avesmapsGroesseTr("ecosystem.size.refused", "Zu groß zum Speichern: {zahlen}. Gespeichert wurde nichts – bitte die Fläche vereinfachen oder teilen.", { zahlen })
+		: avesmapsGroesseTr("ecosystem.size.refusedOther", "Die Änderung ist zu groß für den Server: {zahlen}. Gespeichert wurde nichts.", { zahlen }));
+	error.code = "zu_gross";
+	error.status = 413;
+	return error;
+}
+
+// 💣 VOR einer Geste mit ZWEI Schreibvorgängen (Zerschneiden, Herauslösen: erst die Quelle, dann das neue
+// Stück). Lehnte der Riegel erst das zweite ab, wäre das erste schon geschrieben -- die Quelle
+// verkleinert, das Stück weg, und die Meldung sagte „Gespeichert wurde nichts". Hier wird VOR dem ersten
+// Schreiben jede Teilgeometrie geschätzt (vorsichtig, siehe AVESMAPS_SPEICHER_RUMPF_ZUSCHLAG).
+function ecosystemGroesseVorabPruefen(geometrien, area = null) {
+	if (typeof avesmapsEcosystemFlaechenGroesse !== "function") {
+		return;
+	}
+	for (const geometrie of geometrien) {
+		const groesse = avesmapsEcosystemFlaechenGroesse(geometrie);
+		if (avesmapsEcosystemGroesseStufe(groesse.bytes) === "zu_gross") {
+			const meldung = {
+				publicId: String(area?.public_id || ""),
+				name: String(area?.region_name || ""),
+				punkte: groesse.punkte,
+				bytes: groesse.bytes,
+			};
+			ecosystemEditGroesseMelden(meldung);
+			throw ecosystemGroesseFehler(meldung, groesse.bytes);
+		}
+	}
+}
+
 // 💣 Eine Fläche mit mehr als ~498 Ecken ist mehr als 1000 JSON-Werte, und so viele nimmt STRATOs
 // Webserver nicht an (HTML-400 vor PHP; Discord 09.10.2026, Fläche-058). Verpackt wird dafür NICHT hier,
 // sondern für jede Anfrage der Seite an EINER Stelle: js/app/json-umschlag.js umhüllt `fetch`.
@@ -118,17 +204,33 @@ async function postEcosystemEdit(action, payload = {}) {
 		throw new Error("Der Landschaften-Editor ist auf diesem Host nicht erreichbar.");
 	}
 
+	const rumpf = JSON.stringify({
+		action,
+		...payload,
+		// Läuft gerade eine Geste, reist ihre Klammer an JEDEM Aufruf mit -- ohne dass eine
+		// Aufrufstelle sie kennen muss.
+		...ecosystemOperationPayload(),
+	});
+
+	// 🔴 ZU GROSS GEHT GAR NICHT ERST HINAUS. Der Webserver lehnte es ohnehin ab -- aber mit einer
+	// HTML-Seite ohne Auskunft. Hier sagt der Editor, wie gross es ist und was hilft, und der Server
+	// bleibt unbehelligt (ein Pinsel, der nach jedem Strich speichert, schickte sonst jedes Mal 130 KB).
+	// ⚠️ Der Riegel gilt JEDER Aktion, nicht nur den Flächen (auch `heightmap_put`): die Grenze sitzt im
+	// Webserver VOR PHP und kennt keine Aktion -- ein Rumpf über 128 KiB scheiterte dort ohnehin, hier nur
+	// mit einem Satz statt einer HTML-Seite. Den Streifen bedienen nur die Flächen (meldung ist sonst null).
+	// 🔴 Gefragt wird die STUFE, nicht die Grenze direkt -- dieselbe Funktion wie Streifen, Leiste und Haken.
+	const bytes = ecosystemEditRumpfBytes(rumpf);
+	const meldung = ecosystemEditGroessenMeldung(action, payload, bytes);
+	if (typeof avesmapsEcosystemGroesseStufe === "function" && avesmapsEcosystemGroesseStufe(bytes) === "zu_gross") {
+		ecosystemEditGroesseMelden(meldung);
+		throw ecosystemGroesseFehler(meldung, bytes);
+	}
+
 	const response = await fetch(ECOSYSTEM_EDIT_API_URL, {
 		method: "POST",
 		credentials: "same-origin",
 		headers: { Accept: "application/json", "Content-Type": "application/json" },
-		body: JSON.stringify({
-			action,
-			...payload,
-			// Läuft gerade eine Geste, reist ihre Klammer an JEDEM Aufruf mit -- ohne dass eine
-			// Aufrufstelle sie kennen muss.
-			...ecosystemOperationPayload(),
-		}),
+		body: rumpf,
 	});
 	const result = await readJsonResponse(response, null);
 
@@ -148,6 +250,16 @@ async function postEcosystemEdit(action, payload = {}) {
 	}
 
 	avesmapsEcosystemKurvenAusAntwortAnwenden(result);
+	// Gespeichert -- und ab 75 % sagt der Streifen „bald vereinfachen". Unter 75 % nimmt derselbe Aufruf
+	// einen Hinweis über genau diese Fläche wieder weg (etwa nach dem Vereinfachen).
+	// Eine NEUE Fläche hat ihre Kennung erst jetzt -- mit ihr kann der Streifen „Vereinfachen" anbieten.
+	// `ersetztNeu`: eine vorher abgelehnte NEUE Fläche ist damit erledigt -- ihr roter Streifen („Gespeichert
+	// wurde nichts") darf nach diesem Erfolg nicht stehen bleiben, auch wenn die Kennung jetzt eine andere ist.
+	if (meldung && !meldung.publicId && result?.area?.public_id) {
+		meldung.publicId = String(result.area.public_id);
+		meldung.ersetztNeu = true;
+	}
+	ecosystemEditGroesseMelden(meldung);
 
 	return result;
 }

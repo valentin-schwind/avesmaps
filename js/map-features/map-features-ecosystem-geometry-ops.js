@@ -562,6 +562,8 @@
 			// einer leeren Region stehen.
 			await withEcosystemOperation("Zerschneiden", async () => {
 				const result = ecosystemSplitGeometry(areaGeometry(source), points[0], points[1]);
+				// Zwei Schreibvorgänge -- beide Teile werden VORHER gemessen (region-store.js).
+				ecosystemGroesseVorabPruefen([result.kept, result.split], source);
 				// Der größere Rest behält die Zeile, der Rest wird eine NEUE Fläche mit EIGENER Region (siehe
 				// createArea) -- sonst trüge das abgeschnittene Stück den Namen des Ursprungs.
 				await saveGeometry(source, result.kept);
@@ -604,6 +606,8 @@
 		opsBusy = true;
 		try {
 			const result = ecosystemExtractPart(areaGeometry(source), index);
+			// Zwei Schreibvorgänge -- beide Teile werden VORHER gemessen (region-store.js).
+			ecosystemGroesseVorabPruefen([result.remainder, result.extracted], source);
 			await saveGeometry(source, result.remainder);
 			await createArea(source, result.extracted);
 			refreshAfterWrite();

@@ -926,6 +926,15 @@
 				<span id="ecosystem-isolation-name" class="ecosystem-isolation-note__name"></span>
 				<button id="ecosystem-isolation-off" class="ecosystem-isolation-note__off" type="button" data-i18n="ecosystem.isolation.showAll">Alle zeigen</button>
 			</div>
+			<!-- Der Groessen-Streifen (Owner 09.10.2026: „anzeigen, wenn sie zuviel punkte gemalt und KB
+			     produziert haben"). Ein Streifen und kein Toast: der Pinsel speichert nach jedem Strich, ein
+			     Toast kaeme jedes Mal neu und koennte keinen Knopf tragen. Gelb ab 75 % der Grenze, rot
+			     darueber (dann wurde nichts gespeichert). -->
+			<div id="ecosystem-groesse-note" class="ecosystem-groesse-note" role="status" data-stufe="gross" hidden>
+				<span id="ecosystem-groesse-text" class="ecosystem-groesse-note__text"></span>
+				<button id="ecosystem-groesse-vereinfachen" class="ecosystem-groesse-note__knopf" type="button" data-i18n="ecosystem.size.simplify">Fläche vereinfachen</button>
+				<button id="ecosystem-groesse-schliessen" class="ecosystem-groesse-note__schliessen" type="button" aria-label="Hinweis schließen" data-i18n-aria-label="ecosystem.size.close">×</button>
+			</div>
 			<label class="ecosystem-underground">
 				<span class="ecosystem-underground__label" data-i18n="ecosystem.underground.label">Untergrund</span>
 				<input id="ecosystem-underground-range" class="ecosystem-underground__range" type="range" min="0" max="100" step="5" value="50" aria-label="Deckkraft des Untergrunds" data-i18n-aria-label="ecosystem.underground.aria" />
@@ -1097,6 +1106,12 @@
 						<input id="ecosystem-simplify-strength" name="strength" type="range" min="0" max="100" step="1" value="0" />
 					</label>
 					<p id="ecosystem-simplify-count" class="ecosystem-properties-dialog__status" role="status"></p>
+					<!-- Die Groesse zum Speichern (Owner 09.10.2026): der Server nimmt hoechstens 128 KB je
+					     Aenderung. Die Leiste zeigt das Ergebnis des Reglers, gelb ab 75 %, rot darueber. -->
+					<div id="ecosystem-simplify-groesse" class="ecosystem-groesse" data-stufe="ok">
+						<span class="ecosystem-groesse__leiste" aria-hidden="true"><span class="ecosystem-groesse__fuellung"></span></span>
+						<span id="ecosystem-simplify-groesse-text" class="ecosystem-groesse__text"></span>
+					</div>
 					<p id="ecosystem-simplify-error" class="ecosystem-properties-dialog__error" role="alert" hidden></p>
 					<div class="ecosystem-properties-dialog__actions">
 						<span class="ecosystem-properties-dialog__spacer"></span>
@@ -3176,6 +3191,21 @@
 							<input type="checkbox" id="toggleOpenPathEnds" class="map-display-menu__state" />
 							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
 						</label>
+						<!-- Owner 09.10.2026: „kannst du den leuten anzeigen, wenn sie zuviel punkte gemalt und KB
+						     produziert haben" -- dazu dieser Haken. Er faerbt die KONTUR jeder Landschaftsflaeche,
+						     die zum Speichern zu gross ist (dick) oder ab 75 % der Grenze nah daran (duenner) -- EIN
+						     Ton, die Stufe sagt die Strichstaerke (Begruendung am Token --color-check-area-size).
+						     Steht bei den Geometrie-Befunden, vor den beiden Dokumentations-Haken.
+						     💣 Das Zeichen ist die Legende: eine dicke und eine duenne Flaechenkontur. Farbe fest am
+						     Token, kein `stroke="currentColor"` -- sie ist die Aussage.
+						     ⚠️ `stroke-width` als feste SVG-Einheit -- `var()` loest in diesem
+						     Praesentationsattribut nicht auf (siehe --marker-check-ring-width). -->
+						<label class="map-display-menu__row" id="toggleBigAreasControl" hidden>
+							<span class="map-display-menu__glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-linejoin="round"><path d="M3 9.5L9 3.5l11 3-1.5 10.5-9 4L3 15z" stroke="var(--color-check-area-size)" stroke-width="3"></path><path d="M8 10.5l3-2.5 4.5 1.2-.8 4.6-4 1.8-2.7-2.1z" stroke="var(--color-check-area-size)" stroke-width="1.4"></path></svg></span>
+							<span class="map-display-menu__name" data-i18n="display.check.bigAreas">Zu große Flächen</span>
+							<input type="checkbox" id="toggleBigAreas" class="map-display-menu__state" />
+							<span class="map-display-menu__eye" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="2.8"></circle><path class="map-display-menu__eye-slash" d="M3.5 3.5l17 17"></path></svg></span>
+						</label>
 						<!-- Owner 01.09.2026: „das objekt ohne wiki-eintrag auffaellig rot markieren“ -- egal ob
 						     Ort, Flaeche oder Weg. Steht ZULETZT in der Gruppe, und das ist die Aussage: die vier
 						     Haken darueber finden kaputte GEOMETRIE (fehlende Anbindung, ueberfluessiger Knoten,
@@ -3997,6 +4027,9 @@
 		<script src="js/ui/infobox-lid.js"></script>
 		<script src="js/map-features/map-features-climate-row.js"></script>
 		<script src="js/map-features/map-features-path-landscapes.js"></script>
+		<!-- Die Groesse einer Flaeche zum Speichern (Owner 09.10.2026): Grenze, Stufen, Text. Rein, ohne
+		     Abhaengigkeiten; MUSS vor dem Schreibkanal und dem Vereinfachen-Fenster stehen, die sie rufen. -->
+		<script src="js/map-features/ecosystem-groesse.js"></script>
 		<script src="js/map-features/map-features-ecosystem-geometry.js"></script>
 		<!-- Reine Geometrie-Rechnerei (vereinigen/ausschneiden/schneiden/zerschneiden/herauslösen/
 		     verschieben), ohne Karte und ohne DOM. MUSS nach ecosystem-geometry.js stehen: sie benutzt
@@ -4058,6 +4091,8 @@
 		     ist die der Registrierung. Pinsel und Radiergummi gehören ans Ende, vor „Fläche löschen". -->
 		<script src="js/map-features/map-features-ecosystem-brush.js"></script>
 		<script src="js/map-features/map-features-ecosystem-simplify.js"></script>
+		<!-- Der Groessen-Streifen: zeigt an, was der Schreibkanal ueber jede Speicherung meldet. -->
+		<script src="js/map-features/map-features-ecosystem-groesse-hinweis.js"></script>
 		<!-- V7 „Grenze aus Territorien …": haengt einen vierten Eintrag in das Untermenue „Hier
 		     hinzufuegen", muss also NACH context-action.js stehen, das die drei „Neue …" davor setzt.
 		     Und nach simplify.js, weil es dessen Eckenzaehlung benutzt und nach dem Einfuegen dessen
@@ -4124,6 +4159,8 @@
 		     Setzt beim Laden nur window-Funktionen. NACH den vier Zeichnern -- es ruft sie, sie rufen
 		     es nur ueber `typeof`-Riegel zur Laufzeit. -->
 		<script src="js/map-features/map-features-wiki-zuweisung-check.js"></script>
+		<!-- Der Pruefhaken „Zu grosse Flaechen" -- derselbe Bau wie der Haken darueber: Schalter, Farbtoken, Marke je Flaeche. -->
+		<script src="js/map-features/map-features-ecosystem-groesse-check.js"></script>
 		<!-- Und daneben der DOM-Teil von „Freie Labels markieren": das Auswahlfeld, der Farbton, das
 		     Nachziehen der zwei Zeichenflaechen. Dieselbe Zweiteilung und dieselbe Stelle wie beim
 		     Nachbarn darueber -- es ruft die Zeichner, sie rufen es nur ueber `typeof`-Riegel zur

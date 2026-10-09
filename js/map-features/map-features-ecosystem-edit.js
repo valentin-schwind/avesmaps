@@ -877,6 +877,21 @@ async function flushEcosystemGeometrySave() {
 			scheduleEcosystemAreaReload?.({ immediate: true });
 			return;
 		}
+		// 💣 ZU GROSS scheitert bei jedem Versuch wieder -- anders als ein Netzfehler. Die Sitzung springt
+		// deshalb auf den zuletzt GESPEICHERTEN Stand zurück, statt bei jedem weiteren Zug erneut
+		// abgelehnt zu werden. Der Rückgängig-Stapel geht mit: seine Schritte bauten auf dem verworfenen
+		// Stand auf. Lag die Fläche schon beim Öffnen über der Grenze, ist jeder Zug abgelehnt -- dann hilft
+		// nur „Fläche vereinfachen", und genau das bietet der Streifen an.
+		if (error?.code === "zu_gross") {
+			session.geometry = JSON.parse(session.savedGeometryJson);
+			session.undoStack = [];
+			applyEcosystemEditGeometryToLayer(session);
+			refreshEcosystemEditHandles();
+			sayEcosystemEdit(`${error.message} ${typeof tr === "function"
+				? tr("ecosystem.size.editReverted", "Die Ecken stehen wieder wie zuletzt gespeichert.")
+				: "Die Ecken stehen wieder wie zuletzt gespeichert."}`, "warning");
+			return;
+		}
 		// The session stays open and the geometry stays unsaved, so the next drag schedules another
 		// attempt instead of the work being silently gone.
 		sayEcosystemEdit(error?.message || "Die Geometrie konnte nicht gespeichert werden.", "warning");

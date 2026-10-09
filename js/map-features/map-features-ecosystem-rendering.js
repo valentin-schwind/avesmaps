@@ -286,6 +286,17 @@ function ecosystemAreaStyle(kind, regionType, area = null) {
 		stil.weight = 3.5;
 	}
 
+	// Pruefhaken „Zu große Flächen" (Owner 09.10.2026). NACH der Wiki-Marke, damit er sie schlaegt: eine
+	// Flaeche, die sich nicht speichern laesst, ist das dringendere Problem. Regel und Begruendung in
+	// map-features-ecosystem-groesse-check.js.
+	const groesse = typeof avesmapsEcosystemGroesseMarkeFlaeche === "function"
+		? avesmapsEcosystemGroesseMarkeFlaeche(area)
+		: "";
+	if (groesse) {
+		stil.color = avesmapsEcosystemGroesseFarbe(groesse);
+		stil.weight = avesmapsEcosystemGroesseStrich(groesse);
+	}
+
 	return stil;
 }
 

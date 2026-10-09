@@ -757,8 +757,23 @@ is the default, English is opt-in. Therefore:
   Der Test zählt jede Seite mit `fetch(` nach. ⚠️ Wer einen Rumpf an `avesmapsReadJsonRequest` vorbei
   selbst liest (heute `curve-labels-run.php`), muss `avesmapsJsonUmschlagAuspacken` selbst rufen.
   🔧 **Offen:** fünf Landschaftsflächen liegen über 128 KiB (zwei „Meer", „Grasland der Großen Taiga",
-  „Altenforst", „Wald-370") und lassen sich auch verpackt nicht speichern; der Landschafts-Kanal meldet
-  das jetzt lesbar, die übrigen Editoren zeigen weiter nur die Statuszahl.
+  „Altenforst", „Wald-370") und lassen sich auch verpackt nicht speichern. Die übrigen Editoren zeigen
+  bei 413 weiter nur die Statuszahl.
+  ✅ **Seit 09.10.2026 sagt der Landschafts-Editor es VORHER** (Owner: „anzeigen, wenn sie zuviel punkte
+  gemalt und KB produziert haben"): `postEcosystemEdit` misst den Rumpf und schickt über 128 KiB gar
+  nicht erst los (Fehlercode `zu_gross`), ein Streifen warnt ab 75 % und bietet „Fläche vereinfachen",
+  das Fenster dort zeigt eine Leiste gegen die Grenze, und der Prüfhaken „Zu große Flächen" findet sie
+  auf der Karte. 🔴 **EINE Regel** (`js/map-features/ecosystem-groesse.js`: Grenze, 75 %, Zählung, KB) —
+  Riegel, Streifen, Leiste und Haken fragen nur sie. 💣 **Gemessen wird der Rumpf, wie er HINAUSGEHT**
+  (durch den Umschlag, `avesmapsJsonUmschlagRumpf`), nicht die Geometrie allein; nur der Prüfhaken
+  schätzt, weil es dort keinen Rumpf gibt. 🔴 Der Riegel steht im SCHREIBKANAL, nicht an den Gesten —
+  Zeichnen, Pinsel, Ecken, alle „Mit anderer Fläche"-Befehle und der Import gehen durch ihn. Die
+  Stufen des Hakens unterscheiden sich über die STRICHSTÄRKE, nicht über einen zweiten Ton (Begründung am
+  Token `--color-check-area-size`). Test: `js/map-features/__tests__/ecosystem-groesse.test.js`.
+  📖 **Warum Flächen über der Grenze überhaupt in der Datenbank liegen:** die Grenzen sind NEU. Am
+  29.09.2026 speicherte ein Editor 6.125 Punkte (108 KB, weit über 1000 Werte), am 06.10. noch 2.355
+  Punkte — beides ginge heute nicht. Vermutlich hat STRATO die Webserver-Regeln (ModSecurity-Vorgaben)
+  zwischen dem 06. und dem 09.10.2026 verschärft; bestätigt ist das nicht.
   🪤 Die Fehlermeldung war nutzlos („update_area_geometry fehlgeschlagen (400)") — wer eine 400 ohne
   eigene Meldung sieht, prüft zuerst, ob die Antwort HTML war. Tests: `js/app/__tests__/json-umschlag.test.js`,
   `api/_internal/__tests__/json-umschlag-test.php`.

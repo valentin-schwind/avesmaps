@@ -114,6 +114,7 @@ function applyPlannerStateFromUrl() {
 	$("#toggleUnconnected").prop("checked", parseBooleanQueryParam(searchParams.get("toggleUnconnected"), DEFAULT_PLANNER_STATE.toggleUnconnected));
 	$("#toggleSparseCrossings").prop("checked", parseBooleanQueryParam(searchParams.get("toggleSparseCrossings"), DEFAULT_PLANNER_STATE.toggleSparseCrossings));
 	$("#toggleOpenPathEnds").prop("checked", parseBooleanQueryParam(searchParams.get("toggleOpenPathEnds"), DEFAULT_PLANNER_STATE.toggleOpenPathEnds));
+	$("#toggleBigAreas").prop("checked", parseBooleanQueryParam(searchParams.get("toggleBigAreas"), DEFAULT_PLANNER_STATE.toggleBigAreas));
 	$("#toggleNoWikiAssignment").prop("checked", parseBooleanQueryParam(searchParams.get("toggleNoWikiAssignment"), DEFAULT_PLANNER_STATE.toggleNoWikiAssignment));
 	$("#toggleDuplicateLabels").prop("checked", parseBooleanQueryParam(searchParams.get("toggleDuplicateLabels"), DEFAULT_PLANNER_STATE.toggleDuplicateLabels));
 	$("#toggleNodix").prop("checked", parseBooleanQueryParam(searchParams.get("toggleNodix"), DEFAULT_PLANNER_STATE.toggleNodix));
@@ -342,6 +343,10 @@ function buildPlannerSearchParams() {
 
 	if (IS_EDIT_MODE && $("#toggleOpenPathEnds").is(":checked") !== DEFAULT_PLANNER_STATE.toggleOpenPathEnds) {
 		searchParams.set("toggleOpenPathEnds", $("#toggleOpenPathEnds").is(":checked") ? "1" : "0");
+	}
+
+	if (IS_EDIT_MODE && $("#toggleBigAreas").is(":checked") !== DEFAULT_PLANNER_STATE.toggleBigAreas) {
+		searchParams.set("toggleBigAreas", $("#toggleBigAreas").is(":checked") ? "1" : "0");
 	}
 
 	if (IS_EDIT_MODE && $("#toggleNoWikiAssignment").is(":checked") !== DEFAULT_PLANNER_STATE.toggleNoWikiAssignment) {

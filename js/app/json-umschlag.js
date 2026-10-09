@@ -153,6 +153,12 @@
 
 	avesmapsJsonUmschlagInstallieren(global);
 
+	// Für die Grössenprüfung vor dem Speichern (map-features-ecosystem-region-store.js): sie misst den
+	// Rumpf so, wie er WIRKLICH hinausgeht -- verpackt oder nicht --, statt die Verpackung nachzubauen.
+	if (global) {
+		global.avesmapsJsonUmschlagRumpf = avesmapsJsonUmschlagRumpf;
+	}
+
 	if (typeof module !== "undefined" && module.exports) {
 		module.exports = {
 			UMSCHLAG_AB_WERTEN,

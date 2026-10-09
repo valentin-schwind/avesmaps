@@ -2538,6 +2538,120 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	background: var(--color-button-soft-hover);
 }
 
+/* ---- Der Größen-Streifen (Owner 09.10.2026) ---------------------------------------------------------
+   „Kannst du den leuten anzeigen, wenn sie zuviel punkte gemalt und KB produziert haben." Steht neben dem
+   Ansage-Streifen der Isolation und ist gleich gebaut; nur der Ton sagt die Stufe: gelb ab 75 % der
+   Grenze (gespeichert, aber bald nicht mehr), rot darüber (NICHT gespeichert). Inhalt und Logik in
+   js/map-features/map-features-ecosystem-groesse-hinweis.js.
+   ⚠️ Die Töne sind die Status-Tokens der Oberfläche (warning/danger-soft), nicht die Kartentöne des
+   Prüfhakens: der Streifen ist ein Bedienelement auf dem Panel und folgt dem Dunkelmodus. */
+.ecosystem-groesse-note {
+	display: flex;
+	align-items: center;
+	gap: var(--space-8);
+	padding: var(--space-4) var(--space-8);
+	border: 1px solid var(--color-warning-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-warning-soft);
+	color: var(--color-warning-soft-text);
+	font-size: var(--font-size-small);
+}
+
+.ecosystem-groesse-note[data-stufe="zu_gross"] {
+	border-color: var(--color-danger-soft-border);
+	background: var(--color-danger-soft);
+	color: var(--color-danger-soft-text);
+}
+
+/* Der Satz darf umbrechen: er trägt Name, Punkte und KB, und abgeschnitten fehlte genau die Zahl. */
+.ecosystem-groesse-note__text {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+/* ⚠️ Weich/outline wie der Knopf der Isolation -- eine Nebenhandlung, nicht die Haupthandlung der Leiste. */
+.ecosystem-groesse-note__knopf {
+	flex: 0 0 auto;
+	padding: var(--space-2) var(--space-6);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-caption);
+}
+
+.ecosystem-groesse-note__knopf:hover {
+	background: var(--color-button-soft-hover);
+}
+
+/* Das × ist der einzige Ausweg aus einem Streifen, der stehen bleibt -- also eine Trefferfläche, die
+   man nicht suchen muss (24px), und Rückmeldung beim Überfahren und mit der Tastatur. */
+.ecosystem-groesse-note__schliessen {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 24px;
+	min-height: 24px;
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius-md);
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	font: inherit;
+	line-height: 1;
+}
+
+.ecosystem-groesse-note__schliessen:hover {
+	background: var(--color-button-soft-hover);
+}
+
+.ecosystem-groesse-note__schliessen:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+/* ---- Die Größenleiste im Fenster „Fläche vereinfachen" (Owner 09.10.2026) ----------------------------
+   Zeigt das ERGEBNIS des Reglers gegen die Grenze von 128 KB. Die Länge kommt als Anteil 0..1 aus dem
+   Skript (`--ecosystem-groesse-anteil`), die Stufe als `data-stufe` -- Werte im CSS, nicht im JS. */
+.ecosystem-groesse {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+}
+
+.ecosystem-groesse__leiste {
+	flex: 0 0 7.5rem;
+	height: 6px;
+	overflow: hidden;
+	border-radius: var(--radius-sm);
+	background: var(--color-divider);
+}
+
+.ecosystem-groesse__fuellung {
+	display: block;
+	width: calc(var(--ecosystem-groesse-anteil, 0) * 100%);
+	height: 100%;
+	background: var(--color-success);
+}
+
+.ecosystem-groesse[data-stufe="gross"] .ecosystem-groesse__fuellung {
+	background: var(--color-warning);
+}
+
+.ecosystem-groesse[data-stufe="zu_gross"] .ecosystem-groesse__fuellung {
+	background: var(--color-danger);
+}
+
+.ecosystem-groesse[data-stufe="zu_gross"] .ecosystem-groesse__text {
+	color: var(--color-danger);
+}
+
 /* Der Knopf in der Zeile, solange SEINE Region die isolierte ist. */
 .ecosystem-stapel__tool--solo {
 	border-color: var(--color-pill-border);
