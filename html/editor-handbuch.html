@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 08.10.2026</span>
+		<span class="hb-topbar__meta">Stand: 10.10.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -1131,10 +1131,11 @@
 				<p>Für die fünf Verrechnungen gilt:</p>
 				<ul class="hb-steps">
 					<li>Nach dem Menüeintrag klickst du die <strong>zweite Fläche</strong> an. <kbd>Esc</kbd> bricht ab.</li>
-					<li><strong>Beim Ziel zählt der Rand.</strong> Nur die Kontur nimmt den Klick an; die goldene Kontur zeigt, was du triffst. So erreichst du auch eine verdeckte Fläche.</li>
-					<li><strong>Die Ebene darf wechseln</strong> — ein See darf aus einem Wald geschnitten werden. Nur <em>„Mit anderer vereinigen"</em> verlangt dieselbe Ebene.</li>
+					<li><strong>Beim Ziel zählt der Rand.</strong> Nur die Kontur nimmt den Klick an; die gelbe Kontur zeigt, was du triffst. So erreichst du auch eine verdeckte Fläche. Ein Klick daneben meldet „Kein Ziel getroffen".</li>
+					<li><strong>Das Ziel liegt in der Ebene, die oben gewählt ist.</strong> Willst du eine andere Fläche, schalte oben die Ebene um — auch auf „Alle". Die Auswahl läuft weiter. Vereinigen geht auch über Ebenen hinweg.</li>
 					<li>Zerfällt eine Fläche in Teile, ist das kein Fehler. <em>„Unterflächen ▸"</em> bietet dann <em>„Alle Unterflächen vereinigen"</em>, <em>„Unterfläche herauslösen"</em> und rot <em>„Unterfläche löschen"</em>.</li>
 				</ul>
+				<div class="hb-note hb-warn"><strong>Eine Fläche darf beim Speichern höchstens 128 KB groß sein.</strong> Zu viele Punkte lehnt der Editor ab, bevor er sendet: gespeichert wird dann nichts. Ab 75 % warnt ein gelber Streifen, darüber ein roter — beide mit „Fläche vereinfachen". Dort zeigt eine Leiste, wie groß das Ergebnis des Reglers wird. Der Haken „Zu große Flächen" im Anzeige-Menü rahmt solche Flächen orange.</div>
 				<div class="hb-note hb-warn"><strong>Fläche und Beschriftung sind ein Ding.</strong> Löschst du die letzte Fläche einer Region, verschwindet die Region mit ihren Beschriftungen. Die Rückfrage sagt das vorher.</div>
 				<h5>Reihenfolge und Sperren</h5>
 				<p>Flächen liegen übereinander, und die obere bekommt den Klick. Hier regelst du die <strong>Reihenfolge</strong> innerhalb einer Ebene und die <strong>Sperre</strong>: Eine gesperrte Fläche lässt Klicks durch. Beides gilt für alle und bleibt gespeichert.</p>
@@ -1987,11 +1988,12 @@
 					<tr><td><strong>Kreuzungen</strong></td><td>Alle Knotenpunkte des Wegenetzes.</td></tr>
 					<tr><td><strong>Nodices</strong></td><td>Als Nodix markierte Objekte.</td></tr>
 					<tr><td><strong>Verborgene Orte</strong></td><td>Holt die als <a href="#siedlungen">verborgen</a> markierten Orte samt Namen zurück aufs Bild. Kein eigener Ring und keine eigene Farbe — der Haken erzeugt keine Markierung, er zeigt nur wieder, was sonst weggelassen wird.</td></tr>
-					<tr><td><strong>Unverbunden</strong></td><td><em>Pinker Ring:</em> Ort oder Kreuzung ohne Anschluss ans Wegenetz (Regel 5). Trägt derselbe Marker auch den türkisen Befund, gewinnt der pinke — es wird immer nur einer gezeigt.</td></tr>
+					<tr><td><strong>Unverbunden</strong></td><td><em>Pinker Ring:</em> Ort oder Kreuzung ohne Anschluss ans Wegenetz (Regel 5). Trägt derselbe Marker auch den türkisen Befund, gewinnt der pinke — es wird immer nur einer gezeigt. <a href="#siedlungen">Verborgene</a> Orte bekommen keinen Ring.</td></tr>
 					<tr><td><strong>nur Labels mit Region</strong></td><td>Blendet alle Beschriftungen aus, an denen <em>keine</em> Landschaftsfläche hängt — was stehen bleibt, ist die Restliste zum Nacharbeiten. Steht nur da, wenn die Landschaften-Ebene eingeschaltet ist.</td></tr>
 					<tr><td><strong>Kreuzungen mit 2 Wegen</strong></td><td><em>Türkiser Ring:</em> die auflösbare Durchgangs-Kreuzung (Regel 2) — sie hat genau zwei Arme, es läuft kein fremder Weg über sie hinweg, und beide Arme sind derselben Wegart. Nur dann lassen sich die zwei Stücke zu einem zusammenziehen.</td></tr>
 					<tr><td><strong>Offene Wegenden</strong></td><td><em>Roter Weg, roter Ring am Ende:</em> ein Weg, an dessen Ende weder Ort noch Kreuzung liegt — für die Routenplanung existiert er damit <em>gar nicht</em>. Ein Klick auf den Ring öffnet den Geometrie-Editor. Häufigster Fall ist der <em>lose Stoß</em>: mehrere Wegenden auf demselben Punkt, auf dem keine Kreuzung sitzt.</td></tr>
 					<tr><td><strong>Doppelte Beschriftungen</strong></td><td><em>Violetter Kasten:</em> ein Name steht mehrfach auf der Karte — zweimal als freie Beschriftung, oder einmal als Beschriftung und einmal als Wegname. Welche zwei zusammengehören, entscheidest du.</td></tr>
+					<tr><td><strong>Zu große Flächen</strong></td><td><em>Orange Kontur:</em> Landschaftsfläche, die zum Speichern zu groß ist (dick) oder ab 75 % der Grenze nah daran (dünn). Siehe <a href="#landschaften">Landschaften</a>.</td></tr>
 					<tr><td><strong>Keine Wiki-Zuweisung</strong></td><td><em>Dunkelrot:</em> Ring am Ort, Saum am Weg, Kontur an der Landschaftsfläche, Halo an der Beschriftung — überall dort, wo kein Wiki-Artikel zugewiesen ist. Er blendet als einziger nichts ein, er markiert nur, was ohnehin zu sehen ist.</td></tr>
 				</table>
 				<div class="hb-note hb-tip"><strong>Sie holen ihre Funde hervor, statt sie nur zu markieren.</strong> Ein Fund erscheint samt Namen — gleich welche Ortsklassen an sind, wie weit du herausgezoomt hast und ob der Name auf dieser Stufe sonst stünde. Nur der Bildausschnitt begrenzt sie.</div>
