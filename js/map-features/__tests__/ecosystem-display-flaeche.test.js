@@ -435,11 +435,13 @@ assert.ok(wasserHervor[0].gewicht > wasserHervor[1].gewicht,
 	`Die Wasser-Regel hat ${wasserHervor[0].gewicht} Klassen, ihre staerkste Verfolgerin`
 	+ ` ${wasserHervor[1].gewicht} (${wasserHervor[1].sel}). Bei Gleichstand entschiede die Reihenfolge im Blatt.`);
 
-// Und dasselbe fuer die ZIELWAHL einer booleschen Operation (`--target`, eigene Zahl 0,42).
-const wasserZiel = fillOpacityKandidaten(PANE_AKTIV,
-	pfad("ecosystem-area--wasser", "ecosystem-area--selected", "ecosystem-area--target"));
-assert.strictEqual(aufgeloest(wasserZiel[0].wert, { "--eco-fill-art": 1 }), 1,
-	"auch die Zielwahl nimmt dem Wasser seine Deckkraft nicht -- gewonnen hat: " + wasserZiel[0].sel);
+// 🔴 Die ZIELWAHL einer booleschen Operation stand hier bis zum 09.10.2026 mit (`--target`, eigene
+// Zahl 0,42). Seither traegt das Ziel KEINE Klasse am Pfad mehr, sondern eine eigene Linie darueber
+// (`.ecosystem-zielkontur`, Owner: „nicht transparent") -- sie kann der Wasserflaeche also gar keine
+// Deckkraft mehr nehmen. Gegenprobe: es gibt keine Pfadregel fuer `--target` mehr, die es koennte.
+assert.ok(!alleRegeln.some((r) => /ecosystem-area--target/.test(r.sel)),
+	"💣 eine Pfadregel fuer ecosystem-area--target ist zurueck -- die Zielwahl zeichnet seit 09.10.2026 eine"
+	+ " eigene Linie (.ecosystem-zielkontur), eine zweite Wahrheit am Pfad faerbte die Flaeche wieder um");
 
 // ---- H2. DIE GEGENPROBE IST DIE WICHTIGERE: ausgenommen ist das WASSER, nicht der Zustand ------
 // Ohne sie verlieren Hervorhebung und Zielwahl ihre Wirkung auf ALLEN Flaechen, und niemand merkt es,
@@ -447,9 +449,6 @@ assert.strictEqual(aufgeloest(wasserZiel[0].wert, { "--eco-fill-art": 1 }), 1,
 const gebirgeHervor = fillOpacityKandidaten(PANE_AKTIV, pfad("ecosystem-area--highlight"));
 assert.strictEqual(aufgeloest(gebirgeHervor[0].wert, { "--eco-fill-art": 0.72 }), 0.8,
 	"ein Gebirge unter dem Zeiger leuchtet weiterhin auf 0,8 -- gewonnen hat: " + gebirgeHervor[0].sel);
-const gebirgeZiel = fillOpacityKandidaten(PANE_AKTIV, pfad("ecosystem-area--target"));
-assert.strictEqual(aufgeloest(gebirgeZiel[0].wert, { "--eco-fill-art": 0.72 }), 0.42,
-	"und die Zielwahl faerbt es weiter auf 0,42 -- gewonnen hat: " + gebirgeZiel[0].sel);
 
 // ---- H3. 🔴 RUHEND BLEIBT UNSICHTBAR -- `--active` ist tragend ---------------------------------
 // Ohne die Klasse im Selektor truege eine ruhende Wasserflaeche ihre Deckkraft mit, und ein
@@ -473,16 +472,17 @@ assert.strictEqual(aufgeloest(wasserHervor[0].wert, {}), 1,
 	"ohne eigenen Wert faellt die Wasser-Regel auf 1 zurueck");
 
 // ---- H5. Nur die DECKKRAFT -- Farbe und Kontur der Zustaende bleiben --------------------------
-// ⚠️ Die Zielwahl faerbt weiter golden um und behaelt Schein und Trefferband, die Auswahl ihre weisse
-// Kontur. Die Wasser-Regel nimmt den Zustaenden nur die ZAHL.
+// ⚠️ Die Auswahl behaelt ihre weisse Kontur. Die Wasser-Regel nimmt den Zustaenden nur die ZAHL.
 const wasserRegeln = alleRegeln.filter((r) => /ecosystem-area--wasser/.test(r.sel));
 assert.strictEqual(wasserRegeln.length, 1,
 	"es gibt GENAU eine Wasser-Regel -- zwei waeren zwei Wahrheiten ueber dieselbe Deckkraft");
 assert.ok(/^\s*fill-opacity\s*:[^;]+;?\s*$/.test(wasserRegeln[0].body),
 	"sie setzt AUSSCHLIESSLICH fill-opacity -- Rumpf: " + JSON.stringify(wasserRegeln[0].body.trim()));
-assert.ok(alleRegeln.filter((r) => /ecosystem-area--target/.test(r.sel))
+// Die Zielwahl zeigt ihr Ziel ueber die eigene Linie -- mit eigener, zarter Fuellung, die NICHT am
+// Flaechenpfad haengt und deshalb von der Wasser-Regel nicht beruehrt wird.
+assert.ok(alleRegeln.filter((r) => /ecosystem-zielkontur/.test(r.sel))
 	.some((r) => /(^|[;\s])fill\s*:/.test(r.body)),
-	"und die Zielwahl faerbt weiterhin um");
+	"und die Zielwahl faerbt ihr Ziel ueber .ecosystem-zielkontur ein");
 
 // ---- H6. Die Klasse kommt aus der GETEILTEN Liste, und sie wird wirklich gesetzt --------------
 // ⭐ AUSGEFUEHRT, nicht gelesen: ein Regex kennt keinen Geltungsbereich, und eine Zusicherung, die nur

@@ -261,6 +261,33 @@ wechsel.setEcosystemShowAllLayers(false);
 assert.deepStrictEqual(beendet, [],
 	"⚠️ der Weg zurück in eine Ebene räumt keine Arbeit weg — er gibt sie frei");
 
+// 🔴 DIE ZIELWAHL EINER ZWEI-FLÄCHEN-GESTE ÜBERLEBT DEN WEG NACH „ALLE" (Owner 09.10.2026: „ein wechsel
+// auf vegetation oder alles zeigt alles an und erlaubt dann vereinigungen damit"). Sie ist kein
+// Werkzeug, das zeichnet -- „Alle" ist dort der Weg, Flächen aller Ebenen als Ziel anzubieten.
+// ⚠️ Verschieben und Zerschneiden laufen über DIESELBE Schnittstelle (isPending) und enden weiterhin —
+// deshalb fragt die Weiche `isPickingTarget`, nicht bloss `isPending`.
+const zielwahlWelt = schalterWelt({ gemerktAlle: "0" });
+const zielwahlBeendet = [];
+zielwahlWelt.window.AvesmapsEcosystemGeometryOps = {
+	isPending: () => true,
+	isPickingTarget: () => true,
+	cancel: () => zielwahlBeendet.push("operation"),
+};
+zielwahlWelt.setEcosystemShowAllLayers(true);
+assert.deepStrictEqual(zielwahlBeendet, [],
+	"💣 der Wechsel nach „Alle“ bricht die Zielwahl ab — dann kann man ein Ziel einer anderen Ebene nie wählen");
+
+const verschiebenWelt = schalterWelt({ gemerktAlle: "0" });
+const verschiebenBeendet = [];
+verschiebenWelt.window.AvesmapsEcosystemGeometryOps = {
+	isPending: () => true,
+	isPickingTarget: () => false,
+	cancel: () => verschiebenBeendet.push("operation"),
+};
+verschiebenWelt.setEcosystemShowAllLayers(true);
+assert.deepStrictEqual(verschiebenBeendet, ["operation"],
+	"💣 Verschieben/Zerschneiden überleben den Wechsel nach „Alle“ — dort wird nicht bearbeitet");
+
 // ---- 7. Die Regel steht nur EINMAL -----------------------------------------------------------------
 //
 // 💣 Die Hervorhebung beim Klick auf ein LABEL trug dieselbe Frage ein zweites Mal ausgeschrieben, und

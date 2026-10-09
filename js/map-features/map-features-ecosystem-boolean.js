@@ -122,6 +122,77 @@ function ecosystemBooleanGeometry(operation, sourceGeometry, targetGeometry) {
 	return geometry;
 }
 
+// ---- Zielwahl: WELCHE Fläche meint der Zeiger? -------------------------------------------------------
+// 🔴 DIE EINE ANTWORT FÜR HERVORHEBUNG UND KLICK (Owner 09.10.2026: „er soll sich mit dem vereinigen oder
+// das abziehen, das […] markiert wurde"). Bis dahin entschied das oberste SVG-Element unter dem Zeiger --
+// beim Überfahren und beim Klick getrennt, und über die feste Pane-Leiter (Derographie über Vegetation
+// über Topographie). Wo zwei Ränder zusammenfallen, gewann damit die falsche Ebene: an der Küste der
+// Windhag-Region traf ein Klick auf „Meer der Sieben Winde" in 112 von 130 Punkten die derographische
+// Region, an den Windhagbergen in 137 von 273 Punkten den Hangwald (live gemessen 09.10.2026). Das
+// „Ausschneiden" hätte Fläche-058 STILL von 559 auf 46 Flächeneinheiten zusammengeschnitten.
+//
+// Getroffen wird weiterhin der RAND, nicht die Füllung (Bug #69, Owner 14.08.2026: eine überdeckte
+// Fläche bleibt so über ihre eigene Kante erreichbar). Unter mehreren Rändern in Reichweite gilt:
+//   1. der NÄCHSTE Rand -- die Linie, auf die der Zeiger zeigt;
+//   2. bei Gleichstand (dieselbe Linie, z. B. eine Küste, die Meer und Region teilen) die Fläche der
+//      EIGENEN Ebene der Quelle -- man bleibt in der Ebene, in der man arbeitet;
+//   3. danach die oben gezeichnete (`rang`).
+//
+// 💣 `zulassen` und `rang` sind Rückfragen an den Aufrufer, weil sie den DOM brauchen (Sichtbarkeit,
+// Sperre, Stapelplatz) -- gefragt wird erst, wenn der billige Kastentest bestanden ist, und `rang` nur
+// bei einem Gleichstand. Diese Funktion selbst kennt keinen DOM und läuft so im Test.
+//
+// kandidaten: [{ publicId, kind, geometry, bounds? }], punkt: { x, y } in Kartenkoordinaten.
+// optionen: { toleranz, gleichstand, quelleKind, zulassen?(kandidat), rang?(kandidat) }
+// -> publicId der gewählten Fläche, oder "" wenn kein Rand in Reichweite liegt.
+function ecosystemBooleanZielWaehlen(kandidaten, punkt, optionen = {}) {
+	const toleranz = Number(optionen.toleranz);
+	const gleichstand = Math.max(0, Number(optionen.gleichstand) || 0);
+	const x = Number(punkt?.x);
+	const y = Number(punkt?.y);
+	if (!(toleranz > 0) || !Number.isFinite(x) || !Number.isFinite(y) || !Array.isArray(kandidaten)) {
+		return "";
+	}
+	const quelleKind = String(optionen.quelleKind || "");
+	const rang = typeof optionen.rang === "function" ? optionen.rang : () => 0;
+
+	let beste = null;
+	kandidaten.forEach((kandidat) => {
+		if (!kandidat || !kandidat.geometry) {
+			return;
+		}
+		const kasten = kandidat.bounds || ecosystemGeometryBounds(kandidat.geometry);
+		if (!kasten
+			|| x < kasten.min_x - toleranz || x > kasten.max_x + toleranz
+			|| y < kasten.min_y - toleranz || y > kasten.max_y + toleranz) {
+			return;
+		}
+		if (typeof optionen.zulassen === "function" && !optionen.zulassen(kandidat)) {
+			return;
+		}
+		const abstand = distanceToEcosystemEdge([x, y], kandidat.geometry);
+		if (!(abstand <= toleranz)) {
+			return;
+		}
+		const eintrag = { kandidat, abstand, eigeneEbene: quelleKind !== "" && String(kandidat.kind) === quelleKind };
+		if (!beste || ecosystemZielIstBesser(eintrag, beste, gleichstand, rang)) {
+			beste = eintrag;
+		}
+	});
+
+	return beste ? String(beste.kandidat.publicId || "") : "";
+}
+
+function ecosystemZielIstBesser(neu, bisher, gleichstand, rang) {
+	if (Math.abs(neu.abstand - bisher.abstand) > gleichstand) {
+		return neu.abstand < bisher.abstand;
+	}
+	if (neu.eigeneEbene !== bisher.eigeneEbene) {
+		return neu.eigeneEbene;
+	}
+	return Number(rang(neu.kandidat)) > Number(rang(bisher.kandidat));
+}
+
 // ---- Zerschneiden ------------------------------------------------------------------------------------
 // Zwei Punkte spannen eine Linie auf; die Linie wird zu einem haarfeinen Rechteck verlängert und
 // abgezogen. Abgeschrieben von buildRegionSplitCutterGeometry (map-features-region-edit-ops.js:203) --
@@ -259,6 +330,7 @@ if (typeof module !== "undefined" && module.exports) {
 		ECOSYSTEM_BOOLEAN_OPERATIONS,
 		ecosystemBooleanConsumesTarget,
 		ecosystemBooleanGeometry,
+		ecosystemBooleanZielWaehlen,
 		ecosystemGeometryToClipping,
 		ecosystemClippingToGeometry,
 		ecosystemSplitCutterGeometry,

@@ -1650,7 +1650,7 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    ohne Flaechenwert 0 / 0,72 / 0,16 / 0,30 (das heutige Bild), mit Flaechenwert gewinnt die
    Flaeche -- und ruhend bleibt 0.
 
-   ⚠️ UND ZWEI KLASSEN SIND WENIG: jeder Zustand weiter unten (Hervorhebung, Zielwahl) setzt
+   ⚠️ UND ZWEI KLASSEN SIND WENIG: jeder Zustand weiter unten (Hervorhebung) setzt
    `fill-opacity` direkt und schlaegt diese Regel damit. Fuer die WASSERFLAECHEN ist das seit dem
    10.09.2026 zurueckgedreht -- die Regel dazu steht bei `.ecosystem-area--wasser` hinter der
    Hervorhebung und begruendet dort, warum sie sechs Klassen braucht. */
@@ -1696,40 +1696,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 .ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--selected {
 	stroke: var(--color-ecosystem-selected-outline);
 	stroke-opacity: 1;
-}
-
-/* Läuft eine boolesche Operation und die Maus steht über einer möglichen ZIELfläche, bekommt sie eine
-   goldene Kontur -- dieselbe Auskunft, die das Herrschaftsgebiete-Menü seit je gibt („welche erwische
-   ich, wenn ich jetzt klicke"). Zwei Klassen, damit sie die weisse Auswahlkontur schlägt: die Quelle
-   ist ausgewählt, das Ziel darf trotzdem anders aussehen.
-
-   💣 DIE BREITE IST DIESELBE WIE DIE DES TREFFERBANDES, und das ist keine Kosmetik. Seit die Zielwahl
-   über die KONTUR trifft (`pointer-events: stroke`, weiter unten), IST diese Zahl das Trefferfeld.
-   Stünde hier weiterhin die alte 5, schrumpfte der Anfasser genau in dem Augenblick, in dem der Zeiger
-   ihn erreicht -- man verlöre den Treffer unter der Hand. Deshalb der gemeinsame Token; wer ihn hier
-   durch eine Zahl ersetzt, baut den Sprung wieder ein. */
-/* 🔴 DEUTLICH STAERKER ALS DIE KANDIDATEN (Owner 20.08.2026). Bis dahin unterschied sich die Flaeche
-   unter dem Zeiger von allen anderen NUR in der Deckkraft ihrer Kontur (0,55 gegen 1) -- derselbe Ton,
-   dieselbe Breite. Das ist der schwaechste Unterschied, den zwei Zustaende haben koennen. Jetzt sind es
-   drei zugleich: eigene Farbe, eigener Schein, kraeftigere Fuellung.
-
-   💣 DIE BREITE BLEIBT DER TOKEN. Seit die Zielwahl ueber die KONTUR trifft (`pointer-events: stroke`),
-   IST diese Zahl das Trefferfeld -- eine dickere Kontur fuer den Effekt waere ein groesserer Anfasser,
-   eine duennere ein Treffer, der unter der Hand verlorengeht. Der Schein kommt deshalb als `filter`:
-   `drop-shadow` malt, ohne die Geometrie anzufassen, an der das Treffen gemessen wird.
-
-   💣 VIER KLASSEN, und das ist keine Kosmetik. Mit dreien (0,3,2) verlor die Fuellung gegen
-   `.ecosystem-pane--derographisch.ecosystem-pane--active > svg path.leaflet-interactive` weiter unten
-   -- gleiche Staerke, spaeter im Blatt -- und die Hervorhebung blieb ausgerechnet auf der Ebene der
-   grossen Behaelter bei 0,16 haengen. Das war der zweite Grund, aus dem sie „minimal" wirkte. */
-.leaflet-pane.ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--target,
-.leaflet-pane.ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--selected.ecosystem-area--target {
-	stroke: var(--color-ecosystem-target-active);
-	stroke-opacity: 1;
-	stroke-width: var(--ecosystem-pick-band-width);
-	fill: var(--color-ecosystem-target-active);
-	fill-opacity: 0.42;
-	filter: drop-shadow(0 0 6px var(--color-ecosystem-target-glow));
 }
 
 /* Open for editing: the contour switches to the SAME blue as the drag handles sitting on it, so the
@@ -1783,8 +1749,8 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    Behälter, und der Wald darunter wäre unerreichbar.
 
    💣 DREI KLASSEN, UND DAS IST GERECHNET, NICHT GERATEN. Sie muss DREI Nachbarn treffen, in beide
-   Richtungen -- mit VIER war sie zu stark und hat die Zielwahl (`ecosystem-area--target`, ebenfalls
-   vier) auf ein Kopf-an-Kopf gebracht, das die Reihenfolge im Blatt entschieden haette:
+   Richtungen -- mit VIER war sie zu stark und hat die damalige Zielwahl-Klasse (`ecosystem-area--target`,
+   ebenfalls vier) auf ein Kopf-an-Kopf gebracht, das die Reihenfolge im Blatt entschieden haette:
      * `.ecosystem-pane--active > svg path.leaflet-interactive` (zwei Klassen) trägt die Füllung JE
        FLÄCHE aus der Darstellungstafel. Wird sie nicht geschlagen, bleibt die Derographie bei ihren
        0,16 -- und zwar lautlos, denn der Wert steht als `--eco-fill-art` am <path> im JavaScript.
@@ -1792,11 +1758,10 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
        Label-Klick nichts mehr an -- die eine Geste, für die die Ebene überhaupt nach oben gewandert
        ist. Deshalb steht hier `fill-opacity` direkt und nicht `--eco-fill`: die Variable käme über
        die Zwei-Klassen-Regel zur Wirkung und verlöre gegen `--eco-fill-art`.
-     * Die ZIELWAHL einer booleschen Operation (vier Klassen) muss sie ebenfalls schlagen -- sonst
-       verschwände das Ziel, sobald jemand in „Alle“ auf eine derographische Fläche zeigt.
-       ⚠️ `--active` steht deshalb NICHT im Selektor: es wäre die vierte Klasse und brächte genau
-       diesen Gleichstand. Redundant ist es ohnehin -- in „Alle“ ist die derographische Pane immer
-       aktiv, dort ruht nur das Klima.
+     * ⚠️ Die ZIELWAHL ist seit dem 09.10.2026 kein Gegner mehr: ihr Ziel trägt keine Klasse am Pfad,
+       sondern eine eigene Linie darüber (`.ecosystem-zielkontur`, Abschnitt „Zielwahl“ weiter unten).
+       `--active` steht trotzdem nicht im Selektor -- redundant ist es ohnehin, in „Alle“ ist die
+       derographische Pane immer aktiv, dort ruht nur das Klima.
    Und `pointer-events` braucht die vier ohnehin: Leaflet setzt `pointer-events: auto` auf
    `.leaflet-interactive`, dagegen verliert eine einzelne Klasse -- dieselbe Bauart wie bei der
    Klima-Regel weiter unten.
@@ -1909,7 +1874,7 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 
    💣 DIE ZUSTÄNDE SETZEN `fill-opacity` DIREKT, nicht über `--eco-fill` -- genau deshalb schlagen sie
    den Wert je Fläche (`--eco-fill-art`, zwei Klassen, weiter oben). Die Hervorhebung hat fünf Klassen
-   (0,5,2) und trägt 0,8, die Zielwahl vier bzw. fünf und trägt 0,42. Ohne diese Regel hier sprang der
+   (0,5,2) und trägt 0,8 (bis zum 09.10.2026 trug auch die Zielwahl 0,42). Ohne diese Regel hier sprang der
    See beim Überfahren und beim Anklicken auf 0,8.
 
    💣 SECHS KLASSEN -- darum steht `.ecosystem-area--wasser` ZWEIMAL da. Es ist die Klasse, die ohnehin
@@ -1934,8 +1899,8 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
    (AGENTS.md §11). Die 1 im Rückfall gilt nur, wenn ecosystem-display.js fehlt; dann setzt auch niemand
    die Klasse, die Regel passt also nie.
 
-   ⚠️ NUR DIE DECKKRAFT, NICHT DIE FARBE UND NICHT DIE KONTUR. Die Zielwahl färbt weiter golden um und
-   behält ihren Schein und ihr Trefferband, die Auswahl ihre weiße Kontur, der Prüfhaken sein Rot.
+   ⚠️ NUR DIE DECKKRAFT, NICHT DIE FARBE UND NICHT DIE KONTUR. Die Zielwahl zeichnet ihre gelbe Linie
+   darüber (`.ecosystem-zielkontur`), die Auswahl behält ihre weiße Kontur, der Prüfhaken sein Rot.
    ⚠️ UND DAS IST DER PREIS, er steht hier und wird nicht verschwiegen: Überfahren und Anklicken ändern
    an einer Wasserfläche die FÜLLUNG nicht mehr -- die angeklickte ist allein über ihre KONTUR zu
    erkennen (`--selected` weiß, `--picked` aufgedeckt). Das ist derselbe Handel, den der Owner am
@@ -1974,30 +1939,6 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	stroke-width: 2;
 }
 
-/* ---- Klima ist NIE das Ziel einer booleschen Operation (Owner 2026-08-03) -------------------------
-   💣 DIE ZIELWAHL HOLT DIE RUHENDEN EBENEN ABSICHTLICH ZURÜCK -- sichtbar UND anklickbar, sonst liesse
-   sich ein See nie aus einem Wald ausschneiden (`--picking`, weiter unten). Das Flag geht auf ALLE
-   Panes, also auch auf die Klima-Ebene: die wurde damit mitten in einer Vereinigung anklickbar, liegt
-   kartenbreit über allem und fing jeden Zielklick ab. Gemeldet als „ich kann nur die Klimazone
-   anklicken".
-
-   Ein Klimaband KANN kein Ziel sein: es ist abgeleitet, und der Server lehnt jede Flächenoperation
-   darauf ab (avesmapsClimateAssertNotDerived). Es aus der Zielwahl herauszuhalten nimmt also nichts
-   weg -- es entfernt nur einen Deckel.
-
-   🪤 Fünf Klassen, weil die `--picking`-Regel vier hat und sonst gewinnt. Und die Füllung geht im
-   selben Zug auf 0 zurück: eine Ebene, die nicht Ziel sein kann, soll die Zielwahl auch nicht
-   einfärben. */
-.ecosystem-pane--klima.ecosystem-pane--resting.ecosystem-pane--picking {
-	--eco-fill: 0;
-	--eco-contour: 0;
-}
-
-.leaflet-pane.ecosystem-pane--klima.ecosystem-pane--resting.ecosystem-pane--picking > svg path.leaflet-interactive {
-	pointer-events: none;
-	cursor: default;
-}
-
 /* ---- Unterflächen-Auswahl (Owner 2026-07-27) -------------------------------------------------------
    Eine mehrteilige Fläche ist EIN Leaflet-Pfad; ihre Unterflächen lassen sich deshalb nicht einzeln
    einfärben. Für die Auswahl werden sie darum kurzzeitig als eigene, NICHT anklickbare Umrisse
@@ -2020,91 +1961,75 @@ body.leaflet-dragging .ecosystem-brush-pan .leaflet-interactive {
 	stroke-opacity: 1;
 }
 
-/* ---- Zielwahl über Ebenengrenzen hinweg (Owner 2026-07-27) -----------------------------------------
-   Solange eine Zwei-Flächen-Operation auf ihr Ziel wartet, kommen die ruhenden Ebenen ZURÜCK: sichtbar
-   und anklickbar. Sonst liesse sich ein See (Topographie) nie aus einem Wald (Vegetation) ausschneiden
-   — man sähe ihn nicht und träfe ihn nicht.
+/* ---- Zielwahl einer Zwei-Flächen-Geste (Owner 09.10.2026) -----------------------------------------
+   „Mit anderer vereinigen", „… ausschneiden" und die übrigen warten auf ein Ziel. Drei Regeln, alle
+   vom Owner, und alle drei ersetzen eine frühere:
 
-   🔴 Das hebt die Hausregel „immer nur eine Ebene antwortet" (§2) für die Dauer dieser Geste auf, und
-   das ist vertretbar, weil ihr GRUND inzwischen anders gelöst ist: „welches Polygon erwische ich" sagt
-   die goldene Zielkontur, bevor geklickt wird. Ausserdem ist der Zustand ausdrücklich betreten — man hat
-   eine Operation gewählt und wird aufgefordert, das Ziel anzuklicken.
+   🔴 1. ES BLEIBT BEI DER SICHTBAREN EBENE („bei der auswahl immer in der ebene bleiben, die man gerade
+   betreibt"). Die ruhenden Ebenen werden NICHT mehr geweckt, wie es seit 2026-07-27 geschah. Wer eine
+   andere Ebene als Ziel will, schaltet sie oben um -- oder auf „Alle". Welche Ebenen Ziele anbieten,
+   entscheidet zielEbeneSichtbar (map-features-ecosystem-geometry-ops.js), nicht dieses Blatt.
 
-   Blasser als die aktive Ebene: sie sind Ziele, nicht die Arbeitsfläche. Die Werte gehen über
-   --eco-fill/--eco-contour auf der Pane, wie jeder Zustand hier oben; nur pointer-events muss am Pfad
-   stehen, weil es Leaflets eigene Regel überstimmen muss.
+   🔴 2. GENOMMEN WIRD, WAS GELB MARKIERT IST. Die Flächen nehmen für die Dauer der Zielwahl KEINEN Klick
+   an; jeder Klick geht an die Karte, und dort beantwortet ihn dieselbe Funktion, die auch die Markierung
+   setzt (ecosystemBooleanZielWaehlen). Bis dahin trafen Klick und Überfahren je für sich das oberste
+   SVG-Element -- an gemeinsamen Rändern (Küste, Hangwald) über die feste Pane-Leiter die falsche Fläche.
+   💣 Getroffen wird weiterhin der RAND, nicht die Füllung (Bug #69, Owner 14.08.2026: eine überdeckte
+   Fläche bleibt über ihre eigene Kante erreichbar). Nur misst das jetzt das Skript, 6px je Seite, und
+   nicht mehr `pointer-events: stroke` an einer 12px dicken Linie -- deshalb darf die Linie dünn sein,
+   ohne dass das Treffen schwerer wird.
 
-   🪤 Zwei Klassen schlagen das `.ecosystem-pane { --eco-fill: 0 }` darüber. */
-.ecosystem-pane--resting.ecosystem-pane--picking {
-	--eco-fill: 0.3;
+   🔴 3. RICHTIG GELB, DÜNN, DECKEND („kannst du dem richtig gelb geben, die linien deutlich dünner
+   machen, die gelbe kontur … nicht transparent machen"). Die Kontur ist eine EIGENE Linie über allen
+   Flächen (`.ecosystem-zielkontur`, overlayPane), nicht eine Klasse am Pfad: am Pfad lag sie an dessen
+   Stapelplatz, unter jeder halbdeckenden Fläche, die darüber gezeichnet ist, und wirkte genau dort
+   durchscheinend.
+
+   🪤 Die Klasse `--picking` an den Panes bleibt: an ihr erkennt js/app/keyboard-shortcuts.js, dass ein
+   Werkzeug läuft, und die Tastenbefehle schweigen dann. Klima ist nie ein Ziel
+   (avesmapsClimateAssertNotDerived) und bekommt deshalb auch keine Kante. */
+
+/* Klickdurchlässig, damit der Klick bei der Karte ankommt.
+   💣 FÜNF KLASSEN, und das ist gerechnet: die stärkste Gegenregel gibt die aktive Ebene während einer
+   offenen Ecken-Sitzung wieder frei (`.ecosystem-geometry-editing .leaflet-pane.ecosystem-pane--active >
+   svg path.leaflet-interactive { pointer-events: auto }`, vier). Mit dreien verlor diese Regel genau dann,
+   wenn jemand eine Fläche per Doppelklick geöffnet hat und dann „Mit anderer vereinigen" wählt -- Zettel
+   und Zeiger kämen wieder von der Fläche unter der Maus statt vom Ziel (Prüfagent 09.10.2026).
+   `ecosystem-zielwahl` setzt setLayerPicking am Kartenrahmen, zusammen mit `--picking` an den Panes. */
+.leaflet-container.ecosystem-zielwahl .leaflet-pane.ecosystem-pane--picking > svg path.leaflet-interactive {
+	pointer-events: none;
 }
 
-/* ---- NICHT DIE FLÄCHE TRIFFT, SONDERN DIE KONTUR (Owner 2026-08-14, Bug #69) -----------------------
-   💣 DIE PANE-REIHENFOLGE WAR DIE „PRIORITÄT", UND SIE IST NICHT EINSTELLBAR. Die vier Ebenen liegen in
-   Panes mit fester z-index-Leiter (bootstrap.js: derographisch 250 · Vegetation 251 · Topographie 252 ·
-   Klima 253). Solange nur EINE Ebene antwortet, stört das nicht. Die Zielwahl weckt aber alle
-   (setLayerPicking) -- und ab da entschied allein die Leiter, WELCHE Fläche ein Klick trifft. Eine
-   Fläche, über der irgendwo eine andere liegt, war unerreichbar: gemeldet als „ich kann die Vegetation
-   mit nichts vereinigen, es liegt immer was drüber". Innerhalb einer Ebene ist das gelöst
-   (die Stapelreihenfolge, seit 19.08.2026 als `stack_order` an der Region gespeichert und im Fenster
-   „Reihenfolge und Sperren" einstellbar; davor rechnete sie der Browser aus der Flächengrösse);
-   ZWISCHEN den Ebenen sortierte nichts und sortiert weiterhin nichts.
-
-   Die Antwort ist nicht eine zweite Reihenfolge zum Pflegen, sondern ein anderes Trefferfeld: für die
-   Dauer der Zielwahl nimmt die FÜLLUNG keine Klicks mehr an, sondern allein das Band der Kontur.
-   Ein Deckel blockiert damit nur noch dort, wo seine EIGENE Kante läuft -- alles andere fällt durch,
-   und jede Fläche bleibt über ihren eigenen Rand erreichbar, auch vollständig überdeckte.
-   Nachgemessen mit elementFromPoint an einer Fläche, die komplett unter einer grösseren einer höheren
-   Ebene liegt: Klick auf ihre Kontur traf vorher den Deckel, jetzt sie selbst.
-
-   🔴 NUR WÄHREND DER ZIELWAHL (Owner). Dauerhaft wäre es ein Rückschritt: eine Fläche wird sonst durch
-   einen Klick in ihre MITTE gewählt, und im Frontend hängt daran seit 2026-08-12 das Infopanel.
-   Während der Zielwahl ist es umgekehrt -- da ist die Kante die Aussage, nicht die Fläche.
-
-   🪤 `pointer-events: stroke` misst sein Trefferfeld an `stroke-width` und fragt NICHT, ob die Kante
-   gemalt ist. Die Breite ist damit der Anfasser selbst; sie steht als Token, weil die Hervorhebung
-   unter dem Zeiger (.ecosystem-area--target) dieselbe Zahl lesen muss.
-
-   🪤 Klima ist überall ausgenommen -- es kann kein Ziel sein (avesmapsClimateAssertNotDerived), und ein
-   kartenbreites Leuchtband über allem wäre genau der Deckel, den diese Regel abschafft. Der `:not` ist
-   zugleich der Grund, warum die Regel der Klima-Pane nicht ausweichen muss: sie trifft sie gar nicht. */
-.ecosystem-pane--picking > svg path.leaflet-interactive {
-	stroke: var(--color-ecosystem-target-outline);
-	stroke-width: var(--ecosystem-pick-band-width);
+/* Die Kandidaten zeigen ihre Kante -- auch in „Alle", wo sie sonst keine tragen: ohne Kante gäbe es
+   nichts, worauf man zeigen kann. Es ist dieselbe Zahl wie die Kante beim Bearbeiten einer Ebene (oben),
+   also keine eigene Optik für die Zielwahl.
+   🪤 VIER Klassen (das `:not()` zählt mit seinem Argument): der Selektor muss
+   `.ecosystem-pane--active.ecosystem-pane--editable:not(.ecosystem-pane--showall)` (drei) schlagen, sonst
+   bliebe ausgerechnet „Alle" ohne Kante. */
+.ecosystem-pane--active.ecosystem-pane--editable.ecosystem-pane--picking:not(.ecosystem-pane--klima) {
+	--eco-contour: 0.7;
 }
 
-/* Der leuchtende Rand (Owner 2026-08-14). Halbdeckendes Gold sagt „hier kannst du anfassen"; die Fläche
-   unter dem Zeiger geht auf volle Deckung (.ecosystem-area--target weiter oben) und die Quelle behält
-   ihr Weiss -- drei Zustände, eine Farbe pro Bedeutung.
-
-   💣 EINE ZAHL FÜR BEIDE FÄLLE, deshalb die Selektorliste statt zweier Regeln. Die aktive Ebene braucht
-   den Rand genauso wie die ruhenden: der gemeldete Fall war Vegetation ↔ Vegetation, also zweimal
-   dieselbe Pane.
-
-   🪤 FÜNF Klassen im ersten Selektor, und das ist kein Zufall: er muss
-   `.ecosystem-pane--active.ecosystem-pane--editable:not(.ecosystem-pane--showall)` (vier) schlagen.
-   Sonst bliebe ausgerechnet „Alle" ohne Kontur -- der Modus, in dem man Überlappungen ansieht --, und
-   ohne Kontur gibt es hier nichts mehr zu treffen. Genau so war es gemeldet. */
-.ecosystem-pane--active.ecosystem-pane--editable.ecosystem-pane--picking:not(.ecosystem-pane--klima),
-.ecosystem-pane--resting.ecosystem-pane--picking:not(.ecosystem-pane--klima) {
-	--eco-contour: 0.55;
-}
-
-/* Die ruhenden Ebenen antworten -- über ihr Band. `auto` stand hier bis 2026-08-14 und meinte die
-   Füllung. Vier Klassen schlagen Leaflets eigene Regel; die Klima-Regel darüber hat fünf und behält
-   ihr `none`. */
-.leaflet-pane.ecosystem-pane--resting.ecosystem-pane--picking > svg path.leaflet-interactive {
-	pointer-events: stroke;
+/* Der Zeiger sagt, ob unter ihm ein Ziel liegt. Drei Klassen schlagen Leaflets `.leaflet-grab`. */
+.leaflet-container.leaflet-grab.ecosystem-zielwahl--treffer {
 	cursor: pointer;
 }
 
-/* Und die aktive Ebene ebenso. Eigene Regel, weil die darüber nur die ruhenden meint und Leaflets
-   `pointer-events: auto` (zwei Klassen) sonst stehen bliebe -- dann träfe im gemeldeten Fall
-   weiterhin die Füllung. Der `:not` hält die Klima-Pane heraus, deren „none"-Regel in „Alle" ebenfalls
-   vier Klassen hat: ohne ihn entschiede die Reihenfolge im Stylesheet. */
-.leaflet-pane.ecosystem-pane--active.ecosystem-pane--picking:not(.ecosystem-pane--klima) > svg path.leaflet-interactive {
-	pointer-events: stroke;
-	cursor: pointer;
+/* Die Kontur des Ziels -- reine Anzeige (`interactive: false`), gewählt wird im Skript.
+   💣 `stroke-dasharray: none` steht ausdrücklich da: eine derographische Fläche truege sonst über die
+   Regel ihrer Ebene die Strichelung mit, und eine gestrichelte Linie liest sich wieder halb durchsichtig.
+   Der dunkle Saum (`filter`) trägt das Gelb auf hellen Kacheln, auf denen Gelb allein verschwindet.
+   Die zarte Füllung zeigt, WELCHE Fläche gemeint ist, wenn ihr Rand mit einem anderen zusammenfällt
+   (Meer und Küstenregion) oder aus dem Bild läuft. */
+.leaflet-pane > svg path.ecosystem-zielkontur {
+	stroke: var(--color-ecosystem-target-active);
+	stroke-width: 3;
+	stroke-opacity: 1;
+	stroke-dasharray: none;
+	fill: var(--color-ecosystem-target-active);
+	fill-opacity: 0.18;
+	pointer-events: none;
+	filter: drop-shadow(0 0 1px var(--color-ecosystem-target-halo));
 }
 
 .leaflet-pane.ecosystem-pane--active > svg path.leaflet-interactive {

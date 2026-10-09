@@ -1096,14 +1096,19 @@ function endEcosystemMapTools() {
 	if (pinsel?.isActive?.()) {
 		pinsel.stop?.("Werkzeug beendet — in „Alle“ wird nicht bearbeitet.");
 	}
+	// 🔴 DIE ZIELWAHL ÜBERLEBT DEN WEG NACH „ALLE" -- als einzige (Owner 09.10.2026: „ein wechsel auf
+	// vegetation oder alles zeigt alles an und erlaubt dann vereinigungen damit"). Sie zeichnet nichts
+	// und schreibt erst beim Klick; „Alle" ist dort der Weg, Flächen ALLER Ebenen als Ziel anzubieten.
+	// Verschieben, Zerschneiden und die Unterflächen-Wahl bleiben Werkzeuge und enden hier wie bisher.
 	const operation = typeof window !== "undefined" ? window.AvesmapsEcosystemGeometryOps : null;
-	if (operation?.isPending?.()) {
+	if (operation?.isPending?.() && !operation.isPickingTarget?.()) {
 		operation.cancel?.();
 	}
 }
 
 function setEcosystemShowAllLayers(on) {
-	// 🔴 KEIN WERKZEUG ÜBERLEBT DEN WEG NACH „ALLE“. Sonst klebt ein halb gezeichneter Umriss weiter am
+	// 🔴 KEIN WERKZEUG ÜBERLEBT DEN WEG NACH „ALLE“ -- ausser der Zielwahl einer Zwei-Flächen-Geste, die
+	// kein Werkzeug ist (Begründung in endEcosystemMapTools). Sonst klebt ein halb gezeichneter Umriss weiter am
 	// Zeiger, und sein abschliessender Doppelklick schreibt in eine Ansicht, die gar nichts mehr
 	// bearbeitet. Beendet wird VOR dem Umlegen des Schalters: die Werkzeuge räumen selbst auf, und ihr
 	// Aufräumen fragt teils dieselbe Bedingung, die gleich umspringt.

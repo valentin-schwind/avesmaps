@@ -3,16 +3,17 @@
 // alles, was in der IIFE von map-features-ecosystem-geometry-ops.js liegt und deshalb nur über den
 // Quelltext erreichbar ist.
 //
-// 💣 DIE EBENEN-REGEL IST DIE EIGENTLICHE ENTSCHEIDUNG DIESER GESTE, und sie sieht falsch aus. Neben
-// ihr steht „Mit anderer vereinigen", das über Ebenengrenzen GESPERRT ist -- wer die neue Zeile
-// später liest, zieht die Sperre aus Symmetrie nach und nimmt der Geste damit ihren Hauptfall. Der
-// Unterschied ist begründet: die Vereinigung LÖSCHT ihr Ziel, das Ziel verlöre also seine Art; die
-// behaltende Fassung lässt es stehen. Owner-Entscheid 25.08.2026.
+// 🔴 DIE EBENEN-REGEL HAT SICH AM 09.10.2026 GEDREHT. Bis dahin war „Mit anderer vereinigen" über
+// Ebenengrenzen GESPERRT und nur die behaltende Fassung frei (Owner 25.08.2026). Seither entscheidet die
+// ANSICHT, welche Flächen Ziel sein können -- nur die der sichtbaren Ebene(n) --, und dann dürfen ALLE
+// fünf Gesten mit ihnen arbeiten (Owner: „bei der auswahl immer in der ebene bleiben, die man gerade
+// betreibt. ein wechsel auf vegetation oder alles zeigt alles an und erlaubt dann vereinigungen
+// damit"). Den Ablauf selbst fährt js/map-features/__tests__/ecosystem-zielwahl.test.js; hier steht,
+// was am Quelltext hängt.
 //
-// 💣 UND DIE ZWEITE STELLE. Die Ebenen-Regel wird zweimal gelesen -- vom Riegel, der die Operation
-// abbricht, und vom Hinweis, der beim Start im Toast steht. Getrennt gepflegt verspricht der Toast
-// eine Freiheit, die der Riegel gleich darauf zurücknimmt; genau so stand es bis zum 25.08.2026 bei
-// „Mit anderer vereinigen" da.
+// 💣 UND DER HINWEIS BEIM START verspricht nur, was die Zielwahl hält: er nennt die gelbe Markierung
+// und das Umschalten, nicht mehr „auch auf einer anderen Ebene" -- das tat er bis zum 25.08.2026 bei
+// „Mit anderer vereinigen", und der Riegel nahm es eine Sekunde später zurück.
 
 const assert = require("node:assert");
 const fs = require("node:fs");
@@ -47,31 +48,38 @@ assert.ok(
 
 // ---- die Ebenen-Regel ---------------------------------------------------------------------------
 //
-assert.ok(
-	/function operationMayCrossKinds\(operation\)\s*{\s*return operation !== "union";/.test(ops),
-	"Die Ebenen-Regel steht nicht mehr als eigene Funktion da. Sie ist die Owner-Entscheidung dieser"
-	+ " Geste: gebunden ist `union` ALLEIN, weil nur sie ihr Ziel löscht."
-);
-
-assert.strictEqual(
-	(ops.match(/operationMayCrossKinds\(/g) || []).length,
-	3,
-	"Die Ebenen-Regel muss GENAU von ihrer Definition plus zwei Lesern getragen werden: dem Riegel in"
-	+ " completeTargetOperation und dem Hinweis im Toast. Ein dritter Leser oder ein abgeschriebener"
-	+ " Vergleich ist die Divergenz, die den Toast lügen lässt."
-);
+// 💣 Kommentare gelesen wie Code wären hier die häufigste Art eines grünen Tests, der nichts hält: die
+// Prosa nennt die alte Sperre ausdrücklich. Gezählt wird deshalb im Quelltext OHNE Kommentare.
+const opsCode = ops.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
 
 assert.ok(
-	!/operation === "union" && String\(source\.kind\)/.test(ops),
-	"Der Riegel vergleicht wieder von Hand gegen \"union\", statt operationMayCrossKinds zu fragen."
+	!/operationMayCrossKinds/.test(opsCode),
+	"Die alte Ebenen-Sperre (operationMayCrossKinds) ist zurück. Seit dem 09.10.2026 entscheidet die"
+	+ " Ansicht, welche Ebenen Ziele anbieten -- eine zweite Regel daneben lehnte wieder ab, was die"
+	+ " Zielwahl gerade angeboten hat."
+);
+assert.ok(
+	!/Vereinigen geht nur innerhalb einer Ebene/.test(opsCode),
+	"Die Absage „Vereinigen geht nur innerhalb einer Ebene\" ist zurück -- genau die Meldung, die der"
+	+ " Owner am 09.10.2026 bei den Windhagbergen bekam, obwohl er die Windhagberge angeklickt hatte."
 );
 
-// 🪤 Der Toast darf „auch auf einer anderen Ebene" nicht mehr bedingungslos versprechen.
-const toast = ops.slice(ops.indexOf("TARGET_OPERATIONS.forEach"));
+// Die EINE Frage, welche Ebenen Ziele anbieten -- und sie fragt dieselbe Funktion wie die Pane-Klassen.
+const sichtbar = opsCode.slice(opsCode.indexOf("function zielEbeneSichtbar"),
+	opsCode.indexOf("function isTargetOperation"));
+assert.ok(sichtbar.includes("isEcosystemKindVisible"),
+	"zielEbeneSichtbar fragt nicht isEcosystemKindVisible -- dann böte die Zielwahl andere Ebenen an,"
+	+ " als die Karte zeigt.");
+assert.ok(/"klima"/.test(sichtbar),
+	"zielEbeneSichtbar nimmt Klima nicht aus. Ein Klimaband ist abgeleitet und kann nie Ziel sein"
+	+ " (avesmapsClimateAssertNotDerived).");
+
+// 🪤 Der Hinweis beim Start: EIN Text für alle fünf, und er sagt, was die Zielwahl wirklich tut.
+const toast = opsCode.slice(opsCode.indexOf("TARGET_OPERATIONS.forEach"));
 assert.ok(
-	toast.includes("operationMayCrossKinds(operation.action)"),
-	"Der Hinweis beim Start fragt die Ebenen-Regel nicht. Dann verspricht er auch bei „Mit anderer"
-	+ " vereinigen\" eine andere Ebene, und der Riegel nimmt es eine Sekunde später zurück."
+	/gelb markiert/.test(toast) && /umschalten/.test(toast),
+	"Der Hinweis beim Start nennt die gelbe Markierung oder das Umschalten der Ebene nicht mehr -- beides"
+	+ " ist die Bedienung der Zielwahl seit dem 09.10.2026."
 );
 
 // ---- Glyphe und Übersetzung ---------------------------------------------------------------------

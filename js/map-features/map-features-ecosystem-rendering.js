@@ -1104,7 +1104,7 @@ function buildEcosystemAreaLayer(area) {
 		// gewohnte Auswählen. Dieselbe Bauart wie der isEcosystemDrawing()-Riegel oben: eine Geste, die
 		// den Klick schon vergeben hat, bekommt ihn zuerst. Gewacht, damit diese Datei ohne
 		// map-features-ecosystem-geometry-ops.js weiterläuft.
-		if (window.AvesmapsEcosystemGeometryOps?.handleAreaClick?.(area.public_id)) {
+		if (window.AvesmapsEcosystemGeometryOps?.handleAreaClick?.(area.public_id, event)) {
 			return;
 		}
 		// In „Alle" antworten alle drei Ebenen. Wer hier eine Fläche anklickt, meint sie -- und meint

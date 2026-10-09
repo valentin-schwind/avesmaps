@@ -1097,6 +1097,11 @@ function handleEcosystemMapClickDeselect(event) {
 	if (typeof isEcosystemDrawing === "function" && isEcosystemDrawing()) {
 		return;
 	}
+	// Dasselbe bei der Zielwahl einer Zwei-Flächen-Geste: die Flächen sind dann klickdurchlässig, JEDER
+	// Klick kommt bei der Karte an und ist die Wahl des Ziels -- nicht das Loslassen der Quelle.
+	if (window.AvesmapsEcosystemGeometryOps?.isPickingTarget?.()) {
+		return;
+	}
 	if (typeof getSelectedEcosystemAreaPublicId !== "function" || !getSelectedEcosystemAreaPublicId()) {
 		return;
 	}

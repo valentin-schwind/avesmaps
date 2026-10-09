@@ -18,9 +18,13 @@
  * eigenem Test, den auch der Siedlungseditor lädt -- kein Herrschaftsgebiete-Modul.
  *
  * 💣 ZWEISTUFIGE OPERATIONEN LAUFEN ÜBER EINEN ZUSTAND, und der muss zuverlässig wieder weggehen.
- * Deshalb bricht ihn ALLES ab, was „ich meine etwas anderes" heißt: Escape, ein Rechtsklick auf die
- * freie Karte, ein Ebenenwechsel. Ein hängengebliebener „jetzt die zweite Fläche anklicken"-Zustand
- * würde den nächsten harmlosen Klick in eine Geometrieänderung verwandeln.
+ * Deshalb bricht ihn ab, was „ich meine etwas anderes" heißt: Escape und ein Rechtsklick auf die Karte
+ * (während der Zielwahl auch über einer Fläche -- die nehmen dann keine Klicks an). Ein
+ * hängengebliebener „jetzt die zweite Fläche anklicken"-Zustand würde den nächsten harmlosen Klick in
+ * eine Geometrieänderung verwandeln.
+ * 🔴 Ein EBENENWECHSEL bricht die Zielwahl NICHT ab (Owner 09.10.2026): umschalten ist dort der Weg,
+ * Flächen einer anderen Ebene als Ziel anzubieten. Verschieben, Zerschneiden und die Unterflächen-Wahl
+ * enden beim Wechsel nach „Alle" weiterhin (endEcosystemMapTools).
  */
 (function initEcosystemGeometryOps() {
 	"use strict";
@@ -64,13 +68,34 @@
 		return entry ? entry.label : String(operation || "Geometrieoperation");
 	}
 
-	// 🔴 DIE EBENEN-REGEL STEHT EINMAL: hier. Zwei Stellen lesen sie -- der Riegel in
-	// completeTargetOperation und der Hinweis, der beim Start im Toast erscheint. Getrennt gepflegt
-	// verspricht der Toast eine Freiheit, die der Riegel eine Sekunde später zurücknimmt; genau das tat
-	// er bis zum 25.08.2026 bei „Mit anderer vereinigen" („auch auf einer anderen Ebene" -- und dann die
-	// Absage). Die Begründung, warum die Vereinigung als einzige gebunden ist, steht am Riegel.
-	function operationMayCrossKinds(operation) {
-		return operation !== "union";
+	// 🔴 WELCHE EBENEN DIE ZIELWAHL ANBIETET, entscheidet die ANSICHT -- nicht mehr die Operation
+	// (Owner 09.10.2026: „bei der auswahl immer in der ebene bleiben, die man gerade betreibt. ein wechsel
+	// auf vegetation oder alles zeigt alles an und erlaubt dann vereinigungen damit").
+	//
+	// 💣 Das hebt zwei frühere Regeln auf, und beides ist gewollt:
+	//   * die Zielwahl weckt die ruhenden Ebenen NICHT mehr (Owner 2026-07-27). Sie lagen danach mit
+	//     ihren Rändern auf denen der eigenen Ebene, und die feste Pane-Leiter entschied, wer den Klick
+	//     bekommt -- an jeder gemeinsamen Küste die falsche Fläche.
+	//   * „Mit anderer vereinigen" ist über Ebenen hinweg nicht mehr gesperrt (Sperre seit 25.08.2026).
+	//     Wer eine andere Ebene sehen will, schaltet sie oben um, und damit ist es eine ausdrückliche Wahl.
+	//     Die Vereinigung schreibt weiterhin auf die Quelle (deren Art bleibt) und löscht das Ziel.
+	//
+	// Klimabänder sind nie ein Ziel: sie sind abgeleitet, und der Server lehnt jede Flächenoperation
+	// darauf ab (avesmapsClimateAssertNotDerived). Gefragt wird isEcosystemKindVisible, dieselbe Frage,
+	// die die Pane-Klassen verteilt -- angeboten wird also genau, was man sieht.
+	function zielEbeneSichtbar(kind) {
+		const art = String(kind || "");
+		if (art === "" || art === "klima") {
+			return false;
+		}
+		if (typeof isEcosystemKindVisible === "function") {
+			return isEcosystemKindVisible(art);
+		}
+		return typeof getActiveEcosystemLayerKind === "function" && art === getActiveEcosystemLayerKind();
+	}
+
+	function isTargetOperation(operation) {
+		return TARGET_OPERATIONS.some((entry) => entry.action === operation);
 	}
 
 	// Der laufende Zustand. null = nichts vorgemerkt.
@@ -242,6 +267,8 @@
 			map.off("click", handleMapClick);
 			map.off("mousemove", handleMapMouseMove);
 			map.off("mousemove", handleSubareaMouseMove);
+			map.off("mousemove", handleTargetMouseMove);
+			map.off("mouseout", clearTargetHighlight);
 		}
 		if (!silent) {
 			say("Abgebrochen.", "info");
@@ -254,22 +281,30 @@
 		hookMap();
 	}
 
-	// Die ruhenden Ebenen für die Dauer der Zielwahl zurückholen -- sichtbar UND anklickbar. Ohne das
-	// liesse sich ein See (Topographie) nie aus einem Wald (Vegetation) ausschneiden: die andere Ebene
-	// ist sonst auf 0% gezeichnet und klickdurchlässig (css/features/ecosystem-layer.css).
+	// Den Zustand „Zielwahl läuft" an Panes und Kartenrahmen hängen. Er WECKT seit dem 09.10.2026 keine
+	// ruhende Ebene mehr (siehe zielEbeneSichtbar) -- er schaltet nur die Flächen der sichtbaren Ebenen
+	// klickdurchlässig, damit der Klick bei der Karte ankommt und HIER entschieden wird
+	// (css/features/ecosystem-layer.css, Abschnitt „Zielwahl").
+	//
+	// 🪤 Die Klasse an den Panes bleibt auch deshalb, weil js/app/keyboard-shortcuts.js an ihr erkennt,
+	// dass ein Werkzeug läuft, und die Tastenbefehle dann schweigen.
 	//
 	// Nur für die Zwei-Flächen-Operationen. Zerschneiden und Verschieben arbeiten auf der EINEN Fläche,
-	// die schon gewählt ist; dort wäre die andere Ebene bloss Unruhe.
+	// die schon gewählt ist.
 	function setLayerPicking(on) {
-		// 💣 Auch hier zuerst die offenen Schwebezettel schliessen: dieser Griff macht ruhende Panes
-		// anklickbar und wieder klickdurchlässig, und eine Fläche, die unter dem Zeiger umgeschaltet wird,
-		// sieht nie wieder ein `mouseout` -- ihr Zettel bliebe stehen. Begründung an
-		// closeAllEcosystemAreaTooltips (map-features-ecosystem-rendering.js).
+		// 💣 Auch hier zuerst die offenen Schwebezettel schliessen: eine Fläche, die unter dem Zeiger
+		// klickdurchlässig wird, sieht nie wieder ein `mouseout` -- ihr Zettel bliebe stehen. Begründung
+		// an closeAllEcosystemAreaTooltips (map-features-ecosystem-rendering.js).
 		if (typeof closeAllEcosystemAreaTooltips === "function") {
 			closeAllEcosystemAreaTooltips();
 		}
 		document.querySelectorAll(".ecosystem-pane")
 			.forEach((pane) => pane.classList.toggle("ecosystem-pane--picking", Boolean(on)));
+		const container = typeof map !== "undefined" && map && typeof map.getContainer === "function" ? map.getContainer() : null;
+		container?.classList.toggle("ecosystem-zielwahl", Boolean(on));
+		if (!on) {
+			container?.classList.remove("ecosystem-zielwahl--treffer");
+		}
 	}
 
 	function hookMap() {
@@ -289,59 +324,182 @@
 		});
 	}
 
-	// ---- Ziel-Hervorhebung ---------------------------------------------------------------------------
-	// Während eine Zwei-Flächen-Operation läuft, bekommt die Fläche unter der Maus eine goldene Kontur:
-	// dieselbe Auskunft, die das Herrschaftsgebiete-Menü gibt („welche erwische ich, wenn ich klicke").
+	// ---- Zielwahl: Hervorhebung und Klick aus EINER Hand ---------------------------------------------
+	// 🔴 GENOMMEN WIRD, WAS GELB MARKIERT IST (Owner 09.10.2026). Überfahren und Klick fragen dieselbe
+	// Funktion (zielAn -> ecosystemBooleanZielWaehlen), an derselben Stelle -- es gibt keinen zweiten
+	// Weg, auf dem ein Klick ein anderes Ziel finden könnte als die Markierung davor.
 	//
-	// Über eine KLASSE, nicht über layer.setStyle wie dort: die Territorien schreiben `#fff4a3` inline
-	// ins JS (region-pending-highlight.js:16) und müssen den alten Stil hinterher von Hand
-	// wiederherstellen. Eine Klasse kennt der Landschafts-Layer ohnehin (ecosystem-area--selected), sie
-	// braucht kein Zurückschreiben und die Farbe steht als Token da, wo Farben hingehören.
-	let highlightBound = false;
+	// 💣 DESHALB NIMMT WÄHREND DER ZIELWAHL KEINE FLÄCHE SELBST DEN KLICK (`pointer-events: none`, CSS).
+	// Vorher entschied der Browser, welches SVG-Element oben liegt -- an gemeinsamen Rändern war das die
+	// Derographie oder ein Hangwald statt des Meeres oder Gebirges, das man meinte (gemessen 09.10.2026,
+	// Begründung an ecosystemBooleanZielWaehlen). Jetzt kommt jeder Klick bei der Karte an.
+	//
+	// 🔴 DIE GELBE KONTUR IST EINE EIGENE LINIE ÜBER ALLEN FLÄCHEN, nicht eine Klasse am Pfad (Owner:
+	// „die gelbe kontur, deren fläche übernommen werden soll, nicht transparent machen"). Als Klasse lag
+	// sie an ihrem Stapelplatz -- unter jeder halbdeckenden Fläche, die darüber gezeichnet ist, und
+	// damit genau dort blass, wo sie am meisten gebraucht wird. Dieselbe Bauart wie die Unterflächen-Wahl
+	// darunter: `interactive: false`, rein zum Zeigen.
+	//
+	// ⚠️ Die REICHWEITE ist der halbe frühere Anfasser (12px Band -> 6px je Seite) und steht hier, nicht
+	// mehr als CSS-Strichbreite: die sichtbare Linie darf dünn sein, ohne dass das Treffen schwerer wird.
+	const ZIELWAHL_REICHWEITE_PX = 6;
 
-	function targetHighlightElement(publicId) {
-		const layer = typeof ecosystemLayers !== "undefined" && ecosystemLayers instanceof Map
-			? ecosystemLayers.get(String(publicId || ""))
+	let zielPublicId = "";
+	let zielKontur = null;
+	let zielFrame = 0;
+	let zielLetzterPunkt = null;
+
+	function layerByPublicId(publicId) {
+		return typeof ecosystemLayers !== "undefined" && ecosystemLayers instanceof Map
+			? ecosystemLayers.get(String(publicId || "")) || null
 			: null;
-		return typeof layer?.getElement === "function" ? layer.getElement() : null;
+	}
+
+	// Kartenpixel -> Karteneinheiten an dieser Stelle. L.CRS.Simple skaliert gleichmässig, gemessen wird
+	// trotzdem an der Karte statt 2^zoom anzunehmen -- so stimmt es auch bei Zwischenzoomstufen.
+	function kartenEinheitenProPixel(latlng) {
+		const a = map.latLngToContainerPoint([latlng.lat, latlng.lng]);
+		const b = map.latLngToContainerPoint([latlng.lat, latlng.lng + 1]);
+		const pixelProEinheit = Math.abs(b.x - a.x);
+		return pixelProEinheit > 0 ? 1 / pixelProEinheit : 0;
+	}
+
+	// Wo eine Fläche gezeichnet ist: der Platz ihrer Pane plus ihr Platz in der Pane. Nur bei einem
+	// Gleichstand gefragt (ecosystemBooleanZielWaehlen), also selten.
+	function stapelRang(kandidat) {
+		const pfad = kandidat.layer?._path;
+		const pane = pfad?.closest?.(".leaflet-pane");
+		const paneZ = pane ? Number(getComputedStyle(pane).zIndex) || 0 : 0;
+		const platz = pfad?.parentNode ? Array.prototype.indexOf.call(pfad.parentNode.children, pfad) : 0;
+		return paneZ * 1e6 + Math.max(0, platz);
+	}
+
+	// Darf diese Fläche überhaupt Ziel sein? Gefragt erst NACH dem Kastentest -- getComputedStyle über
+	// alle geladenen Flächen bei jeder Mausbewegung wäre die teure Fassung derselben Antwort.
+	// 💣 `display` statt einer Liste von Klassen: ausgeblendet wird an mehreren Stellen (Gewässer-Haken,
+	// Vereinfachen, Isolieren), und eine aufgezählte Liste wäre die, die beim nächsten Ausblender fehlt.
+	function zielZulassen(kandidat) {
+		const pfad = kandidat.layer?._path;
+		if (!pfad || pfad.isConnected === false) {
+			return false;
+		}
+		// Gesperrt heisst: der Zeiger fängt sie nicht (map-features-ecosystem-sperre.js).
+		// 🪤 Mit `true` statt über avesmapsEcosystemIstGesperrt gefragt: das verneint in „Alle“, weil dort
+		// sonst niemand bearbeitet -- die Zielwahl IST aber eine Bearbeitung, auch in „Alle“.
+		const sperre = typeof window !== "undefined" ? window.AvesmapsEcosystemSperre : null;
+		const gesperrt = typeof sperre?.greift === "function"
+			? sperre.greift(kandidat.area, true)
+			: kandidat.area?.is_locked === true;
+		if (gesperrt) {
+			return false;
+		}
+		return typeof getComputedStyle !== "function" || getComputedStyle(pfad).display !== "none";
+	}
+
+	// DIE Frage dieser Geste: welche Fläche meint der Zeiger an dieser Stelle? "" = keine.
+	function zielAn(latlng) {
+		if (!pending || !isTargetOperation(pending.operation) || !latlng || typeof map === "undefined" || !map) {
+			return "";
+		}
+		const pixel = kartenEinheitenProPixel(latlng);
+		if (!(pixel > 0)) {
+			return "";
+		}
+		const quelle = areaByPublicId(pending.sourcePublicId);
+		const kandidaten = [];
+		if (typeof ecosystemLayers !== "undefined" && ecosystemLayers instanceof Map) {
+			ecosystemLayers.forEach((layer) => {
+				const area = layer?._ecosystemArea;
+				if (!area || String(area.public_id) === pending.sourcePublicId || !zielEbeneSichtbar(area.kind)) {
+					return;
+				}
+				const geometry = area.geometry_geojson || area.geometry;
+				if (!geometry) {
+					return;
+				}
+				kandidaten.push({ publicId: String(area.public_id), kind: area.kind, geometry, bounds: area.bounds || null, layer, area });
+			});
+		}
+
+		return ecosystemBooleanZielWaehlen(kandidaten, latLngToPoint(latlng), {
+			toleranz: ZIELWAHL_REICHWEITE_PX * pixel,
+			// Was weniger als einen halben Pixel auseinanderliegt, ist auf dem Schirm DIESELBE Linie.
+			gleichstand: 0.5 * pixel,
+			quelleKind: quelle?.kind || "",
+			zulassen: zielZulassen,
+			rang: stapelRang,
+		});
 	}
 
 	function clearTargetHighlight() {
-		document.querySelectorAll(".ecosystem-area--target")
-			.forEach((element) => element.classList.remove("ecosystem-area--target"));
+		if (zielFrame && typeof cancelAnimationFrame === "function") {
+			cancelAnimationFrame(zielFrame);
+		}
+		zielFrame = 0;
+		zeigeZiel("", null);
 	}
 
-	// Einmal für alle Flächen, delegiert: die Ebenen werden beim Schwenken neu gebaut, ein Listener je
-	// Ebene wäre nach dem ersten Nachladen tot.
-	//
-	// 💣 AUF `document`, NICHT auf `.ecosystem-pane`. Davon gibt es DREI -- eine je Ebene
-	// (ECOSYSTEM_KIND_PANES) --, und `querySelector` liefert immer die erste, die derographische. Genau
-	// so hing der Listener zuerst an der falschen Pane und die Vegetationsflächen leuchteten nie auf.
-	function bindTargetHighlight() {
-		if (highlightBound) {
+	// Markierung, Schwebezettel und Zeiger auf genau EIN Ziel stellen.
+	// 🔴 Der Zettel kommt vom Ziel, nicht vom Pfad unter dem Zeiger (der nimmt keine Ereignisse mehr) --
+	// er nennt also immer die Fläche, die der Klick nehmen wird (Owner 20.08.2026: „wenn das ziellayer
+	// das gehighlighted wird auch mit tooltip versehen").
+	function zeigeZiel(publicId, latlng) {
+		const id = String(publicId || "");
+		const layer = id ? layerByPublicId(id) : null;
+		if (id !== zielPublicId) {
+			if (zielKontur && typeof map !== "undefined" && map) {
+				try { map.removeLayer(zielKontur); } catch (error) { /* schon weg */ }
+			}
+			zielKontur = null;
+			zielPublicId = "";
+			if (typeof closeAllEcosystemAreaTooltips === "function") {
+				closeAllEcosystemAreaTooltips();
+			}
+			const area = layer?._ecosystemArea;
+			const geometry = area ? (area.geometry_geojson || area.geometry) : null;
+			const latlngs = geometry && typeof ecosystemAreaLatLngs === "function" ? ecosystemAreaLatLngs(geometry) : null;
+			if (latlngs && typeof L !== "undefined") {
+				zielKontur = L.polygon(latlngs, { className: "ecosystem-zielkontur", interactive: false }).addTo(map);
+				zielPublicId = id;
+			}
+		}
+		if (zielPublicId && latlng && typeof layer?.openTooltip === "function") {
+			layer.openTooltip(latlng);
+		}
+		const container = typeof map !== "undefined" && map && typeof map.getContainer === "function" ? map.getContainer() : null;
+		container?.classList.toggle("ecosystem-zielwahl--treffer", zielPublicId !== "");
+	}
+
+	// Einmal je Bild, nicht je Mausereignis -- die Frage läuft über alle geladenen Flächen.
+	function handleTargetMouseMove(event) {
+		if (!pending || !isTargetOperation(pending.operation) || opsBusy) {
 			return;
 		}
-		highlightBound = true;
-		document.addEventListener("mouseover", (event) => {
-			if (!pending || pending.operation === "split" || pending.operation === "move") {
-				return;
+		zielLetzterPunkt = event?.latlng || null;
+		if (zielFrame) {
+			return;
+		}
+		const zeichnen = () => {
+			zielFrame = 0;
+			if (pending && isTargetOperation(pending.operation)) {
+				zeigeZiel(zielAn(zielLetzterPunkt), zielLetzterPunkt);
 			}
-			// Nur Landschaftsflächen -- eine politische Grenze oder ein Weg unter dem Zeiger ist kein Ziel.
-			const path = event.target?.closest?.(".ecosystem-pane path.leaflet-interactive");
-			if (!path) {
-				return;
-			}
-			// Die Quelle ist nicht ihr eigenes Ziel.
-			const sourceElement = targetHighlightElement(pending.sourcePublicId);
-			clearTargetHighlight();
-			if (path !== sourceElement) {
-				path.classList.add("ecosystem-area--target");
-			}
-		});
-		document.addEventListener("mouseout", (event) => {
-			const path = event.target?.closest?.(".ecosystem-pane path.leaflet-interactive");
-			path?.classList.remove("ecosystem-area--target");
-		});
+		};
+		zielFrame = typeof requestAnimationFrame === "function" ? requestAnimationFrame(zeichnen) : 0;
+		if (!zielFrame) {
+			zeichnen();
+		}
+	}
+
+	// Der Klick: dieselbe Frage an derselben Stelle wie die Markierung davor.
+	function waehleZielAn(latlng) {
+		const id = zielAn(latlng);
+		if (!id) {
+			say("Kein Ziel getroffen — auf den Rand einer Fläche klicken.", "info");
+			return;
+		}
+		zeigeZiel(id, latlng);
+		void completeTargetOperation(id);
 	}
 
 	// ---- Zwei-Flächen-Operationen -------------------------------------------------------------------
@@ -359,20 +517,12 @@
 			say("Bitte eine andere Fläche wählen.", "warning");
 			return;
 		}
-		// 🔴 Ausschneiden und Schneiden dürfen über Ebenengrenzen gehen -- ein See aus einem Wald ist
-		// genau der Fall, für den die Zielwahl geöffnet wurde. VEREINIGEN darf es nicht: das Ergebnis
-		// landet auf der Quelle und trüge deren Art, der See würde also zu Wald -- und die Vereinigung
-		// LÖSCHT ihr Ziel obendrein. Das ist kein Handgriff, den man versehentlich tun können soll.
-		//
-		// 💣 Die Sperre gilt `union` ALLEIN, und `union-keep-target` gehört ausdrücklich NICHT dazu --
-		// aus Symmetrie nachgezogen wäre sie dort falsch. Beide Hälften der Begründung oben entfallen
-		// bei der behaltenden Fassung: das Ziel bleibt stehen und behält damit seine Art, und gelöscht
-		// wird es ohnehin nicht. Sie benutzt die andere Fläche als SCHABLONE, genau wie
-		// `difference-keep-target` -- und über Ebenen hinweg ist das ihr Hauptfall (Owner 25.08.2026).
-		if (!operationMayCrossKinds(operation) && String(source.kind) !== String(target.kind)) {
-			say("Vereinigen geht nur innerhalb einer Ebene — sonst würde die andere Fläche ihre Art verlieren.", "warning");
-			return;
-		}
+		// 🔴 KEINE EBENEN-SPERRE MEHR (Owner 09.10.2026). Bis dahin lehnte „Mit anderer vereinigen" ein
+		// Ziel einer anderen Ebene ab. Seither bietet die Zielwahl nur an, was SICHTBAR ist
+		// (zielEbeneSichtbar) -- eine andere Ebene kommt also nur ins Spiel, wenn man sie oben
+		// ausdrücklich umgeschaltet hat, und dann ist die Vereinigung gewollt.
+		// ⚠️ Was sie tut, bleibt: die Quelle bekommt die vereinigte Form und behält IHRE Art, das Ziel wird
+		// gelöscht (ecosystemBooleanConsumesTarget).
 
 		opsBusy = true;
 		try {
@@ -668,6 +818,14 @@
 			cancelPending();
 			return;
 		}
+		// Die Zielwahl der Zwei-Flächen-Gesten: die Flächen nehmen während ihrer Dauer keine Klicks an,
+		// also kommt JEDER Klick hier an -- und wird mit derselben Frage beantwortet wie die Markierung.
+		if (isTargetOperation(pending.operation)) {
+			if (!opsBusy) {
+				waehleZielAn(event?.latlng);
+			}
+			return;
+		}
 		if (pending.operation !== "split") {
 			return;
 		}
@@ -684,7 +842,12 @@
 
 	// Ein Klick auf eine Fläche, WÄHREND eine Zwei-Flächen-Operation vorgemerkt ist, ist die Zielwahl --
 	// nicht das gewohnte Auswählen. Gibt `true` zurück, wenn der Klick verbraucht wurde.
-	function handleAreaClick(publicId) {
+	//
+	// ⚠️ Bei der Zielwahl sollte dieser Weg gar nicht mehr laufen (die Flächen sind dann klickdurchlässig,
+	// der Klick geht an handleMapClick). Kommt doch einer an -- etwa weil eine Regel mit mehr Klassen
+	// eine Fläche wieder anklickbar macht --, entscheidet trotzdem NICHT die getroffene Fläche, sondern
+	// dieselbe Frage an derselben Stelle. Sonst gäbe es wieder zwei Wege zu zwei verschiedenen Zielen.
+	function handleAreaClick(publicId, event) {
 		// 🪤 Auch wenn nichts vorgemerkt ist: DIESER Klick ist der, der gleich eine Auswahl erzeugt, und
 		// der Rechtsklick daneben soll sie wieder freigeben können. Der Kartenhaken muss also spätestens
 		// jetzt sitzen -- und `map` gibt es hier garantiert, denn die Fläche liegt darauf.
@@ -709,8 +872,11 @@
 			}
 			return true;
 		}
-		void completeTargetOperation(publicId);
-		return true;
+		if (isTargetOperation(pending.operation)) {
+			waehleZielAn(event?.latlng || zielLetzterPunkt);
+			return true;
+		}
+		return false;
 	}
 
 	// ---- Menüeinträge -------------------------------------------------------------------------------
@@ -772,12 +938,14 @@
 				startPending(operation.action, publicId);
 				if (typeof map !== "undefined" && map) {
 					map.on("click", handleMapClick);
+					map.on("mousemove", handleTargetMouseMove);
+					// Zeiger verlässt die Karte (etwa zum Ebenen-Umschalter): keine Markierung stehen lassen,
+					// die zu keiner Zeigerstelle mehr gehört.
+					map.on("mouseout", clearTargetHighlight);
 				}
-				bindTargetHighlight();
 				setLayerPicking(true);
-				say(operationMayCrossKinds(operation.action)
-					? "Jetzt die zweite Fläche anklicken — auch auf einer anderen Ebene. ESC bricht ab."
-					: "Jetzt die zweite Fläche auf derselben Ebene anklicken. ESC bricht ab.", "info");
+				say("Jetzt den Rand der zweiten Fläche anklicken — genommen wird, was gelb markiert ist."
+					+ " Andere Ebene: oben umschalten. ESC bricht ab.", "info");
 			}, false, "mit-anderer");
 		});
 
