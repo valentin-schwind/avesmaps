@@ -1,0 +1,62 @@
+{
+  "ok": true,
+  "map_revision": 169042,
+  "aliase_stempel": "ra-3c1f0b2a9d84e765",
+  "registry_revision": "wsp-8e2d41c07b9fa315",
+  "kopf": {
+    "registry_zeilen": 9,
+    "siedlungen": 7,
+    "andere_klassen": 2,
+    "je_klasse": { "metropole": 1, "grossstadt": 1, "stadt": 1, "kleinstadt": 0, "dorf": 2, "gebaeude": 1, "stadtviertel": 1 },
+    "ohne_schluessel": 0,
+    "verschiedene_schluessel": 7,
+    "mit_ort": 3,
+    "ohne_ort": 4,
+    "legacy_auf_karte": 3,
+    "bauwerkstyp_ausgeschlossen": 1
+  },
+  "siedlungen": [
+    {
+      "titel": "Baronie Ochsenblut",
+      "wiki_key": "wiki:baronie-ochsenblut",
+      "ns": 0,
+      "ns_name": "",
+      "weiterleitung_auf": null,
+      "wiki_url": "https://de.wiki-aventurica.de/wiki/Baronie_Ochsenblut",
+      "ortsklasse": "dorf",
+      "ortsklasse_label": "Dorf",
+      "bauwerkstyp": null,
+      "bauwerkstyp_ausgeschlossen": false,
+      "ist_ruine": true,
+      "kontinent": "Aventurien",
+      "lage": "Garetien · Mittelreich",
+      "standort": null,
+      "hat_wappen": false,
+      "abgerufen_am": "2026-09-08 12:00:00.000",
+      "angereichert_am": null,
+      "orte": [],
+      "legacy_auf_karte": false
+    },
+    {
+      "titel": "Havena (Siedlung)",
+      "wiki_key": "wiki:havena",
+      "ns": 0,
+      "ns_name": "",
+      "weiterleitung_auf": { "wiki_key": "wiki:havena", "titel": null, "ns": null, "ns_name": null },
+      "wiki_url": "https://de.wiki-aventurica.de/wiki/Havena_%28Siedlung%29",
+      "ortsklasse": "grossstadt",
+      "ortsklasse_label": "Großstadt",
+      "bauwerkstyp": null,
+      "bauwerkstyp_ausgeschlossen": false,
+      "ist_ruine": false,
+      "kontinent": "Aventurien",
+      "lage": "Albernia · Mittelreich",
+      "standort": null,
+      "hat_wappen": true,
+      "abgerufen_am": "2026-09-08 12:00:00.000",
+      "angereichert_am": "2026-09-08 12:05:00",
+      "orte": ["11111111-1111-4111-8111-000000000003"],
+      "legacy_auf_karte": true
+    }
+  ]
+}

@@ -504,6 +504,7 @@ The following endpoints are used by the Avesmaps app. They are reachable, but no
 /api/app/visitor-metrics.php
 /api/app/wiki-linkziele-export.php
 /api/app/wiki-redirects-export.php
+/api/app/wiki-siedlungen-export.php
 /api/app/wiki-zuordnung-export.php
 ```
 
@@ -676,7 +677,7 @@ GET /api/app/wiki-zuordnung-export.php   (X2)
   cover the territory table, the redirect table and the dump run. ⚠️ X1 is about 4 MB uncompressed and X2 about 1.6 MB —
   fetch them on demand, never in a loop.
 
-## Legacy exports for Avesmaps3D (E1–E6)
+## Legacy exports for Avesmaps3D (E1–E6, X3)
 
 Read-only exports built on request of Avesmaps3D (2026-10-04,
 `project-control/legacy-requests/2026-10-04-infopanel-domaenen-und-medien-exporte.md` in the avesmaps3D repo). All of
@@ -701,6 +702,7 @@ fetched on demand, never in a loop (STRATO).
 | E5 A | `GET /api/app/media-export.php` | the public media manifest — exactly what Legacy shows everybody today |
 | E5 B | `GET /api/edit/migration/media-export.php` | **admin session**; every medium incl. non-public ones, suppressions, raw rights codes, notes, authors, upload stamps; plus `game_literature` and `citymaps` blocks with places/links incl. `origin`/`status` (suppressed included), the citymap build key and its own wiki-article assignment |
 | E6 | `GET /api/app/uploads-export.php` | Every media file under `uploads/`: path, size, mtime. One GET answers "what changed?" so Avesmaps3D fetches only new or altered files instead of 2,483 conditional requests. No bytes, no SHA-256, no database. Only the extensions in `AVESMAPS_UPLOADS_EXPORT_ENDUNGEN` are listed; `uploads/db-backups/` and `uploads/dumps/` are never entered. |
+| X3 | `GET /api/app/wiki-siedlungen-export.php` | Every settlement row of the wiki registry `wiki_sync_pages` (the seven place classes of `AVESMAPS_ORTSKLASSEN`): the canonical `wiki_key` by the same rule as X1/X2 (namespace, redirect), class, building type, ruin, continent, `lage`, raw `standort`, `hat_wappen`, fetch stamps. `orte` = the active locations whose `wiki_settlement` nest resolves to that key (the X2 rule); `legacy_auf_karte` = the list's own name-based verdict, as evidence only. No coat URL, no infobox cache, no categories, no coordinates. |
 
 Notes per export:
 
@@ -744,6 +746,11 @@ Notes per export:
   removed or renamed, which is what makes a recursive listing describe no single moment. A file overwritten in place
   is deliberately *not* covered here; the consumer books size, ETag and `Last-Modified` from the file response, never
   from this listing.
+- **X3** answers the editor's "missing" tab: wiki settlements no location carries. It never compares names itself — `orte` goes
+  through the key of the nest's address, exactly like X2; `legacy_auf_karte` is `avesmapsIsTitleOnMap` (map-presence.php) and
+  travels only so Avesmaps3D can hold its count against Legacy's. Rows of an excluded building type (roads, walls, dams) are
+  exported with `bauwerkstyp_ausgeschlossen: true`, not dropped. `map_revision` and `aliase_stempel` come from the same function
+  as X1/X2, so a consumer can tell whether X2 and X3 describe one state.
 - ⚠️ Every API request — these included — still records one usage row in `api_metric` at shutdown (operational
   telemetry in `bootstrap.php`, switchable via `config['api_metrics']['enabled']`). It never touches domain data.
 

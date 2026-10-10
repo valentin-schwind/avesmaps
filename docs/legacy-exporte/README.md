@@ -19,6 +19,7 @@ Feld dazu oder fällt eines weg, wird der Test rot, bis das Beispiel nachgezogen
 | `media-export.beispiel.json` | `GET /api/app/media-export.php` | E5 A (öffentlich) | `api/_internal/app/__tests__/medien-export-test.php` |
 | `media-export-migration.beispiel.json` | `GET /api/edit/migration/media-export.php` | E5 B, E5+ (nur Admin) | `api/_internal/app/__tests__/medien-export-test.php` |
 | `uploads-export.beispiel.json` | `GET /api/app/uploads-export.php` | E6 | `api/_internal/app/__tests__/uploads-export-test.php` |
+| `wiki-siedlungen-export.beispiel.json` | `GET /api/app/wiki-siedlungen-export.php` | X3 | `api/_internal/app/__tests__/wiki-siedlungen-export-test.php` |
 
 E1 (`wiki_key` am Quellenkatalog der Kartennutzlast) braucht kein eigenes Beispiel: der Katalogeintrag einer
 URL-losen Publikation sieht jetzt so aus —
