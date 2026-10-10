@@ -20,6 +20,12 @@ declare(strict_types=1);
 // vergleicht gefaltete NAMEN (Kartenname oder Titel des Nests). Es reist als Beleg mit, damit Avesmaps3D seine Zahl
 // „Fehlt" gegen die von Legacy halten kann. Ein Schluessel ist es nie.
 //
+// 🔴 `standort_links` (Ergaenzung 10.10.2026, Auftrag Avesmaps3D WI-0134, Betreiberentscheid F1 = B): die Linkziele der
+// rohen `standort`-Kette in der Reihenfolge des Quelltexts, je {ziel, ziel_key}. Zerlegt mit der EINEN Regex des Hauses
+// (avesmapsWikiLinkZielePaare, link-ziele.php, dieselbe wie X1), der Key durch DIESELBE Regel wie X1 `ziel_key`
+// (avesmapsWikiLinkzieleKey: Weiterleitungstafel, Namensraum im Slug). Kein Urteil (in, bei, unklar), keine Ortsaufloesung:
+// ein Linkziel NENNT einen Ort, es sagt nicht, dass das Bauwerk darin liegt. Ein Ziel ohne Schluessel traegt `ziel_key: null`.
+//
 // WELCHE ZEILEN. Die Ortsklassen aus AVESMAPS_ORTSKLASSEN (die fuenf Siedlungsgroessen, `gebaeude`, `stadtviertel`) --
 // genau die Klassen, die Legacys Liste zeigt. Zeilen ohne oder mit anderer Klasse sind keine Orte und gehen nicht
 // hinaus; ihre Zahl steht im Kopf. Ein Bauwerk, dessen Typ lineare Infrastruktur ist (Strasse, Mauer, Damm ...), blendet
@@ -61,6 +67,7 @@ const AVESMAPS_WIKI_SIEDLUNGEN_EXPORT_FELDER = [
     'kontinent',
     'lage',
     'standort',
+    'standort_links',
     'hat_wappen',
     'abgerufen_am',
     'angereichert_am',
@@ -68,12 +75,43 @@ const AVESMAPS_WIKI_SIEDLUNGEN_EXPORT_FELDER = [
     'legacy_auf_karte',
 ];
 
+// Die Felder je Linkziel einer Kette (hier `standort_links`, im Rohquellen-Export der Staetten dieselbe Form).
+const AVESMAPS_EXPORT_LINKZIEL_FELDER = ['ziel', 'ziel_key'];
+
 /** REIN: ein Text der Registry, leer heisst null -- „fehlt" und „ist leer" sagen dort dasselbe (siehe dump-entity-scan.php). */
 function avesmapsWikiSiedlungenExportText(mixed $wert): ?string
 {
     $text = trim((string) ($wert ?? ''));
 
     return $text === '' ? null : $text;
+}
+
+/**
+ * REIN: die Linkziele einer rohen Ortskette („[[Gareth]]: [[Arenaviertel]]") in der Reihenfolge des Quelltexts, je
+ * {ziel, ziel_key}. Die Zerlegung ist die EINE des Hauses (avesmapsWikiLinkZielePaare, wie X1), der Key die Regel von X1
+ * und X2 (avesmapsWikiLinkzieleKey). Ein Ziel ohne Schluessel traegt null -- er wird nie aus einem Namen geraten.
+ *
+ * 🔴 Kein Urteil: ob das Objekt IN dem genannten Ort liegt oder nur BEI ihm, steht im Text daneben und bleibt dort. Die
+ * Liste sagt nur, WELCHER Artikel genannt ist.
+ *
+ * @param array<string,string> $aliase
+ * @return list<array{ziel:string, ziel_key:?string}>
+ */
+function avesmapsExportLinkziele(?string $kette, array $aliase): array
+{
+    if ($kette === null || trim($kette) === '') {
+        return [];
+    }
+    $links = [];
+    foreach (avesmapsWikiLinkZielePaare($kette) as $paar) {
+        $schluessel = avesmapsWikiLinkzieleKey($paar['ziel'], $aliase);
+        $links[] = avesmapsExportProjektion([
+            'ziel' => $paar['ziel'],
+            'ziel_key' => $schluessel === '' ? null : $schluessel,
+        ], AVESMAPS_EXPORT_LINKZIEL_FELDER);
+    }
+
+    return $links;
 }
 
 /**
@@ -187,6 +225,7 @@ function avesmapsWikiSiedlungenExportZeile(array $zeile, array $aliase, array $o
     $schluessel = (string) ($daten['key'] ?? '');
     $bauwerkstyp = avesmapsWikiSiedlungenExportText($zeile['building_type'] ?? null);
     $ruine = $zeile['is_ruined'] ?? null;
+    $standort = avesmapsWikiSiedlungenExportText($zeile['standort'] ?? null);
 
     return avesmapsExportProjektion([
         'titel' => $titel,
@@ -202,7 +241,8 @@ function avesmapsWikiSiedlungenExportZeile(array $zeile, array $aliase, array $o
         'ist_ruine' => $ruine === null ? null : (int) $ruine !== 0,
         'kontinent' => avesmapsWikiSiedlungenExportText($zeile['continent'] ?? null),
         'lage' => avesmapsWikiSiedlungenExportText($zeile['lage'] ?? null),
-        'standort' => avesmapsWikiSiedlungenExportText($zeile['standort'] ?? null),
+        'standort' => $standort,
+        'standort_links' => avesmapsExportLinkziele($standort, $aliase),
         'hat_wappen' => avesmapsWikiSiedlungenExportText($zeile['coat_url'] ?? null) !== null,
         'abgerufen_am' => avesmapsWikiSiedlungenExportText($zeile['fetched_at'] ?? null),
         'angereichert_am' => avesmapsWikiSiedlungenExportText($zeile['enriched_at'] ?? null),
@@ -239,6 +279,7 @@ function avesmapsWikiSiedlungenExportDaten(PDO $pdo): array
     }
     $schluessel = array_values(array_filter(array_column($siedlungen, 'wiki_key'), static fn($key): bool => $key !== null));
     $mitOrt = count(array_filter($siedlungen, static fn(array $zeile): bool => $zeile['orte'] !== []));
+    $linkziele = array_merge(...array_column($siedlungen, 'standort_links'));
 
     return [
         'siedlungen' => $siedlungen,
@@ -255,6 +296,11 @@ function avesmapsWikiSiedlungenExportDaten(PDO $pdo): array
             'bauwerkstyp_ausgeschlossen' => count(array_filter(
                 $siedlungen,
                 static fn(array $zeile): bool => $zeile['bauwerkstyp_ausgeschlossen']
+            )),
+            'standort_linkziele' => count($linkziele),
+            'standort_linkziele_ohne_schluessel' => count(array_filter(
+                $linkziele,
+                static fn(array $link): bool => $link['ziel_key'] === null
             )),
         ],
     ];

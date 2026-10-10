@@ -499,6 +499,7 @@ The following endpoints are used by the Avesmaps app. They are reachable, but no
 /api/app/political-zoom-coverage-debug.php
 /api/app/report-location.php
 /api/app/share-link.php
+/api/app/staetten-rohquellen-export.php
 /api/app/territory-detail.php
 /api/app/track.php
 /api/app/visitor-metrics.php
@@ -677,7 +678,7 @@ GET /api/app/wiki-zuordnung-export.php   (X2)
   cover the territory table, the redirect table and the dump run. ⚠️ X1 is about 4 MB uncompressed and X2 about 1.6 MB —
   fetch them on demand, never in a loop.
 
-## Legacy exports for Avesmaps3D (E1–E6, X3)
+## Legacy exports for Avesmaps3D (E1–E6, X3, X4)
 
 Read-only exports built on request of Avesmaps3D (2026-10-04,
 `project-control/legacy-requests/2026-10-04-infopanel-domaenen-und-medien-exporte.md` in the avesmaps3D repo). All of
@@ -702,7 +703,8 @@ fetched on demand, never in a loop (STRATO).
 | E5 A | `GET /api/app/media-export.php` | the public media manifest — exactly what Legacy shows everybody today |
 | E5 B | `GET /api/edit/migration/media-export.php` | **admin session**; every medium incl. non-public ones, suppressions, raw rights codes, notes, authors, upload stamps; plus `game_literature` and `citymaps` blocks with places/links incl. `origin`/`status` (suppressed included), the citymap build key and its own wiki-article assignment |
 | E6 | `GET /api/app/uploads-export.php` | Every media file under `uploads/`: path, size, mtime. One GET answers "what changed?" so Avesmaps3D fetches only new or altered files instead of 2,483 conditional requests. No bytes, no SHA-256, no database. Only the extensions in `AVESMAPS_UPLOADS_EXPORT_ENDUNGEN` are listed; `uploads/db-backups/` and `uploads/dumps/` are never entered. |
-| X3 | `GET /api/app/wiki-siedlungen-export.php` | Every settlement row of the wiki registry `wiki_sync_pages` (the seven place classes of `AVESMAPS_ORTSKLASSEN`): the canonical `wiki_key` by the same rule as X1/X2 (namespace, redirect), class, building type, ruin, continent, `lage`, raw `standort`, `hat_wappen`, fetch stamps. `orte` = the active locations whose `wiki_settlement` nest resolves to that key (the X2 rule); `legacy_auf_karte` = the list's own name-based verdict, as evidence only. No coat URL, no infobox cache, no categories, no coordinates. |
+| X3 | `GET /api/app/wiki-siedlungen-export.php` | Every settlement row of the wiki registry `wiki_sync_pages` (the seven place classes of `AVESMAPS_ORTSKLASSEN`): the canonical `wiki_key` by the same rule as X1/X2 (namespace, redirect), class, building type, ruin, continent, `lage`, raw `standort`, `hat_wappen`, fetch stamps. `orte` = the active locations whose `wiki_settlement` nest resolves to that key (the X2 rule); `legacy_auf_karte` = the list's own name-based verdict, as evidence only. No coat URL, no infobox cache, no categories, no coordinates. Since WI-0134 also `standort_links`: the link targets of the raw `standort` chain as `{ziel, ziel_key}` (same split and key rule as X1), no verdict. |
+| X4 | `GET /api/app/staetten-rohquellen-export.php` | The raw source rows behind `in_settlement_places`, each with Legacy's own identifier and without verdict, de-duplication or derived city: `punkte` (location points `gebaeude`/`stadtviertel` with `innerorts`, active and taken off the map, `innerorts.ort` and its `field_origins`), `gespeicherte` (`settlement_place`, active, `settlement_public_id`), `wege` (`wiki_path_staging` with `lage_raw`), `sitze` (every row of `wiki_organisation_seat` with role and order), `stadtteile` (district redirects, identity = title, no own key). Chains carry their link targets with `ziel_key`. `kopf` has `ok` and a row count per source. |
 
 Notes per export:
 
@@ -751,6 +753,11 @@ Notes per export:
   travels only so Avesmaps3D can hold its count against Legacy's. Rows of an excluded building type (roads, walls, dams) are
   exported with `bauwerkstyp_ausgeschlossen: true`, not dropped. `map_revision` and `aliase_stempel` come from the same function
   as X1/X2, so a consumer can tell whether X2 and X3 describe one state.
+- **X4** exists so that Avesmaps3D can take over the sites of a place by identifier instead of by name. It never classifies
+  (no place-scope), never de-duplicates (an organisation with three seats is three rows) and never resolves a city: only the
+  stored identifiers travel (`innerorts.ort`, `settlement_public_id`). Each source has its own net; a failing source reports
+  `ok: false` in `kopf` and an empty list, the others stay complete. A district redirect has no `wiki_key` on purpose: through the
+  redirect table its title canonicalises to the key of its city. `map-features.php` and the visible list are not touched.
 - ⚠️ Every API request — these included — still records one usage row in `api_metric` at shutdown (operational
   telemetry in `bootstrap.php`, switchable via `config['api_metrics']['enabled']`). It never touches domain data.
 

@@ -6,7 +6,8 @@ declare(strict_types=1);
  * Der Export der Wiki-Siedlungen X3 -- GET /api/app/wiki-siedlungen-export.php (Auftrag Avesmaps3D 10.10.2026).
  *
  *   A. Inhalt: nur die Ortsklassen, genau die freigegebenen Felder, nach Titel; der Key nach der Regel von X1/X2
- *      (Weiterleitung, Namensraum), leere Werte als null
+ *      (Weiterleitung, Namensraum), leere Werte als null; die Linkziele der `standort`-Kette samt Key, ohne Urteil
+ *      (Ergaenzung WI-0134, Avesmaps3D 10.10.2026)
  *   B. Orte: nur ueber den Key des Nests, nur aktive Orte; Legacys Namensurteil reist getrennt mit
  *   C. Was NIE hinausgeht: Zwischenspeicher der Infobox, Kategorien, Koordinaten, Wappenadresse und Lizenz, Gottheit
  *   D. Kopf: die Zahlen passen zu den Zeilen
@@ -94,7 +95,9 @@ $seiteAnlegen(['title' => 'Baronie Ochsenblut', 'klasse' => 'dorf', 'label' => '
 $seiteAnlegen(['title' => 'Trallop', 'klasse' => 'stadt', 'label' => 'Stadt']);
 $seiteAnlegen(['title' => 'Inoffiziell:Kleewiesen', 'klasse' => 'dorf', 'label' => 'Dorf']);
 // Lineare Infrastruktur, die der Bauwerks-Crawl als Gebaeude eintrug: Legacys Liste blendet sie aus.
-$seiteAnlegen(['title' => 'Reichsstraße 3', 'klasse' => 'gebaeude', 'label' => 'Gebäude', 'typ' => 'Reichsstraße']);
+// Ihr Standort nennt ZWEI Orte, einen davon ueber eine Weiterleitung, den anderen in einem Namensraum (WI-0134).
+$seiteAnlegen(['title' => 'Reichsstraße 3', 'klasse' => 'gebaeude', 'label' => 'Gebäude', 'typ' => 'Reichsstraße',
+    'standort' => 'zwischen [[Havena (Siedlung)|Havena]] und [[Inoffiziell:Kleewiesen]]']);
 // Leere Werte: Ruine unbekannt (NULL), Kontinent und Typ leer.
 $seiteAnlegen(['title' => 'Arenaviertel', 'klasse' => 'stadtviertel', 'label' => 'Stadtviertel', 'ruine' => null, 'kontinent' => '',
     'typ' => '', 'standort' => '[[Gareth]]: [[Arenaviertel]]']);
@@ -141,6 +144,7 @@ assert($je['Gareth'] === [
     'kontinent' => 'Aventurien',
     'lage' => 'Garetien · Mittelreich',
     'standort' => null,
+    'standort_links' => [],
     'hat_wappen' => true,
     'abgerufen_am' => '2026-09-08 12:00:00.123',
     'angereichert_am' => '2026-09-08 12:05:00',
@@ -158,6 +162,26 @@ assert($je['Arenaviertel']['ist_ruine'] === null && $je['Arenaviertel']['kontine
     && $je['Arenaviertel']['bauwerkstyp_ausgeschlossen'] === false && $je['Arenaviertel']['standort'] === '[[Gareth]]: [[Arenaviertel]]',
     'A11: NULL bleibt null, Leeres wird null, der Standort bleibt roh');
 assert($je['Baronie Ochsenblut']['ist_ruine'] === true, 'A12: die Ruine kommt aus der Registry');
+// Die Linkziele der Standortkette (WI-0134): Reihenfolge des Quelltexts, Key nach der Regel von X1, KEIN Urteil.
+assert($je['Arenaviertel']['standort_links'] === [
+    ['ziel' => 'Gareth', 'ziel_key' => 'wiki:gareth'],
+    ['ziel' => 'Arenaviertel', 'ziel_key' => 'wiki:arenaviertel'],
+], 'A13: die Kette in Quelltext-Reihenfolge, je Ziel der Key: ' . json_encode($je['Arenaviertel']['standort_links'], JSON_UNESCAPED_UNICODE));
+assert($je['Reichsstraße 3']['standort_links'] === [
+    ['ziel' => 'Havena (Siedlung)', 'ziel_key' => 'wiki:havena'],
+    ['ziel' => 'Inoffiziell:Kleewiesen', 'ziel_key' => 'wiki:inoffiziell-kleewiesen'],
+], 'A14: 🔴 das ZIEL, nie die Anzeige; die Weiterleitung loest der Key auf, der Namensraum bleibt im Key');
+assert($je['Baronie Ochsenblut']['standort_links'] === [] && $je['Trallop']['standort_links'] === [],
+    'A15: ohne Standort eine leere Liste, nie null');
+assert(avesmapsExportLinkziele('[[_]] bei [[Gareth#Mitte|Stadt]]', avesmapsWikiLinkzieleAliase($pdo)) === [
+    ['ziel' => '_', 'ziel_key' => null],
+    ['ziel' => 'Gareth', 'ziel_key' => 'wiki:gareth'],
+], 'A16: ein Ziel ohne Schluessel traegt null, ein Abschnitt gehoert nicht zum Ziel, ein Name wird nie zum Key geraten');
+foreach ($export['siedlungen'] as $zeile) {
+    foreach ($zeile['standort_links'] as $link) {
+        assert(array_keys($link) === AVESMAPS_EXPORT_LINKZIEL_FELDER, 'A17: ein Linkziel traegt genau {ziel, ziel_key}');
+    }
+}
 
 // =====================================================================================================
 // B. ORTE: nur ueber den Key, nur aktive Orte
@@ -195,6 +219,8 @@ assert($export['kopf'] === [
     'ohne_ort' => 4,
     'legacy_auf_karte' => 3,
     'bauwerkstyp_ausgeschlossen' => 1,
+    'standort_linkziele' => 4,
+    'standort_linkziele_ohne_schluessel' => 0,
 ], 'D1: die Zahlen des Kopfes: ' . json_encode($export['kopf']));
 assert(array_sum($export['kopf']['je_klasse']) === count($export['siedlungen']), 'D2: die Klassen summieren sich zu den Zeilen');
 
@@ -236,6 +262,10 @@ assert(!str_contains($bibliothek, 'CreateMatchKey') && !str_contains($bibliothek
 assert(str_contains($bibliothek, 'avesmapsWikiLinkzieleTitelDaten(') && str_contains($bibliothek, 'avesmapsWikiLinkzieleKeyAusUrl('),
     'F5: Titel und Nest laufen durch DIESELBE Schluesselregel wie X1 und X2');
 assert(str_contains($bibliothek, 'avesmapsWikiLinkzieleStaende('), 'F6: map_revision und aliase_stempel kommen aus derselben Funktion wie bei X1 und X2');
+// 💣 Keine zweite Linkzerlegung und kein Urteil: die Kette geht durch die EINE Regex des Hauses und die Key-Regel von X1.
+assert(str_contains($bibliothek, 'avesmapsWikiLinkZielePaare(') && str_contains($bibliothek, 'avesmapsWikiLinkzieleKey(')
+    && !str_contains($bibliothek, '\[\[') && !str_contains($bibliothek, 'avesmapsPlaceScopeClassify'),
+    'F8: die Linkziele kommen aus link-ziele.php und der Key-Regel von X1, ohne eigene Regex und ohne Lage-Urteil');
 $beispiel = json_decode((string) file_get_contents($wurzel . '/docs/legacy-exporte/wiki-siedlungen-export.beispiel.json'), true);
 assert(is_array($beispiel), 'F7: die Beispielantwort ist lesbares JSON');
 exportTestFormGleich($beispiel, $export, 'wiki-siedlungen-export');

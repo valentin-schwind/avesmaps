@@ -13,7 +13,9 @@
     "mit_ort": 3,
     "ohne_ort": 4,
     "legacy_auf_karte": 3,
-    "bauwerkstyp_ausgeschlossen": 1
+    "bauwerkstyp_ausgeschlossen": 1,
+    "standort_linkziele": 4,
+    "standort_linkziele_ohne_schluessel": 0
   },
   "siedlungen": [
     {
@@ -31,6 +33,7 @@
       "kontinent": "Aventurien",
       "lage": "Garetien · Mittelreich",
       "standort": null,
+      "standort_links": [],
       "hat_wappen": false,
       "abgerufen_am": "2026-09-08 12:00:00.000",
       "angereichert_am": null,
@@ -52,11 +55,37 @@
       "kontinent": "Aventurien",
       "lage": "Albernia · Mittelreich",
       "standort": null,
+      "standort_links": [],
       "hat_wappen": true,
       "abgerufen_am": "2026-09-08 12:00:00.000",
       "angereichert_am": "2026-09-08 12:05:00",
       "orte": ["11111111-1111-4111-8111-000000000003"],
       "legacy_auf_karte": true
+    },
+    {
+      "titel": "Stadionmarkt",
+      "wiki_key": "wiki:stadionmarkt",
+      "ns": 0,
+      "ns_name": "",
+      "weiterleitung_auf": null,
+      "wiki_url": "https://de.wiki-aventurica.de/wiki/Stadionmarkt",
+      "ortsklasse": "gebaeude",
+      "ortsklasse_label": "Gebäude",
+      "bauwerkstyp": "Platz",
+      "bauwerkstyp_ausgeschlossen": false,
+      "ist_ruine": false,
+      "kontinent": "Aventurien",
+      "lage": "Garetien · Mittelreich",
+      "standort": "[[Gareth]]: [[Arenaviertel]]",
+      "standort_links": [
+        { "ziel": "Gareth", "ziel_key": "wiki:gareth" },
+        { "ziel": "Arenaviertel", "ziel_key": "wiki:arenaviertel" }
+      ],
+      "hat_wappen": false,
+      "abgerufen_am": "2026-09-08 12:00:00.000",
+      "angereichert_am": "2026-09-08 12:05:00",
+      "orte": [],
+      "legacy_auf_karte": false
     }
   ]
 }

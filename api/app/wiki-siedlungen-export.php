@@ -5,14 +5,17 @@ declare(strict_types=1);
 // GET /api/app/wiki-siedlungen-export.php
 //   -> { ok:true, map_revision:int, aliase_stempel:string, registry_revision:string,
 //        kopf:{ registry_zeilen, siedlungen, andere_klassen, je_klasse:{ <klasse>:int }, ohne_schluessel,
-//               verschiedene_schluessel, mit_ort, ohne_ort, legacy_auf_karte, bauwerkstyp_ausgeschlossen },
+//               verschiedene_schluessel, mit_ort, ohne_ort, legacy_auf_karte, bauwerkstyp_ausgeschlossen,
+//               standort_linkziele, standort_linkziele_ohne_schluessel },
 //        siedlungen:[ { titel, wiki_key, ns, ns_name, weiterleitung_auf, wiki_url, ortsklasse, ortsklasse_label,
-//                       bauwerkstyp, bauwerkstyp_ausgeschlossen, ist_ruine, kontinent, lage, standort, hat_wappen,
-//                       abgerufen_am, angereichert_am, orte:[public_id], legacy_auf_karte } ] }
+//                       bauwerkstyp, bauwerkstyp_ausgeschlossen, ist_ruine, kontinent, lage, standort,
+//                       standort_links:[{ziel, ziel_key}], hat_wappen, abgerufen_am, angereichert_am, orte:[public_id],
+//                       legacy_auf_karte } ] }
 //
 // X3 der Auftraege von Avesmaps3D (10.10.2026): die Registry der Wiki-Siedlungen (`wiki_sync_pages`) mit dem Wiki-Key
 // jeder Zeile (dieselbe Regel wie X1 und X2) und den Orten, denen dieser Key zugewiesen ist -- die Grundlage fuer
-// „im Wiki, nicht auf der Karte". Oeffentlich und nur lesend. Alles Weitere: api/_internal/app/wiki-siedlungen-export.php.
+// „im Wiki, nicht auf der Karte". Seit WI-0134 (Avesmaps3D, 10.10.2026) mit den Linkzielen der `standort`-Kette samt Key,
+// ohne Urteil. Oeffentlich und nur lesend. Alles Weitere: api/_internal/app/wiki-siedlungen-export.php.
 //
 // 🔴 Keine Sitzung, kein Schreibweg, kein DDL.
 

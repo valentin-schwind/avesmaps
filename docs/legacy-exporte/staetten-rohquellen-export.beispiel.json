@@ -1,0 +1,92 @@
+{
+  "ok": true,
+  "map_revision": 178051,
+  "aliase_stempel": "ra-33cf7ac4d0e62c74",
+  "quellen_stand": "sq-5b0e9d7a41c2f863",
+  "kopf": {
+    "punkte": { "ok": true, "zeilen": 2 },
+    "gespeicherte": { "ok": true, "zeilen": 1 },
+    "wege": { "ok": true, "zeilen": 1, "linkziele": 1, "linkziele_ohne_schluessel": 0 },
+    "sitze": {
+      "ok": true,
+      "zeilen": 2,
+      "organisationen": 1,
+      "linkziele": 2,
+      "linkziele_ohne_schluessel": 0,
+      "neuester_abgleich": "2026-10-02 16:40:00.000"
+    },
+    "stadtteile": { "ok": false, "zeilen": 0, "linkziele": 0, "linkziele_ohne_schluessel": 0, "neuester_abgleich": null }
+  },
+  "punkte": [
+    {
+      "public_id": "5bb60d55-0000-4000-8000-000000000001",
+      "name": "Burg Eichstein",
+      "ortsklasse": "gebaeude",
+      "art": "Burg",
+      "wiki_url": "https://de.wiki-aventurica.de/wiki/Burg_Eichstein",
+      "wiki_key": "wiki:burg-eichstein",
+      "aktiv": true,
+      "von_der_karte": false,
+      "innerorts_ort": "94a68a9c-0000-4000-8000-000000000002",
+      "innerorts_herkunft": "manual"
+    },
+    {
+      "public_id": "7c1e2f30-0000-4000-8000-000000000003",
+      "name": "Gut Weyring",
+      "ortsklasse": "gebaeude",
+      "art": null,
+      "wiki_url": null,
+      "wiki_key": null,
+      "aktiv": false,
+      "von_der_karte": true,
+      "innerorts_ort": "80558060-0000-4000-8000-000000000004",
+      "innerorts_herkunft": "wiki"
+    }
+  ],
+  "gespeicherte": [
+    {
+      "public_id": "a3f1c2d4-0000-4000-8000-000000000005",
+      "name": "Phex-Tempel Selindes Hort",
+      "art": "Tempel",
+      "ort_public_id": "c0ffee00-0000-4000-8000-000000000006",
+      "wiki_url": "https://www.garetien.de/index.php/Garetien:Phex-Tempel_Selindes_Hort",
+      "wiki_key": null,
+      "quelle": "garetien"
+    }
+  ],
+  "wege": [
+    {
+      "weg_key": "wiki:webergasse",
+      "titel": "Webergasse",
+      "name": "Webergasse",
+      "art": "Gasse",
+      "wiki_url": "https://de.wiki-aventurica.de/wiki/Webergasse",
+      "wiki_key": "wiki:webergasse",
+      "lage_roh": "[[Khunchom]]",
+      "lage_links": [{ "ziel": "Khunchom", "ziel_key": "wiki:khunchom" }]
+    }
+  ],
+  "sitze": [
+    {
+      "organisation": "Nordlandbank",
+      "organisation_art": "Bankhaus",
+      "rolle": "hauptsitz",
+      "reihenfolge": 0,
+      "ort_roh": "[[Festum]]",
+      "ort_links": [{ "ziel": "Festum", "ziel_key": "wiki:festum" }],
+      "wiki_url": "https://de.wiki-aventurica.de/wiki/Nordlandbank",
+      "wiki_key": "wiki:nordlandbank"
+    },
+    {
+      "organisation": "Nordlandbank",
+      "organisation_art": "Bankhaus",
+      "rolle": "zweigsitz",
+      "reihenfolge": 1,
+      "ort_roh": "[[Gareth]]",
+      "ort_links": [{ "ziel": "Gareth", "ziel_key": "wiki:gareth" }],
+      "wiki_url": "https://de.wiki-aventurica.de/wiki/Nordlandbank",
+      "wiki_key": "wiki:nordlandbank"
+    }
+  ],
+  "stadtteile": []
+}
