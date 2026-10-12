@@ -11,7 +11,27 @@ Avesmaps is a **non-commercial fan project** for *Aventurien*, the world of the
 German pen-and-paper RPG *Das Schwarze Auge* (DSA / "The Dark Eye"). It is an
 interactive tile map **and an in-browser route planner**.
 
-- **Live:** https://avesmaps.de (full app, with PHP + MariaDB backend).
+- **Live:** https://legacy.avesmaps.de (full app, with PHP + MariaDB backend).
+  🔴 **Umgezogen am 12.10.2026 — `avesmaps.de` traegt seither Avesmaps3D und hat KEIN `api/` mehr**
+  (`map-features.php`, `session.php` und `/api/locations/` antworten dort mit 404 bzw. dem
+  SPA-Rueckfall, am selben Tag gemessen). Damit wechselt auch der STABILE oeffentliche Vertrag aus
+  §4 seine Adresse; fremde Clients, die noch auf die alte zeigen, laufen ins Leere.
+  💣 **Der Wirt steht an ZWEI Stellen, und beide muessen ihn kennen:** `SQL_MAP_HOSTS` in
+  `js/config.js` -- fehlt er, sind ALLE API-Adressen der leere String, `loadRouteDataFromApi` lehnt
+  mit „Keine Map-Features-API fuer diese Umgebung konfiguriert" ab, und die Karte laedt nichts,
+  WAEHREND DER SERVER TADELLOS ANTWORTET -- und `cors.allowed_origins` in `api/config.local.php`:
+  fehlt er dort, bekommt jede Anfrage MIT `Origin`-Kopf eine **403**. Das trifft den Vorabruf im
+  Kopf von `index.html` (er setzt `crossOrigin = "anonymous"` und schickt damit einen `Origin`,
+  auch same-origin), und der echte `fetch` erbt dessen Eintrag -- die Karte bleibt leer, obwohl ein
+  blanker Abruf derselben Adresse 200 liefert. 🔴 Die zweite Datei liegt NICHT im Repo; ein Fix
+  dort ist immer eine Owner-Aufgabe.
+  ⚠️ Die Routinen holen ihre Daten ebenfalls von dort (Deploy-Nachpruefer, Mastodon-Relais,
+  SVG-Abzug, Paritaetspruefung) -- gewacht von `tools/__tests__/api-adresse-der-routinen.test.js`.
+  🔴 **`https://avesmaps.de/ns/export/1` wandert NICHT mit** -- das ist der XML-Namensraum des
+  SVG-Abzugs, eine Kennung, keine Adresse. Ein Suchen-und-Ersetzen ueber „avesmaps.de" nimmt sie
+  mit und bricht den Export-Vertrag, OHNE dass ein Abruf fehlschlaegt. Ebenso bleiben die
+  User-Agent-Zeilen (`AvesmapsWappenBot (+https://avesmaps.de)` und Geschwister): das ist die
+  Projektadresse als Kontakt.
 - **Frontend:** vanilla JavaScript, **no build step**, no bundler. `index.html`
   hand-includes ~117 `<script>`/`<link>` tags. Leaflet **1.9.4** with
   `L.CRS.Simple`, image bounds `0..1024`, zoom `0..5` (a marker tier exists up to 6).
