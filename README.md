@@ -7,7 +7,7 @@ routes directly in the browser.
 
 ![Beispielansicht](img/example.png)
 
-The live version runs at [https://avesmaps.de/](https://avesmaps.de/).
+The live version runs at [https://legacy.avesmaps.de/](https://legacy.avesmaps.de/).
 
 ## What the project can do
 
@@ -63,7 +63,7 @@ Note: This startup via Python is suitable for static UI/asset tests.
 Full SQL data and routing tests additionally require configured
 read-only API endpoints (`MAP_FEATURES_API_URL`, `MAP_SEARCH_API_URL`,
 `POLITICAL_TERRITORIES_API_URL`), for example at
-[https://avesmaps.de/](https://avesmaps.de/) or via an explicit
+[https://legacy.avesmaps.de/](https://legacy.avesmaps.de/) or via an explicit
 `window.AVESMAPS_*` override.
 
 When a local frontend tests against a public API, the API must allow CORS
@@ -104,11 +104,11 @@ Every map object that is linked to a [Wiki Aventurica](https://de.wiki-aventuric
 
 | Parameter | Object type | Example |
 |---|---|---|
-| `?siedlung=` | settlement | `https://avesmaps.de/?siedlung=Gareth` |
-| `?staat=` | political territory | `https://avesmaps.de/?staat=Fürstentum_Kosch` |
-| `?region=` | landscape/region | `https://avesmaps.de/?region=Nordmarken` |
-| `?strasse=` | road | `https://avesmaps.de/?strasse=Reichsstraße_1` |
-| `?fluss=` | river | `https://avesmaps.de/?fluss=Letta` |
+| `?siedlung=` | settlement | `https://legacy.avesmaps.de/?siedlung=Gareth` |
+| `?staat=` | political territory | `https://legacy.avesmaps.de/?staat=Fürstentum_Kosch` |
+| `?region=` | landscape/region | `https://legacy.avesmaps.de/?region=Nordmarken` |
+| `?strasse=` | road | `https://legacy.avesmaps.de/?strasse=Reichsstraße_1` |
+| `?fluss=` | river | `https://legacy.avesmaps.de/?fluss=Letta` |
 
 Behavior:
 

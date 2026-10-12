@@ -19,7 +19,7 @@ page is always anonymous and sees exactly what `curl` sees. Every other endpoint
 ones, the editor, import and diagnostics — keeps the configured origin allowlist and answers a
 foreign origin with `403 forbidden_origin`. That is deliberate and not an oversight.
 
-In addition to the REST endpoints, the app's **deep-link URL parameters** are a stable contract for linking into the map by wiki page name: `?siedlung=` / `?staat=` / `?region=` / `?strasse=` / `?fluss=` (value = Wiki Aventurica page name, e.g. `https://avesmaps.de/?strasse=Reichsstraße_1`). The map zooms to the object and highlights it; roads and rivers are highlighted across all of their segments. See the section "Deep links to map objects" in the repository README for details.
+In addition to the REST endpoints, the app's **deep-link URL parameters** are a stable contract for linking into the map by wiki page name: `?siedlung=` / `?staat=` / `?region=` / `?strasse=` / `?fluss=` (value = Wiki Aventurica page name, e.g. `https://legacy.avesmaps.de/?strasse=Reichsstraße_1`). The map zooms to the object and highlights it; roads and rivers are highlighted across all of their segments. See the section "Deep links to map objects" in the repository README for details.
 
 ## Routing
 
@@ -452,10 +452,10 @@ already have it.
 it back unchanged in `If-None-Match`:
 
 ```bash
-TAG=$(curl -sS -D - -o /dev/null https://avesmaps.de/api/locations/   | tr -d '' | sed -n 's/^X-Avesmaps-ETag: //p')
+TAG=$(curl -sS -D - -o /dev/null https://legacy.avesmaps.de/api/locations/   | tr -d '' | sed -n 's/^X-Avesmaps-ETag: //p')
 
 curl -sS -o /dev/null -w '%{http_code}
-'   -H "If-None-Match: $TAG" https://avesmaps.de/api/locations/
+'   -H "If-None-Match: $TAG" https://legacy.avesmaps.de/api/locations/
 # 304
 ```
 
@@ -959,10 +959,20 @@ AVESMAPS_IMPORT_API_TOKEN
 `AVESMAPS_ALLOWED_ORIGINS` expects a comma-separated list, for example:
 
 ```text
-http://localhost:8000,https://avesmaps.de
+http://localhost:8000,https://legacy.avesmaps.de
 ```
 
-If the frontend and API are on the same domain, no external CORS origin is needed.
+If the frontend and API are on the same domain, a plain same-origin `fetch` needs no CORS origin --
+it sends no `Origin` header at all.
+
+> 💣 **But the host still has to be listed.** `index.html` announces the map payload with
+> `<link rel="preload" as="fetch">` and sets `crossOrigin = "anonymous"`; that attribute forces CORS
+> semantics and sends an `Origin` **even same-origin**. It therefore gets a **403** when its own host
+> is missing here -- and because the real `fetch` deliberately sends no headers of its own (so that it
+> hits the preload), it inherits that 403. The map then stays empty while `curl` on the very same URL
+> returns 200. Measured on 12.10.2026 after the move to `legacy.avesmaps.de`.
+> ⭐ Diagnosis: request the same URL twice, once with `-H 'Origin: https://<host>'`. If that alone
+> flips the answer, it is this list.
 
 ## SQL schemas
 
@@ -1043,10 +1053,10 @@ php -l api/_internal/routing/response.php
 HTTP smoke tests after deployment:
 
 ```powershell
-Invoke-WebRequest -Method Options -Uri "https://avesmaps.de/api/route/"
-Invoke-WebRequest -Method Options -Uri "https://avesmaps.de/api/locations/"
+Invoke-WebRequest -Method Options -Uri "https://legacy.avesmaps.de/api/route/"
+Invoke-WebRequest -Method Options -Uri "https://legacy.avesmaps.de/api/locations/"
 
-$locations = Invoke-RestMethod -Method Get -Uri "https://avesmaps.de/api/locations/"
+$locations = Invoke-RestMethod -Method Get -Uri "https://legacy.avesmaps.de/api/locations/"
 $locations.ok
 $locations.location_count
 $locations.locations | Select-Object -First 5
