@@ -464,8 +464,31 @@ function avesmapsPoliticalEnsureWikiTerritoryChain(PDO $pdo, array $payload, arr
                 $territory['parent_id'] = $parentId;
             }
 
-            $zoomRange = avesmapsPoliticalDefaultAssignmentZoomRange($chainLength, $index);
-            avesmapsPoliticalUpdateTerritoryZoomRange($pdo, (int) $territory['id'], $zoomRange['min'], $zoomRange['max']);
+            // 💣 NUR AUFFUELLEN, NIE UEBERSCHREIBEN. Dieser Lauf geht ueber die GANZE Ahnenkette des
+            // bearbeiteten Knotens: ein Speichern an einer Baronie fasste damit auch ihre Grafschaft,
+            // ihr Fuerstentum UND das Reich an und ersetzte deren gepflegte Baender durch das grobe
+            // Tiefenraster dieser Regel (0-2 / 3-4 / 5-5 / 6-6). Gemeldet 12.10.2026: das Reich stand
+            // danach auf 0-2 statt 0-1 und zeigte bei Zoom 2 gleichzeitig mit 15 seiner 17 Kinder an
+            // -> suppressFillForDisplayingChild nahm die Reichsfuellung zurueck, waehrend Kosch und
+            // Alt-Gareth noch fehlten = Loecher. Die HIERARCHIE war dabei unveraendert; nur die
+            // Baender hatten sich verschoben, was von aussen wie "die Territorien sind zerstoert" aussieht.
+            // 🔴 Ein gesetztes Band ist eine ENTSCHEIDUNG -- entweder der Typ-Vorgabewert aus der
+            // Neuanlage (avesmapsPoliticalDefaultZoomRange: Reich 0-2, Fuerstentum 2-4, Grafschaft 4-6)
+            // oder Handarbeit im Editor. Beides darf ein Kettenlauf nicht einsammeln. Nur ein Knoten
+            // GANZ ohne Band bekommt hier noch einen Wert.
+            // ⚠️ Der Riegel sitzt HIER und nicht in avesmapsPoliticalUpdateTerritoryZoomRange: die
+            // Schreibfunktion muss weiter bedingungslos schreiben koennen, denn der Reset-Knopf
+            // ("Default-Zoomregeln zuruecksetzen") WILL ueberschreiben. Ein Riegel in der
+            // Schreibfunktion haette ihn lautlos stillgelegt.
+            // ⚠️ Gelesen wird aus der DATENBANK, nicht aus $territory: die Zeile stammt je nach Zweig
+            // aus drei verschiedenen Lesern, und ein fehlender Schluessel waere ueber `?? null` als
+            // "kein Band" durchgegangen -- also genau wieder ein Ueberschreiben.
+            // Gewacht von __tests__/kettenlauf-behaelt-zoombaender-test.php; dessen Gegenprobe (ein
+            // NEUER Knoten muss ein Band haben) ist die andere Haelfte der Regel.
+            if (!avesmapsPoliticalTerritoryHasZoomBand($pdo, (int) $territory['id'])) {
+                $zoomRange = avesmapsPoliticalDefaultAssignmentZoomRange($chainLength, $index);
+                avesmapsPoliticalUpdateTerritoryZoomRange($pdo, (int) $territory['id'], $zoomRange['min'], $zoomRange['max']);
+            }
 
             $chain[] = [
                 'territory' => avesmapsPoliticalTerritoryRowToPublic(avesmapsPoliticalFetchTerritoryById($pdo, (int) $territory['id'])),
@@ -522,6 +545,19 @@ function avesmapsPoliticalDefaultAssignmentZoomRange(int $chainLength, int $inde
     }
 
     return ['min' => 5, 'max' => 5];
+}
+
+// Traegt dieses Gebiet schon ein Zoom-Band? Beide Spalten muessen stehen -- eine halb gefuellte
+// Zeile ist kein gepflegtes Band, und der Layer liest beide (geometry.min_zoom ?? territory.min_zoom).
+function avesmapsPoliticalTerritoryHasZoomBand(PDO $pdo, int $territoryId): bool {
+    $statement = $pdo->prepare('SELECT min_zoom, max_zoom FROM political_territory WHERE id = :id');
+    $statement->execute(['id' => $territoryId]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($row)) {
+        return false;
+    }
+
+    return $row['min_zoom'] !== null && $row['max_zoom'] !== null;
 }
 
 function avesmapsPoliticalUpdateTerritoryZoomRange(PDO $pdo, int $territoryId, int $minZoom, int $maxZoom): void {
