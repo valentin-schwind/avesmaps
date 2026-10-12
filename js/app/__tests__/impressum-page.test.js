@@ -62,7 +62,11 @@ assert.ok(!/<meta\s+name="robots"[^>]*noindex/i.test(page), "die Seite traegt KE
 assert.ok(/<link\s+rel="canonical"[^>]*impressum\.html/i.test(page), "und eine kanonische Adresse");
 
 const sitemap = fs.readFileSync(path.join(ROOT, "sitemap.xml"), "utf8");
-assert.ok(sitemap.includes("https://avesmaps.de/html/impressum.html"), "die Sitemap kennt die Seite");
+// ⚠️ Die Adresse ist am 12.10.2026 mitgewandert: die Anwendung liegt seither auf
+//    `legacy.avesmaps.de`, und `avesmaps.de` traegt eine andere Seite. Die Zusicherung selbst ist
+//    unveraendert -- diese Seite muss in der Sitemap stehen, denn sie ist als einzige indexierbar,
+//    waehrend die Startseite seit demselben Tag `noindex` traegt.
+assert.ok(sitemap.includes("https://legacy.avesmaps.de/html/impressum.html"), "die Sitemap kennt die Seite");
 
 // ---- Der Weg ohne JavaScript ----------------------------------------------------------------------
 

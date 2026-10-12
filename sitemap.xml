@@ -1,19 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
-    <url>
-        <loc>https://avesmaps.de/</loc>
-        <xhtml:link rel="alternate" hreflang="de" href="https://avesmaps.de/" />
-        <xhtml:link rel="alternate" hreflang="en" href="https://avesmaps.de/?lang=en" />
-        <xhtml:link rel="alternate" hreflang="x-default" href="https://avesmaps.de/" />
-        <lastmod>2026-06-29</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>1.0</priority>
-    </url>
+    <!-- 🔴 Die STARTSEITE steht hier nicht mehr: sie traegt seit dem 12.10.2026 `noindex`
+         (Owner-Entscheid nach dem Umzug). Eine Sitemap, die eine noindex-Seite einreicht,
+         widerspricht sich selbst und wird in der Search Console als Fehler gemeldet. -->
     <!-- Impressum und Datenschutz. Die einzige Seite unter html/ ohne noindex, und mit Absicht:
          sie ist der Weg zu beiden Pflichtangaben fuer jeden ohne JavaScript. -->
     <url>
-        <loc>https://avesmaps.de/html/impressum.html</loc>
+        <loc>https://legacy.avesmaps.de/html/impressum.html</loc>
         <lastmod>2026-08-06</lastmod>
         <changefreq>yearly</changefreq>
         <priority>0.3</priority>

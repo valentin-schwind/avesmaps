@@ -1,4 +1,4 @@
-# Avesmaps — https://avesmaps.de/
+# Avesmaps — https://legacy.avesmaps.de/
 #
 # 💣 A robots.txt group inherits NOTHING from "User-agent: *". A crawler obeys the
 # group that names it and ignores every other one. The AI/social crawlers below used
@@ -74,4 +74,11 @@ Disallow: /*&perftrace=
 Disallow: /*?mapstyle=
 Disallow: /*&mapstyle=
 
-Sitemap: https://avesmaps.de/sitemap.xml
+# 💣 HIER STEHT BEWUSST KEIN `Disallow: /`, obwohl die Startseite seit dem 12.10.2026 auf
+#    `noindex` steht (Owner-Entscheid nach dem Umzug auf legacy.avesmaps.de). Ein gesperrter Pfad
+#    verhindert das CRAWLEN -- und dann liest nie jemand das `noindex` im <head>. Die Seite bliebe
+#    als „blockiert" im Index stehen, also genau das Gegenteil des Gewollten. Gesperrt wird
+#    nichts, gelesen wird alles; das `noindex` erledigt den Rest.
+# ⚠️ Die Sitemap listet NUR noch das Impressum: es ist die einzige Seite, die indexiert bleiben
+#    soll (Pflichtangaben, auch ohne JavaScript erreichbar).
+Sitemap: https://legacy.avesmaps.de/sitemap.xml
