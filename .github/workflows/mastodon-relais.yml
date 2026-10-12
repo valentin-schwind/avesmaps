@@ -41,7 +41,7 @@ on:
       base_url:
         description: "Von wo die Beitraege geholt werden"
         required: true
-        default: "https://avesmaps.de"
+        default: "https://legacy.avesmaps.de"
         type: string
 
 permissions:
@@ -66,7 +66,7 @@ jobs:
 
       - name: Wartende Beitraege senden
         env:
-          AVESMAPS_BASIS: ${{ inputs.base_url || 'https://avesmaps.de' }}
+          AVESMAPS_BASIS: ${{ inputs.base_url || 'https://legacy.avesmaps.de' }}
           AVESMAPS_RELAY_TOKEN: ${{ secrets.AVESMAPS_SOCIAL_RELAY_TOKEN }}
           MASTODON_TOKEN: ${{ secrets.AVESMAPS_MASTODON_TOKEN }}
         # ⚠️ Ein Lauf ohne Arbeit ist ein ERFOLG. Der Normalfall ist die leere Warteschlange; ein

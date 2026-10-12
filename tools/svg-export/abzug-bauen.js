@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Den semantischen SVG-Abzug bauen -- OHNE Browser, mit GENAU DEMSELBEN Bauer.
 //
-// Aufruf:  node tools/svg-export/abzug-bauen.js --out <verzeichnis> [--base https://avesmaps.de]
+// Aufruf:  node tools/svg-export/abzug-bauen.js --out <verzeichnis> [--base https://legacy.avesmaps.de]
 //
 // 🔴 WARUM DAS HIER UND NICHT IN PHP STEHT. Der Export ist 1.356 Zeilen Kartenbild
 // (js/pages/svg-export-build.js). Ihn in PHP nachzubauen hiesse, das Aussehen der Karte ein
@@ -127,7 +127,7 @@ async function schreibeAbzug(teile, pfad) {
 
 async function main() {
 	const ziel = argument("--out", path.join(REPO, "uploads", "svg-export"));
-	const basis = argument("--base", process.env.AVESMAPS_BASE_URL || "https://avesmaps.de")
+	const basis = argument("--base", process.env.AVESMAPS_BASE_URL || "https://legacy.avesmaps.de")
 		.replace(/\/+$/, "");
 
 	melde("Abzug bauen — Quelle " + basis);

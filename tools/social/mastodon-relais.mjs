@@ -179,7 +179,7 @@ export async function relaisLauf({ fetchImpl, basis, relayToken, mastodonToken, 
 
 // Direkt ausgefuehrt (aus dem Workflow) -- beim Import (aus dem Test) passiert hier nichts.
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1].replace(/\\/g, "/")}`).href) {
-	const basis = process.env.AVESMAPS_BASIS || "https://avesmaps.de";
+	const basis = process.env.AVESMAPS_BASIS || "https://legacy.avesmaps.de";
 	const relayToken = process.env.AVESMAPS_RELAY_TOKEN || "";
 	const mastodonToken = process.env.MASTODON_TOKEN || "";
 	if (relayToken === "" || mastodonToken === "") {

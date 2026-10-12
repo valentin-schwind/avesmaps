@@ -92,7 +92,7 @@ def save_state(path: Path, state: dict) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Import derived Landschaften areas, throttled.")
     parser.add_argument("--manifest", required=True)
-    parser.add_argument("--base-url", default="https://avesmaps.de")
+    parser.add_argument("--base-url", default="https://legacy.avesmaps.de")
     parser.add_argument("--cookie-file", help="File holding the editor session Cookie header.")
     parser.add_argument("--state", default="import-state.json")
     parser.add_argument("--delay", type=float, default=1.0, help="Seconds between two writes.")

@@ -13,7 +13,7 @@ difference is the cost of the shallow-shelf correction and is irrelevant here: V
 lakes and islands.
 
 The payload is fetched ONCE, never in a loop (AGENTS.md, STRATO caution):
-    curl -s -o map-features.json https://avesmaps.de/api/app/map-features.php
+    curl -s -o map-features.json https://legacy.avesmaps.de/api/app/map-features.php
 """
 from __future__ import annotations
 

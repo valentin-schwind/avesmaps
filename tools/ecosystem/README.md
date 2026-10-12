@@ -10,7 +10,7 @@ Alle Grenzwerte sind an gemessenen Daten geankert; die Begründungen stehen dort
 
 ```bash
 # 1) Die Nutzlast EINMAL holen -- kein Schleifenbetrieb gegen STRATO.
-curl -s -o map-features.json https://avesmaps.de/api/app/map-features.php
+curl -s -o map-features.json https://legacy.avesmaps.de/api/app/map-features.php
 
 # 2) Die y-Spiegelung gegen die Wirklichkeit prüfen. Muss "orientation OK" sagen.
 python verify_orientation.py --payload map-features.json --zoom 2
@@ -69,7 +69,7 @@ Ein Abbruch wird beim nächsten Aufruf fortgesetzt, nichts wird doppelt angelegt
 Zum Schluss prüfen, dass `map_revision` unberührt blieb (ein einzelner Aufruf, keine Schleife):
 
 ```bash
-curl -s -o /dev/null -D - -H 'If-None-Match: <aktueller ETag>' -w "http=%{http_code}\n" "https://avesmaps.de/api/app/map-features.php"
+curl -s -o /dev/null -D - -H 'If-None-Match: <aktueller ETag>' -w "http=%{http_code}\n" "https://legacy.avesmaps.de/api/app/map-features.php"
 ```
 
 **304 = Regel 3 hält.**

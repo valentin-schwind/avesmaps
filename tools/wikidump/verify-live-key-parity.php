@@ -45,7 +45,7 @@ declare(strict_types=1);
  * corpus could not be obtained (inconclusive -- NOT a pass).
  */
 
-const AVESMAPS_PARITY_ENDPOINT = 'https://avesmaps.de/api/app/political-territory-wiki.php?limit=2000';
+const AVESMAPS_PARITY_ENDPOINT = 'https://legacy.avesmaps.de/api/app/political-territory-wiki.php?limit=2000';
 const AVESMAPS_PARITY_TIMEOUT_SECONDS = 120;
 const AVESMAPS_PARITY_EXAMPLE_LIMIT = 25;
 

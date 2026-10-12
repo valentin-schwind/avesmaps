@@ -252,7 +252,7 @@ class SmokeTester:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run read-only Avesmaps deployment smoke checks.")
-    parser.add_argument("--base-url", default="https://avesmaps.de/", help="Deployment base URL.")
+    parser.add_argument("--base-url", default="https://legacy.avesmaps.de/", help="Deployment base URL.")
     parser.add_argument("--timeout", type=int, default=20, help="HTTP timeout in seconds.")
     parser.add_argument("--frontend-only", action="store_true", help="Only verify frontend files and script references.")
     return parser.parse_args()

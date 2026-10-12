@@ -676,7 +676,7 @@ jobs:
         run: |
           set -uo pipefail
 
-          ziel="https://avesmaps.de/api/app/map-features.php"
+          ziel="https://legacy.avesmaps.de/api/app/map-features.php"
           # Kurz warten: der Upload ist eben erst durch.
           # ⚠️ NICHT laenger, das kostet nur Zeit. STRATOs OPcache uebernimmt eine GEAENDERTE PHP-Datei ohnehin
           #    erst mit 2-4 Minuten Verzug (api/_internal/bootstrap.php) -- auch 20 s Warten liessen die Probe

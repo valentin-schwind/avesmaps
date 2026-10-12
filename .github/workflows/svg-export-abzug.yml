@@ -28,7 +28,7 @@ on:
       base_url:
         description: "Woher die Kartendaten kommen und wohin hinterlegt wird"
         required: true
-        default: "https://avesmaps.de"
+        default: "https://legacy.avesmaps.de"
         type: string
       dry_run:
         description: "Nur bauen und pruefen, nichts hinterlegen"
@@ -51,7 +51,7 @@ jobs:
 
     env:
       ABZUG_DIR: /tmp/avesmaps-svg-export
-      BASIS: ${{ inputs.base_url || 'https://avesmaps.de' }}
+      BASIS: ${{ inputs.base_url || 'https://legacy.avesmaps.de' }}
 
     steps:
       - name: Check out repository

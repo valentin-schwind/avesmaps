@@ -8,8 +8,8 @@ declare(strict_types=1);
 //
 // NOTE: tools/ is NOT in the deploy allowlist, so on the live STRATO server the seed is triggered via
 // the endpoint action instead (single request, no loop):
-//   curl -X POST -H 'Content-Type: application/json' -d '{"action":"seed"}'    https://avesmaps.de/api/app/game-literature.php
-//   curl -X POST -H 'Content-Type: application/json' -d '{"action":"resolve"}' https://avesmaps.de/api/app/game-literature.php
+//   curl -X POST -H 'Content-Type: application/json' -d '{"action":"seed"}'    https://legacy.avesmaps.de/api/app/game-literature.php
+//   curl -X POST -H 'Content-Type: application/json' -d '{"action":"resolve"}' https://legacy.avesmaps.de/api/app/game-literature.php
 //
 // Usage:  php tools/game-literature/seed-sample-game-literature.php [--resolve]
 
