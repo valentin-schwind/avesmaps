@@ -176,7 +176,7 @@ $isAdmin = $currentUser !== null && avesmapsUserCan($currentUser, 'admin');
             </section>
         </main>
 
-        <script src="../js/app/json-umschlag.js?v=20261009-groesse"></script>
+        <script src="../js/app/json-umschlag.js?v=20261012-patch"></script>
         <script>
             (function () {
                 'use strict';

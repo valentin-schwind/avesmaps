@@ -113,12 +113,30 @@ function welt() {
 	fenster.fetch("/html/irgendwas", { method: "POST", headers: json, body: gross });
 	pruefe(gesehen[6].optionen.body === gross, "nur Ziele unter /api/");
 
+	// 💣 PATCH MUSS MIT. Hier stand bis zum 12.10.2026 „nur POST" -- mit GENAU dieser Adresse als
+	// Beispiel, und genau sie ist der Weg, der es gebraucht hätte: `submitPoliticalTerritoryEdit`
+	// (js/app/api-client.js) schickt JEDE Herrschaftsgebiets-Änderung per **PATCH**. Der Riegel ging
+	// also an dem Kanal vorbei, für den er mitgeschrieben wurde; gemeldet als „Herrschaftsgebiet-API
+	// antwortet mit HTTP 400" beim Anhäkeln von Innen- und Außengrenzen (Nordmarken 3024 Punkte =
+	// ~6048 Werte, Kosch 2035). Die Zusicherung hielt den Fehler fest, statt ihn zu fangen.
+	// 🔴 Die Regel ist jetzt „jede Methode, die einen Rumpf trägt" -- POST, PUT, PATCH. Die
+	// Webserver-Grenze zählt Werte, nicht Methoden; eine Liste, die eine davon vergisst, ist wieder
+	// genau die Lücke, vor der der Kopf von json-umschlag.js warnt (Regel an `fetch`, nicht an den
+	// Aufrufern, "auch für die, die erst noch geschrieben wird").
 	const headers = { get: (name) => (name === "Content-Type" ? "application/json" : null) };
 	fenster.fetch("/api/edit/political/territories.php", { method: "PATCH", headers, body: gross });
-	pruefe(gesehen[7].optionen.body === gross, "nur POST");
+	pruefe(JSON.parse(gesehen[7].optionen.body).avesmaps_umschlag === gross,
+		"💣 PATCH wird verpackt -- der Herrschaftsgebiete-Schreibweg nutzt ausschliesslich PATCH");
 	fenster.fetch("/api/edit/political/territories.php", { method: "POST", headers, body: gross });
 	pruefe(JSON.parse(gesehen[8].optionen.body).avesmaps_umschlag === gross, "Headers-Objekte werden gelesen");
 	pruefe(gesehen[8].dies === fenster, "das echte fetch wird mit seinem `this` gerufen (sonst: Illegal invocation)");
+
+	fenster.fetch("/api/edit/map/ecosystem.php", { method: "put", headers, body: gross });
+	pruefe(JSON.parse(gesehen[9].optionen.body).avesmaps_umschlag === gross,
+		"PUT wird verpackt (klein geschrieben gelesen) -- auch eine Methode, die heute niemand nutzt");
+
+	fenster.fetch("/api/app/political-territories.php", { method: "DELETE", headers });
+	pruefe(gesehen[10].optionen.body === undefined, "DELETE ohne Rumpf bleibt unberührt");
 }
 
 // ---- D. 🔴 Verdrahtung: JEDE Seite, die selbst etwas schickt, lädt den Umschlag ZUERST -----------

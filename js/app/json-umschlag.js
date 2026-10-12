@@ -41,6 +41,9 @@
 	// Der Webserver nimmt 1000; 100 Werte Luft, weil niemand weiss, ob er leere Behälter mitzählt.
 	const UMSCHLAG_AB_WERTEN = 900;
 	const UMSCHLAG_SCHLUESSEL = "avesmaps_umschlag";
+	// Die Methoden, die einen Rumpf tragen und damit in die Webserver-Grenze laufen können.
+	// GET und DELETE schicken keinen, HEAD/OPTIONS erst recht nicht.
+	const METHODEN_MIT_RUMPF = new Set(["POST", "PUT", "PATCH"]);
 
 	// Zählt die EINZELWERTE (Zahl, Zeichenkette, true/false/null, leerer Behälter) -- das, was der
 	// Webserver zählt: 996 Zahlen + 4 Felder gingen durch, obwohl dabei 500 Arrays mitreisten.
@@ -124,7 +127,16 @@
 		if (!optionen || typeof optionen.body !== "string" || !adresseIstText) {
 			return optionen;
 		}
-		if (String(optionen.method || "GET").toUpperCase() !== "POST") {
+		// 🔴 JEDE Methode, die einen Rumpf trägt -- nicht nur POST. Die Webserver-Grenze zählt WERTE,
+		// nicht Methoden: ein PATCH mit 6048 Werten wird genauso abgewiesen wie ein POST.
+		// 💣 Hier stand bis zum 12.10.2026 `!== "POST"`, und genau daran ging der Riegel an dem Kanal
+		// vorbei, für den er mitgeschrieben wurde: `submitPoliticalTerritoryEdit` (js/app/api-client.js)
+		// schickt JEDE Herrschaftsgebiets-Änderung per PATCH. Gemeldet als „Herrschaftsgebiet-API
+		// antwortet mit HTTP 400" beim Anhäkeln von Innen- und Außengrenzen -- Nordmarken (3024 Punkte)
+		// und Kosch (2035) liessen sich als einzige nicht neu berechnen, während jedes kleinere Gebiet
+		// am selben Abend durchging. Der Test nagelte das mit „nur POST" sogar fest, mit genau der
+		// Territorien-Adresse als Beispiel.
+		if (!METHODEN_MIT_RUMPF.has(String(optionen.method || "GET").toUpperCase())) {
 			return optionen;
 		}
 		if (inhaltsArt(optionen.headers).toLowerCase().indexOf("application/json") < 0) {
