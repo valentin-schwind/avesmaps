@@ -28,7 +28,7 @@ Avesmaps is an interactive web map for Aventurien. The application shows locatio
 - Multiple waypoints in one route
 - Selection of land, river and sea paths
 - Political map with optionally toggleable Reichsgrenzen
-- Deep links to map objects by Wiki Aventurica page name (`?siedlung=`, `?staat=`, `?region=`, `?strasse=`, `?fluss=` — e.g. `https://avesmaps.de/?strasse=Reichsstraße_1`)
+- Deep links to map objects by Wiki Aventurica page name (`?siedlung=`, `?staat=`, `?region=`, `?strasse=`, `?fluss=` — e.g. `https://legacy.avesmaps.de/?strasse=Reichsstraße_1`)
 - Shareable routes and settings via URL
 
 ## Data and hosting
@@ -45,5 +45,5 @@ Avesmaps is an interactive web map for Aventurien. The application shows locatio
 
 ## Important URLs
 
-- Live: https://avesmaps.de/
+- Live: https://legacy.avesmaps.de/
 - Repository: https://github.com/valentin-schwind/avesmaps
