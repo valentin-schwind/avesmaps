@@ -267,8 +267,26 @@ const MAP_CONTEXT_MENU_VIEWPORT_PADDING = 8;
 const MAP_CONTEXT_MENU_OFFSET_X = 18;
 const MAP_CONTEXT_MENU_OFFSET_Y = 14;
 const STRATO_MAP_HOST = "54143555.swh.strato-hosting.eu";
-const PUBLIC_API_HOST = "avesmaps.de";
-const SQL_MAP_HOSTS = new Set([STRATO_MAP_HOST, "avesmaps.de", "www.avesmaps.de"]);
+// 🔴 DER WIRT, DER `api/` WIRKLICH TRAEGT -- seit dem Umzug vom 12.10.2026 ist das
+// `legacy.avesmaps.de` und NICHT mehr `avesmaps.de`: dort liegt seither Avesmaps3D, und
+// `api/app/map-features.php`, `api/app/session.php` und `api/locations/` antworten unter der alten
+// Adresse mit 404 bzw. dem SPA-Rueckfall (am selben Tag gemessen). Diese Konstante bedient die
+// zwei Formular-Endpunkte auf einem Wirt AUSSERHALB von SQL_MAP_HOSTS -- ein Rueckfall auf
+// `avesmaps.de` zeigte damit ins Leere.
+// ⚠️ Damit wechselt auch der STABILE oeffentliche Vertrag (`GET /api/locations/`, `POST /api/route/`)
+//    seine Adresse; fremde Clients, die noch auf `avesmaps.de` zeigen, laufen in den SPA-Rueckfall.
+const PUBLIC_API_HOST = "legacy.avesmaps.de";
+// 💣 WER HIER FEHLT, BEKOMMT KEINE EINZIGE API-ADRESSE. Die neun Konstanten weiter unten fallen
+// dann auf den LEEREN String, und `loadRouteDataFromApi` lehnt mit „Keine Map-Features-API fuer
+// diese Umgebung konfiguriert" ab -- Orte, Gebiete, Beschriftungen, Suche und Landschaften laden
+// nicht, WAEHREND DER SERVER TADELLOS ANTWORTET. Genau der Zustand vom 12.10.2026 auf
+// `legacy.avesmaps.de`: `map-features.php` lieferte dort 200 und 30,9 MB, und niemand fragte.
+// ⚠️ `avesmaps.de`/`www.avesmaps.de` bleiben stehen -- diese Anwendung laeuft dort nicht mehr, aber
+//    einen Eintrag zu entfernen waere eine zweite Aenderung ohne Not.
+// ⭐ Gewacht von `js/app/__tests__/api-wirtsliste.test.js`, das diesen Block AUSFUEHRT statt ihn zu
+//    lesen -- ein Regex waere fuer einen Eintrag im falschen Set oder hinter einer anderen
+//    Bedingung gruen.
+const SQL_MAP_HOSTS = new Set([STRATO_MAP_HOST, "legacy.avesmaps.de", "avesmaps.de", "www.avesmaps.de"]);
 
 function getDefaultContactEndpointUrl() {
 	if (SQL_MAP_HOSTS.has(window.location.hostname)) {
