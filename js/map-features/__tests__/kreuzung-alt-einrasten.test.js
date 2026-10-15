@@ -216,7 +216,9 @@ const wegAnfrage = () => anfragen.find((a) => a.action === "update_path_geometry
 		"Gegenprobe: eine FLÄCHENECKE rastet dort weiterhin am Fluss ein (Vorgabe mitFluessen = true)");
 
 	// ---- 5. Nur, was man SIEHT -----------------------------------------------------------------------
-	// a) eine andere Ansicht: der Flächenspeicher ist voll, die Flächen aber unsichtbar.
+	// a) eine andere Ansicht. Die App leert den Flächenspeicher dort ohnehin (syncEcosystemVisibility);
+	//    der Test lässt ihn absichtlich voll, damit die Ansichtsfrage selbst geprüft wird -- die doppelte
+	//    Absicherung, falls die Leerung je ausbleibt.
 	neueWelt();
 	ansichtLandschaften = false;
 	kreuzung = machKreuzung();

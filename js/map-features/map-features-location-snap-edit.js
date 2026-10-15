@@ -17,10 +17,14 @@
 // wird. Flüsse sind ausdrücklich kein Ziel (`mitFluessen: false`, dort begründet).
 //
 // 🔴 ZIEL SIND NUR DIE FLÄCHEN, DIE MAN SIEHT: Ansicht „Landschaften", sichtbare Ebene(n) -- dieselbe
-// Menge, an der eine Flächenecke einrastet. 💣 In jeder anderen Ansicht hält der Flächenspeicher
-// (`ecosystemLayers`) noch die Flächen von vorhin, sie sind aber unsichtbar; dorthin zu springen wäre ein
-// Sprung ins Unsichtbare. Dann sagt ein Hinweis, warum nichts passiert, statt dass Alt wortlos ins Leere
-// läuft.
+// Menge, an der eine Flächenecke einrastet. In jeder anderen Ansicht ist der Flächenspeicher
+// (`ecosystemLayers`) leer -- syncEcosystemVisibility leert ihn beim Verlassen --, und ein Hinweis sagt,
+// warum nichts passiert, statt dass Alt wortlos ins Leere läuft. Die Ansichtsfrage in flaechenSichtbar()
+// ist doppelte Absicherung, falls die Leerung je ausbleibt.
+// 🔧 Offen: der Haken „Flüsse" blendet See-Flächen nur per Klasse aus; sie bleiben im Speicher und damit
+// ein Ziel -- für eine Kreuzung wie für eine Flächenecke (dieselbe Regel).
+// ⚠️ Gemeint ist die LINKE Alt-Taste. AltGr meldet unter Windows Strg+Alt und löst damit zusätzlich das
+// Liegenlassen der Wege aus (Windows-Eigenart, hier nicht gemessen).
 //
 // 💣 GESPEICHERT WIRD ÜBER DEN EINEN TRICHTER. Zwei Ziehwege münden in saveMovedLocationMarker (die
 // normalen Ortsmarker in routing.js, neu angelegte Punkte in map-features-location-marker-entry.js), und
