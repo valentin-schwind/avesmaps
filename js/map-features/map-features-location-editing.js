@@ -149,7 +149,12 @@ function setLocationEditActive(markerEntry, isActive) {
 		if (typeof avesmapsArmLocationDetachTracking === "function") {
 			avesmapsArmLocationDetachTracking(markerEntry);
 		}
-		showFeedbackToast(`${markerEntry.name}: Marker verschieben, Loslassen speichert. Mit Strg bleiben angeschlossene Wege liegen.`, "info");
+		// Und das Alt-Einrasten an Landschaftsflächen (map-features-location-snap-edit.js) -- derselbe
+		// Trichter aus demselben Grund.
+		if (typeof avesmapsArmLocationSnapTracking === "function") {
+			avesmapsArmLocationSnapTracking(markerEntry);
+		}
+		showFeedbackToast(`${markerEntry.name}: Marker verschieben, Loslassen speichert. Mit Strg bleiben angeschlossene Wege liegen, mit Alt rastet er an Landschaftsflächen ein.`, "info");
 		return;
 	}
 
@@ -159,6 +164,9 @@ function setLocationEditActive(markerEntry, isActive) {
 	}
 	if (typeof avesmapsDisarmLocationDetachTracking === "function") {
 		avesmapsDisarmLocationDetachTracking();
+	}
+	if (typeof avesmapsDisarmLocationSnapTracking === "function") {
+		avesmapsDisarmLocationSnapTracking();
 	}
 	markerEntry.marker.dragging.disable();
 }
@@ -249,7 +257,20 @@ async function moveConnectedPathEndpointsForLocation(previousCoordinates, nextCo
 }
 
 async function saveMovedLocationMarker(markerEntry, latlng) {
-	const normalizedLatLng = L.latLng(latlng);
+	// Alt beim Loslassen: die Position springt auf die Ecke (sonst die Umrisslinie) einer sichtbaren
+	// Landschaftsfläche (map-features-location-snap-edit.js). 💣 HIER und nicht am dragend-Handler: zwei
+	// Ziehwege münden in diese Funktion, und ein Handler bände nur einen davon. Abgeholt VOR allem
+	// anderen, damit der Zustand auch dann verbraucht ist, wenn die Position unten abgelehnt wird; der
+	// Weg über eine Änderungsmeldung bekommt null, weil dort nichts gezogen wurde.
+	const snappedLatLng = typeof avesmapsConsumeLocationSnapLatLng === "function"
+		? avesmapsConsumeLocationSnapLatLng(markerEntry, latlng)
+		: null;
+	const normalizedLatLng = L.latLng(snappedLatLng || latlng);
+	if (snappedLatLng) {
+		// Sofort, nicht erst nach dem Speichern: sonst stünde der Marker die Dauer der Anfrage lang dort,
+		// wo der Ring gerade NICHT war. Scheitert das Speichern, setzt der Aufrufer ihn ohnehin zurück.
+		markerEntry.marker.setLatLng(normalizedLatLng);
+	}
 	if (!markerEntry?.publicId || !isWithinMapBounds(normalizedLatLng)) {
 		showFeedbackToast("Diese Position kann nicht gespeichert werden.", "warning");
 		return false;
@@ -292,8 +313,8 @@ async function saveMovedLocationMarker(markerEntry, latlng) {
 			// counter on the map keeps saying so until the last end hangs on a place again.
 			showFeedbackToast(
 				detachedPathEndCount > 0
-					? `${markerEntry.name} verschoben — ${detachedPathEndCount} ${detachedPathEndCount === 1 ? "Wegende blieb" : "Wegenden blieben"} liegen (Strg).`
-					: `${markerEntry.name} gespeichert.`,
+					? `${markerEntry.name} ${snappedLatLng ? "eingerastet" : "verschoben"} — ${detachedPathEndCount} ${detachedPathEndCount === 1 ? "Wegende blieb" : "Wegenden blieben"} liegen (Strg).`
+					: `${markerEntry.name} ${snappedLatLng ? "eingerastet und " : ""}gespeichert.`,
 				detachedPathEndCount > 0 ? "warning" : "success"
 			);
 			return true;
@@ -301,7 +322,12 @@ async function saveMovedLocationMarker(markerEntry, latlng) {
 		const movedPathText = pathMoveSummary.movedPathCount > 0
 			? ` und ${pathMoveSummary.movedPathCount} ${pathMoveSummary.movedPathCount === 1 ? "angeschlossener Weg" : "angeschlossene Wege"} mitverschoben`
 			: "";
-		const statusMessage = `${markerEntry.name} gespeichert${movedPathText}.`;
+		// „eingerastet" sagt, dass der Sprung auf die Flächenecke gewollt war -- ohne das Wort sähe er aus
+		// wie ein Marker, der sich beim Loslassen selbstständig gemacht hat.
+		// Mit mitverschobenen Wegen „eingerastet, gespeichert und …", ohne „eingerastet und gespeichert" --
+		// zweimal „und" in einem Satz liest sich wie ein Stottern.
+		const snappedText = snappedLatLng ? (movedPathText ? "eingerastet, " : "eingerastet und ") : "";
+		const statusMessage = `${markerEntry.name} ${snappedText}gespeichert${movedPathText}.`;
 		showFeedbackToast(
 			pathMoveSummary.failedPathCount > 0 ? `${statusMessage} Einige Wege konnten nicht mitverschoben werden.` : statusMessage,
 			pathMoveSummary.failedPathCount > 0 ? "warning" : "success"

@@ -411,7 +411,12 @@ function ecosystemEditSnapToleranceForLatLng(latLng) {
 }
 
 // Where the corner would land, or null. [lat, lng] in, [lat, lng] out -- the GeoJSON swap stays inside.
-function ecosystemEditSnapTarget(latLng, excludePublicId) {
+//
+// 🔴 `mitFluessen: false` gehört dem Einrasten einer KREUZUNG (Alt+Ziehen, Owner 2026-10-15,
+// map-features-location-snap-edit.js). Eine Flächenecke soll am Fluss enden -- eine Kreuzung auf einer
+// Flusslinie dagegen hinge dadurch NICHT am Fluss: angeschlossen wird über Wegenden, nicht über Nähe.
+// Dieselbe Regel (Reichweite, Ecke vor Kante), nur ohne die Flusslinien als Ziel.
+function ecosystemEditSnapTarget(latLng, excludePublicId, { mitFluessen = true } = {}) {
 	const tolerance = ecosystemEditSnapToleranceForLatLng(latLng);
 	if (!(tolerance > 0)) {
 		return null;
@@ -423,7 +428,7 @@ function ecosystemEditSnapTarget(latLng, excludePublicId) {
 	const point = [latLng.lng, latLng.lat];
 	const snap = ecosystemEditNearestSnapPoint(
 		point,
-		[...ecosystemEditSnapCandidates(excludePublicId), ...ecosystemEditRiverSnapCandidates(point, tolerance)],
+		[...ecosystemEditSnapCandidates(excludePublicId), ...(mitFluessen ? ecosystemEditRiverSnapCandidates(point, tolerance) : [])],
 		tolerance
 	);
 

@@ -4152,6 +4152,10 @@
 		<script src="js/map-features/map-features-location-lookup.js"></script>
 		<script src="js/map-features/map-features-location-marker-entry.js"></script>
 		<script src="js/map-features/map-features-location-detach-edit.js"></script>
+		<!-- Das Gegenstück zur Strg-Taste darüber: Alt beim Ziehen einer Kreuzung rastet an der Ecke einer
+		     sichtbaren Landschaftsfläche ein. Setzt beim Laden nur window-Funktionen und Tastenzuhörer;
+		     den Schnapp-Helfer der Landschaften ruft es erst zur Laufzeit. -->
+		<script src="js/map-features/map-features-location-snap-edit.js"></script>
 		<!-- Direkt hinter detach-edit.js, weil beide dieselbe Lücke messen (ein Wegende ohne Ort) und
 		     denselben Rechner rufen: dort die eigene Merkliste, hier der Gesamtbestand. Die Datei setzt
 		     beim Laden nur window-Funktionen -- sie rührt weder `map` noch `pathData` an, der Index
