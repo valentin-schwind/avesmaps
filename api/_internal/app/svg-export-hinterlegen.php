@@ -44,8 +44,18 @@ function avesmapsSvgExportKeepFiles(string $variante): int {
         : AVESMAPS_SVG_EXPORT_KEEP_FILES;
 }
 
-/** Obergrenze fuer einen Abzug. Live gemessen 23.08.2026: 8,6 MB. */
-const AVESMAPS_SVG_EXPORT_MAX_BYTES = 64 * 1024 * 1024;
+/**
+ * Obergrenze fuer einen Abzug.
+ *
+ * 🚩 Gemessen: 23.08.2026 roh 8,6 MB; 31.10.2026 roh 31,5 MB, GEGLAETTET 68.275.136 Bytes
+ * (65,1 MiB). An der alten Grenze von 64 MiB scheiterte die geglaettete Fassung ab dem
+ * 29.10.2026 -- im Browser wie in der naechtlichen Routine, jeweils erst am LETZTEN Stueck.
+ * Die rohe ging weiter durch, die glatte Schublade blieb auf altem Stand stehen.
+ * ⚠️ 128 MiB lassen der glatten Fassung rund das Doppelte Luft. Nicht beliebig hoeher: es bleiben
+ * 3 rohe und 2 glatte Abzuege liegen (KEEP_FILES oben), und ein volles Webspace entzieht auf
+ * STRATO der Datenbank die Schreibrechte.
+ */
+const AVESMAPS_SVG_EXPORT_MAX_BYTES = 128 * 1024 * 1024;
 
 /**
  * Untergrenze. ⚠️ Ein echter Riegel, keine Schoenheit: der wahrscheinlichste stille Fehlschlag
@@ -151,7 +161,8 @@ function avesmapsSvgExportStueckAnhaengen(string $verzeichnis, string $uploadId,
     $bisher = is_file($pfad) ? (int) filesize($pfad) : 0;
     if (($bisher + strlen($rohdaten)) > AVESMAPS_SVG_EXPORT_MAX_BYTES) {
         @unlink($pfad);
-        throw new RuntimeException('Der Abzug ueberschreitet die Obergrenze.');
+        throw new RuntimeException('Der Abzug ueberschreitet die Obergrenze von '
+            . intdiv(AVESMAPS_SVG_EXPORT_MAX_BYTES, 1024 * 1024) . ' MiB.');
     }
 
     if (@file_put_contents($pfad, $rohdaten, FILE_APPEND | LOCK_EX) === false) {
