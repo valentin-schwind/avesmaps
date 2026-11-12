@@ -1,0 +1,61 @@
+{
+    "$comment": "Logische Avesmaps-Zoombänder z0 bis z8 für den Map Domain aventuria. Produktsemantik, rendererunabhängig (Kapitel 4.17.5). Werte Ziffer für Ziffer aus Finding MCS-004; null bedeutet: auf dieser Stufe nicht sichtbar, die erste gefüllte Zelle ist die Erscheinungsstufe. Wer hier eine Zahl ändert, ändert die Karte.",
+    "schemaVersion": 1,
+    "mapDomain": "aventuria",
+    "bandCount": 9,
+    "marker": {
+        "metropole": [6.65, 9.4, 13.3, 18.81, 26.6, 37.62, 53.2, 53.2, 53.2],
+        "grossstadt": [3.99, 5.86, 8.6, 12.62, 18.52, 27.18, 39.9, 39.9, 39.9],
+        "stadt": [1.33, 2.26, 3.84, 6.52, 11.07, 18.79, 31.92, 31.92, 31.92],
+        "kleinstadt": [null, 1.33, 2.39, 4.29, 7.7, 13.82, 24.82, 24.82, 24.82],
+        "dorf": [null, null, 1.33, 2.54, 4.86, 9.28, 17.74, 17.74, 17.74],
+        "gebaeude": [null, null, null, 1.33, 2.8, 5.9, 12.42, 12.42, 12.42],
+        "stadtviertel": [null, null, null, 1.33, 2.8, 5.9, 12.42, 12.42, 12.42]
+    },
+    "label": {
+        "metropole": [8, 9, 11, 13, 17, 19, 19, 19, 19],
+        "grossstadt": [8, 8.5, 10, 12, 15, 17, 17, 17, 17],
+        "stadt": [null, null, 9, 11, 13, 15, 15, 15, 15],
+        "kleinstadt": [null, null, null, 9.5, 11, 13, 13, 13, 13],
+        "dorf": [null, null, null, null, 10, 11, 11, 11, 11],
+        "gebaeude": [null, null, null, null, 9, 9, 9, 9, 9],
+        "stadtviertel": [null, null, null, null, 9, 9, 9, 9, 9]
+    },
+    "$structureComment": "Bauwerksklassen (WI-0011): welche Ortsklassen ein BAUWERK sind und keine Siedlung. 🔴 Ein MERKMAL mit eigenem Namen, keine Abfrage auf subtype = 'gebaeude' — daran ist Legacy fast gescheitert (MCS-012): der Vergleich bedeutete an sieben Stellen zugleich 'diese Klasse' und 'ein Bauwerk', und mit stadtviertel kam die zweite Bauwerksklasse. Legacy: AVESMAPS_BAUWERKSKLASSEN in js/ui/ortsklassen.js (bf9855430). Ein Bauwerk traegt die violette Staettenfarbe und ab diamondFromBand eine Raute statt eines Kreises (Legacy: isSite && visualZoom >= 4).",
+    "structure": {
+        "classes": ["gebaeude", "stadtviertel"],
+        "diamondFromBand": 4
+    },
+    "$capitalComment": "Der Goldring der Metropolen (Legacy: isCapital = metropole && visualZoom >= 3 && markerSize >= 14; Ringbreite round(markerSize * 0.12); aussen eine 1-px-Kante). Legacy fragt hier den Klassenwert ab, und das ist richtig: 'Hauptstadt' ist bei Legacy KEIN Merkmal, sondern genau diese Klasse. Die Liste steht trotzdem als Liste, damit die Frage einen Namen hat.",
+    "capital": {
+        "classes": ["metropole"],
+        "fromBand": 3,
+        "minDiameter": 14,
+        "ringRatio": 0.12
+    },
+    "calibration": {
+        "$comment": "⭐ JETZT IST SIE NUR NOCH GESCHMACK, und das ist der Unterschied zu vorher. Hier stand schon einmal 1.5 — am Auge gefunden, bevor `POINTS_TO_PIXELS` und `RENDER_ZOOM_OFFSET` existierten; dieser Wert hat in Wahrheit zwei Übertragungsfehler ausgeglichen und ihre Ursache verdeckt. Beide sind seit WI-0015 an der Wurzel behoben, und der Betreiber hat DANACH auf Stage geurteilt: „1.4 hab ich den regler für orte\" (2026-09-22). 🪤 Der Faktor liegt NEBEN Legacys Tafel, nicht in ihr: die Zahlen dort bleiben Legacys Werte mit Herkunftsnachweis, dieser hier ist unsere Entscheidung, und beide bleiben einzeln lesbar. Er erreicht Schriftgröße, Saumbreite und Saumweichzeichnung gemeinsam — ein Saum, der nicht mitwächst, wird bei großer Schrift zum Haarstrich. 🪤 VERLAUF: 1.4 (Betreiber auf Stage, 2026-09-22) -> 1.2 (Betreiber 2026-09-23: 'Schrift kleiner, ja', nach dem Sichtvergleich mit Legacy, der bei uns weniger und groessere Namen zeigte). 1.0 waere Legacys Groesse exakt. Feinjustierung am Regler (?labeltune=1). -> 1.0 (Betreiber 2026-09-23, am Handy angesehen: 'mach Schrift 1,0 wie bei Avesmaps'). Damit ist die Ortsschrift Legacys Tafel exakt, nur in Pixel umgerechnet.",
+        "label": 1.0
+    },
+    "spacing": {
+        "spalt": 4,
+        "repel": 2,
+        "versatz": 8,
+        "drift": 150,
+        "kontur": 33,
+        "haarlinie": 1,
+        "namensspalt": 2
+    },
+    "units": {
+        "marker": "outer diameter in px",
+        "label": "font size in pt",
+        "spacing": "px, except kontur which is percent of the marker core radius. haarlinie: Legacys dunkle 1-px-Linie um jeden Marker. namensspalt: UNSERE Wahl (Betreiber 2026-09-23: 'etwas naeher an der Markierung, aber in der hoechsten Zoomstufe darf es nicht kollidieren') - der Abstand zwischen dem aeussersten Strich des Markers (Haarlinie, Goldring, Rautenspitze) und dem Namen auf dem engsten Band. Legacys spalt (4) bleibt fuer den Kollisionspuffer.",
+        "landscapeLabel": "Die Groessentafel der Landschaftsnamen steht seit WI-0064 NICHT mehr hier, sondern in der Datenbank (landscape_display_art, Legacys Vorgaben plus Uebersteuerungen, siehe config/landscape-display). Ihre Einheit gilt unveraendert: font size in PIXELN, ein Wert je Band z0..z8. 💣 NICHT in Punkt, obwohl Legacy den Wert im Regionen-Editor als 'pt' bezeichnet (12-50 pt) - er zeichnet ihn unverändert als Pixelzahl, `renderMapLabelToImage` nimmt ihn als `fontSizePx` entgegen. Hier stand 'pt', und das ist die Angabe, die den nächsten Leser dazu bringt, POINTS_TO_PIXELS auch hier anzuwenden. Dann wären die Landschaftsnamen ein Drittel zu groß. Gegenprobe an der laufenden Legacy-Karte: ein gespeicherter Wert 30 kommt bei Legacys z5 als 30 px an. Und im Mirror (bf98554) kommt `* 4 / 3` in genau EINER Datei vor - map-features-location-name-labels.js, den Ortsnamen.",
+        "$einheitenComment": "🪤 DREI FAMILIEN, DREI KONVENTIONEN, EIN WORT. Ortsnamen: Punkt, Legacy rechnet um (POINTS_TO_PIXELS). Landschaftsnamen: Pixel, von Legacy fälschlich 'pt' genannt. Wegenamen: Pixel, ohne Tafel. Wer eine dieser drei Angaben 'vereinheitlicht', macht aus einem Fehler drei."
+    },
+    "provenance": {
+        "baselineId": "legacy-2026-09-20",
+        "findings": ["MCS-003", "MCS-004", "MCS-007"],
+        "note": "z8 erbt z7, weil die Legacy-Karte nur bis Zoom 7 geht. Die Werte sind Legacy-Kalibrierung und werden für MapLibre nachkalibriert, nicht als gleiche Zahlen übernommen."
+    }
+}

@@ -1,0 +1,1453 @@
+{
+    "hinweis": "Von scripts/dev/wiki-vorkommen-orakel.php gefüllt (erwartet); nie von Hand.",
+    "faelle": [
+        {
+            "id": "echt-wirselkraut",
+            "titel": "Wirselkraut",
+            "ns": 0,
+            "text": "{{Interwiki|regel=Her_Wirselkraut|en=Whirlweed|regelcat=dsk_detailregeln_wirselkraut}}\n{{Aventurien}}{{Myranor}}\n<onlyinclude>{{Register Pflanzenart}}</onlyinclude>\n{{Sprachen\n|Garethi=[[Wirselkraut]]\n|Isdira=[[bhalsamada]]\n}}\n==Kurzbeschreibung==\n{{Infobox Pflanzenart\n|Name=Wirselkraut\n|Bild={{Boximage|Wirselkraut bunt.png}}\n|Art=[[Gras]]\n|Vorkommen=ganz Aventurien in [[Steppe]]n und [[Graslandschaft]]en\n|Verbreitung=ganz [[Aventurien]] außer Ewiges Eis und Wüste, entlang des [[Der Große Fluss|Großen Flusses]], [[Bornland (Region)|Bornland]], [[Orkland]], [[Thorwal (Region)|Thorwal]]; [[Myranor]]; [[Inseln im Nebel (Globule)|Inseln im Nebel]]\n|Blütezeit=Ganzjährig außer [[Winter (Jahreszeit)|Winter]]\n|Erntezeit=\n|Erzeugnisse=[[Heiltrank]], [[Wirseltrank]], [[Wirselkrauttee]], [[Heilsalbe]], Brandsalbe, Wundbehandlung\n}}\n'''Wirselkraut''', auch '''Wundgras''', '''Wuersel''' oder '''Wirsel''', ist eine unscheinbare Graspflanze, die für Laien oft schwer von anderen Gräsern zu unterscheiden ist, obwohl es das wohl bekannteste Heilkraut [[Aventurien]]s ist. Verwendet wird es entweder frisch oder als Grundlage für [[Heilsalbe]], [[Wirselkrauttee|Tee]] oder [[Heiltrank]].\n\n[[Zwerg]]e haben eine Unverträglichkeit gegen Wirselkraut. Zudem hassen sie auch den süß-säuerlichen Geschmack.\n",
+            "erwartet": {
+                "art": "flora",
+                "wikiKey": "wirselkraut",
+                "felder": {
+                    "name": "Wirselkraut",
+                    "gruppe": "[[Gras]]",
+                    "lebensraum": "ganz Aventurien in [[Steppe]]n und [[Graslandschaft]]en",
+                    "roh_verbreitung": "ganz [[Aventurien]] außer Ewiges Eis und Wüste, entlang des [[Der Große Fluss|Großen Flusses]], [[Bornland (Region)|Bornland]], [[Orkland]], [[Thorwal (Region)|Thorwal]]; [[Myranor]]; [[Inseln im Nebel (Globule)|Inseln im Nebel]]",
+                    "roh_vorkommen": "ganz Aventurien in [[Steppe]]n und [[Graslandschaft]]en"
+                },
+                "orte": [
+                    {
+                        "titel": "Aventurien",
+                        "schluessel": "aventurien",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Der Große Fluss",
+                        "schluessel": "der-grosse-fluss",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    },
+                    {
+                        "titel": "Bornland (Region)",
+                        "schluessel": "bornland-region",
+                        "beziehung": "verbreitung",
+                        "stelle": 2
+                    },
+                    {
+                        "titel": "Orkland",
+                        "schluessel": "orkland",
+                        "beziehung": "verbreitung",
+                        "stelle": 3
+                    },
+                    {
+                        "titel": "Thorwal (Region)",
+                        "schluessel": "thorwal-region",
+                        "beziehung": "verbreitung",
+                        "stelle": 4
+                    },
+                    {
+                        "titel": "Myranor",
+                        "schluessel": "myranor",
+                        "beziehung": "verbreitung",
+                        "stelle": 5
+                    },
+                    {
+                        "titel": "Inseln im Nebel (Globule)",
+                        "schluessel": "inseln-im-nebel-globule",
+                        "beziehung": "verbreitung",
+                        "stelle": 6
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-aranische-wassernuss",
+            "titel": "Aranische Wassernuss",
+            "ns": 0,
+            "text": "{{Aventurien}}\n<onlyinclude>{{Register Pflanzenart}}</onlyinclude>\n{{Abgeleitet|[[Aranien]], [[Wasser]], [[Nuss]]}}\n{{Synonym|Wasserkastanie; Traben; schwimmende Stachelnuss|[[Wasser]], [[Kastanie]], [[Schwimmen]], [[Stachel (allgemein)|Stachel]], [[Nuss]]}}\n==Kurzbeschreibung==\n{{Infobox Pflanzenart\n|Name=Aranische Wassernuss\n|Bild=\n|Art=\n|Vorkommen=[[Sumpf|Sümpfe]], Marschen und [[Moor]]e\n|Verbreitung=häufig in [[Aranien]], südlich der Linie [[Perricum]] und [[Havena (Siedlung)|Havena]] gelegentlich\n|Blütezeit= [[Sommer]]\n|Erntezeit=[[Praios (Monat)|Praios]] bis [[Rondra (Monat)|Rondra]]\n|Erzeugnisse=Nüsse: [[Krähenfuß]], Wurzel und Blätter: Arznei für Periodenleiden, Kern: Nahrung\n}}\nDie '''Aranische Wassernuss''', auch bekannt als '''Wasserkastanie''', '''Traben''' oder '''schwimmende Stachelnuss''', kommt in stehenden Gewässern vor.\n",
+            "erwartet": {
+                "art": "flora",
+                "wikiKey": "aranische-wassernuss",
+                "felder": {
+                    "name": "Aranische Wassernuss",
+                    "lebensraum": "[[Sumpf|Sümpfe]], Marschen und [[Moor]]e",
+                    "roh_verbreitung": "häufig in [[Aranien]], südlich der Linie [[Perricum]] und [[Havena (Siedlung)|Havena]] gelegentlich",
+                    "roh_vorkommen": "[[Sumpf|Sümpfe]], Marschen und [[Moor]]e"
+                },
+                "orte": [
+                    {
+                        "titel": "Aranien",
+                        "schluessel": "aranien",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Perricum",
+                        "schluessel": "perricum",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    },
+                    {
+                        "titel": "Havena (Siedlung)",
+                        "schluessel": "havena-siedlung",
+                        "beziehung": "verbreitung",
+                        "stelle": 2
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-wachtel",
+            "titel": "Wachtel",
+            "ns": 0,
+            "text": "{{Interwiki|wp=[[wpde:Wachtel (Art)|Wachtel]]}}\n{{Aventurien}}\n<onlyinclude>{{Register Tierart}}</onlyinclude>\n==Kurzbeschreibung==\n{{Infobox Tierart\n|Name=Wachtel\n|Bild={{Boximage|Wachtel Sofus.jpg}}<br>inoffizielle Illustration\n|Art=[[Vogel]]\n|Weitere Namen=\n|Unterarten=\n|Größe=\n|Vorkommen=\n|Verbreitung=[[Aventurien]], nicht [[Maraskan]]\n|Auftreten=\n|Verwendung=\n|Vertrautentier=\n|Tierkönig=\n|Schöpfer=\n}}\n'''Wachteln''' sind [[Jagd|jagbares]] [[Wild]][[geflügel]].\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "wachtel",
+                "felder": {
+                    "name": "Wachtel",
+                    "gruppe": "[[Vogel]]",
+                    "roh_verbreitung": "[[Aventurien]], nicht [[Maraskan]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Aventurien",
+                        "schluessel": "aventurien",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Maraskan",
+                        "schluessel": "maraskan",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-zwiebel",
+            "titel": "Zwiebel",
+            "ns": 0,
+            "text": "{{Interwiki|wp=[[wpde:Zwiebel|Zwiebel]]}}\n{{Überarbeiten|Grund=Pflanze und verwendbare Teile unterscheiden, --[[Benutzer:Dissenswurst|Dissenswurst]] 11:59, 2. Mai 2020 (UTC)}}\n{{Aventurien}}\n<onlyinclude>{{Register Pflanzenart}}</onlyinclude>\n==Kurzbeschreibung==\n{{Infobox Pflanzenart\n|Name=Zwiebel\n|Bild=\n|Art=[[Lauchgewächs]]\n|Vorkommen=\n|Verbreitung=überall, ausgenommen [[Glorania]], [[Grimmfrostöde]], [[Nivesenlande]]\n|Blütezeit=\n|Erntezeit=[[Efferd (Monat)|Efferd]], [[Travia (Monat)|Travia]]\n|Erzeugnisse=[[Nahrungsmittel]] (u.a. [[Zwiebelsuppe]], [[Zwiebelkuchen]]), [[Gewürz]], [[Heilpflanze]], [[Färbemittel]]\n}}\n'''Zwiebeln''' werden als [[Nahrungsmittel]] und [[Gewürz]] genutzt und der [[Peraine|Peraine]] zugeordnet. Eine besonders scharfe Variante ist die auch noch im hohen Norden gedeihende [[Kvillzwiebel]].\n",
+            "erwartet": {
+                "art": "flora",
+                "wikiKey": "zwiebel",
+                "felder": {
+                    "name": "Zwiebel",
+                    "gruppe": "[[Lauchgewächs]]",
+                    "roh_verbreitung": "überall, ausgenommen [[Glorania]], [[Grimmfrostöde]], [[Nivesenlande]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Glorania",
+                        "schluessel": "glorania",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Grimmfrostöde",
+                        "schluessel": "grimmfrost-de",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    },
+                    {
+                        "titel": "Nivesenlande",
+                        "schluessel": "nivesenlande",
+                        "beziehung": "verbreitung",
+                        "stelle": 2
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-bremse",
+            "titel": "Bremse",
+            "ns": 0,
+            "text": "{{Interwiki|wp=[[wpde:Bremse|Bremse]]}}\n{{Aventurien}}\n<onlyinclude>{{Register Tierart}}</onlyinclude>\n==Kurzbeschreibung==\n{{Infobox Tierart\n|Name=Bremse\n|Bild=\n|Art=[[Stechfliege]]\n|Weitere Namen=\n|Unterarten=[[Orkland-Bremse]]\n|Größe=\n|Vorkommen=[[Sumpf|Sümpfe]], [[Steppe]]n (u.a.)\n|Verbreitung=[[Aventurien]]: [[Meridiana]], [[Orkland]]\n|Auftreten=Schwarm\n|Verwendung=\n|Vertrautentier=\n|Tierkönig=\n|Schöpfer=\n}}\n'''Bremsen''' sind [[blut]]saugende [[Insekt]]en, die in [[Schwarm (Tiere)|Schwärmen]] auftreten. Durch ihren Stich können Entzündungen oder auch Infektionen ausgelöst werden.\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "bremse",
+                "felder": {
+                    "name": "Bremse",
+                    "gruppe": "[[Stechfliege]]",
+                    "lebensraum": "[[Sumpf|Sümpfe]], [[Steppe]]n (u.a.)",
+                    "roh_verbreitung": "[[Aventurien]]: [[Meridiana]], [[Orkland]]",
+                    "roh_vorkommen": "[[Sumpf|Sümpfe]], [[Steppe]]n (u.a.)"
+                },
+                "orte": [
+                    {
+                        "titel": "Aventurien",
+                        "schluessel": "aventurien",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Meridiana",
+                        "schluessel": "meridiana",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    },
+                    {
+                        "titel": "Orkland",
+                        "schluessel": "orkland",
+                        "beziehung": "verbreitung",
+                        "stelle": 2
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-tanne",
+            "titel": "Tanne",
+            "ns": 0,
+            "text": "{{Interwiki|wp=[[wpde:Tanne|Tanne]]}}\n{{Aventurien}}\n<onlyinclude>{{Register Pflanzenart}}</onlyinclude>\n==Kurzbeschreibung==\n{{Infobox Pflanzenart\n|Name=Tanne\n|Bild=\n|Art=[[Nadelbaum]]\n|Vorkommen=\n|Verbreitung=nördliches [[Bornland (Region)|Bornland]], [[Thorwal (Region)|Thorwal]], nördliches [[Weiden|Weiden]]\n|Blütezeit=\n|Erntezeit=\n|Erzeugnisse=[[Holz|Bauholz]], [[Alchimie|Alchimistische]] [[Zutat]]\n}}\nDie '''Tanne''' (auch '''Ingerimmsbaum''') ist ein [[Nadelbaum]], dessen [[Holz]] als Bauholz sowie Stiele für [[Waffe]]n und [[Werkzeug]]e Verwendung findet. Auch als Feuerholz und in der Köhlerei wird sie aufgrund der großen entstehenden Hitze geschätzt. Die Tanne ist eine Heilige Pflanze der [[Ingerimm-Kirche]].\n\nDer [[Tannenkönig]] ist der [[Pflanzenkönig]] aller Tannen.\n\n{{Arten}}\n*[[Blautanne]]\n*[[Schwerttanne]]\n*[[Sicheltanne]]\n*[[Weißtanne]]\n\n;Bedeutende Tannen:\n*[[Pflanzenkönig]] [[Tannenkönig]] ([[Blautann]])\n",
+            "erwartet": {
+                "art": "flora",
+                "wikiKey": "tanne",
+                "felder": {
+                    "name": "Tanne",
+                    "gruppe": "[[Nadelbaum]]",
+                    "roh_verbreitung": "nördliches [[Bornland (Region)|Bornland]], [[Thorwal (Region)|Thorwal]], nördliches [[Weiden|Weiden]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Bornland (Region)",
+                        "schluessel": "bornland-region",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Thorwal (Region)",
+                        "schluessel": "thorwal-region",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    },
+                    {
+                        "titel": "Weiden",
+                        "schluessel": "weiden",
+                        "beziehung": "verbreitung",
+                        "stelle": 2
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-krebsschere",
+            "titel": "Krebsschere",
+            "ns": 0,
+            "text": "{{Interwiki|wp=[[wpde:Krebsschere|Krebsschere]]}}\n{{Aventurien}}\n<onlyinclude>{{Register Pflanzenart}}</onlyinclude>\n{{Abgeleitet|[[Krebs]], [[Schere]]}}\n==Kurzbeschreibung==\n{{Infobox Pflanzenart\n|Name=Krebsschere\n|Bild=\n|Art=\n|Vorkommen=Gewässer\n|Verbreitung=[[Südaventurien]]\n|Blütezeit=\n|Erntezeit=\n|Erzeugnisse=\n}}\nDie '''Krebsschere''' kann mit ihren stacheligen Blättern Schwimmern leichte Verletzungen zufügen.\n",
+            "erwartet": {
+                "art": "flora",
+                "wikiKey": "krebsschere",
+                "felder": {
+                    "name": "Krebsschere",
+                    "lebensraum": "Gewässer",
+                    "roh_verbreitung": "[[Südaventurien]]",
+                    "roh_vorkommen": "Gewässer"
+                },
+                "orte": [
+                    {
+                        "titel": "Südaventurien",
+                        "schluessel": "s-daventurien",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-schwarzer-lotos",
+            "titel": "Schwarzer Lotos (Pflanze)",
+            "ns": 0,
+            "text": "{{Interwiki|regel=her_Pflanzen/schwarzer-lotos}}\n{{Aventurien}}\n{{BKL|Schwarzer Lotos|[[Pflanze]]}}\n<onlyinclude>{{Register Pflanzenart}}</onlyinclude>\n{{Nav Lotos}}\n==Kurzbeschreibung==\n{{Infobox Pflanzenart\n|Name=Schwarzer Lotos\n|Bild={{Boximage|Schwarzer Lotos by inoxdesign.jpg}}\n|Art=[[Lotos]]\n|Vorkommen=Sümpfe, Marschen und Moore\n|Verbreitung=südlich der Linie [[Havena (Siedlung)|Havena]]-[[Perricum]]\n|Blütezeit=[[ING]]-[[PRA]]\n|Erntezeit=\n|Erzeugnisse=[[Antidot]], [[Regenbogenstaub]], [[Lotoswein]], [[Atemgift]], [[Schwarzer Lotosstaub]]\n}}\nDer '''Schwarze Lotos''' ist eine [[Pflanze]], aus deren Blütenstaub ein starkes - und gemäß des [[Wehrheimer Index]] verbotenes - [[Atemgift]] namens [[Schwarzer Lotosstaub]] gewonnen wird. Sie gilt als [[boron (Gott)|boron]]-heilige [[Pflanze]]. Der [[Borbarad-Lotos]] ist eine Abart des Schwarzen Lotos.\n\n==Irdisches==\nIrdischer [[wpde:Lotosblumen|Lotos]] kommen in vielen Farben zwischen gelb und rot bis weiß vor. Der [[wpde:Tigerlotus|Tigerlotus]] und der [[wpde:Nymphaea caerulea|blaue Lotus]] gehören nicht zur Gattung der Lotosgewächse.\n",
+            "erwartet": {
+                "art": "flora",
+                "wikiKey": "schwarzer-lotos-pflanze",
+                "felder": {
+                    "name": "Schwarzer Lotos",
+                    "gruppe": "[[Lotos]]",
+                    "lebensraum": "Sümpfe, Marschen und Moore",
+                    "continent": "Aventurien",
+                    "roh_verbreitung": "südlich der Linie [[Havena (Siedlung)|Havena]]-[[Perricum]]",
+                    "roh_vorkommen": "Sümpfe, Marschen und Moore"
+                },
+                "orte": [
+                    {
+                        "titel": "Havena (Siedlung)",
+                        "schluessel": "havena-siedlung",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Perricum",
+                        "schluessel": "perricum",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-fischerspinne-myranor",
+            "titel": "Fischerspinne (Myranor)",
+            "ns": 0,
+            "text": "{{BKL|Fischerspinne|[[Myranor|myranische]] [[Spinne]]nart}}\n<onlyinclude>{{Register Tierart}}</onlyinclude>\n{{Abgeleitet|[[Fischer]]}}\n==Kurzbeschreibung==\n{{Infobox Tierart\n|Name=Fischerspinne\n|Bild=\n|Art=[[Spinne]]\n|Weitere Namen=\n|Unterarten=\n|Größe=1 [[Schritt]]\n|Vorkommen=\n|Verbreitung=[[Archipel von Shindrabar]], [[Tharpura-Dschungel|Tharpura]], [[Makshapuram]]\n|Auftreten=Gruppe\n|Verwendung=\n|Vertrautentier=\n|Tierkönig=\n|Schöpfer=\n}}\nDie '''Fischerspinne''' ist eine große [[Spinne]]nart des [[Myranor|myranischen]] [[Regenwald]]s.\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "fischerspinne-myranor",
+                "felder": {
+                    "name": "Fischerspinne",
+                    "gruppe": "[[Spinne]]",
+                    "continent": "Myranor / Güldenland",
+                    "roh_verbreitung": "[[Archipel von Shindrabar]], [[Tharpura-Dschungel|Tharpura]], [[Makshapuram]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Archipel von Shindrabar",
+                        "schluessel": "archipel-von-shindrabar",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Tharpura-Dschungel",
+                        "schluessel": "tharpura-dschungel",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    },
+                    {
+                        "titel": "Makshapuram",
+                        "schluessel": "makshapuram",
+                        "beziehung": "verbreitung",
+                        "stelle": 2
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-nagellack-profan",
+            "titel": "Nagellack (profan)",
+            "ns": 0,
+            "text": "{{Interwiki|wp=[[wpde:Nagellack|Nagellack]]}}\n{{BKL|Nagellack|[[Lack]], zum Schmuck z.B. der [[Fingernagel (Körperteil)|Fingernägel]]}}\n{{Aventurien}}\n<onlyinclude>{{Register Gegenstandsgruppe}}</onlyinclude>\n{{Abgeleitet|[[Fingernagel (Körperteil)|Fingernagel]]}}\n==Kurzbeschreibung==\n{{Infobox Gegenstandsgruppe\n|Name=Nagellack\n|Bild=\n|Art=profan\n|Gegenstandstyp=[[Lack]]]]\n|Beinamen=\n|Kulturen=\n|Professionen=\n|Herkunft=\n|Verbreitung=[[Tulamidenlande]], [[Horasreich]]\n|Material=[[Harz]]e, ([[Halbedelstein|Halb-]]) [[Edelstein]]pulver\n|Entwickler=\n}}\n'''Nagellack''' ist ein [[Lack]], der von reichen [[Tulamidin]]nen, aber auch im [[Horasreich]] zum Schmuck etwa der [[Fingernagel (Körperteil)|Fingernägel]] benutzt wird.\n",
+            "erwartet": {
+                "art": "ware",
+                "wikiKey": "nagellack-profan",
+                "felder": {
+                    "name": "Nagellack",
+                    "gruppe": "profan",
+                    "typ": "[[Lack]]]]",
+                    "continent": "Aventurien",
+                    "roh_verbreitung": "[[Tulamidenlande]], [[Horasreich]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Tulamidenlande",
+                        "schluessel": "tulamidenlande",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Horasreich",
+                        "schluessel": "horasreich",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-entermesser",
+            "titel": "Entermesser",
+            "ns": 0,
+            "text": "{{Aventurien}}\n<onlyinclude>{{Register Gegenstandsgruppe}}</onlyinclude>\n{{Nav Klingenwaffen}}\n{{Abgeleitet|[[Messer]]}}\n==Kurzbeschreibung==\n{{Infobox Gegenstandsgruppe\n|Name=Entermesser\n|Bild=\n|Art=profan\n|Gegenstandstyp=[[Säbel]]\n|Beinamen=\n|Kulturen=[[Südaventurier]]\n|Professionen=[[Küstenschmugglerin]], [[Seefahrerin]], [[Walfänger]], [[Robbenjäger]], [[Pirat]], [[Seesoldat]], [[Graumagier der Schule der Hellsicht zu Thorwal]]\n|Herkunft=\n|Verbreitung=[[Küste]]\n|Material=\n|Entwickler=\n|Waffengruppe=Nah\n|Munition=\n}}\nDas '''Entermesser''' ist eine [[Nahkampfwaffe]]. Eine [[Thorwal (Kultur)|thorwalsche]] Variante des Entermessers ist das '''Hjalsmesser'''.\n\n==Regeltechnisches==\nDSA4-Talent=[[Säbel]]\nDSA5-Talent=[[Schwert]]er\n{{Regeltabs\n|DSA5=\n{{RegelTab\n|DSA5\n|Entermesser\n|Schwerter@Gegenstand\n|\n|Ein '''Entermesser''' wird mit der [[Kampftechnik]] [[Schwerter]] geführt. Sie werden mit dem [[Anwendungsgebiet]] [[Waffenbau|Waffenherstellung]] des [[Talent]]s [[Metallbearbeitung]] hergestellt.\n|[[Kodex des Schwertes]] Seiten 169, 379\n|regel=entermesser\n}}\n|DSA4=\n|DSA3=\n|DSA2=\n|DSA1=\n}}\n==Errata==\n{{Errata|Link=Aventurisches Arsenal/Offizielle Errata|Text=Entermesser: Auch ein Waffenmeister ([[Kusliker Säbel]]) kann mit einem Entermesser die Vorteile der Waffenmeisterschaft nutzen.\n}}\n",
+            "erwartet": {
+                "art": "ware",
+                "wikiKey": "entermesser",
+                "felder": {
+                    "name": "Entermesser",
+                    "gruppe": "profan",
+                    "typ": "[[Säbel]]",
+                    "roh_verbreitung": "[[Küste]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Küste",
+                        "schluessel": "k-ste",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-elfenbogen",
+            "titel": "Elfenbogen",
+            "ns": 0,
+            "text": "{{Interwiki|regel=elfenbogen}}\n{{Aventurien}}\n<onlyinclude>{{Register Gegenstandsgruppe}} </onlyinclude>\n{{Nav Schusswaffen Av}}\n{{Abgeleitet|[[Elf]]}}\n{{Sprachen\n|Garethi=[[Elfenbogen]]\n|Isdira=[[yar]][[yara|(a)]]\n}}\n==Kurzbeschreibung==\n{{Infobox Gegenstandsgruppe\n|Name=Elfenbogen\n|Bild=\n|Art=profan\n|Gegenstandstyp=[[Bogen (Waffe)]]\n|Beinamen=\n|Kulturen=[[Auelfen]], [[Firnelfen]], [[Steppenelfen]], [[Waldelfen]]\n|Professionen=[[Bewahrer]], [[Former]], [[Kämpfer]], [[Legendensänger]], [[Wanderin (Profession)|Wanderin]], [[Wildnisläufer]], [[Zauberweber]]\n|Herkunft=\n|Verbreitung=[[Elfen]]\n|Material=[[Esche]]n[[holz]]\n|Entwickler=\n|Waffengruppe=Fern\n|Munition=[[Pfeil]]\n}}\nEin '''Elfenbogen''' ist ein [[Bogen (Waffe)|Bogen]], der bei den verschiendenen Elfenvölkern in unterschiedlichen Varianten vorkommt: Als etwas kleinere Version des [[Langbogen]]s, aber auch als leichter [[Kompositbogen]] bei den [[Auelfen]] oder als [[Kurzbogen]] bei den [[Firnelfen]]. Viele Elfenbögen sind [[persönliche Waffe]]n, vor allem bei den [[Waldelfen]]. Die hohe [[Reichweite]] und Durchschlagskraft lässt sich nur durch [[Elfen|elfische]] [[Magie|Zauberei]] erklären. Elfenbögen können von den [[Elfen]] käuflich nicht erworben werden, daher findet man diese [[Waffe]]n nur sehr selten in den Händen von Nichtelfen.\n\n;[[Munition]]:\n*[[Pfeil]]\n\n;Haupteinsatzgebiete:\n*[[Jagd]]\n*Verteidigung\n\n;Materialien:\n*[[Holz]] ([[Waldelfen]])\n**[[Esche]] ([[Auelfen]])\n**[[Ulme]] ([[Auelfen]])\n*[[Horn (Material)|Horn]] ([[Waldelfen]])\n*[[Kristall]] ([[Firnelfen]])\n*[[Mammuton]] ([[Waldelfen]])\n*[[Rindenbast]] ([[Auelfen]])\n\n*[[Klebe]]r:\n**[[Harz]] ([[Auelfen]])\n\n*[[Sehne|Sehne]]n\n**[[Hirsch]] ([[Auelfen]], [[Waldelfen]])\n**[[Steppentiger]] ([[Waldelfen]])\n\n==Regeltechnisches==\n{{Regeltabs\n|DSA5={{RegelTab\n|DSA5\n|Elfenbogen\n|Gegenstand@Berufsgeheimnis\n|\n|'''Elfenbögen''' werden mit dem [[Anwendungsgebiet]] [[Waffenbau|Waffenherstellung]] des [[Talent]]s [[Holzbearbeitung]] hergestellt.\n|[[Kodex des Schwertes]] Seite 169}}\n{{RegelTab\n|DSA5\n|Elfenbogen\n|Bögen\n| \n|Ein '''Elfenbogen''' wird mit der [[Kampftechnik]] [[Bögen]] geführt.\n|[[Kodex des Schwertes]] Seite 381}}\n|DSA4={{RegelTab\n|DSA4\n|Elfenbogen\n|Gegenstand@Bogen (Waffe){{!}}Bogen\n|\n|Ein '''Elfenbogen''' wird mit dem [[Talent]] [[Bogen (Waffe)|Bogen]] geführt.\n|?}}\n|DSA3={{RegelTab\n|DSA3\n|Elfenbogen\n|Gegenstand@Schusswaffen (Bögen)\n|\n|Ein '''Elfenbogen''' wird mit dem speziell für [[Bogen (Waffe)|Bögen]] gesteigerten [[Talent]] [[Schusswaffen (Talent)|Schusswaffen]] geführt.\n|?}}\n|DSA2=\n|DSA1=\n}}\n\n==Irdisches==\nIn [[DSA3]] gab es zwei unterschiedliche Elfenbögen: den \"normalen\" Elfenbogen ([[Kaiser Retos Waffenkammer (1993)]] und [[Kaiser Retos Waffenkammer (1998)]]) und den '''[[Mammuton]]bogen''' ([[Compendium Salamandris]]).\n",
+            "erwartet": {
+                "art": "ware",
+                "wikiKey": "elfenbogen",
+                "felder": {
+                    "name": "Elfenbogen",
+                    "gruppe": "profan",
+                    "typ": "[[Bogen (Waffe)]]",
+                    "roh_verbreitung": "[[Elfen]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Elfen",
+                        "schluessel": "elfen",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-weidener-kettenhecht",
+            "titel": "Weidener Kettenhecht",
+            "ns": 0,
+            "text": "{{Interwiki|wp=[[wpde:Hechte|Hechte]]}}\n{{Aventurien}}\n<onlyinclude>{{Register Tierart}}</onlyinclude>\n{{Abgeleitet|[[Weiden]], [[Kette (Schrittware)|Kette]]}}\n==Kurzbeschreibung==\n{{Infobox Tierart\n|Name=Kettenhecht\n|Bild=\n|Art=[[Hecht]]\n|Weitere Namen=\n|Unterarten=\n|Größe=\n|Vorkommen=\n|Verbreitung=[[Weiden|Weiden]]\n|Auftreten=\n|Verwendung=\n|Vertrautentier=\n|Karte=\n}}\nDer '''Weidener Kettenhecht''' ist ein [[Fisch|Süßwasserspeisefisch]].\n\nBenannt ist er nach der Region [[Weiden|Weiden]].\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "weidener-kettenhecht",
+                "felder": {
+                    "name": "Kettenhecht",
+                    "gruppe": "[[Hecht]]",
+                    "roh_verbreitung": "[[Weiden|Weiden]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Weiden",
+                        "schluessel": "weiden",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-rausch-parfum",
+            "titel": "1001 Rausch (Parfum)",
+            "ns": 0,
+            "text": "{{Aventurien}}\n{{BKL|1001 Rausch|berühmtes [[Parfüm]]}}\n<onlyinclude>{{Register Gegenstandsgruppe}}</onlyinclude>\n{{Abgeleitet|[[Rausch (Zustand)|Rausch]]}}\n==Kurzbeschreibung==\n{{Infobox Gegenstandsgruppe\n|Name=1001 Rausch\n|Bild=\n|Art=profan\n|Gegenstandstyp=[[Parfüm]]\n|Beinamen=\n|Kulturen=\n|Professionen=\n|Herkunft=\n|Verbreitung=[[Belhanka]]\n|Material=[[Alkohol]], [[Rose]]nwasser, [[Malomis]]blüte\n|Entwickler=\n}}\n'''1001 Rausch''' ist ein [[Parfüm]]. Hergestellt wird es in [[Belhanka]] nach einem Geheimrezept der [[Haus ya Aranori|Familie ya Aranori]] unter anderem für die [[Rahjakirche]].\n\n==[[Errata]]==\n{{Errata|Link=Zoo-Botanica Aventurica/Offizielle Errata|Text=\nErsetze Verarbeitung: +5 durch Verarbeitung: +15\n}}\n",
+            "erwartet": {
+                "art": "ware",
+                "wikiKey": "1001-rausch-parfum",
+                "felder": {
+                    "name": "1001 Rausch",
+                    "gruppe": "profan",
+                    "typ": "[[Parfüm]]",
+                    "continent": "Aventurien",
+                    "roh_verbreitung": "[[Belhanka]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Belhanka",
+                        "schluessel": "belhanka",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-ban-shi",
+            "titel": "Ban'Shi",
+            "ns": 0,
+            "text": "{{Myranor}}\n<onlyinclude>{{Register Spezies}}</onlyinclude>\n{{Nav Myranische Spezies}}\n{{Wortbox Volk\n|Männlich=Wolfalb\n|Weiblich=Wolfalbin\n|Mehrzahl=?\n|Adjektiv=wolfalbisch}}\n{{Abgeleitet|[[Shi]]}}\n{{Synonym|Wolfsalben|[[Wolf]], [[Alb]]}}\n==Kurzbeschreibung==\n{{Infobox Spezies\n|Name=Ban&#39;Shi\n|Bild=\n|Regionen=Norden [[Myranor]]s\n|Kultur=[[Skirese]]n, [[Seskira]], [[Sqiraalingi]], [[Tkschode]]n\n|Verwandtschaft=[[Mensch]]en, [[Elf]]en, [[Nacktwolf|Nacktwölfe]]\n|Schöpfer=\n|Alter=80 [[Götterlauf|Götterläufe]]\n|Größe=1,85-2,04 [[Schritt]]\n}}\n{{Begriff|Ban'shi|unbekannt|[[Kind]]er des [[Licht (allgemein)|Lichts]]}}\nDas auch '''Wolfalben''' genannte Volk des [[Myranor|myranischen]] Nordens ist zum Teil [[mensch]]lich, zum Teil [[Lichtelf|lichtalbisch]]. Sie sind spitz[[ohr]]ig, besitzen [[kupfer]]farbene [[Haut]], schwarzes [[Frisur|Haar]], schräggestellte [[Auge]]n und die Gabe der [[Wolf]]sverwandlung und -sprache. Ban'Shi sind stets [[magie]]begabt (spezielle [[Magische Tradition|Traditionen]] sind [[Falschgesicht]]er und [[Medizinleute (Ban'Shi)|Medizinleute]]), und führen ein naturverbundenes Leben in Gemeinschaft mit [[Wolf|Wölfen]]. Allen anderen Völkern begegnen sie mit Ablehnung oder Feindschaft.\n\nSie sprechen [[Lish'shi]] ([[Wolfalbisch]]) und nutzen die [[Ban'shi-Bilderschrift]]. Sie verehren [[Gott|Götter]], [[Wolf|Wölfe]] und [[Drache]]n, darunter [[Aaldinoaq]], [[Daatsa]], [[Famerlor|Faamaloaq]], [[Iifirnurtah]], [[Maadalaq]], [[Maniticoah]], [[Mitreeloaq]], [[Qaariptaq]], [[Suubracoah]] und [[Wolfsgeister]].\n\nDie [[Jin'ahldlu'shi]] sind aus Ban'Shi hervorgegangen.\n\n{{Persönlichkeiten}}\n\n==Irdisches==\n*Die Ban'Shi stellen ein [[Myranor|myranisches]] Äquivalent zu den [[wpde:Indianer Nordamerikas|nordamerikanischen Ureinwohnern]] dar. Zudem sind sie neben den [[Holberker|Holberkern]] das einzige Volk in der Welt des [[Das Schwarze Auge|Schwarzen Auges]], das aus der Mischung zweier [[Spezies]] entstanden ist und in dieser Form fortbesteht. Im Grunde sind sie eine Spezies von [[Halbelfen]].\n*[[wpde:Banshee|Banshees]] sind Todesfeen aus der irischen Mythologie.\n\n==Regeltechnisches==\n;[[DSA4]]:'''Wolfalben''' sind eine regeltechnische [[Spezies]]. Übliche [[Kultur]]en sind [[Barbarisch]], [[Maritim]], [[Nomadisch]].\n",
+            "erwartet": {
+                "art": "spezies",
+                "wikiKey": "ban-shi",
+                "felder": {
+                    "name": "Ban'Shi",
+                    "roh_regionen": "Norden [[Myranor]]s"
+                },
+                "orte": [
+                    {
+                        "titel": "Myranor",
+                        "schluessel": "myranor",
+                        "beziehung": "regionen",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-te-sumurru",
+            "titel": "Te'Sumurrischer Todeswurm",
+            "ns": 0,
+            "text": "\n==Kurzbeschreibung==\n{{Infobox Tierart\n|Name=Te&#39;Sumurrischer Todeswurm\n|Bild=\n|Art=[[Wurm]]\n|Weitere Namen=\n|Unterarten=Stakalischer Eiswurm\n|Größe=4 [[Schritt]]\n|Vorkommen=\n|Verbreitung=[[Te'Sumurru (Region)|Te'Sumurru]], [[Khamuri-Savanne]], [[Rhacornos]], [[Koromanthia (Region)|Koromanthia]], [[Stakala]], [[Kentorikan]]\n|Auftreten=\n|Verwendung=\n|Vertrautentier=\n|Tierkönig=\n|Schöpfer=\n}}\nDer '''Te'Sumurrische Todeswurm''' ist ein unterirdisch lebendes Raubtier der [[Myranor|myranischen]] Steppen und Wüsten.\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "te-sumurrischer-todeswurm",
+                "felder": {
+                    "name": "Te'Sumurrischer Todeswurm",
+                    "gruppe": "[[Wurm]]",
+                    "roh_verbreitung": "[[Te'Sumurru (Region)|Te'Sumurru]], [[Khamuri-Savanne]], [[Rhacornos]], [[Koromanthia (Region)|Koromanthia]], [[Stakala]], [[Kentorikan]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Te'Sumurru (Region)",
+                        "schluessel": "te-sumurru-region",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Khamuri-Savanne",
+                        "schluessel": "khamuri-savanne",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    },
+                    {
+                        "titel": "Rhacornos",
+                        "schluessel": "rhacornos",
+                        "beziehung": "verbreitung",
+                        "stelle": 2
+                    },
+                    {
+                        "titel": "Koromanthia (Region)",
+                        "schluessel": "koromanthia-region",
+                        "beziehung": "verbreitung",
+                        "stelle": 3
+                    },
+                    {
+                        "titel": "Stakala",
+                        "schluessel": "stakala",
+                        "beziehung": "verbreitung",
+                        "stelle": 4
+                    },
+                    {
+                        "titel": "Kentorikan",
+                        "schluessel": "kentorikan",
+                        "beziehung": "verbreitung",
+                        "stelle": 5
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-rabe",
+            "titel": "Rabe",
+            "ns": 0,
+            "text": "{{Interwiki|wp=[[wpde:Kolkrabe|Kolkrabe]]|regel=Best RabeKohlrabe}}\n{{Aventurien}}{{Die Schwarze Katze}}\n{{BKL|Rabe (Begriffsklärung)|[[Vogel]]art}}\n<onlyinclude>{{Register Tierart}}</onlyinclude>\n{{Sprachen\n|Garethi=[[Rabe]]\n|Gjalskisch=[[Feannagh]]\n|Isdira=[[oâ]]\n|Tulamidya=[[Tamur]]\n}}\n==Kurzbeschreibung==\n{{Infobox Tierart\n|Name=Rabe\n|Bild={{Boximage|Rabe RvB.jpg}}<br>inoffizielle Illustration\n|Art=[[Vogel]]\n|Weitere Namen=\n|Unterarten=\n|Größe=bis zu 3 [[Spann]]\n|Vorkommen=\n|Verbreitung=ganz [[Aventurien]] <small>(insbesondere [[Eisenwald]])</small>; [[Inseln im Nebel (Globule)|Inseln im Nebel]]\n|Auftreten=meist einzeln\n|Verwendung=\n|Vertrautentier=[[Hexe]]n ([[Seherinnen von Heute und Morgen]]), [[Goblin-Schamanin]]nen, [[Goblinzauberin]]nen, [[Optimat]]en (v.&nbsp;a. [[Haus Icemna]] und [[Haus Aldangara]])\n|Tierkönig=\n|Schöpfer=\n}}\n{{Thumbleft|DeviantART CR Feivelyn Ornament Gekrönter Rabe.jpg|Der Gekrönte Rabe als Symbol der [[Al'Anfaner Ritus|Al'Anfaner Boron-Kirche]]}}\n{{Thumbleft|AlAnfa2024 RvB.jpg|Rabe im Flug über [[Al'Anfa]] - inoffizielle Illustration}}\n{{Thumbleft|AlAnfa-Raben RvB.jpg|kleine Rabenstatuen des [[Al'Anfaner Ritus]] - inoffizielle Illustration}}\n{{Thumbleft|Roman 127 Rabenkind.jpg}}\nEin '''Rabe''' ist ein [[Vogel]] mit schwarzem [[Feder]]kleid. Im [[Zwölfgötter]]glauben ist er das [[Symboltier]] des [[Boron]]. Er ist auch das typische [[Seelentier]] der [[Hexe]]n von der Schwesternschaft der [[Seherinnen von Heute und Morgen]].\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "rabe",
+                "felder": {
+                    "name": "Rabe",
+                    "gruppe": "[[Vogel]]",
+                    "roh_verbreitung": "ganz [[Aventurien]] <small>(insbesondere [[Eisenwald]])</small>; [[Inseln im Nebel (Globule)|Inseln im Nebel]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Aventurien",
+                        "schluessel": "aventurien",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Eisenwald",
+                        "schluessel": "eisenwald",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    },
+                    {
+                        "titel": "Inseln im Nebel (Globule)",
+                        "schluessel": "inseln-im-nebel-globule",
+                        "beziehung": "verbreitung",
+                        "stelle": 2
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-uralor",
+            "titel": "Uralor",
+            "ns": 0,
+            "text": "{{Abgeleitet|[[Riese]]}}\n==Kurzbeschreibung==\n{{Infobox Tierart\n|Name=Uralor\n|Bild=\n|Art=[[Chimäre]]\n|Weitere Namen=\n|Unterarten=\n|Größe=um 3 [[Schritt]]\n|Vorkommen=\n|Verbreitung=überall außer [[Regenwald]] und [[Wüste]]\n|Auftreten=\n|Verwendung=\n|Vertrautentier=\n|Karte=\n}}\nDas '''Uralor''' (auch '''Riesen-Garst''') ist eine seltene, überaus große und vierarmige [[Chimäre]].\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "uralor",
+                "felder": {
+                    "name": "Uralor",
+                    "gruppe": "[[Chimäre]]",
+                    "roh_verbreitung": "überall außer [[Regenwald]] und [[Wüste]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Regenwald",
+                        "schluessel": "regenwald",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Wüste",
+                        "schluessel": "w-ste",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-holberker",
+            "titel": "Holberker",
+            "ns": 0,
+            "text": "{{Aventurien}}\n<onlyinclude>{{Register Spezies}}</onlyinclude>\n{{Nav Daimonid}}\n{{Sprachen\n|Garethi=[[Holberker]]\n|Isdira=[[zergra]]\n|Ologhaijan=[[Kridek]]\n|Rogolan=[[Orkatosch]]\n}}\n{{Wortbox Volk\n|Männlich=Holberker\n|Weiblich=Holberkerin\n|Mehrzahl=\n|Adjektiv=holberkisch\n}}\n==Kurzbeschreibung==\n{{Infobox Spezies\n|Name=Holberker\n|Bild={{Boximage|Holberker Sofus.jpg}}<br>inoffizielle Illustration\n|Regionen=[[Orkland]]: [[Ohort]] <small>(Heimat)</small>, [[Riva]] <small>(ehemals)</small>, [[Uhdenberg]]\n|Kultur=[[Holberk]], [[Waldelfisch beeinflusste Siedlung]] <small>(ursprünglich)</small>\n|Verwandtschaft=[[Ork]]s, [[Waldelf]]en\n|Schöpfer=[[Nahema ai Tamerlein]]\n|Alter=50 [[Götterlauf|Götterläufe]]\n|Größe=1,55 bis 1,90 [[Schritt]]\n}}\nDie '''Holberker''' sind eine [[Chimäre]]n-[[Spezies]] aus [[Ork]]s und [[Waldelf]]en.\n\nIhr Erscheinungsbild entspricht am ehesten kräftigen [[Waldelf]]en mit dichtem, schwarzen Haarwuchs sowie deutlich [[ork]]ischen Gesichtsausprägungen. Unter ihnen gibt es zahlreiche [[Magiedilettant]]en.\n\nDie Holberker können sich auf [[Garethi]] verständigen, auch wenn heute keiner von ihnen mehr des [[Lesen]]s oder [[Schreiben]]s mächtig ist. Die [[Sippe]]nzugehörigkeit der Holberker in [[Ohort]] ist heute von ihrer gesellschaftlichen Stellung abhängig und nicht mehr von ihren tatsächlichen [[waldelf]]ischen Ahnen: Die [[Rodek-Sippe]] ist die [[Kaste]] der Besitzlosen, während die [[Krinak-Sippe]] die Kaste der Landbesitzer stellt. Wie es zur Entstehung der kleinen [[Gulek-Sippe]] kam, die später nach [[Riva]] abwanderte, ist unbekannt.\n\n;Sippen\n:<small>[[:Kategorie:Sippe Holberker]]</small>\n*[[Gulek-Sippe]]\n*[[Krinak-Sippe]]\n*[[Rodek-Sippe]]\n\n{{Persönlichkeiten}}\n*[[Erzer Rodek]]\n*[[Fran Rodek]]\n*[[Rana Krinak]]\n\n==Geschichte==\n*[[633 BF]]: [[Nahema ai Tamerlein]] erschafft die Holberker in der waldelfischen [[Stadt]] ''Freiheit'' (dem heutigen [[Ohort]]) aus Ork[[sklave]]n und den unfruchtbar gewordenen [[Waldelfen]]sippen Rodek und Krinak, welche einen [[Gott]] namens [[Daimon]] anbeten. Durch Nahemas Wirken von [[Schwarzmagier|schwarzer Magie]] gebähren die Rodeks den ersten Holberkersäugling. Später befähigt Nahema auch die Krinaks [[Ork]] - [[Elf]] Mischlinge zu gebähren.\n**„zwischenzeitlich“: Die Holberker paaren sich untereinander, aber auch mit Orksklaven, was zur einer geistigen Verorkung und gesteigerten Agressivität der körperlich immer holberkischen Nachkommen führt. Irgendwann leben nur noch Holberker in Ohort. Der [[Glaube]] an Daimon gerät langsam in Vergessenheit.\n*ca. ab [[750 BF]]: Ein [[Sippe]]nkrieg bricht zwischen [[Krinak-Sippe|Krinaks]] und [[Rodek-Sippe|Rodeks]] aus, welcher auch mit [[druidisch]] verfluchten [[Voodoo]]farben geführt wird. Durch die Folgen stirbt die Rodek-Sippe beinahe aus.\n**„vor einigen Jahren“: Die in [[Riva|Riva]] ansässige und von Ohort unabhängige [[Gulek-Sippe]] verlässt die [[Stadt]] und ist seither verschollen.\n*[[1025 BF]]: Der [[Aikar Brazoragh]] besetzt die Stadt [[Ohort]] mithilfe der [[Sippe]] der [[Pakoor]] [[Ork]]s. Diese versklaven die Holberker. Ihm gelingt die Erbeutung von [[Satinavs Auge (Artefakt)|Satinavs Auge]] im Travia [[1026 BF]].\n**„mittlerweile“: Eine Gruppe Holberker soll sich, im [[Norden]] [[Aventurien]]s als [[Sucha der Warhait]] nach ihrer Schöpferin befinden. Sie glauben eine [[Göttin]] namens [[Daimona Tamara]] habe sie einst erschaffen.\n\n==[[Widersprüchliches]]==\n{{Widersprüchliches\n|Art=Entstehung\n|Text=Die Texte zu Holberkern und Ohort in [[Aventurien - Das Lexikon des Schwarzen Auges]] lassen den Schluss zu, dass [[Elf]]en und [[Ork]]s gemeinsam Holberker zeugen können, ohne dass dafür Zauberei zum Einsatz kommen müsste. [[Sturmgeboren]] erwähnt, dass auch Halborks und Holberker [[Uhdenberg]] bevölkern, die aus Vergewaltigungen durch Orks entstanden sind, und impliziert damit ähnliches. Dies ist leicht irreführend, entgegen der Quellenlage und der Schöpfung durch [[Nahema ai Tamerlein|Nahema]].<br>Nur der erste Holberkersäugling wurde durch Nahemas Wirken und das Opfer einer Orksklavin von einem Waldelfenpaar der [[Rodek]]s geboren, welche fortan Holberker als Nachkommen gebaren. Später ermöglichte Nahema auch den [[Krinak]]s Holberker zu zeugen. [[Hauer & Schwarzer Pelz - Orks]] stellt klar, dass Elfen und Orks miteinander nicht fruchtbar sind. Holberker hingegen können sich sowohl untereinander als auch mit [[Halbork|(Halb-)]][[Ork]]s, [[Halbelf|(Halb-)]][[Elf]]en, [[Mensch]]en und [[Affenmensch]]en fortpflanzen, wobei daraus stets ein körperlich holberkisches Kind entsteht, dessen geistige Fähigkeiten aber auch durch die nicht-holberkische Seite beeinflusst sind.\n}}\n\n==[[Spekulatives]]==\n;[[Offiziell]]e Spekulationen:\n{{Spielerspekulationen}}\n\n==Regeltechnisches==\n{{Regeltabs\n|DSA5={{RegelTab\n|DSA5\n|Holberker\n|Spezies\n|[[Kultur]]en: [[Holberk]], [[Nordaventurier|Nordaventurien]], [[Svellttaler|Svellttal]]\n|'''Holberker''' sind eine regeltechnische [[Spezies]]. \n|[[Kodex der Helden]] Seite 37\n|regel=Spez_Holberker\n}}\n|DSA4=keine\n|DSA3=keine\n|DSA2=keine\n|DSA1=keine\n}}\n",
+            "erwartet": {
+                "art": "spezies",
+                "wikiKey": "holberker",
+                "felder": {
+                    "name": "Holberker",
+                    "roh_regionen": "[[Orkland]]: [[Ohort]] <small>(Heimat)</small>, [[Riva]] <small>(ehemals)</small>, [[Uhdenberg]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Orkland",
+                        "schluessel": "orkland",
+                        "beziehung": "regionen",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Ohort",
+                        "schluessel": "ohort",
+                        "beziehung": "regionen",
+                        "stelle": 1
+                    },
+                    {
+                        "titel": "Riva",
+                        "schluessel": "riva",
+                        "beziehung": "regionen",
+                        "stelle": 2
+                    },
+                    {
+                        "titel": "Uhdenberg",
+                        "schluessel": "uhdenberg",
+                        "beziehung": "regionen",
+                        "stelle": 3
+                    }
+                ]
+            }
+        },
+        {
+            "id": "echt-baburiner-hut",
+            "titel": "Baburiner Hut",
+            "ns": 0,
+            "text": "{{Interwiki|regel=baburiner-hut}}\n{{Aventurien}}\n<onlyinclude>{{Register Gegenstandsgruppe}} </onlyinclude>\n[[Kategorie:Auf RegelTab umstellen]]\n{{Abgeleitet|[[Baburin]], [[Hut]]}}\n{{Synonym|Nebachotischer Helm|[[Nebachot]]}}\n==Kurzbeschreibung==\n{{Infobox Gegenstandsgruppe\n|Name=Baburiner Hut\n|Bild={{Boximage|Herokon Online Items 02.jpg|Baburiner Hut und weitere [[Rüstungsteile]]}}\n|Art=profan\n|Gegenstandstyp=[[Helm]]\n|Beinamen=\n|Kulturen=\n|Professionen=[[Baburiner Kriegerin]]\n|Herkunft=[[Tulamidenlande]] \n|Verbreitung=[[Tulamidenlande]], [[Löwen von Thalusa]]\n|Material=[[Leder]], [[Eisen (Metall)|Eisen]]\n|Entwickler=[[Tulamiden]]\n|Waffengruppe=\n|Munition=\n}}\nDer '''[[Baburin]]er Hut''' ist ein nach oben hin spitz zulaufender [[Helm]], aus [[Leder]] oder [[Eisen (Metall)|Eisen]], der mit [[Metall]]streifen verstärkt ist und üblicherweise einen Nackenschutz aus [[Kettengeflecht|Kettenstreifen]] aufweist. Außerhalb der [[Tulamidenlande]] sieht man ihn nur selten.\n\n==Irdisches==\n{{Irdische Referenz\n|Kategorie=Entlehnung\n|Als Vorbild dürften [[wpde:Osmanischer Prunkhelm|osmanische Prunkhelme]] dienen. Insbesondere die Ähnlichkeit zwischen [[commons:File:Ottoman_Empire_helmet_(chichak).jpg|diesem Exemplar]] und der Abbildung im [[Aventurisches Arsenal|Aventurischen Arsenal]] ist verblüffend.\n}}\n",
+            "erwartet": {
+                "art": "ware",
+                "wikiKey": "baburiner-hut",
+                "felder": {
+                    "name": "Baburiner Hut",
+                    "gruppe": "profan",
+                    "typ": "[[Helm]]",
+                    "continent": "Aventurien",
+                    "roh_verbreitung": "[[Tulamidenlande]], [[Löwen von Thalusa]]",
+                    "roh_herkunft": "[[Tulamidenlande]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Tulamidenlande",
+                        "schluessel": "tulamidenlande",
+                        "beziehung": "herkunft",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Tulamidenlande",
+                        "schluessel": "tulamidenlande",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    },
+                    {
+                        "titel": "Löwen von Thalusa",
+                        "schluessel": "l-wen-von-thalusa",
+                        "beziehung": "verbreitung",
+                        "stelle": 2
+                    }
+                ]
+            }
+        },
+        {
+            "id": "tierart-einfach",
+            "titel": "Rotkehlchen",
+            "ns": 0,
+            "text": "{{Infobox Tierart\n|Name=Rotkehlchen\n|Art=[[Vogel]]\n|Vorkommen=[[Wald]], [[Garten|Gärten]]\n|Verbreitung=[[Weiden]], [[Gareth]]\n|Auftreten=[[Schwarm]]\n}}\nEin kleiner Vogel.\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "rotkehlchen",
+                "felder": {
+                    "name": "Rotkehlchen",
+                    "gruppe": "[[Vogel]]",
+                    "lebensraum": "[[Wald]], [[Garten|Gärten]]",
+                    "roh_verbreitung": "[[Weiden]], [[Gareth]]",
+                    "roh_vorkommen": "[[Wald]], [[Garten|Gärten]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Weiden",
+                        "schluessel": "weiden",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Gareth",
+                        "schluessel": "gareth",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    }
+                ]
+            }
+        },
+        {
+            "id": "name-ohne-auszeichnung",
+            "titel": "Baburischer Wurfspeer",
+            "ns": 0,
+            "text": "{{Infobox Gegenstandsgruppe\n|Name=[[Baburin|Baburischer]] ''Wurfspeer''\n|Art=profan\n|Gegenstandstyp=[[Speer]]\n|Herkunft=[[Baburin]]\n|Verbreitung=[[Mittelreich]]\n}}\n",
+            "erwartet": {
+                "art": "ware",
+                "wikiKey": "baburischer-wurfspeer",
+                "felder": {
+                    "name": "Baburischer Wurfspeer",
+                    "gruppe": "profan",
+                    "typ": "[[Speer]]",
+                    "roh_verbreitung": "[[Mittelreich]]",
+                    "roh_herkunft": "[[Baburin]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Baburin",
+                        "schluessel": "baburin",
+                        "beziehung": "herkunft",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Mittelreich",
+                        "schluessel": "mittelreich",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    }
+                ]
+            }
+        },
+        {
+            "id": "name-fehlt",
+            "titel": "Weißer Hase (Tier)",
+            "ns": 0,
+            "text": "{{Infobox Tierart\n|Art=[[Hase]]\n|Verbreitung=[[Aventurien]]\n}}\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "weisser-hase-tier",
+                "felder": {
+                    "name": "Weißer Hase (Tier)",
+                    "gruppe": "[[Hase]]",
+                    "continent": "Aventurien",
+                    "roh_verbreitung": "[[Aventurien]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Aventurien",
+                        "schluessel": "aventurien",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "entitaet-einmal",
+            "titel": "Zeichen&Test",
+            "ns": 0,
+            "text": "{{Infobox Tierart\n|Name=Ban&#39;Shi &amp;#39; &quot;x&quot; &uuml;\n|Weitere Namen=&amp;nbsp;Kleiner&nbsp;Hund\n|Verbreitung=[[Te&#39;Sumurru (Region)|Te&#39;Sumurru]]\n}}\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "zeichen-test",
+                "felder": {
+                    "name": "Ban'Shi &#39; \"x\" ü",
+                    "synonyme": "&nbsp;Kleiner Hund",
+                    "roh_verbreitung": "[[Te'Sumurru (Region)|Te'Sumurru]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Te'Sumurru (Region)",
+                        "schluessel": "te-sumurru-region",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "gegenstandstyp-vier-klammern",
+            "titel": "Nagellack (Test)",
+            "ns": 0,
+            "text": "{{Infobox Gegenstandsgruppe\n|Name=Nagellack\n|Gegenstandstyp=[[Lack]]]]\n|Herkunft=[[Havena (Siedlung)|Havena]]\n|Verbreitung=[[Aventurien]]\n}}\n",
+            "erwartet": {
+                "art": "ware",
+                "wikiKey": "nagellack-test",
+                "felder": {
+                    "name": "Nagellack",
+                    "typ": "[[Lack]]]]",
+                    "continent": "Aventurien",
+                    "roh_verbreitung": "[[Aventurien]]",
+                    "roh_herkunft": "[[Havena (Siedlung)|Havena]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Havena (Siedlung)",
+                        "schluessel": "havena-siedlung",
+                        "beziehung": "herkunft",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Aventurien",
+                        "schluessel": "aventurien",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    }
+                ]
+            }
+        },
+        {
+            "id": "links-anker-pipe-unterstrich",
+            "titel": "Linktest",
+            "ns": 0,
+            "text": "{{Infobox Pflanzenart\n|Name=Linktest\n|Verbreitung=[[Neu_Gareth#Geschichte|Gareth]], [[ Weiden ]], [[Kategorie:Orte]], [[Datei:Bild.jpg|100px]], [[Bild:Alt.png]], [[Vorlage:X]], [[category:Y]], [[File:Z.jpg]], [[:Kategorie:Bar]], [[Thorwal (Region)|Thorwal]]\n}}\n",
+            "erwartet": {
+                "art": "flora",
+                "wikiKey": "linktest",
+                "felder": {
+                    "name": "Linktest",
+                    "continent": "Aventurien",
+                    "roh_verbreitung": "[[Neu_Gareth#Geschichte|Gareth]], [[ Weiden ]], [[Kategorie:Orte]], [[Datei:Bild.jpg|100px]], [[Bild:Alt.png]], [[Vorlage:X]], [[category:Y]], [[File:Z.jpg]], [[:Kategorie:Bar]], [[Thorwal (Region)|Thorwal]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Neu Gareth",
+                        "schluessel": "neu-gareth",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Weiden",
+                        "schluessel": "weiden",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    },
+                    {
+                        "titel": ":Kategorie:Bar",
+                        "schluessel": "kategorie-bar",
+                        "beziehung": "verbreitung",
+                        "stelle": 2
+                    },
+                    {
+                        "titel": "Thorwal (Region)",
+                        "schluessel": "thorwal-region",
+                        "beziehung": "verbreitung",
+                        "stelle": 3
+                    }
+                ]
+            }
+        },
+        {
+            "id": "doppelte-links",
+            "titel": "Doppelt",
+            "ns": 0,
+            "text": "{{Infobox Tierart\n|Name=Doppelt\n|Verbreitung=[[Gareth]], [[gareth]], [[Weiden|Weidener]], [[Weiden]], [[GARETH]]\n}}\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "doppelt",
+                "felder": {
+                    "name": "Doppelt",
+                    "roh_verbreitung": "[[Gareth]], [[gareth]], [[Weiden|Weidener]], [[Weiden]], [[GARETH]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Gareth",
+                        "schluessel": "gareth",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Weiden",
+                        "schluessel": "weiden",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    }
+                ]
+            }
+        },
+        {
+            "id": "ware-zwei-felder",
+            "titel": "Salz (Ware)",
+            "ns": 0,
+            "text": "{{Infobox Gegenstandsgruppe\n|Name=Salz\n|Herkunft=[[Aranien]], [[Perricum]]\n|Verbreitung=[[Perricum]], [[Gareth]], [[Aranien]]\n}}\n",
+            "erwartet": {
+                "art": "ware",
+                "wikiKey": "salz-ware",
+                "felder": {
+                    "name": "Salz",
+                    "continent": "Aventurien",
+                    "roh_verbreitung": "[[Perricum]], [[Gareth]], [[Aranien]]",
+                    "roh_herkunft": "[[Aranien]], [[Perricum]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Aranien",
+                        "schluessel": "aranien",
+                        "beziehung": "herkunft",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Perricum",
+                        "schluessel": "perricum",
+                        "beziehung": "herkunft",
+                        "stelle": 1
+                    },
+                    {
+                        "titel": "Perricum",
+                        "schluessel": "perricum",
+                        "beziehung": "verbreitung",
+                        "stelle": 2
+                    },
+                    {
+                        "titel": "Gareth",
+                        "schluessel": "gareth",
+                        "beziehung": "verbreitung",
+                        "stelle": 3
+                    },
+                    {
+                        "titel": "Aranien",
+                        "schluessel": "aranien",
+                        "beziehung": "verbreitung",
+                        "stelle": 4
+                    }
+                ]
+            }
+        },
+        {
+            "id": "wort-aus-zwei-links",
+            "titel": "Schafswolle",
+            "ns": 0,
+            "text": "{{Infobox Gegenstandsgruppe\n|Name=Schafswolle\n|Herkunft=[[Schaf]]s[[wolle]]\n|Verbreitung=Handel in [[Weiden]]s und [[Gareth]]s\n}}\n",
+            "erwartet": {
+                "art": "ware",
+                "wikiKey": "schafswolle",
+                "felder": {
+                    "name": "Schafswolle",
+                    "roh_verbreitung": "Handel in [[Weiden]]s und [[Gareth]]s",
+                    "roh_herkunft": "[[Schaf]]s[[wolle]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Schaf",
+                        "schluessel": "schaf",
+                        "beziehung": "herkunft",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "wolle",
+                        "schluessel": "wolle",
+                        "beziehung": "herkunft",
+                        "stelle": 1
+                    },
+                    {
+                        "titel": "Weiden",
+                        "schluessel": "weiden",
+                        "beziehung": "verbreitung",
+                        "stelle": 2
+                    },
+                    {
+                        "titel": "Gareth",
+                        "schluessel": "gareth",
+                        "beziehung": "verbreitung",
+                        "stelle": 3
+                    }
+                ]
+            }
+        },
+        {
+            "id": "umlaut-schluessel",
+            "titel": "Fürstentum Kosch",
+            "ns": 0,
+            "text": "{{Infobox Spezies\n|Name=Koschim\n|Regionen=[[Fürstentum Kosch]], [[Güldenland]], [[日本]], [[ß-Test]], [[Über den Wolken]]\n}}\n",
+            "erwartet": {
+                "art": "spezies",
+                "wikiKey": "f-rstentum-kosch",
+                "felder": {
+                    "name": "Koschim",
+                    "roh_regionen": "[[Fürstentum Kosch]], [[Güldenland]], [[日本]], [[ß-Test]], [[Über den Wolken]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Fürstentum Kosch",
+                        "schluessel": "f-rstentum-kosch",
+                        "beziehung": "regionen",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Güldenland",
+                        "schluessel": "g-ldenland",
+                        "beziehung": "regionen",
+                        "stelle": 1
+                    },
+                    {
+                        "titel": "ß-Test",
+                        "schluessel": "ss-test",
+                        "beziehung": "regionen",
+                        "stelle": 2
+                    },
+                    {
+                        "titel": "Über den Wolken",
+                        "schluessel": "ber-den-wolken",
+                        "beziehung": "regionen",
+                        "stelle": 3
+                    }
+                ]
+            }
+        },
+        {
+            "id": "schluessel-kollision",
+            "titel": "Kollision",
+            "ns": 0,
+            "text": "{{Infobox Tierart\n|Name=Kollision\n|Verbreitung=[[Königreich]], [[Gareth]], [[Kònigreich]], [[Weiden]]\n}}\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "kollision",
+                "felder": {
+                    "name": "Kollision",
+                    "roh_verbreitung": "[[Königreich]], [[Gareth]], [[Kònigreich]], [[Weiden]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Gareth",
+                        "schluessel": "gareth",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    },
+                    {
+                        "titel": "Kònigreich",
+                        "schluessel": "k-nigreich",
+                        "beziehung": "verbreitung",
+                        "stelle": 2
+                    },
+                    {
+                        "titel": "Weiden",
+                        "schluessel": "weiden",
+                        "beziehung": "verbreitung",
+                        "stelle": 3
+                    }
+                ]
+            }
+        },
+        {
+            "id": "kontinent-klammer",
+            "titel": "Wasserratte (Myranor)",
+            "ns": 0,
+            "text": "{{Infobox Tierart\n|Name=Wasserratte\n|Verbreitung=[[Myranor]]\n}}\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "wasserratte-myranor",
+                "felder": {
+                    "name": "Wasserratte",
+                    "continent": "Myranor / Güldenland",
+                    "roh_verbreitung": "[[Myranor]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Myranor",
+                        "schluessel": "myranor",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "kontinent-kategorie",
+            "titel": "Wasserratte",
+            "ns": 0,
+            "text": "{{Infobox Tierart\n|Name=Wasserratte\n|Verbreitung=[[Gareth]]\n}}\n\n[[Kategorie:Myranor-Artikel]]\n[[Kategorie:Tiere]]\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "wasserratte",
+                "felder": {
+                    "name": "Wasserratte",
+                    "continent": "Myranor / Güldenland",
+                    "roh_verbreitung": "[[Gareth]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Gareth",
+                        "schluessel": "gareth",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "kontinent-klammer-ohne-kontinent",
+            "titel": "Zimt (Gewürz)",
+            "ns": 0,
+            "text": "{{Infobox Gegenstandsgruppe\n|Name=Zimt\n|Verbreitung=[[Aventurien]]\n}}\n",
+            "erwartet": {
+                "art": "ware",
+                "wikiKey": "zimt-gew-rz",
+                "felder": {
+                    "name": "Zimt",
+                    "continent": "Aventurien",
+                    "roh_verbreitung": "[[Aventurien]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Aventurien",
+                        "schluessel": "aventurien",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "kontinent-kolonie",
+            "titel": "Kolonialtier",
+            "ns": 0,
+            "text": "{{Infobox Tierart\n|Name=Kolonialtier\n|Verbreitung=[[Al'Anfa]]\n}}\n\n[[Kategorie:Aventurien]]\n[[Kategorie:Kolonien: Uthuria]]\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "kolonialtier",
+                "felder": {
+                    "name": "Kolonialtier",
+                    "continent": "Aventurien",
+                    "roh_verbreitung": "[[Al'Anfa]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Al'Anfa",
+                        "schluessel": "al-anfa",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "kontinent-nav",
+            "titel": "Navtier (Uthuria)",
+            "ns": 0,
+            "text": "{{Infobox Tierart\n|Name=Navtier\n}}\n{{Nav Staaten Aventurien}}\n[[Kategorie:Uthuria]]\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "navtier-uthuria",
+                "felder": {
+                    "name": "Navtier",
+                    "continent": "Uthuria"
+                },
+                "orte": []
+            }
+        },
+        {
+            "id": "zweite-infobox",
+            "titel": "Zweitbox",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Zweitbox\n}}\n{{Infobox Tierart\n|Name=Zweitbox\n|Verbreitung=[[Gareth]]\n}}\n",
+            "erwartet": null
+        },
+        {
+            "id": "spezies-regionen",
+            "titel": "Zwergen",
+            "ns": 0,
+            "text": "{{Infobox Spezies\n|Name=Zwerge\n|Regionen=[[Ambossberge]], [[Kosch]]\n|Verbreitung=[[Tobrien]]\n|Vorkommen=[[Gebirge]]\n}}\n",
+            "erwartet": {
+                "art": "spezies",
+                "wikiKey": "zwergen",
+                "felder": {
+                    "name": "Zwerge",
+                    "lebensraum": "[[Gebirge]]",
+                    "roh_verbreitung": "[[Tobrien]]",
+                    "roh_regionen": "[[Ambossberge]], [[Kosch]]",
+                    "roh_vorkommen": "[[Gebirge]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Ambossberge",
+                        "schluessel": "ambossberge",
+                        "beziehung": "regionen",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Kosch",
+                        "schluessel": "kosch",
+                        "beziehung": "regionen",
+                        "stelle": 1
+                    }
+                ]
+            }
+        },
+        {
+            "id": "fauna-ohne-ortsfeld",
+            "titel": "Ortlos",
+            "ns": 0,
+            "text": "{{Infobox Tierart\n|Name=Ortlos\n|Vorkommen=[[Wald]]\n|Verbreitung=\n}}\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "ortlos",
+                "felder": {
+                    "name": "Ortlos",
+                    "lebensraum": "[[Wald]]",
+                    "roh_vorkommen": "[[Wald]]"
+                },
+                "orte": []
+            }
+        },
+        {
+            "id": "offene-infobox",
+            "titel": "Offen",
+            "ns": 0,
+            "text": "{{Infobox Tierart\n|Name=Offen\n|Verbreitung=[[Gareth]]\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "offen",
+                "felder": {
+                    "name": "Offen",
+                    "roh_verbreitung": "[[Gareth]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Gareth",
+                        "schluessel": "gareth",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "parameter-erste-zeile",
+            "titel": "Ersteszeile",
+            "ns": 0,
+            "text": "{{Infobox Tierart|Name=Ersteszeile\n|Verbreitung=[[Gareth]]\n}}\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "ersteszeile",
+                "felder": {
+                    "name": "Ersteszeile",
+                    "roh_verbreitung": "[[Gareth]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Gareth",
+                        "schluessel": "gareth",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "lange-felder",
+            "titel": "Lang",
+            "ns": 0,
+            "text": "{{Infobox Tierart\n|Name=NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\n|Art=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n|Vorkommen=VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV\n|Beinamen=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\n|Verbreitung=[[LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL]]\n}}\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "lang",
+                "felder": {
+                    "name": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+                    "gruppe": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                    "lebensraum": "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV",
+                    "synonyme": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+                    "roh_verbreitung": "[[LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL]]",
+                    "roh_vorkommen": "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV"
+                },
+                "orte": [
+                    {
+                        "titel": "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
+                        "schluessel": "llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "synonyme-beinamen",
+            "titel": "Beinamentier",
+            "ns": 0,
+            "text": "{{Infobox Tierart\n|Name=Beinamentier\n|Weitere Namen=\n|Beinamen=der [[Graue]]\n}}\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "beinamentier",
+                "felder": {
+                    "name": "Beinamentier",
+                    "synonyme": "der [[Graue]]"
+                },
+                "orte": []
+            }
+        },
+        {
+            "id": "synonyme-weitere-vor-beinamen",
+            "titel": "Weiteretier",
+            "ns": 0,
+            "text": "{{Infobox Tierart\n|Name=Weiteretier\n|Weitere Namen=Grauer\n|Beinamen=der Alte\n}}\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "weiteretier",
+                "felder": {
+                    "name": "Weiteretier",
+                    "synonyme": "Grauer"
+                },
+                "orte": []
+            }
+        },
+        {
+            "id": "namensraum-222",
+            "titel": "Inoffiziell:Schnatterkatze (Test)",
+            "ns": 222,
+            "text": "{{Infobox Tierart\n|Name=Schnatterkatze\n|Verbreitung=[[Inoffiziell:Rommilys]]\n}}\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "inoffiziell-schnatterkatze-test",
+                "felder": {
+                    "name": "Schnatterkatze",
+                    "continent": "Aventurien",
+                    "roh_verbreitung": "[[Inoffiziell:Rommilys]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Inoffiziell:Rommilys",
+                        "schluessel": "inoffiziell-rommilys",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "art-feld-ignoriert",
+            "titel": "Kunstpflanze",
+            "ns": 0,
+            "text": "{{Infobox Pflanzenart\n|Name=Kunstpflanze\n|Art=Tierart\n|Verbreitung=[[Gareth]]\n}}\n",
+            "erwartet": {
+                "art": "flora",
+                "wikiKey": "kunstpflanze",
+                "felder": {
+                    "name": "Kunstpflanze",
+                    "gruppe": "Tierart",
+                    "roh_verbreitung": "[[Gareth]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Gareth",
+                        "schluessel": "gareth",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "fremde-infobox",
+            "titel": "Stadtartikel",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Gareth\n|Verbreitung=[[Garetien]]\n}}\n",
+            "erwartet": null
+        },
+        {
+            "id": "grosse-kleinschreibung-parameter",
+            "titel": "Kleinschrift",
+            "ns": 0,
+            "text": "{{Infobox Tierart\n|name=Kleinschrift\n|VERBREITUNG=[[Gareth]]\n|vorkommen=[[Wald]]\n}}\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "kleinschrift",
+                "felder": {
+                    "name": "Kleinschrift",
+                    "lebensraum": "[[Wald]]",
+                    "roh_verbreitung": "[[Gareth]]",
+                    "roh_vorkommen": "[[Wald]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Gareth",
+                        "schluessel": "gareth",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        },
+        {
+            "id": "kommentar-und-ref",
+            "titel": "Refpflanze",
+            "ns": 0,
+            "text": "{{Infobox Pflanzenart\n|Name=Refpflanze\n|Verbreitung=[[Gareth]]<ref>Quelle [[Weiden]]</ref><!-- [[Kommentar]] --> und [[Perricum]]\n}}\n",
+            "erwartet": {
+                "art": "flora",
+                "wikiKey": "refpflanze",
+                "felder": {
+                    "name": "Refpflanze",
+                    "roh_verbreitung": "[[Gareth]]<ref>Quelle [[Weiden]]</ref><!-- [[Kommentar]] --> und [[Perricum]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Gareth",
+                        "schluessel": "gareth",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    },
+                    {
+                        "titel": "Weiden",
+                        "schluessel": "weiden",
+                        "beziehung": "verbreitung",
+                        "stelle": 1
+                    },
+                    {
+                        "titel": "Kommentar",
+                        "schluessel": "kommentar",
+                        "beziehung": "verbreitung",
+                        "stelle": 2
+                    },
+                    {
+                        "titel": "Perricum",
+                        "schluessel": "perricum",
+                        "beziehung": "verbreitung",
+                        "stelle": 3
+                    }
+                ]
+            }
+        },
+        {
+            "id": "kein-wikitext",
+            "titel": "Nur Text",
+            "ns": 0,
+            "text": "Ein Artikel ohne jede Vorlage.\n",
+            "erwartet": null
+        },
+        {
+            "id": "leerer-titel-infobox",
+            "titel": "Tierart",
+            "ns": 0,
+            "text": "{{Infobox Tierart\n|Name=\n|Verbreitung=[[Gareth]]\n}}\n",
+            "erwartet": {
+                "art": "fauna",
+                "wikiKey": "tierart",
+                "felder": {
+                    "name": "Tierart",
+                    "roh_verbreitung": "[[Gareth]]"
+                },
+                "orte": [
+                    {
+                        "titel": "Gareth",
+                        "schluessel": "gareth",
+                        "beziehung": "verbreitung",
+                        "stelle": 0
+                    }
+                ]
+            }
+        }
+    ]
+}

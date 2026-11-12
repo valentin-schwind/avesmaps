@@ -1,0 +1,221 @@
+{
+    "_hinweis": "Erwartungen schreibt scripts/dev/wiki-literatur-orakel.php aus Legacys echtem Parser (Mirror a7f2dac86); nie von Hand.",
+    "faelle": [
+        {
+            "id": "siegelbruch",
+            "titel": "Siegelbruch",
+            "ns": 0,
+            "text": "{{Infobox Produkt\n|Titel=Siegelbruch\n|Art=Gruppenabenteuer\n|Regeln=DSA5\n|Genre=[[Forschungsabenteuer|Forschungs-]] und [[Mysterienabenteuer]]\n|KompM=mittel\n|KompSp=mittel\n|Autoren=[[Hans Mustermann]], '''Erika''' Muster\n|Teil von=[[Dämonenmacht & Sternenkraft]]\n|Direktlinks={{F-Shop|PID=12345}} {{Ulisses|ID=376983}}\n|Ort=[[Mittelreich]], [[Königreich Garetien|Garetien]], [[Gareth#Altstadt|Gareth]]\n|Bild={{ProdCover|AB Siegelbruch.jpg}}\n}}\n'''Siegelbruch''' ist ein Abenteuer.",
+            "erwartet": {
+                "felder": {
+                    "title": "Siegelbruch",
+                    "product_type": "gruppenabenteuer",
+                    "edition": "DSA5",
+                    "genre": "Forschungs- und Mysterienabenteuer",
+                    "complexity_gm": "mittel",
+                    "complexity_pl": "mittel",
+                    "authors": "Hans Mustermann, Erika Muster",
+                    "series": "Dämonenmacht & Sternenkraft",
+                    "fshop_code": "12345"
+                },
+                "orte": [
+                    "Mittelreich",
+                    "Königreich Garetien",
+                    "Gareth"
+                ]
+            }
+        },
+        {
+            "id": "entitaeten",
+            "titel": "Verräter & Geächtete",
+            "ns": 0,
+            "text": "{{Infobox Produkt\n|Titel=Verräter &#38; Geächtete\n|Art=Anthologie\n|Thema=\n|Ort=[[Havena]], [[Rashdul]]\n|Autoren=Ban&#39;Shi &amp;amp; Co\n}}",
+            "erwartet": {
+                "felder": {
+                    "title": "Verräter & Geächtete",
+                    "product_type": "anthologie",
+                    "authors": "Ban'Shi &amp; Co"
+                },
+                "orte": [
+                    "Havena",
+                    "Rashdul"
+                ]
+            }
+        },
+        {
+            "id": "dsk-ohne-titel",
+            "titel": "DSK:Endlose Dunkelheit",
+            "ns": 218,
+            "text": "{{Infobox Produkt\n|Titel=\n|Art=Kurzabenteuer\n|Ort=Gareth, Punin; Bethana\n|Regeln= DSA4.1 \n}}",
+            "erwartet": {
+                "felder": {
+                    "title": "DSK:Endlose Dunkelheit",
+                    "product_type": "kurzabenteuer",
+                    "edition": "DSA4.1"
+                },
+                "orte": [
+                    "Gareth",
+                    "Punin",
+                    "Bethana"
+                ]
+            }
+        },
+        {
+            "id": "regionalspielhilfe",
+            "titel": "Das Bornland",
+            "ns": 0,
+            "text": "{{Infobox Produkt\n|Titel=Das Bornland\n|Art=Regionalspielhilfe\n|Thema=[[Bornland (Bund)|Bornland]]; [[Vallusa|Vallusa]]\n|Reihe=Regionalspielhilfen\n|Reihentitel=Andere Reihe\n}}",
+            "erwartet": {
+                "felder": {
+                    "title": "Das Bornland",
+                    "product_type": "regionalspielhilfe",
+                    "series": "Regionalspielhilfen"
+                },
+                "orte": [
+                    "Bornland (Bund)",
+                    "Vallusa"
+                ]
+            }
+        },
+        {
+            "id": "spielhilfe-ohne-orte",
+            "titel": "Abenteuer Ausbau-Spiel",
+            "ns": 0,
+            "text": "{{Infobox Produkt\n|Titel=Abenteuer Ausbau-Spiel\n|Art=Spielhilfe\n|Thema=erweiterte Regeln\n|Ort=\n}}",
+            "erwartet": null
+        },
+        {
+            "id": "regelband",
+            "titel": "Regelwerk",
+            "ns": 0,
+            "text": "{{Infobox Produkt\n|Titel=Regelwerk\n|Art=Regelband\n|Ort=[[Gareth]]\n}}",
+            "erwartet": null
+        },
+        {
+            "id": "reihe-leer",
+            "titel": "Die Phileasson-Saga",
+            "ns": 0,
+            "text": "{{Infobox Produkt\n|Titel=Die Phileasson-Saga\n|Art=Kampagnenband\n|Teil von=   \n|Reihe=\n|Reihentitel=Die Phileasson-Saga\n|KompM=  hoch  \n|Ort=[[Thorwal]]\n}}",
+            "erwartet": {
+                "felder": {
+                    "title": "Die Phileasson-Saga",
+                    "product_type": "kampagnenband",
+                    "complexity_gm": "hoch"
+                },
+                "orte": [
+                    "Thorwal"
+                ]
+            }
+        },
+        {
+            "id": "teil-von-leer",
+            "titel": "Teil von leer",
+            "ns": 0,
+            "text": "{{Infobox Produkt\n|Titel=Teil von leer\n|Art=Soloabenteuer\n|Teil von=\n|Reihentitel=[[Soloabenteuer (Reihe)|Soloabenteuer]]\n|Ort=[[Gareth]]\n}}",
+            "erwartet": {
+                "felder": {
+                    "title": "Teil von leer",
+                    "product_type": "soloabenteuer",
+                    "series": "Soloabenteuer"
+                },
+                "orte": [
+                    "Gareth"
+                ]
+            }
+        },
+        {
+            "id": "doppeltes-leerzeichen",
+            "titel": "Doppel",
+            "ns": 0,
+            "text": "{{Infobox  Produkt\n|Art=Gruppenabenteuer\n|Ort=[[Gareth]]\n}}",
+            "erwartet": {
+                "felder": {
+                    "title": "Doppel",
+                    "product_type": "gruppenabenteuer"
+                },
+                "orte": [
+                    "Gareth"
+                ]
+            }
+        },
+        {
+            "id": "erste-zeile",
+            "titel": "Erste Zeile",
+            "ns": 0,
+            "text": "{{Infobox\nProdukt|Titel=Nicht gelesen\n|Art=Roman\n|Ort='''[[Ferdok]]''', [[Fürstentum Kosch]]\n|Autoren=[[A. Autor]] & [[B. Autor|Bee]]\n}}",
+            "erwartet": {
+                "felder": {
+                    "title": "Erste Zeile",
+                    "product_type": "roman",
+                    "authors": "A. Autor & Bee"
+                },
+                "orte": [
+                    "Ferdok",
+                    "Fürstentum Kosch"
+                ]
+            }
+        },
+        {
+            "id": "zweite-infobox",
+            "titel": "Zweite Infobox",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Gareth\n}}\n{{Infobox Produkt\n|Titel=Versteckt\n|Art=Roman\n|Ort=[[Gareth]]\n}}",
+            "erwartet": null
+        },
+        {
+            "id": "fshop-platzhalter",
+            "titel": "Platzhalter",
+            "ns": 0,
+            "text": "{{Infobox Produkt\n|Titel=Platzhalter\n|Art=Gruppenabenteuer\n|Direktlinks={{f-shop | pid = NUMMER}}\n|Ort=[[Gareth]]\n}}",
+            "erwartet": {
+                "felder": {
+                    "title": "Platzhalter",
+                    "product_type": "gruppenabenteuer",
+                    "fshop_code": "NUMMER"
+                },
+                "orte": [
+                    "Gareth"
+                ]
+            }
+        },
+        {
+            "id": "langer-titel",
+            "titel": "Lang",
+            "ns": 0,
+            "text": "{{Infobox Produkt\n|Titel=ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ\n|Art=Szenario\n|Genre=''kursiv''   und  geschützt\n|Ort=[[Gareth]]\n}}",
+            "erwartet": {
+                "felder": {
+                    "title": "ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ",
+                    "product_type": "szenario",
+                    "genre": "kursiv und geschützt"
+                },
+                "orte": [
+                    "Gareth"
+                ]
+            }
+        },
+        {
+            "id": "kurzgeschichte",
+            "titel": "Eine Geschichte",
+            "ns": 0,
+            "text": "{{Infobox Produkt\n|Titel=Eine Geschichte\n|Art=Kurzgeschichte\n|Ort=\n|Thema=[[Al'Anfa]]\n|Teil von=[[Anthologie X]]\n}}",
+            "erwartet": {
+                "felder": {
+                    "title": "Eine Geschichte",
+                    "product_type": "kurzgeschichte",
+                    "series": "Anthologie X"
+                },
+                "orte": [
+                    "Al'Anfa"
+                ]
+            }
+        },
+        {
+            "id": "ohne-infobox",
+            "titel": "Ohne",
+            "ns": 0,
+            "text": "Nur Text, keine Infobox.",
+            "erwartet": null
+        }
+    ]
+}

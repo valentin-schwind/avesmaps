@@ -1,0 +1,15 @@
+{
+    "version": 1,
+    "hinweis": "Release-Tor (WI-0264, Vali 2026-10-30), Teil kern-echt: die 20 Kernabläufe gegen den ECHTEN Server des Kandidaten auf dem Korpus (E2E_SERVER=1), als Editor angemeldet (Person und Sitzung legt scripts/dev/tor-welt.ts an, WELT_TOKEN_DATEI). Kein page.route auf /api. Läuft mit --workers=1 --retries=1; ein Fall, der erst im zweiten Versuch grün wird, zählt grün und steht im Bericht als wackelig. Die Specs dürfen Proben sein, die nur auf Nennung laufen (NUR_GENANNT in spec-auswahl.ts, etwa wegeditor-echt). Eine Spec, die es nicht mehr gibt, macht den Teil rot: dann hier ersetzen. Die Liste der 20 Abläufe steht in WI-0264 §2.",
+    "name": "Tor: Kernabläufe gegen den echten Server",
+    "bereiche": ["kartenbedienung", "reisen", "planer", "orte", "wege", "gebiete", "landschaften", "systemsteuerung"],
+    "specs": [
+        "tor-besucher.spec.ts",
+        "tor-anmeldung.spec.ts",
+        "tor-orte.spec.ts",
+        "tor-wege.spec.ts",
+        "wegeditor-echt.spec.ts",
+        "tor-flaechen.spec.ts",
+        "tor-inhalte.spec.ts"
+    ]
+}

@@ -1,0 +1,15 @@
+# Projektlokale Umgebung des Terrain-Labs (WI-0250), nicht global:
+#   C:\tools\micromamba\micromamba.exe create -y -p C:\avesmaps3d-data\terrain-lab\env -f tools\terrain-lab\environment.yml
+# Aufruf immer mit -s (ohne Benutzer-site-packages), damit nur diese Umgebung zählt.
+# Stand der ersten Einrichtung 2026-10-23: numpy 2.5.4, scipy 1.18.1, gdal 3.13.3, matplotlib 3.11.2, pillow 13.0.0, pytest 9.1.1.
+name: avesmaps-terrain-lab
+channels:
+    - conda-forge
+dependencies:
+    - python=3.12
+    - numpy
+    - scipy
+    - gdal
+    - matplotlib
+    - pillow
+    - pytest

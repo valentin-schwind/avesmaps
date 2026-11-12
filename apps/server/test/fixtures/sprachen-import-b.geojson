@@ -1,0 +1,64 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "sprache": "thorwalsch",
+                "name": "Thorwalsch / Gjalskisch / Fjarningsch",
+                "farbe": "#1baad4",
+                "teilflaechen": 1
+            },
+            "geometry": {
+                "type": "MultiPolygon",
+                "coordinates": [
+                    [
+                        [
+                            [100, 100],
+                            [210, 100],
+                            [210, 200],
+                            [100, 200],
+                            [100, 100]
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": { "sprache": "garethi", "name": "Garethi", "farbe": "#ffb901", "teilflaechen": 1 },
+            "geometry": {
+                "type": "MultiPolygon",
+                "coordinates": [
+                    [
+                        [
+                            [150, 100],
+                            [250, 100],
+                            [250, 200],
+                            [150, 200],
+                            [150, 100]
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": { "sprache": "tulamidya", "name": "Tulamidya", "farbe": "#da5a13", "teilflaechen": 1 },
+            "geometry": {
+                "type": "MultiPolygon",
+                "coordinates": [
+                    [
+                        [
+                            [700, 300],
+                            [800, 300],
+                            [800, 400],
+                            [700, 400],
+                            [700, 300]
+                        ]
+                    ]
+                ]
+            }
+        }
+    ]
+}

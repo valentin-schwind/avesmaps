@@ -1,0 +1,13 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        // Gebaut wird aus den Tests nichts: Vitest entfernt die Typen nur, geprüft werden sie hier.
+        "composite": false,
+        // Die Tests importieren `../src/…/x.ts` mit Endung, wie Node sie verlangt.
+        "allowImportingTsExtensions": true,
+        // `design-canon.test.ts` lädt das Erzeugerskript der `canon.css` (eine `.mjs`) direkt.
+        "allowJs": true,
+        "types": ["vite/client", "node"]
+    },
+    "include": ["test/**/*.ts"]
+}

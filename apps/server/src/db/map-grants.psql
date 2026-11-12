@@ -1,0 +1,242 @@
+-- Rechte der App-Rolle an den Kartentabellen der Editoren (Orte WI-0128 E8, Migration 0091, EDIT-0001 §5.1 N2; Landschaften WI-0178 B1,
+-- Migration 0137, EDIT-0004 §8). psql-Datei mit \gexec.
+--
+-- Vorlage fuer Claudios `avesmaps3d-db-grants` (`grants_sql_tmpl` in ops/runtime/runtime-foundation.sh): `${e}` ist die Umgebung, wie
+-- dort. In public gibt die Default-Privilegie der Migrationsrolle der App-Rolle JEDE neue Tabelle mit SELECT, INSERT, UPDATE, DELETE
+-- (`sql_env`). Diese Datei vergibt nichts Neues; sie nimmt der App weg, was der Ortseditor nicht braucht, und gehoert hinter JEDE
+-- Migration, wie media-grants.psql.
+--
+-- Was die App danach darf (EDIT-0001 §5.1 N2): Orte, ihre Einzelheiten und ihre Wiki-Zuordnung schreiben, aber nie loeschen (ein Ort
+-- wird weich stillgelegt, `place.retire`); an Wegen die Linie (`geom`, ein Ort zieht Wegenden mit) und `is_active`, einen neuen Weg
+-- anlegen und teilen (WI-0177); die gezeichnete Wegkurve
+-- (`path_visual`) neu ablegen; an Operation und Fachprotokoll nur anhaengen. Der Import und die Ableitungen laufen als Migrationsrolle
+-- und sind davon nicht beruehrt.
+--
+-- 🔴 Production: bis zum Umstieg schreibt dort niemand die Karte (EDIT-0001 §4.6, Kap. 9.77). Ob und wie die App-Rolle dort das
+-- Schreibrecht an den Kartentabellen verliert, entscheidet Claudio (EDIT-0001 §5.2 Nr. 1); diese Datei laeuft dort laut Plan nicht.
+-- Der Schalter `MAP_EDITING=off` (E9) haelt die Anwendung dort unabhaengig davon an.
+--
+-- Fehlt eine Tabelle (0091 noch nicht angewandt), entfaellt ihre Zeile still. Geprueft in apps/server/test/map-grants.test.ts
+-- (Wegwerf-Cluster wie der VPS: erst grants_sql_tmpl, dann diese Datei).
+
+-- Operation und Fachprotokoll: nur anhaengen (ADR-0019 Nr. 2 und 5). Dazu die Verknuepfung einer Ruecknahme mit den Operationen, die sie
+-- zurueck nimmt (WI-0265 B1, Migration 0262): die App haengt sie in der Transaktion der Operation an und liest sie (SELECT, INSERT).
+SELECT format('REVOKE UPDATE, DELETE, TRUNCATE ON %I FROM avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['map_operation', 'map_audit_event', 'map_operation_revert_link']) AS t
+ WHERE to_regclass('public.' || t) IS NOT NULL \gexec
+
+-- Konto aufloesen (Migration 0273, WI-0265 B7): `public.redact_person_map_operation(uuid)` ruft `auth aufloesen` als App-Rolle und schwaerzt so den Grund
+-- der Ruecknahmen einer Person in `map_audit_event` und leert den Hash ihrer Anfragen in `map_operation` - beides darf die App selbst nicht aendern (oben:
+-- nur anhaengen). EXECUTE bekommt sie aus den Default-Privilegien des Schemas public (`sql_env`: Funktionen der Migrationsrolle fuer die App, nie fuer
+-- PUBLIC); die Migration nimmt PUBLIC das Recht. Hier steht deshalb keine Zeile dafuer, wie bei `redact_person_media` in media-grants.psql;
+-- map-grants.test.ts prueft beides.
+
+-- Orte, Orte ohne Lage (0105), Einzelheiten, Wiki-Zuordnungen: schreiben ja, loeschen nie.
+SELECT format('REVOKE DELETE, TRUNCATE ON %I FROM avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['place', 'place_unplaced', 'place_detail', 'place_wiki_assignment', 'wiki_key_assignment']) AS t
+ WHERE to_regclass('public.' || t) IS NOT NULL \gexec
+
+-- Wege: die Linie, an der Karte oder nicht. Die Revision zaehlt der Trigger, er braucht kein Spaltenrecht.
+SELECT 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON path FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.path') IS NOT NULL \gexec
+SELECT 'GRANT UPDATE (geom, is_active, off_map, name, subtype, label_visible, is_tunnel, mark, allowed_transports, transport_seasons, transports_written, is_bach, flow_direction, transport_domain) ON path TO avesmaps3d_${e}_app'
+ WHERE to_regclass('public.path') IS NOT NULL \gexec
+-- Neuer Weg und Teilen (WI-0177, `path.create`, `path.split`): genau die Spalten, die ein neuer Weg oder der hintere Teil setzt (der
+-- übernimmt Reisemittel, Jahreszeiten und Fließen des Originals), und die Nummer aus der Folge. Herkunft aus Legacy und Lauf setzt nur
+-- der Import. Geändert werden die Linie, `is_active` („Ganz löschen“ ist weich, `path.delete`, `path.restore`) und `off_map`
+-- („Von der Karte nehmen“, `path.take_off_map`, `path.put_on_map`, Migration 0150), dazu Name, Art und „Name auf der Karte“ der
+-- Straße (`path.update`, W5b), Tunnel je Abschnitt (0172), das Kennzeichen (0174, Karawanenroute) und die Reisemittel je Abschnitt
+-- samt Fenstern, dann vollständig geschrieben (0208, F16 „A“); gelöscht nie. Der hintere Teil übernimmt beim Teilen auch Tunnel,
+-- Kennzeichen und das Merkmal „vollständig geschrieben“. Flüsse und Bäche (WI-0177, Plan Fluss/Bach 2026-10-19): Umstellen zwischen
+-- Landweg, Fluss und Bach schreibt `is_bach` und die Verkehrsdomäne der Reisemittel (`transport_domain`), „Fließrichtung umkehren“
+-- schreibt `flow_direction` (Legacy dreht das Feld, nie die Linie).
+SELECT 'GRANT INSERT (public_id, map_domain_id, name, subtype, label_visible, is_bach, geom, source_system, is_active, flow_direction, flow_factor, allowed_transports, transport_domain, transport_seasons, is_tunnel, mark, transports_written) ON path TO avesmaps3d_${e}_app'
+ WHERE to_regclass('public.path') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE %s TO avesmaps3d_${e}_app', pg_get_serial_sequence('public.path', 'id'))
+ WHERE to_regclass('public.path') IS NOT NULL \gexec
+
+-- Landschaften (WI-0178 B1, EDIT-0004 §8): Region, Teilflaeche und Beschriftung schreiben ja, loeschen nie (`landscape.retire`,
+-- `area.retire` legen weich still). Die Revision zaehlt der Trigger (0137). Entfernen (D2, Migration 0163) schreibt `is_active` und
+-- `off_map` an `region` und `is_active` der Teile: UPDATE auf der ganzen Tafel, darum keine eigenen Spaltenrechte.
+SELECT format('REVOKE DELETE, TRUNCATE ON %I FROM avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['region', 'region_area', 'map_label']) AS t
+ WHERE to_regclass('public.' || t) IS NOT NULL \gexec
+
+-- Die gerundeten Flaechen und die Schriftlaeufe rechnen die Ableitungen (heute Migrationsrolle, mit B3 die Auftraege der Jobs-Rolle):
+-- Der Editor liest sie nur.
+SELECT format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON %I FROM avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['region_area_smooth', 'landscape_label_run']) AS t
+ WHERE to_regclass('public.' || t) IS NOT NULL \gexec
+
+-- Die Auftraege `land_smooth` und `label_runs` (WI-0178 B3, Migration 0142) schreiben genau diese zwei Tafeln als Jobs-Rolle, nie die
+-- Landschaft selbst; TEMP fuer die Arbeitstafeln des Glaettens hat die Rolle schon (runtime-foundation.sh, Gelaendejobs). Fehlt die
+-- Rolle (ops/jobs/jobs-setup.sh), entfaellt die Zeile still.
+SELECT format('GRANT INSERT, UPDATE, DELETE ON %I TO %I', t, r.rolname)
+  FROM unnest(ARRAY['region_area_smooth', 'landscape_label_run']) AS t, pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.' || t) IS NOT NULL \gexec
+SELECT format('GRANT USAGE, SELECT ON SEQUENCE %s TO %I', d.objid::regclass, r.rolname)
+  FROM pg_depend d JOIN pg_class s ON s.oid = d.objid AND s.relkind = 'S', pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND d.deptype IN ('a', 'i')
+   AND d.refobjid IN (SELECT to_regclass('public.' || t) FROM unnest(ARRAY['region_area_smooth', 'landscape_label_run']) t) \gexec
+-- Dazu das Rezept und die Regel, welche Flaechen gerundet werden (0067); `map_domain_to_render` hat die Rolle schon (Gelaendejobs).
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO %I', p.oid::regprocedure, r.rolname) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace, pg_roles r
+ WHERE n.nspname = 'public' AND p.proname IN ('region_area_smooth_recipe', 'region_area_is_smoothed') AND r.rolname = 'avesmaps3d_${e}_jobs' \gexec
+
+-- Der Auftrag `path_label_runs` (WI-0177) schreibt die Schriftlaeufe der Wegnamen als Jobs-Rolle, je Kette; die App-Rolle liest sie
+-- nur. Fehlt die Rolle (ops/jobs/jobs-setup.sh), entfaellt die Zeile still.
+SELECT 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON path_label_run FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.path_label_run') IS NOT NULL \gexec
+SELECT format('REVOKE ALL ON SEQUENCE %s FROM avesmaps3d_${e}_app', pg_get_serial_sequence('public.path_label_run', 'id'))
+ WHERE to_regclass('public.path_label_run') IS NOT NULL \gexec
+SELECT format('GRANT INSERT, DELETE ON path_label_run TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.path_label_run') IS NOT NULL \gexec
+SELECT format('GRANT USAGE, SELECT ON SEQUENCE %s TO %I', pg_get_serial_sequence('public.path_label_run', 'id'), r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.path_label_run') IS NOT NULL \gexec
+
+-- Kraftlinien (WI-0205 K4, Migration 0143): Abschnitte, Kraftlinienpunkte und die Wiki-Zuordnung je Abschnitt schreiben ja,
+-- loeschen nie (weich still ueber `is_active`). Die Revision zaehlt der Trigger (0143). Claudio 2026-10-16: kein Zug loescht als
+-- App-Rolle (`2026-10-16-kraftlinien-editor-und-csp-tailnet-antwort-an-claudia.md`).
+SELECT format('REVOKE DELETE, TRUNCATE ON %I FROM avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['powerline', 'nodix', 'powerline_wiki_assignment']) AS t
+ WHERE to_regclass('public.' || t) IS NOT NULL \gexec
+
+-- Gipfel und Landmarken (WI-0271 L4): Die Wiki-Box ordnet einem Gipfel einen Artikel zu und loest ihn wieder (`terrain_peak_wiki_assignment`, `wiki/objekt/gipfel.ts`):
+-- schreiben ja (anlegen, aendern), loeschen nie - eine geloeste Zuordnung steht auf "kein Artikel" (`separated`). Den Gipfel selbst schreibt der Editor (Default-Privilegien).
+SELECT 'REVOKE DELETE, TRUNCATE ON terrain_peak_wiki_assignment FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.terrain_peak_wiki_assignment') IS NOT NULL \gexec
+
+-- Herrschaftsgebiete (WI-0209 B1, Migration 0145, EDIT-0005 Abschnitt 8): Gebiet, Flaeche und Anspruch schreiben ja, loeschen nie
+-- (weich still ueber `is_active`). Die Revision zaehlt der Trigger (0145). Import und Ableitung laufen als Migrationsrolle.
+SELECT format('REVOKE DELETE, TRUNCATE ON %I FROM avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['territory', 'territory_area', 'territory_claim']) AS t
+ WHERE to_regclass('public.' || t) IS NOT NULL \gexec
+
+-- Die 17 Detailfelder der Herrschaftsgebiete (WI-0209 G6, Migration 0076): Der Gebietseditor schreibt Werte und Vermerke. Die Zeile
+-- `territory_detail` loescht er nie (still ueber `is_active`, `retired_origin = 'editor'`); einen Vermerk in
+-- `territory_detail_field_origin` nimmt er weg, wenn ein Feld keinen Wert mehr hat (ein Feld ohne Wert hat keinen Vermerk, 0076).
+SELECT 'REVOKE DELETE, TRUNCATE ON territory_detail FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.territory_detail') IS NOT NULL \gexec
+SELECT 'REVOKE TRUNCATE ON territory_detail_field_origin FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.territory_detail_field_origin') IS NOT NULL \gexec
+
+-- Die Ableitung der Herrschaftsgebiete als Auftrag (WI-0209 B3, Migration 0147, Claudio 2026-10-17): Die Jobs-Rolle schreibt die
+-- fuenf Ableitungstafeln (loeschen und neu einfuegen in einer Transaktion; Bandlaeufe und Schraffur setzen danach Spalten, darum auch
+-- UPDATE) und die Revision der Ableitung in `territory_state`; nie TRUNCATE. TEMP fuer die Arbeitstafeln `derive_*` hat sie schon
+-- (Gelaendejobs). Die App-Rolle liest die Ableitung nur. Fehlt die Rolle (ops/jobs/jobs-setup.sh), entfaellt die Zeile still.
+SELECT format('GRANT SELECT, INSERT, UPDATE, DELETE ON %I TO %I', t, r.rolname)
+  FROM unnest(ARRAY['territory_display_area', 'territory_shape', 'territory_border', 'territory_capital_band', 'territory_claim_shape', 'territory_inner_edge']) AS t, pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.' || t) IS NOT NULL \gexec
+SELECT format('GRANT SELECT, INSERT, UPDATE ON territory_state TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.territory_state') IS NOT NULL \gexec
+SELECT format('GRANT USAGE, SELECT ON SEQUENCE %s TO %I', d.objid::regclass, r.rolname)
+  FROM pg_depend d JOIN pg_class s ON s.oid = d.objid AND s.relkind = 'S', pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND d.deptype IN ('a', 'i')
+   AND d.refobjid IN (SELECT to_regclass('public.' || t) FROM unnest(ARRAY['territory_display_area', 'territory_shape', 'territory_border', 'territory_capital_band', 'territory_claim_shape', 'territory_inner_edge']) t) \gexec
+-- Dazu die Reparatur ungueltiger Flaechen beim Lesen (0055); `map_domain_to_render` hat die Rolle schon (Gelaendejobs).
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO %I', p.oid::regprocedure, r.rolname) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace, pg_roles r
+ WHERE n.nspname = 'public' AND p.proname = 'territory_area_valid' AND r.rolname = 'avesmaps3d_${e}_jobs' \gexec
+
+-- Der Seegraph als Auftrag (WI-0153 Schnitt 7b, Migration 0157, Claudio 2026-10-17): Die Jobs-Rolle schreibt `sea_route_graph`
+-- (eine Zeile je Domaene, `INSERT ... ON CONFLICT DO UPDATE`); nie DELETE oder TRUNCATE. Lesen darf sie ohnehin alles
+-- (runtime-foundation.sh). Die App-Rolle liest den Graphen nur. Fehlt die Rolle (ops/jobs/jobs-setup.sh), entfaellt die Zeile still.
+SELECT format('GRANT INSERT, UPDATE ON sea_route_graph TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.sea_route_graph') IS NOT NULL \gexec
+
+-- Staetten (0099, WI-0134): Die Innerorts-Beziehung legt der Editor an und still (E10b, E22 G2), geloescht wird sie nie.
+SELECT 'REVOKE DELETE, TRUNCATE ON site_settlement FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.site_settlement') IS NOT NULL \gexec
+
+-- Die Staette selbst und ihre Evidenz schreibt allein der Import (Migrationsrolle): Der Editor liest sie nur.
+SELECT format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON %I FROM avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['site', 'site_named_place']) AS t
+ WHERE to_regclass('public.' || t) IS NOT NULL \gexec
+
+-- WI-0196 (EDIT-0003 T33 (3)): Fuer einen Kartenpunkt (Gebaeude, Stadtviertel) legt der Editor seine Staette NUR ueber diese Funktion an
+-- (Migration 0139, SECURITY DEFINER; sie nimmt nur einen aktiven, nicht verborgenen Ort dieser Ortsgroessen). Ein INSERT-Recht auf site
+-- bekommt die App dafuer nicht.
+SELECT 'GRANT EXECUTE ON FUNCTION public.site_punkt_fuer_ort(uuid) TO avesmaps3d_${e}_app'
+ WHERE to_regprocedure('public.site_punkt_fuer_ort(uuid)') IS NOT NULL \gexec
+
+-- Die Herkunft je Feld mit Wiki-Wert (WI-0225, Migration 0183): Die Editoren setzen sie mit „Fertig“ (`INSERT … ON CONFLICT DO
+-- UPDATE`, `apps/server/src/editor/feld-herkunft.ts`); geloescht und geleert wird nie.
+SELECT 'REVOKE DELETE, TRUNCATE ON field_origin FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.field_origin') IS NOT NULL \gexec
+
+-- Die Sperre während der Bearbeitung (EDIT-0003 §4, Migration 0138): nehmen, schlagen, freigeben und alte Zeilen wegräumen braucht
+-- SELECT, INSERT, UPDATE, DELETE (Default-Privilegie); leeren nie.
+SELECT 'REVOKE TRUNCATE ON editor_lock FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.editor_lock') IS NOT NULL \gexec
+
+-- Die Bitte um Freigabe einer Sperre (WI-0262, Migration 0253): bitten, antworten und alte Zeilen wegräumen braucht SELECT, INSERT, UPDATE,
+-- DELETE (Default-Privilegie); leeren nie.
+SELECT 'REVOKE TRUNCATE ON editor_lock_request FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.editor_lock_request') IS NOT NULL \gexec
+
+-- Quellen (WI-0254, Migration 0232): Das Fenster „Inhalte bearbeiten“ legt Katalogquellen an und aendert sie und haengt Verwendungen an,
+-- aendert und legt sie still (`state`, `is_active`, `retired_origin = editor`); geloescht wird nie. Die Etiketten der beruehrten Traeger
+-- (`<traeger>_canon`) rechnet dieselbe Operation neu; sie sind abgeleitet und bekommen keine Sperre: Eine Zeile entfaellt, wo Rang 1 bis 3
+-- der Kanon-Regel nichts mehr sagen (dann gilt Rang 4 beim Lesen), darum behaelt die App dort DELETE. Import und Zug laufen als
+-- Migrationsrolle und fassen eine Zeile mit `source_system editor` nie an (`migration/sources-import.ts`, `protectedWhere`).
+-- Dazu `path_source` (WI-0254 §12 Runde 6, Betreiber 2026-10-28 „wege sind in den quellen oder im wiki als ganzes beschrieben“): Der Wegeditor haengt die Quellen der GANZEN Strasse an
+-- (`traeger.sources`, `kind = path`), aendert und legt sie still, auf allen Abschnitten in einer Operation, mit Zeilensperre (`FOR UPDATE` braucht UPDATE) und `source_system editor`; INSERT und
+-- UPDATE hatte die App dort schon (Teilen eines Wegs kopiert die Zeilen), neu ist nur, dass DELETE und TRUNCATE entfallen.
+SELECT format('REVOKE DELETE, TRUNCATE ON %I FROM avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['feature_source', 'place_source', 'path_source', 'territory_source', 'region_source', 'terrain_peak_source']) AS t
+ WHERE to_regclass('public.' || t) IS NOT NULL \gexec
+
+-- Literatur (WI-0254, Migration 0233): Das Fenster „Inhalte bearbeiten“ legt Werke an und aendert sie, ordnet ihre Ortsliste, legt Zeilen
+-- still (`state`, `is_active`, `retired_origin = editor`) und holt sie zurueck und schreibt den Herkunftsvermerk je Feld; geloescht wird
+-- nie. Der Legacy-Zug fasst ein Werk mit `source_system editor` samt Ortsliste nie an (`migration/literature-import.ts`).
+SELECT format('REVOKE DELETE, TRUNCATE ON %I FROM avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['adventure', 'adventure_place', 'adventure_field_origin']) AS t
+ WHERE to_regclass('public.' || t) IS NOT NULL \gexec
+
+-- Vorkommen (WI-0254, Migration 0234): Das Fenster „Inhalte bearbeiten“ aendert Lore-Eintraege, legt Ortszeilen und Quellenverknuepfungen an,
+-- aendert, legt still (`state`, `is_active`, `retired_origin = editor`) und holt zurueck und schreibt den Herkunftsvermerk je Feld; geloescht wird
+-- nie. Die Treffer der Ortszeilen (`lore_place_target`) sind abgeleitet: die App legt sie an und ersetzt sie bei einer zurueckgeholten Zeile
+-- (INSERT, DELETE), darum behaelt sie dort DELETE, verliert aber UPDATE und das Leeren der Tafel. Der Legacy-Zug fasst einen Eintrag mit `source_system editor`
+-- samt Ortszeilen nie an (`migration/lore-import.ts`).
+SELECT format('REVOKE DELETE, TRUNCATE ON %I FROM avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['lore_entry', 'lore_place', 'lore_entry_field_origin', 'lore_entry_source']) AS t
+ WHERE to_regclass('public.' || t) IS NOT NULL \gexec
+SELECT 'REVOKE UPDATE, TRUNCATE ON lore_place_target FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.lore_place_target') IS NOT NULL \gexec
+
+-- Sprachen (WI-0261 S2, Migration 0254): Der Spracheditor legt Sprachen und ihre Teilflaechen an, aendert sie und legt sie still (`state`,
+-- `is_active`, `retired_origin = editor`) und holt sie zurueck; geloescht wird nie. Die Revision zaehlt der Trigger. Der Import
+-- (`migrate:sprachen`, S6) laeuft als Migrationsrolle und ersetzt nur Flaechen der Herkunft `sprachenkarte`. Die Kachelsicht
+-- `sprache_flaeche_render` liest die Kachelrolle von selbst.
+-- Die Wiki-Artikel einer Sprache (`sprache_wiki`, WI-0261 S3, Migration 0255): Der Spracheditor (S5) ordnet Artikel zu, aendert die Reihenfolge der Pillen und loest
+-- eine Zuordnung durch Stilllegen; der Import (S6) als Migrationsrolle. Geloescht wird nie. Der WikiSync schreibt die Tafel nie (O6).
+SELECT format('REVOKE DELETE, TRUNCATE ON %I FROM avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['sprache', 'sprache_flaeche', 'sprache_wiki']) AS t
+ WHERE to_regclass('public.' || t) IS NOT NULL \gexec
+
+-- Regeln der Vorkommen (WI-0253 §24, Migration 0248): Die Übernahme der Regelvorschläge (`POST /api/admin/wikisync/regeln/uebernehmen`, ab Editor mit Passkey) legt Regeln an (`lore_rule`, Herkunft
+-- `wiki_verbreitung`, `source_system = 'wikisync'`) samt ihren Bedingungen und Landschaftsarten und legt sie still (`state`, `is_active`, `retired_at`, `retired_origin = 'wikisync'`), die Rücknahme macht es
+-- rückgängig. Eine Regel ändert sich nie in ihrer Kette: Eine andere Kette ist eine andere Regel (`rule_key`), die alte wird still gelegt. Darum UPDATE nur an den fünf Spalten des Zustands, an Bedingung und
+-- Art gar kein UPDATE, und gelöscht wird nie (die Arten fallen nur mit ihrer Bedingung, über den Fremdschlüssel, nie durch die App). Der Legacy-Zug fasst eine Regel mit `source_system = 'wikisync'` nicht an
+-- (`migration/lore-import.ts`, `protectedWhere`).
+-- Regeln von Hand (WI-0254 `--weiter`, Migration 0249, Reiter „Vorkommen“): Das Fenster „Inhalte bearbeiten“ legt eine Regel von Hand an (`lore_rule`, `source_system = 'editor'`, dazu die neue Spalte `wiki_basis_key`
+-- beim INSERT, samt Bedingungen und Arten) und legt die ersetzte oder entfernte still (`retired_origin = 'editor'`, `suppressed` für eine aus Legacy oder dem WikiSync) oder belebt eine still gelegte mit demselben
+-- Fingerabdruck wieder. Das sind dieselben Rechte wie die der Übernahme: keine neuen Grants, UPDATE bleibt auf die fünf Spalten des Zustands beschränkt, gelöscht wird nie.
+-- Lage zu einer Linie (WI-0254, Migration 0250): die drei neuen Spalten an `lore_rule_term` (`line_direction`, `line_place_a_id`, `line_place_b_id`) schreibt die App nur beim INSERT der Bedingung, und zwar mit denselben
+-- Rechten (INSERT gilt für die ganze Tafel); der Fremdschlüssel auf `place` braucht kein Recht an `place`. Keine neuen Grants, UPDATE und DELETE bleiben entzogen.
+SELECT 'REVOKE DELETE, TRUNCATE ON lore_rule, lore_rule_term, lore_rule_term_type FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.lore_rule') IS NOT NULL AND to_regclass('public.lore_rule_term') IS NOT NULL AND to_regclass('public.lore_rule_term_type') IS NOT NULL \gexec
+SELECT 'REVOKE UPDATE ON lore_rule, lore_rule_term, lore_rule_term_type FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.lore_rule') IS NOT NULL AND to_regclass('public.lore_rule_term') IS NOT NULL AND to_regclass('public.lore_rule_term_type') IS NOT NULL \gexec
+SELECT 'GRANT UPDATE (state, is_active, retired_at, retired_origin, updated_at) ON lore_rule TO avesmaps3d_${e}_app'
+ WHERE to_regclass('public.lore_rule') IS NOT NULL \gexec
+
+-- Korpora (WI-0254, Migration 0236): Das Fenster „Inhalte bearbeiten“ legt Korpora (registrierbare Domains) an und aendert ihre Angaben und ihre Vorgabe fuer die
+-- Quellen; bei einer Belegstelle schreibt es die Vorgabe in derselben Operation auf die Quellen der Domain (UPDATE an `feature_source`, oben schon erlaubt).
+-- Geloescht wird nie. Der Legacy-Zug fasst eine Korpuszeile mit `source_system editor` nie an und rechnet ihre Vorgabe nach dem Abgleich erneut auf die
+-- Quellen (`migration/sources-import.ts`, `migration/korpus-vorgabe.ts`).
+SELECT format('REVOKE DELETE, TRUNCATE ON %I FROM avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['source_corpus']) AS t
+ WHERE to_regclass('public.' || t) IS NOT NULL \gexec

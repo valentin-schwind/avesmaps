@@ -1,0 +1,229 @@
+/*
+ * Die Stile des Meldeformulars (WI-0279): die Kacheln „Was stimmt nicht?“ und „Was fehlt?“, die Zeichen im Kopf und in den Titeln, „Neue Lage zeigen“, die Moduszeile und die Bestätigung. Dazu gelten die
+ * gemeinsamen Formularstile (`../photobox/formular-stil.css`). Alle Maße und Farben aus dem Kanon; die Haarlinie (1 px) des gewählten Zustands wie bei den Chips.
+ */
+/* Der Kopf im Rumpf: Nadel beziehungsweise Zeichen der Objektart in Gold, größer als in den Titeln. */
+.rb__stelle .mf-kopf__zeichen {
+    width: var(--icon-lg);
+    height: var(--icon-lg);
+    color: var(--color-accent-strong);
+}
+
+.rb__titel .mf-titel__zeichen {
+    width: var(--icon-md);
+    height: var(--icon-md);
+    color: var(--color-text-muted);
+}
+
+/* „Was stimmt nicht?“: sechs Kacheln in zwei Spalten, das Zeichen links, der Text rechts; gewählt ist Gold wie bei den Chips. */
+.mf-kacheln {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-6);
+    border-radius: var(--radius-lg);
+}
+
+.mf-kachel {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    box-sizing: border-box;
+    min-height: calc(var(--avm-control-h) + var(--space-16));
+    padding: var(--space-4) var(--space-8);
+    border: 1px solid var(--color-button-soft-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-panel);
+    color: var(--color-text);
+    cursor: pointer;
+    font-size: var(--font-size-reading);
+    line-height: var(--leading-tight);
+    text-align: left;
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease,
+        color 120ms ease,
+        box-shadow 120ms ease;
+}
+
+.mf-kachel .mf-kachel__zeichen {
+    width: var(--icon-lg);
+    height: var(--icon-lg);
+    color: var(--color-text-muted);
+    transition: color 120ms ease;
+}
+
+.mf-kachel__wahl,
+.mf-bild__wahl {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.mf-kachel:hover,
+.mf-bild:hover {
+    border-color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 7%, var(--color-panel));
+}
+
+.mf-kachel:hover .mf-kachel__zeichen,
+.mf-kachel:has(input:checked) .mf-kachel__zeichen,
+.mf-bild:hover .mf-bild__zeichen,
+.mf-bild:has(input:checked) .mf-bild__zeichen {
+    color: var(--color-accent-strong);
+}
+
+.mf-kachel:active,
+.mf-bild:active {
+    background: color-mix(in srgb, var(--color-accent) 18%, var(--color-panel));
+}
+
+.mf-kachel:has(input:checked),
+.mf-bild:has(input:checked) {
+    border-color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 14%, var(--color-panel));
+    box-shadow: inset 0 0 0 1px var(--color-accent);
+    color: var(--color-text-strong);
+}
+
+.mf-kachel:has(input:focus-visible),
+.mf-bild:has(input:focus-visible) {
+    box-shadow: var(--focus-ring);
+}
+
+.mf-kachel:has(input:checked:focus-visible),
+.mf-bild:has(input:checked:focus-visible) {
+    box-shadow:
+        inset 0 0 0 1px var(--color-accent),
+        var(--focus-ring);
+}
+
+/* „Was fehlt?“: zehn Kacheln in fünf Spalten (am Telefon drei), das Zeichen oben, der Text unten. */
+.mf-bilder {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: var(--space-6);
+    border-radius: var(--radius-lg);
+}
+
+.rb--telefon .mf-bilder {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mf-bild {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-4);
+    box-sizing: border-box;
+    padding: var(--space-8) var(--space-4) var(--space-6);
+    border: 1px solid var(--color-button-soft-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-panel);
+    color: var(--color-text);
+    cursor: pointer;
+    font-size: var(--font-size-small);
+    line-height: var(--leading-tight);
+    text-align: center;
+    overflow-wrap: anywhere;
+    hyphens: manual;
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease,
+        color 120ms ease,
+        box-shadow 120ms ease;
+}
+
+.mf-bild .mf-bild__zeichen {
+    width: var(--icon-lg);
+    height: var(--icon-lg);
+    color: var(--color-text-muted);
+    transition: color 120ms ease;
+}
+
+/* Fehlt nach dem Druck auf „Absenden“ noch etwas, trägt die Gruppe den Warnring. */
+.mf-kacheln.is-fehlt,
+.mf-bilder.is-fehlt {
+    box-shadow: 0 0 0 var(--space-2) var(--color-warning-halo);
+}
+
+.mf-kacheln.is-fehlt .mf-kachel,
+.mf-bilder.is-fehlt .mf-bild {
+    border-color: var(--color-warning);
+}
+
+/* Neue Lage zeigen: ein weicher Knopf mit dem Zeichen der Nadel, „freiwillig“ daneben; gesetzt der Hinweis mit den zwei Wegen. */
+.mf-lage {
+    display: grid;
+    gap: var(--space-6);
+}
+
+.mf-lage__zeile {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4) var(--space-8);
+}
+
+.mf-lage__gesetzt {
+    margin: 0;
+    padding: var(--space-6) var(--space-8);
+    border-radius: var(--radius-md);
+    background: var(--color-panel-soft);
+    color: var(--color-text);
+    font-size: var(--font-size-body);
+    line-height: var(--leading-snug);
+}
+
+/* Die Moduszeile des eingeklappten Fensters (wie im Ortseditor): der Modus und wie er geht. */
+.mf-modus {
+    display: grid;
+    gap: var(--space-4);
+    font-size: var(--font-size-small);
+    line-height: var(--leading-snug);
+    color: var(--color-text);
+}
+
+.mf-modus__titel {
+    color: var(--color-text-strong);
+    font-size: var(--font-size-body);
+}
+
+.mf-fertig {
+    display: grid;
+    gap: var(--space-10);
+    min-width: 0;
+    padding: var(--space-4) var(--space-2) var(--space-8);
+}
+
+.mf-fertig__nummer {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin: 0;
+    color: var(--color-success);
+    font-size: var(--font-size-subhead);
+    line-height: var(--leading-snug);
+}
+
+.mf-fertig__nummer .mf-fertig__zeichen {
+    width: var(--icon-md);
+    height: var(--icon-md);
+}
+
+.mf-fertig__knoepfe {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mf-kachel,
+    .mf-kachel .mf-kachel__zeichen,
+    .mf-bild,
+    .mf-bild .mf-bild__zeichen {
+        transition: none;
+    }
+}

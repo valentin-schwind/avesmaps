@@ -1,0 +1,134 @@
+-- Rechte im Schema avesmaps_community (WI-0268, Migration 0265). psql-Datei mit \gexec.
+--
+-- Vorlage fuer Claudios `avesmaps3d-db-grants` (`grants_sql_tmpl` in ops/runtime/runtime-foundation.sh): `${e}` ist die Umgebung
+-- (staging, production), wie dort. Im Schema gibt es KEINE Default-Privilegien; jede Tafel und jede Funktion steht hier ausdruecklich.
+-- Wie die uebrigen Vorlagen gehoert sie hinter JEDE Migration.
+--
+-- - App (`avesmaps3d_${e}_app`): liest die Tafeln, schreibt NUR ueber die Funktionen; die Uebergaenge prueft die Datenbank. Seit 0266 gilt das auch fuer
+--   `public.place_review` (Bewertungen): lesen ja, INSERT, UPDATE und DELETE nein.
+--   Die oeffentlichen Wege (Statusseite) lesen ueber `community_status_lesen`, das die Notizen nicht anfasst.
+-- - Jobs (`avesmaps3d_${e}_jobs`): die Aufbewahrung und die Fristen der Rueckfragen (WI-0268 C5). Dafuer liest sie fuenf Spalten von `vorgang`
+--   (Kennung, Zustand, Zustaendigkeit, Tag der Rueckfrage, Papierkorb), nie einen Text, keinen Melder, keinen Bezug.
+-- - Mails (WI-0268 C4, Migration 0271): das Kontaktformular ruft `community_anfragen` (oeffentlich wie `community_melden`); antworten, archivieren, zurueckholen und als Meldung
+--   weiterfuehren laufen ueber die Funktionen `community_anfrage_*` und `community_als_meldung`. Wer das darf (`read_mailbox`, `answer_community`), prueft die App an der Route.
+-- - Verknuepfungen (WI-0268 C7, Migration 0273): `community_verknuepfen` haengt eine Korrektur (Kennung einer Kartenoperation) oder einen Kanal-Vorgang (OPS-Nummer) an einen Vorgang.
+--   Die App liest `map_operation` ohnehin (ganze Tafel, `map-grants.psql`), die Funktion prueft nur, ob es die Operation gibt.
+-- - Mailweg (WI-0268 C6a, Migration 0279): Antworten per Mail, neue Mails und "Erneut senden" laufen ueber `community_anfrage_antworten_mail`, `community_mail_neu` und `community_mail_erneut`
+--   (App; Rechte `answer_community` und `send_new_mail` pruefen die Routen). `mail_ausgang` (Zustellstand und Empfaenger) liest die App, schreibt sie nie. Den Versandjob (`community_mail_versand`) bedient die
+--   Jobs-Rolle NUR ueber `community_mail_holen` und `community_mail_zustellung`; an der Tafel hat sie nichts. Die Kachelrolle nichts.
+-- - Mailabruf (WI-0268 C6b, Migration 0281): `mail_eingang` und `mail_anhang` (Absender, bereinigtes HTML, Anhaenge) liest die App fuer die Anzeige (Recht `read_mailbox` prueft die Route), schreibt sie nie.
+--   Den Abrufjob (`community_mail_abruf`) bedient die Jobs-Rolle NUR ueber `community_mail_eingang`, `community_mail_abruf_stand`, `community_mail_abruf_setzen` und `community_mail_dateien_behalten`;
+--   an den Tafeln hat sie nichts. `mail_abruf_stand` sieht die App nicht. Die Kachelrolle nichts.
+-- - Panel Mailpostfach (WI-0268 C6c, Migration 0289): `mail_routine` (Schalter und letzter Lauf von Abruf und Versand) sieht weder die App noch die Jobs-Rolle als Tafel. Die App ruft `community_mail_routine_setzen` (Recht
+--   `manage_system_settings` mit frischem Passkey prueft die Route), `community_mail_uebersicht` (alles fuer das Panel, auch den Startpunkt des Ordners) und `community_mail_wartende` (Kennungen zum Nachreihen).
+--   Die Jobs-Rolle liest die Schalter ueber `community_mail_routinen` und traegt Laeufe ueber `community_mail_lauf` ein. Die Kachelrolle nichts.
+-- - Legacy-Meldungen (WI-0268 C9, Migration 0277): `community_legacy_uebernehmen` legt EINE offene Meldung aus Legacy als Vorgang an (einmaliges Werkzeug `community:legacy`, nur mit Zuruf des Betreibers);
+--   `legacy_meldung` merkt, welche Legacy-Nummer welcher Vorgang geworden ist. Die App liest die Tafel, schreibt nur ueber die Funktion; Jobs und Kacheln nichts.
+-- - Discord-Verbindung (WI-0268 C8, Migration 0283): `community_discord_verbinden` und `community_discord_loesen` ruft die App am Rueckweg von Discord und auf der Statusseite (der Statusschluessel, nie die Kennung, steht im Rumpf);
+--   `community_discord_offen` und `community_discord_zurueckziehen` ruft sie fuer die Bruecke der Stage (Weg ohne Sitzung, mit dem Dienstschluessel). Keine Funktion gibt die Discord-Kennung zurueck. Ueber dieselbe Bruecke legt `community_aus_discord` (WI-0297, Migration 0332) eine Anfrage aus dem Betreiber-Kanal an. Jobs und Kacheln nichts;
+--   der Anzeigename faellt ueber die vorhandene Aufbewahrung (`community_purge_expired`) mit den Kontaktdaten weg.
+-- - Fremde Kanaele (WI-0268 C12a, Migration 0285): `kanal_stand` (gelesene Grenzen, Notschalter, Freischaltung) und `sendung` (Technik hinter einem Ziel: Kennung gegen Doppeltes, Aufgabe) liest die App, schreibt sie nie.
+--   Die App ruft `beitrag_kanal_zuruecknehmen` (Recht `manage_news` prueft die Route), `social_kanal_grenzen_setzen` und `social_kanal_notschalter` (Recht `manage_social_channels`, Stufe S, prueft die Route) und
+--   `social_kanal_pruefung_eintragen` NUR fuer das Werkzeug `social:pruefen` (laeuft mit der App-Rolle wie `community:legacy`; die Route ruft sie nie; ohne den Zuruf des Betreibers schreibt das Werkzeug nichts).
+--   Den Auftrag `social_senden` bedient die Jobs-Rolle NUR ueber `social_senden_holen` und `social_senden_ergebnis` (kein Tafelrecht); die taegliche Pflege liest die Grenzen ueber `social_kanal_grenzen_setzen`.
+--   Der Zugangsschluessel und die Adresse der Instanz stehen in der Umgebung des Prozesses, nie in einer Tafel. Die Kachelrolle nichts.
+-- - Empfaenger der Glocke (WI-0268, Migration 0305): `community_bearbeitende` nennt App und Jobs die Kennungen der aktiven Personen mit einer Rolle oder Sonderrolle. Die Jobs-Rolle hat an `avesmaps_auth` kein Recht
+--   und braucht dadurch auch keines.
+-- - Meldungen an Sonderrollen (WI-0279, Migration 0339): die App liest `vorgang_rolle` und `vorgang_region` und schreibt sie nur ueber `community_rollen` (eine Person setzt die Menge) und
+--   `community_rollen_eingang` (Avesmaps beim Eingang, nur in der Transaktion, die die Meldung anlegt). Jobs und Kacheln nichts.
+-- - Die Kachelrolle bekommt nichts.
+-- Fehlt das Schema (0265 noch nicht angewandt), entfaellt alles still. Geprueft in apps/server/test/community-grants.test.ts.
+
+SELECT 'GRANT USAGE ON SCHEMA avesmaps_community TO avesmaps3d_${e}_app' WHERE to_regnamespace('avesmaps_community') IS NOT NULL \gexec
+SELECT 'REVOKE ALL ON ALL TABLES IN SCHEMA avesmaps_community FROM avesmaps3d_${e}_app' WHERE to_regnamespace('avesmaps_community') IS NOT NULL \gexec
+SELECT format('GRANT SELECT ON avesmaps_community.%I TO avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['vorgang', 'melder', 'bezug', 'nachricht', 'notiz', 'verknuepfung', 'ereignis', 'bewertung_ereignis',
+                   'beitrag', 'beitrag_ziel', 'beitrag_ereignis', 'legacy_meldung', 'mail_ausgang',
+                   'mail_eingang', 'mail_anhang', 'kanal_stand', 'sendung', 'vorgang_rolle', 'vorgang_region']) AS t
+ WHERE to_regclass('avesmaps_community.' || t) IS NOT NULL \gexec
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO avesmaps3d_${e}_app', p.oid::regprocedure)
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'avesmaps_community'
+   AND p.proname IN ('community_melden', 'community_status_lesen', 'community_status_antworten', 'community_status_zurueckziehen',
+                     'community_sichten', 'community_uebernehmen', 'community_zustaendig', 'community_prioritaet', 'community_notiz',
+                     'community_rueckfrage', 'community_abschliessen', 'community_wiedereroeffnen', 'community_archivieren',
+                     'community_papierkorb', 'community_wiederherstellen', 'community_personenbezug_loeschen',
+                     'community_anfragen', 'community_anfrage_antworten', 'community_anfrage_archivieren', 'community_anfrage_zurueckholen',
+                     'community_als_meldung',
+                     'community_anfrage_antworten_mail', 'community_mail_neu', 'community_mail_erneut',
+                     'community_verknuepfen',
+                     'community_legacy_uebernehmen',
+                     'community_discord_verbinden', 'community_discord_loesen', 'community_discord_offen', 'community_discord_zurueckziehen',
+                     'community_aus_discord', 'community_discord_offen_antworten', 'community_aus_discord_meldung',
+                     'redact_person_community',
+                     'community_rollen', 'community_rollen_eingang',
+                     'bewertung_schreiben', 'bewertung_gefaellt', 'bewertung_melden', 'bewertung_sichten', 'bewertung_freigeben',
+                     'bewertung_verbergen', 'bewertung_einblenden', 'bewertung_inhalt_loeschen',
+                     'beitrag_anlegen', 'beitrag_aendern', 'beitrag_vorlegen', 'beitrag_zurueckziehen', 'beitrag_zurueckgeben', 'beitrag_freigeben',
+                     'beitrag_aenderung_veroeffentlichen', 'beitrag_zuruecknehmen', 'beitrag_erneut_senden', 'beitrag_papierkorb',
+                     'beitrag_zurueckholen',
+                     'beitrag_kanal_zuruecknehmen', 'social_kanal_grenzen_setzen', 'social_kanal_notschalter', 'social_kanal_pruefung_eintragen',
+                     'community_mail_routine_setzen', 'community_mail_uebersicht', 'community_mail_wartende',
+                     'community_bearbeitende') \gexec
+
+-- Bewertungen (WI-0269, Migration 0266): schreiben, "Gefaellt mir", melden und die Handgriffe der Redaktion laufen ueber die Funktionen oben.
+-- `place_review` liegt in `public`, die App LIEST sie und schreibt nur ueber die Funktionen oben (SECURITY
+-- DEFINER). Das Default-Privileg der Migrationsrolle gaebe ihr sonst INSERT, UPDATE und DELETE (und die Sequenz): Moderation, Zustand und die
+-- Zahl "Gefaellt mir" liessen sich dann an den Funktionen vorbei aendern. Import und Pruefer laufen als Migrationsrolle und sind nicht betroffen.
+SELECT 'REVOKE INSERT, UPDATE, DELETE ON public.place_review FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.place_review') IS NOT NULL AND to_regclass('avesmaps_community.bewertung_ereignis') IS NOT NULL \gexec
+SELECT 'REVOKE USAGE, UPDATE ON SEQUENCE public.place_review_id_seq FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.place_review_id_seq') IS NOT NULL AND to_regclass('avesmaps_community.bewertung_ereignis') IS NOT NULL \gexec
+
+-- Social Hub (WI-0270, Migration 0269): Beitraege, Ziele und Verlauf liest die App, geschrieben wird nur ueber die Funktionen oben. Die Neuigkeit, die ein Beitrag
+-- schreibt, geht in `public.news_entry` ueber dieselben Funktionen (SECURITY DEFINER); die App-Rolle behaelt dort ihre Rechte wie in `news-grants.psql`.
+-- Die Routine-Rolle (`news`) ruft weiter nur `public.news_add`; dass die Funktion nun auch einen Beitrag anlegt, braucht fuer sie nichts Neues.
+
+-- Jobs: Aufbewahrung.
+SELECT 'GRANT USAGE ON SCHEMA avesmaps_community TO avesmaps3d_${e}_jobs'
+ WHERE to_regnamespace('avesmaps_community') IS NOT NULL AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL \gexec
+SELECT 'REVOKE ALL ON ALL TABLES IN SCHEMA avesmaps_community FROM avesmaps3d_${e}_jobs'
+ WHERE to_regnamespace('avesmaps_community') IS NOT NULL AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL \gexec
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO avesmaps3d_${e}_jobs', p.oid::regprocedure)
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'avesmaps_community' AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL
+   AND p.proname IN ('community_purge_expired') \gexec
+-- Jobs: die Frischepruefung und der Papierkorb der Beitraege laufen taeglich neben `community_purge_expired` (WI-0270).
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO avesmaps3d_${e}_jobs', p.oid::regprocedure)
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'avesmaps_community' AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL
+   AND p.proname IN ('beitrag_purge_expired') \gexec
+-- Jobs: die Vorschlaege der Routine melden sich in der Glocke (WI-0270). Vier Spalten von `beitrag`: Kennung, Zustand, Papierkorb und Herkunft, nie ein Text.
+SELECT 'GRANT SELECT (id, zustand, papierkorb_at, herkunft) ON avesmaps_community.beitrag TO avesmaps3d_${e}_jobs'
+ WHERE to_regclass('avesmaps_community.beitrag') IS NOT NULL AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL \gexec
+-- Jobs: die Fristen der Rueckfragen. Spaltenrechte, weil die Jobs-Rolle sonst alles an `vorgang` lesen duerfte (auch Quelle und Kategorie).
+SELECT 'GRANT SELECT (id, zustand, zustaendig, rueckfrage_at, papierkorb_at) ON avesmaps_community.vorgang TO avesmaps3d_${e}_jobs'
+ WHERE to_regclass('avesmaps_community.vorgang') IS NOT NULL AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL \gexec
+-- Jobs: der Versandjob der Mails (WI-0268 C6a, Migration 0279). Nur zwei Funktionen, kein Tafelrecht: die Mail zum Senden reservieren (liefert Empfaenger, Betreff und Text dieser einen Mail) und den Ausgang
+-- des Versuchs eintragen. Einreihen des Nachfolgers bei vorlaeufigem Fehler laeuft ueber `job_enqueue` (media-grants.psql), die Glocke ueber `benachrichtige()` (system-grants.psql).
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO avesmaps3d_${e}_jobs', p.oid::regprocedure)
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'avesmaps_community' AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL
+   AND p.proname IN ('community_mail_holen', 'community_mail_zustellung') \gexec
+-- Jobs: der Abrufjob der Mails (WI-0268 C6b, Migration 0281). Vier Funktionen, kein Tafelrecht: eine Mail aufnehmen, den Stand des Ordners lesen und eintragen, die Ablage mit der Datenbank abgleichen.
+-- Das Einreihen des Abrufs macht die Pflege der Jobs-Rolle ueber `job_insert` (jobs-grants), die Glocke `benachrichtige()` (system-grants.psql).
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO avesmaps3d_${e}_jobs', p.oid::regprocedure)
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'avesmaps_community' AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL
+   AND p.proname IN ('community_mail_eingang', 'community_mail_abruf_stand', 'community_mail_abruf_setzen', 'community_mail_dateien_behalten') \gexec
+-- Jobs: die Schalter des Mailwegs (WI-0268 C6c, Migration 0289). Zwei Funktionen, kein Tafelrecht: beide Schalter lesen (die Pflege, der Abrufjob und der Versandjob) und den Ausgang eines Laufs eintragen.
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO avesmaps3d_${e}_jobs', p.oid::regprocedure)
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'avesmaps_community' AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL
+   AND p.proname IN ('community_mail_routinen', 'community_mail_lauf') \gexec
+-- Jobs: die Empfaenger der Glocke (WI-0268, Migration 0305). Eine Funktion, kein Recht an `avesmaps_auth`, nur Kennungen: fuer Mailabruf, Mailversand und Fristen.
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO avesmaps3d_${e}_jobs', p.oid::regprocedure)
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'avesmaps_community' AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL
+   AND p.proname IN ('community_bearbeitende') \gexec
+-- Jobs: der Auftrag `social_senden` (WI-0268 C12a, Migration 0285). Drei Funktionen, kein Tafelrecht: die Sendung reservieren (liefert Text, Hashtags und Bild dieses einen Beitrags), den Ausgang eintragen, und die Pflege
+-- liest taeglich die Grenzen des Kanals. Das Einreihen des Nachfolgers bei vorlaeufigem Fehler laeuft ueber `job_enqueue` (media-grants.psql).
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO avesmaps3d_${e}_jobs', p.oid::regprocedure)
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'avesmaps_community' AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL
+   AND p.proname IN ('social_senden_holen', 'social_senden_ergebnis', 'social_kanal_grenzen_setzen') \gexec

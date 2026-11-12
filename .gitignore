@@ -1,89 +1,33 @@
-__pycache__/
-*.py[cod]
-api/config.local.php
-api/.env
-.env
-map/google-sheets-credentials.json
-map/google-sheets-token.json
-map/Aventurien_routes.backup-*.svg
-map/*.import.mysql.sql
-tiles/stylized/
-tiles/old/
-tiles/politics/
-# Erzeugte Kachelsaetze -- Serverdaten, nie das Repo (109.217 Dateien, gemessen 26.08.2026).
-# Die Regel tiles/stylized/ oben deckt tiles/stylized_upscale/ NICHT ab: kein Praefix-Match.
-tiles/original/
-tiles/stylized_upscale/
-layer0.json
-.refactor-backup/
-
-# Local geo-import artifact (DB-IP Lite, not for the repo)
-tools/geo-import.sql
-tools/geo-import.sql.gz
-
-# Runtime-fetched Wiki Aventurica dump (server data, never the repo).
-# Keep the deny-all .htaccess; ignore the downloaded dump artifacts.
-uploads/dumps/*
-!uploads/dumps/.htaccess
-
-# Database backups (edit/backup.php). A full dump carries password hashes and every
-# report -- it is the most sensitive artifact this project produces and must NEVER be
-# committed. Keep the deny-all .htaccess; ignore every dump.
-uploads/db-backups/*
-!uploads/db-backups/.htaccess
-
-# 🔴 Und dasselbe fuer einen VON HAND heruntergeladenen Dump. `.backup/` ist der Ort, an dem ein
-# Dump zum Auswerten landet -- am 30.08.2026 lag dort ein 77-MB-Abzug der Produktionsdatenbank,
-# und das Verzeichnis war von KEINER Zeile hier abgedeckt: ein einziges `git add -A` haette ihn
-# samt Passwort-Hashes eingecheckt (docs/repository-data-policy.md verbietet genau das).
-# ⚠️ Die Zeile darueber schuetzt nur `uploads/db-backups/`, wohin der Sicherungslauf schreibt --
-# ein Dump, den ein Mensch woanders ablegt, faellt nicht darunter. Gefunden hat die Luecke ein
-# Werkzeug, das den Dump gelesen hat, nicht ein Test; es gibt keinen, der sie faengt.
-.backup/
-
-# Die Wappen selbst gehoeren dem Server, nicht dem Repo (451 + 80 + 217 Dateien, Stand
-# 23.08.2026). Ohne diese Zeilen wuerde ein "git add uploads/" sie alle einchecken --
-# uploads/wappen war als einziges Unterverzeichnis nicht abgedeckt.
-uploads/wappen/*
-!uploads/wappen/.htaccess
-
-# Semantic SVG exports (api/svg-export.php). 8 MB apiece and reproducible from the data, so
-# never the repo. 🔴 NO .htaccess anchor here, unlike uploads/db-backups: the deny-all lock is
-# written by PHP at run time (avesmapsSvgExportEnsureAblage) and the repo copy would only be a
-# stale second version of it -- measured 23.08.2026, the backup's repo copy is CRLF while its
-# PHP constant is LF, so that one rewrites itself on every single run.
-uploads/svg-export/
-
-# Manually-uploaded map export archives (large binaries; live on the server, not in the repo).
-uploads/*.zip
-uploads/map/*.zip
-
-# Superpowers brainstorming/verify scratch space (mockups, harnesses) — never deployed
-.superpowers/
-
-# Claude Code scratch space. .claude/worktrees alone was 2,2 GB with 57 checkouts of this repo
-# on 2026-08-05, none of it tracked. Two costs, both real: one git add -A would have tried to
-# commit all of it (AGENTS.md forbids that command, but a convention should not be the only
-# thing standing between the repo and 2,2 GB), and grep tools honour .gitignore -- two agents
-# in the system test measured multiplied hit counts before they noticed they were counting
-# 57 copies. launch.json stays untracked-but-visible on purpose; it is the preview config.
-.claude/worktrees/
+# Machine-local agent configuration (see AGENTS.md, "Rollenbestimmung")
+CLAUDE.local.md
 .claude/settings.local.json
-.claude/scheduled_tasks.lock
 
-# Verify-Seiten: die Beweis-Harnische der Sitzungen (Mockups, Messseiten, ihre Daten).
-# Sie gehoeren zur Arbeit, aber nicht in das Repo -- sie werden nie ausgeliefert, und 51
-# Stueck (5,4 MB) standen dauerhaft in "git status". Das ist nicht Kosmetik: AGENTS.md §9
-# verlangt "erst git status, dann NUR eigene Pfade stagen", und diese Regel ist die einzige,
-# die in einem geteilten Arbeitsbaum die Arbeit fremder Sitzungen schuetzt. Sie wird
-# unbefolgbar, wenn die Liste zu 56 Zeilen Rauschen wird, in denen die eigene Aenderung
-# untergeht. Gleiche Begruendung wie .superpowers/ weiter oben.
-verify-*
+# Local secrets and environment files
+.env
+.env.*
+!.env.example
 
-# Testlauf-Rückstand: die Testläufe leiten console.warn/error in output_<pid>.log im
-# Wurzelverzeichnis um. Am 05.10.2026 lagen dort 513 Stück vom 15.09.2026, 507 davon LEER
-# (zusammen 9 KB) -- sie tragen nichts, kosten aber genau das, was die zwei Blöcke darüber
-# schon einmal gekostet haben: "git status" wird unlesbar, und damit wird die Regel aus
-# AGENTS.md §9 ("erst git status, dann NUR eigene Pfade stagen") unbefolgbar. Sie ist im
-# geteilten Arbeitsbaum die einzige Regel, die die Arbeit fremder Sitzungen schützt.
-output_*.log
+# Dependencies and build output
+node_modules/
+dist/
+# Wegwerf-Builds daneben (`dist-jetzt`, `dist-vorher`), wie in Prettier und ESLint: `b4c6499a` nahm 138 davon mit.
+dist-*/
+coverage/
+*.tsbuildinfo
+test-results/
+playwright-report/
+
+# Python-Bytecode (z. B. aus py_compile in den Ops-Tests)
+__pycache__/
+*.pyc
+
+# Bilder des Schriftlauf-Reviews (npm run review:runs). Werden neu erzeugt, nie committed.
+/review/
+
+# Aeltere Planungsfassung, bewusst ungetrackt aufbewahrt: ein `git add -A` zog sie zweimal herein,
+# bevor dieser Eintrag stand. Ohne ihn geschieht das wieder.
+/docs/avesmaps3D-intitial-main-planning.zip
+.screenshots/
+.shots/
+
+.release-runs/

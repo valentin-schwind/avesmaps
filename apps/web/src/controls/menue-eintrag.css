@@ -1,0 +1,159 @@
+/*
+ * Die Einträge der Menüs (WI-0178 A4): Kartenmenü (`map-context-menu.vue`), seine Untermenüs (`kontext-eintraege.vue`) und die
+ * Untermenüs der Flächenliste (`area-choice-menu.vue`) tragen EINE Fassung. Jede Komponente bindet diese Datei mit
+ * `<style scoped src>` ein; Legacys Kartenmenü (`map-context-menu.css`) ist die Vorlage.
+ */
+
+.context-menu__item {
+    display: grid;
+    grid-template-columns: 1.45em max-content;
+    align-items: center;
+    column-gap: 0.8em;
+    width: 100%;
+    padding: var(--space-8) var(--space-10);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-text);
+    cursor: pointer;
+    font: inherit;
+    font-size: var(--font-size-body);
+    line-height: var(--leading-snug);
+    text-align: left;
+    white-space: nowrap;
+    transition: background-color 120ms ease;
+}
+.context-menu__icon {
+    justify-self: center;
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+}
+.context-menu__item:hover,
+.context-menu__item:focus-visible {
+    outline: none;
+    background: var(--color-hover-wash);
+}
+.context-menu__item:active {
+    background: var(--color-active-wash);
+}
+/* Das Zeichen in der Schriftfarbe der Zeile (abgenommen 2026-10-11: einfarbig); gesperrt verblasst es mit ihr. */
+.context-menu__zeichen {
+    display: grid;
+    place-items: center;
+    color: currentColor;
+    line-height: 1;
+}
+.context-menu__item.is-gefahr:not(:disabled),
+.context-menu__item.is-gefahr:not(:disabled) .context-menu__zeichen {
+    color: var(--color-danger);
+}
+/*
+ * Das Untermenü wie Legacy (`map-context-menu.css:450-505`): „›“ rechts am Eintrag; das Blatt rechts daneben, eine Rahmenbreite
+ * höher, an der Gruppe verankert (es liegt im DOM in ihr, das Verlassen zählt erst außerhalb von beidem). Ohne Platz rechts links.
+ */
+.context-menu__gruppe {
+    position: relative;
+}
+/* Die offene Gruppe liegt über ihren Nachbarn: Ihr Untermenü (auch ein nach links umgeklapptes zweiter Ebene) deckt sie zu. */
+.context-menu__gruppe.is-offen {
+    z-index: 1;
+}
+.context-menu__item--unter,
+.context-menu__item--hinweis {
+    grid-template-columns: 1.45em max-content auto;
+}
+/* Das Kürzel rechts im Eintrag („Doppelklick“), leise wie die Pille. */
+.context-menu__hinweis {
+    justify-self: end;
+    padding-left: var(--space-12);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-caption);
+}
+/* Der Grund, warum ein Eintrag grau steht, als Zeile unter ihm, bündig mit seinem Text (WI-0252): am Finger gibt es keinen Tooltip. */
+.context-menu__grund {
+    max-width: 24em;
+    margin: calc(-1 * var(--space-4)) 0 var(--space-6);
+    padding: 0 var(--space-10) 0 calc(var(--space-10) + 1.45em + 0.8em);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-caption);
+    line-height: var(--leading-snug);
+    white-space: normal;
+}
+/* Zwischenüberschrift im Untermenü (Legacys Flächenmenü: Form · Mit anderer Fläche · Teilflächen …). */
+.context-menu__zwischen {
+    padding: var(--space-6) var(--space-10) var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-caption);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.context-menu__zwischen:not(:first-child) {
+    margin-top: var(--space-4);
+    border-top: 1px solid var(--color-divider);
+}
+.context-menu__item--unter::after {
+    content: "›";
+    justify-self: end;
+    padding-left: var(--space-12);
+}
+/* Ein Eintrag mit Untermenü UND Kürzel (eine Fläche in „Hier liegen N Flächen“ mit ihrer Art): Art und „›“ rechts nebeneinander. */
+.context-menu__item--unter.context-menu__item--hinweis {
+    grid-template-columns: 1.45em max-content auto max-content;
+}
+.context-menu__item--unter.context-menu__item--hinweis::after {
+    padding-left: var(--space-6);
+}
+.context-menu__item--unter[aria-expanded="true"] {
+    background: var(--color-hover-wash);
+}
+.context-menu__unter {
+    position: absolute;
+    top: calc(-1 * var(--space-6) - 1px);
+    left: 100%;
+    display: flex;
+    flex-direction: column;
+    min-width: 180px;
+    padding: var(--space-6);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-panel);
+    box-shadow: var(--shadow-panel);
+}
+.context-menu__gruppe.is-links > .context-menu__unter {
+    right: 100%;
+    left: auto;
+}
+/* Ein flaches Untermenü rollt, statt aus dem Fenster zu ragen (die Abschnitte einer langen Straße, T49). Eines mit eigenen Untermenüs
+   rollt nicht: Es schnitte sie ab. */
+.context-menu__unter.is-flach {
+    box-sizing: border-box;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+}
+/* Am Telefon steht das Untermenü im Menü, unter seinem Eintrag (Legacy `@media (max-width: 640px)`). */
+@media (max-width: 640px) {
+    .context-menu__unter,
+    .context-menu__unter.is-flach,
+    .context-menu__gruppe.is-links > .context-menu__unter {
+        position: static;
+        min-width: 0;
+        max-height: none;
+        overflow: visible;
+        margin-top: var(--space-4);
+        box-shadow: none;
+    }
+}
+/* Gesperrt: blass und ohne Wirkung - Deckkraft heißt in diesem Haus genau das (§30.2). */
+.context-menu__item:disabled {
+    cursor: default;
+    opacity: 0.55;
+}
+.context-menu__item:disabled:hover {
+    background: transparent;
+}
+@media (prefers-reduced-motion: reduce) {
+    .context-menu__item {
+        transition: none;
+    }
+}

@@ -1,0 +1,1974 @@
+{
+    "uebersetzung": "Queste note sono tradotte dal tedesco. Se le due versioni differiscono, vale la versione tedesca.",
+    "abschnitte": [
+        {
+            "id": "bedienung",
+            "titel": "Comandi",
+            "hinweis": "Comandi da tastiera, gesti e aiuti all’uso",
+            "bloecke": []
+        },
+        {
+            "id": "haeufige-fragen",
+            "titel": "Domande frequenti",
+            "hinweis": "Brevi risposte a ciò che viene chiesto più spesso",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Le brevi risposte a ciò che viene chiesto più spesso. I rimandi portano al punto dettagliato."
+                },
+                {
+                    "art": "frage",
+                    "id": "kostet-avesmaps-etwas",
+                    "frage": "Avesmaps costa qualcosa?",
+                    "antwort": "**No.** Avesmaps [non costa nulla](#was-es-kostet), **non mostra pubblicità** e **non vende dati**."
+                },
+                {
+                    "art": "frage",
+                    "id": "ist-avesmaps-eine-offizielle-dsa-quelle",
+                    "frage": "Avesmaps è una fonte ufficiale di DSA?",
+                    "antwort": "**No.** Avesmaps è un progetto di fan e non ha alcun legame ufficiale con Ulisses Spiele. [Vincolante](#was-avesmaps-nicht-ist) resta il materiale pubblicato da Ulisses Spiele."
+                },
+                {
+                    "art": "frage",
+                    "id": "braucht-man-ein-konto",
+                    "frage": "Serve un account?",
+                    "antwort": "**No.** Mappa e pianificatore di viaggi, segnalazioni, recensioni, proposte di mappe e immagini di viaggio funzionano senza account. Un [account](#konten) lo riceve solo chi viene invitato a collaborare."
+                },
+                {
+                    "art": "frage",
+                    "id": "warum-haben-orte-unterschiedliche-farben",
+                    "frage": "Perché i luoghi hanno colori diversi?",
+                    "antwort": "Il colore del segnaposto del luogo indica se un luogo proviene da pubblicazioni ufficiali oppure è una [integrazione non ufficiale](#offizielle-und-inoffizielle-inhalte), per esempio dal gioco per corrispondenza aventuriano."
+                },
+                {
+                    "art": "frage",
+                    "id": "lassen-sich-inoffizielle-inhalte-ausblenden",
+                    "frage": "Si possono nascondere i contenuti non ufficiali?",
+                    "antwort": "**Al momento non completamente:** strade e vie [non si lasciano sempre attribuire con chiarezza](#offizielle-und-inoffizielle-inhalte) e in parte porterebbero nel vuoto."
+                },
+                {
+                    "art": "frage",
+                    "id": "gibt-es-eine-zeitleiste-oder-fruehere-politische-karten",
+                    "frage": "Esiste una linea del tempo o mappe politiche precedenti?",
+                    "antwort": "**No.** Ci manca la capacità: di personale, di tempo e tecnica. Già lo stato della vista «Politica» (**1047 BF**) è stato possibile solo grazie a ricerche intensissime; per altri anni non esiste una base di informazioni completa o affidabile. Prevediamo però una sezione di temi di cronistoria che riporti sviluppi limitati nel luogo e nel tempo. Il suo sviluppo è tuttavia laborioso e difficile."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-genau-sind-reisezeiten-und-entfernungen",
+                    "frage": "Quanto sono precisi i tempi di viaggio e le distanze?",
+                    "antwort": "Sono un [ausilio per l’orientamento](#grenzen-der-karte). Si basano sui dati cartografici disponibili e sui modelli delle regole di viaggio aventuriane, che non sono sempre privi di contraddizioni; meteo, terreno e stato delle vie non sempre si possono considerare per intero."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-laesst-sich-ein-fehler-oder-ein-fehlender-ort-melden",
+                    "frage": "Come si segnala un errore o un luogo mancante?",
+                    "antwort": "Tramite «Segnalare qualcosa qui» o «Proporre modifiche» sulla mappa, [anche senza account](#meldungen-zur-karte), oppure con /bug e /idee sul server Discord. Altre possibilità si trovano sotto [Partecipare](#mitmachen)."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-kommt-ein-eigenes-bild-oder-eine-karte-auf-avesmaps",
+                    "frage": "Come arrivano su Avesmaps un’immagine o una mappa propria?",
+                    "antwort": "Le immagini proprie entrano come [immagine di viaggio](#reisebilder), le mappe tramite [«Proporre una mappa»](#kartenvorschlaege). La redazione verifica ogni invio prima che compaia."
+                },
+                {
+                    "art": "frage",
+                    "id": "duerfen-karten-oder-daten-weiterverwendet-werden",
+                    "frage": "Mappe o dati si possono riutilizzare?",
+                    "antwort": "**Non automaticamente:** i [contenuti di diversa provenienza](#was-fuer-welche-inhalte-gilt) sono soggetti a condizioni proprie. Il codice del programma è sotto licenza MIT, il materiale DSA non è coperto da alcuna licenza libera. In caso di dubbio, una richiesta all’indirizzo indicato nelle note legali aiuta."
+                },
+                {
+                    "art": "frage",
+                    "id": "wird-ki-eingesetzt",
+                    "frage": "Si usa l’IA?",
+                    "antwort": "**Sì.** Gli [agenti IA](#einsatz-von-kuenstlicher-intelligenz) sostengono lo sviluppo tecnico, e una parte delle immagini nonché la mappa «Modern» sono nate con IA generativa. Il gestore decide che cosa viene pubblicato o modificato nei dati cartografici."
+                },
+                {
+                    "art": "frage",
+                    "id": "speichert-avesmaps-daten-ueber-besuche",
+                    "frage": "Avesmaps memorizza dati sulle visite?",
+                    "antwort": "Avesmaps conta le visite solo [in modo anonimo e in totali](#anonyme-besucherstatistik), senza cookie e senza riconoscimento. Il server web registra per **circa 14 giorni** i [dati di log](#server-logdaten) tecnici con indirizzo IP."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-lassen-sich-eigene-angaben-loeschen",
+                    "frage": "Come si cancellano i propri dati?",
+                    "antwort": "Basta una [richiesta](#rechte-der-betroffenen) all’indirizzo indicato nelle note legali. Le recensioni si possono contestare con «Segnalare» e il motivo «Dati personali»; le immagini di viaggio si possono rimuovere dalla rete tramite il link personale."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-bleibt-man-auf-dem-laufenden",
+                    "frage": "Come ci si tiene aggiornati?",
+                    "antwort": "Tramite le Novità in alto in questa finestra e i canali su Discord, Instagram, Facebook e Mastodon."
+                }
+            ]
+        },
+        {
+            "id": "projekt-und-mitmachen",
+            "titel": "Progetto e partecipazione",
+            "hinweis": "Che cosa è Avesmaps, come nasce la mappa e come si partecipa",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Progetto di fan aperto, indipendente e non commerciale dedicato a [Uno Sguardo nel Buio](https://it.wikipedia.org/wiki/Uno_sguardo_nel_buio) di [Valentin Schwind](https://www.valentin-schwind.de) e Thomas Braun. Il progetto non ha alcun legame ufficiale con [Ulisses Spiele](https://de.wikipedia.org/wiki/Ulisses_Spiele)."
+                },
+                {
+                    "art": "h3",
+                    "id": "die-karte",
+                    "text": "La mappa"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps mostra [Aventuria](https://de.wiki-aventurica.de/wiki/Aventurien) nel browser: luoghi e siti, domini, paesaggi e acque, insieme alla rete viaria che li collega. La mappa si può ruotare e inclinare, e ciò che in 3D si vede è un [modello digitale del terreno](https://de.wikipedia.org/wiki/Digitales_H%C3%B6henmodell) calcolato e non un rilievo dipinto. Il pianificatore di viaggi cerca il percorso tra due luoghi e indica distanza e tempo di viaggio a piedi, a cavallo, in nave e in aria."
+                },
+                {
+                    "art": "h3",
+                    "id": "wie-die-karte-entsteht",
+                    "text": "Come nasce la mappa"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Dietro ogni luogo, ogni via e ogni area c’è una decisione redazionale. I redattori raccolgono la situazione delle fonti, collocano luoghi, tracciano vie e territori e scrivono una parte delle brevi descrizioni; molto viene verificato con [Wiki Aventurica](https://de.wiki-aventurica.de/) e con il materiale pubblicato. Per questo la mappa non è mai finita, e non cresce grazie ai file, ma grazie alle persone. Da dove provengano i dati nel dettaglio, lo indica [«Contenuti e fonti dei dati»](#inhalte-und-datenquellen)."
+                },
+                {
+                    "art": "h3",
+                    "id": "mitmachen",
+                    "text": "Partecipare"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps vive del sostegno della propria comunità. I contributi sono possibili in più modi:"
+                },
+                {
+                    "art": "liste",
+                    "punkte": [
+                        "Errori, luoghi mancanti, informazioni e fonti: tramite le funzioni di segnalazione sulla mappa, tramite Discord e gli altri canali in alto in questa finestra.",
+                        "Immagini e illustrazioni proprie: come immagine di viaggio, se l’opera è di propria creazione (si veda [«Immagini di viaggio»](#reisebilder)).",
+                        "Mappe: come proposta per la raccolta di mappe, se sono un’opera propria o se l’autore lo ha consentito.",
+                        "Lavoro sulla mappa: con un account con permessi graduati; che cosa viene memorizzato in questo caso è indicato nella sezione [Protezione dei dati](#datenschutz)."
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "In particolare si desidera incoraggiare artiste e artisti a presentare le proprie opere su Avesmaps e a contribuire a plasmare il mondo di Aventuria. L’obiettivo è una piattaforma aperta che migliora sempre di più grazie al sapere, alla creatività e all’impegno della propria comunità."
+                },
+                {
+                    "art": "h3",
+                    "id": "was-avesmaps-nicht-ist",
+                    "text": "Che cosa Avesmaps non è"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps non è **una pubblicazione ufficiale né una fonte canonica**. Dove le fonti tacciono o si contraddicono, la redazione prende una decisione; quale fonte stia dietro un singolo oggetto lo mostra il suo pannello informativo. Vincolante resta il materiale pubblicato da Ulisses Spiele, non questa mappa. Avesmaps è un ausilio per l’orientamento e non un atlante vincolante dell’Aventuria ufficiale; quali contenuti un gruppo di gioco adotta lo decide il gruppo stesso."
+                },
+                {
+                    "art": "h3",
+                    "id": "was-es-kostet",
+                    "text": "Quanto costa"
+                },
+                {
+                    "art": "absatz",
+                    "text": "**Avesmaps non costa nulla**, **non mostra pubblicità** e **non vende dati**. Server, gestione e sviluppo sono sostenuti privatamente dal gestore; il lavoro su mappa e software avviene nel tempo libero."
+                }
+            ]
+        },
+        {
+            "id": "inhalte-und-datenquellen",
+            "titel": "Contenuti e fonti dei dati",
+            "hinweis": "Da dove vengono luoghi, vie e territori, che cosa è ufficiale e come avviene l’allineamento dei dati",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "La mappa unisce il lavoro di fan precedente, [Wiki Aventurica](https://de.wiki-aventurica.de/), mappe del [gioco per corrispondenza](https://de.wikipedia.org/wiki/Briefspiel) e lavoro redazionale proprio. Qui si legge da dove viene ciascun elemento e come avviene l’allineamento."
+                },
+                {
+                    "art": "h3",
+                    "id": "offizielle-und-inoffizielle-inhalte",
+                    "text": "Contenuti ufficiali e non ufficiali"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps comprende, oltre ai luoghi di pubblicazioni ufficiali, anche integrazioni dal gioco per corrispondenza aventuriano. Esse non fanno parte del canone ufficiale di DSA, ma arricchiscono il mondo di gioco grazie al loro sviluppo pluriennale e alla vasta documentazione. Questi contenuti si vogliono rendere accessibili consapevolmente, senza equipararli alle affermazioni ufficiali. La mappa indica la differenza con il colore del segnaposto del luogo."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Al momento non è possibile nascondere del tutto i contenuti non ufficiali, perché in particolare strade e vie non sempre si lasciano attribuire con chiarezza e in parte porterebbero nel vuoto. Anche le vie esistenti non sono necessariamente documentate da fonti ufficiali."
+                },
+                {
+                    "art": "h3",
+                    "id": "avespfade",
+                    "text": "Avespfade"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Dal 2014 al 2026 [Avespfade](https://avespfade.de/) è stato il pianificatore di viaggi per Aventuria. Oliver Hackstein e Florian Mazur lo presentarono il 13 febbraio 2014, dopo mezzo anno di lavoro: viaggi a piedi, a cavallo, per fiume e lago, con punti di passaggio, percorsi alternativi e aree che il percorso aggira. Prima non esisteva nulla del genere."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps si basa su questo lavoro. Una parte dei luoghi, degli incroci e delle vie con cui questa mappa calcola oggi i viaggi proviene da Avespfade. Senza la rete viaria cresciuta lì in dodici anni, Avesmaps sarebbe cominciato in modo del tutto diverso."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Nell’ottobre 2026 Oliver Hackstein e Florian Mazur hanno mandato Avespfade in pensione e da lì hanno rinviato ad Avesmaps. Per questo e per dodici anni di Avespfade: grazie."
+                },
+                {
+                    "art": "h3",
+                    "id": "orts-wege-und-routendaten",
+                    "text": "Dati di luoghi, vie e rotte"
+                },
+                {
+                    "art": "absatz",
+                    "text": "I dati di luoghi, incroci, vie e rotte sono stati in parte ricavati da fonti di fan e di riferimento accessibili al pubblico, rielaborati dalla redazione, integrati e preparati tecnicamente. Secondo la situazione delle fonti finora nota, parti dei dati di partenza risalgono ad avespfade.de; lì, secondo indicazioni proprie, alcune posizioni di luoghi sono state allineate al [progetto DereGlobus](https://www.dereglobus.org/)."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Le superfici paesaggistiche e le zone climatiche invece nascono in prevalenza qui e sono un’interpretazione redazionale della situazione delle fonti, non una ripresa da un modello. Le voci su natura e merci seguono in gran parte Wiki Aventurica (si veda [«Allineamento dei dati»](#datenabgleich))."
+                },
+                {
+                    "art": "h3",
+                    "id": "datenabgleich",
+                    "text": "Allineamento dei dati"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Una parte dei contenuti, in particolare domini, luoghi e regioni, viene regolarmente allineata con [Wiki Aventurica](https://de.wiki-aventurica.de/). Un redattore avvia l’allineamento. L’esecuzione applica automaticamente le modifiche univoche; ciò che è proprio e ciò che è ambiguo resta intatto; ogni esecuzione si può annullare."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "datenabgleich-kurzbeschreibungen",
+                            "begriff": "Brevi descrizioni",
+                            "werte": [
+                                "Anche molte brevi descrizioni nel pannello informativo provengono da lì, e il relativo articolo è ogni volta collegato."
+                            ]
+                        },
+                        {
+                            "id": "datenabgleich-rechte-an-den-texten",
+                            "begriff": "Diritti sui testi",
+                            "werte": [
+                                "I diritti su questi testi restano presso i loro autori; sono sotto [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/deed.it) e restano tali anche in forma rielaborata. Come menzione del nome serve il rimando all’articolo e l’elenco degli autori ivi tenuto. Citazioni e contenuti di Ulisses sono esclusi da questa licenza e non vengono ripresi."
+                            ]
+                        },
+                        {
+                            "id": "datenabgleich-dateien",
+                            "begriff": "File",
+                            "werte": [
+                                "I file di Wiki Aventurica, per esempio gli stemmi, hanno invece ciascuno una licenza propria."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "kartendaten-aus-garetien-und-dem-kosch",
+                    "text": "Dati di mappa da Garetien e dal Kosch"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Una parte delle acque, delle vie, delle foreste, dei monti, delle località e dei domini nell’area di Garetien, Greifenfurt, Perricum e Kosch proviene dalle mappe di Volker Strunk (VolkoV), pubblicate su [garetien.de](https://www.garetien.de/) e [koschwiki.de](https://www.koschwiki.de/)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "kartendaten-aus-garetien-und-dem-kosch-genehmigung",
+                            "begriff": "Autorizzazione",
+                            "werte": [
+                                "La ripresa avviene con l’esplicita autorizzazione del Freundeskreis des phantastischen Briefspiels e. V. del 12.08.2026 e viene effettuata con verifica redazionale, non in modo automatico."
+                            ]
+                        },
+                        {
+                            "id": "kartendaten-aus-garetien-und-dem-kosch-lizenz-und-nennung",
+                            "begriff": "Licenza e menzione",
+                            "werte": [
+                                "Questi contenuti sono sotto [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/deed.it) e restano tali anche in forma rielaborata; come menzione del nome serve «VolkoV / garetien.de» oppure «VolkoV / koschwiki.de» presso la rispettiva fonte nel pannello informativo, insieme al rimando all’articolo corrispondente."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "quelle-je-objekt",
+                    "text": "Fonte per oggetto"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Quale fonte stia dietro un singolo luogo, territorio o via, lo mostra il pannello informativo di quell’oggetto, nella misura in cui è registrata, insieme a licenza e menzione del nome."
+                }
+            ]
+        },
+        {
+            "id": "karten-auf-avesmaps",
+            "titel": "Mappe su Avesmaps",
+            "hinweis": "La mappa originale di Ina Kramer, che cosa ne è venuto e sotto quale licenza",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Tutte e tre le serie di mappe risalgono alla stessa mappa ufficiale e sono quindi sotto la stessa licenza; si distinguono soltanto per l’elaborazione."
+                },
+                {
+                    "art": "h3",
+                    "id": "die-originalkarte",
+                    "text": "La mappa originale"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Mappa ufficiale di Aventuria di Ulisses Spiele, messa a disposizione dei fan tramite l’Aventurischer Atlas. Le mappe originali esistono in 8192 pixel."
+                },
+                {
+                    "art": "h3",
+                    "id": "die-kartenserien",
+                    "text": "Le serie di mappe"
+                },
+                {
+                    "art": "absatz",
+                    "text": "La mappa si può visualizzare in tre serie:"
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "die-kartenserien-old",
+                            "begriff": "Old",
+                            "werte": [
+                                "La mappa come l’aveva davanti a sé un tempo la grafica [Ina Kramer](https://de.wikipedia.org/wiki/Ina_Kramer). Le scansioni pubblicate della mappa contenevano diciture, che sono state rimosse con l’aiuto di [intelligenza artificiale](https://it.wikipedia.org/wiki/Intelligenza_artificiale). Indicazione del gestore del 12.10.2026."
+                            ]
+                        },
+                        {
+                            "id": "die-kartenserien-original",
+                            "begriff": "Original",
+                            "werte": [
+                                "La stessa mappa di «Old», solo senza la dicitura impressa: la dicitura è stata rimossa, poi l’immagine è stata ingrandita a 32 768 pixel con una conversione IA. Geometricamente coincide con le altre serie."
+                            ]
+                        },
+                        {
+                            "id": "die-kartenserien-modern",
+                            "begriff": "Modern",
+                            "werte": [
+                                "In otto passaggi, con [IA generativa](https://de.wikipedia.org/wiki/Generative_k%C3%BCnstliche_Intelligenz), è nata dalla mappa di Ina Kramer: la mappa originale è stata suddivisa in tessere da 1024 pixel; [Qwen](https://de.wikipedia.org/wiki/Qwen) ha tolto da ogni tessera la dicitura; [ChatGPT](https://de.wikipedia.org/wiki/ChatGPT) Image l’ha ridisegnata come mappa del terreno dipinta e più grande; e un Dense Warp ha riportato ogni tessera con precisione sulla geometria dell’originale. Coste, fiumi, vie e confini si trovano quindi dove si trovavano prima, e non si è aggiunto nulla che non ci fosse già.",
+                                "Superfici di terra e acqua sono state elaborate separatamente e poi riunite; il risultato è stato rielaborato a mano in [Photoshop](https://de.wikipedia.org/wiki/Adobe_Photoshop) e infine ritagliato in tessere (32 768 × 32 768 pixel); la mappa si ingrandisce nei livelli di zoom da 0 a 8."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "lizenz-und-genehmigung",
+                    "text": "Licenza e autorizzazione"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Per il materiale cartografico vale l’[accordo di licenza per il Kartenpaket di Ulisses](https://de.wiki-aventurica.de/wiki/Kartenpaket/Lizenz). Riproduzione, diffusione e anche esplicitamente rielaborazione sono consentite, finché l’uso resta non commerciale e la rielaborazione è contrassegnata come progetto di fan. Sono escluse le sublicenze; i diritti si estinguono in caso di violazione. Ad ogni diffusione deve accompagnare una copia della licenza oppure il suo indirizzo internet completo."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "lizenz-und-genehmigung-genehmigung",
+                            "begriff": "Autorizzazione",
+                            "werte": [
+                                "L’uso per Avesmaps è autorizzato in modo specifico per il progetto. Indicazione del gestore del 20.09.2026. L’ente concedente, il momento e la forma di tale autorizzazione non sono documentati. Da ciò non segue che non vi sia un’autorizzazione, ma soltanto che qui non è dimostrabile."
+                            ]
+                        },
+                        {
+                            "id": "lizenz-und-genehmigung-nennung",
+                            "begriff": "Menzione",
+                            "werte": [
+                                "Materiale cartografico © Ulisses Spiele · Mappa originale: Ina Kramer · Rielaborazione: Avesmaps (progetto di fan DSA)"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "kasten",
+                    "titel": "Fino a revoca",
+                    "absaetze": [
+                        "Secondo Ulisses, l’autorizzazione all’uso di materiale illustrativo vale soltanto fino a revoca."
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "urheberrecht-marken-und-bildrechte",
+            "titel": "Diritto d’autore, marchi e diritti sulle immagini",
+            "hinweis": "Che cosa vale per quali contenuti: linee guida per i fan, stemmi, immagini, copertine e marchi",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Avesmaps utilizza contenuti di diversa provenienza, per i quali possono valere condizioni d’uso proprie. Una libera ulteriore utilizzazione di tutti i contenuti non è quindi automaticamente consentita. Chi intende usare dati, mappe o altri componenti di Avesmaps per progetti propri deve rispettare le rispettive licenze; in caso di dubbio conviene rivolgersi alla redazione."
+                },
+                {
+                    "art": "h3",
+                    "id": "was-fuer-welche-inhalte-gilt",
+                    "text": "Che cosa vale per quali contenuti"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Si distinguono quattro gruppi:"
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "was-fuer-welche-inhalte-gilt-dsa-inhalte",
+                            "begriff": "Contenuti DSA",
+                            "werte": [
+                                "I diritti su Uno Sguardo nel Buio, Aventuria nonché sui marchi, mappe, testi e illustrazioni utilizzati restano presso i rispettivi titolari dei diritti. I dettagli si trovano sotto [«Nessuna licenza libera per il materiale DSA»](#keine-freie-lizenz-fuer-dsa-material)."
+                            ]
+                        },
+                        {
+                            "id": "was-fuer-welche-inhalte-gilt-kartenpaket",
+                            "begriff": "Kartenpaket",
+                            "werte": ["Vale la licenza indicata sotto [«Mappe su Avesmaps»](#karten-auf-avesmaps)."]
+                        },
+                        {
+                            "id": "was-fuer-welche-inhalte-gilt-drittmaterial",
+                            "begriff": "Materiale di terzi",
+                            "werte": [
+                                "I testi di [Wiki Aventurica](https://de.wiki-aventurica.de/) sono sotto CC BY-SA 3.0, i contenuti di Garetien e del Kosch sotto CC BY-NC-SA 3.0 (si veda [«Contenuti e fonti dei dati»](#inhalte-und-datenquellen)); per stemmi, immagini e copertine vale quanto indicato sotto."
+                            ]
+                        },
+                        {
+                            "id": "was-fuer-welche-inhalte-gilt-programmcode",
+                            "begriff": "Codice del programma",
+                            "werte": [
+                                "Esso è sotto [licenza MIT](https://de.wikipedia.org/wiki/MIT-Lizenz) (si veda [«Tecnica e intelligenza artificiale»](#technik-und-kuenstliche-intelligenz))."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Si rispetta il lavoro delle creatrici e dei creatori originali e ci si impegna per una contrassegnazione trasparente delle fonti e degli autori utilizzati."
+                },
+                {
+                    "art": "h3",
+                    "id": "fanrichtlinien-und-fanprojekt-kennzeichnung",
+                    "text": "Linee guida per i fan e contrassegno del progetto di fan"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps si contrassegna come progetto di fan. L’uso del logo DSA-FANPROJEKT e delle indicazioni legali avviene in base alle [linee guida per i fan](https://ulisses-spiele.de/fan-richtlinie/) pubblicate da Ulisses. L’autorizzazione all’uso di determinati materiali può essere revocata dai titolari dei diritti o vietata nel singolo caso. In caso di segnalazione da parte dei titolari dei diritti, i contenuti interessati vengono verificati e, ove necessario, rimossi o adattati."
+                },
+                {
+                    "art": "h3",
+                    "id": "keine-freie-lizenz-fuer-dsa-material",
+                    "text": "Nessuna licenza libera per il materiale DSA"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Il materiale DSA di mappe, immagini, marchi, nomi e sfondo non viene pubblicato su Avesmaps sotto [Creative Commons](https://de.wikipedia.org/wiki/Creative_Commons), Open Data, Open Source o una licenza libera analoga. Ciò vale in particolare per i contenuti basati su pubblicazioni ufficiali, mappe, nomi, termini, marchi o altro materiale protetto di Ulisses o di altri titolari dei diritti. Un’ulteriore utilizzazione è consentita soltanto nell’ambito dei diritti pertinenti di volta in volta."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Restano esclusi da ciò due cose: il codice del programma scritto appositamente per Avesmaps, che è [a sorgente aperta](https://it.wikipedia.org/wiki/Open_source) sotto licenza MIT, e i testi ripresi da Wiki Aventurica, che sono sotto la licenza dei loro autori."
+                },
+                {
+                    "art": "h3",
+                    "id": "wappen-bilder-und-cover",
+                    "text": "Stemmi, immagini e copertine"
+                },
+                {
+                    "art": "h4",
+                    "id": "wappen",
+                    "text": "Stemmi"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Gli stemmi dei domini mostrati nella mappa provengono da Wiki Aventurica oppure sono immagini IA create appositamente. Ogni media ha in Avesmaps una propria base giuridica e uno stato di approvazione; viene mostrato pubblicamente ciò che è registrato come di pubblico dominio, [CC0](https://creativecommons.org/publicdomain/zero/1.0/deed.it), opera propria o immagine IA creata appositamente, inoltre ciò che la redazione ha approvato con una regola o singolarmente. Gli stemmi con stato dei diritti sconosciuto o restrittivo restano nascosti senza una tale approvazione. I diritti restano presso i rispettivi autori e titolari; la presentazione su Avesmaps non fonda alcun diritto proprio su di essi. Su segnalazione dei titolari dei diritti, gli stemmi interessati vengono verificati e, ove necessario, rimossi o adattati."
+                },
+                {
+                    "art": "h4",
+                    "id": "bilder",
+                    "text": "Immagini"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Regioni, insediamenti e altri luoghi possono inoltre avere un’immagine. Essa deve dare un’impressione riconoscibile del luogo e non sostituire il lavoro di artiste e artisti o di Ulisses. Viene incorporato esclusivamente ciò per cui, dopo verifica, sussiste un’autorizzazione sufficiente, di regola materiale di pubblico dominio e immagini IA create appositamente per Avesmaps. Non vengono utilizzate scansioni o foto di artwork di Ulisses né fan art di altre artiste e altri artisti senza il loro esplicito consenso. Su segnalazione dei titolari dei diritti, le immagini interessate vengono verificate e, ove necessario, rimosse o adattate."
+                },
+                {
+                    "art": "h4",
+                    "id": "cover",
+                    "text": "Copertine"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Le copertine di pubblicazioni DSA mostrate nelle voci bibliografiche vengono utilizzate con l’autorizzazione di Ulisses. La copertina rimanda, se disponibile nello shop, alla rispettiva pubblicazione presso Ulisses o nel F-Shop; altrimenti il rimando porta all’articolo corrispondente in Wiki Aventurica oppure alla Deutsche Nationalbibliothek."
+                },
+                {
+                    "art": "h3",
+                    "id": "marken-und-disclaimer",
+                    "text": "Marchi ed esclusioni"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Artwork © Ulisses Spiele. DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA, RIESLAND and THE DARK EYE are registered trademarks of Ulisses Spiele GmbH, Waldems. The graphics are used within the guidelines permitted by Ulisses Spiele. Use beyond these guidelines may only take place with the prior written permission of Ulisses Medien und Spiel Distribution GmbH."
+                },
+                {
+                    "art": "absatz",
+                    "text": "DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA and RIESLAND are trademarks of Significant Fantasy Medienrechte GbR."
+                }
+            ]
+        },
+        {
+            "id": "technik-und-kuenstliche-intelligenz",
+            "titel": "Tecnica e intelligenza artificiale",
+            "hinweis": "I componenti, il codice sorgente, come calcola la rotta e dove viene impiegata l’IA",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Avesmaps è composto da software libero, codice del programma proprio e da uno sviluppo che in gran parte viene svolto da agenti IA."
+                },
+                {
+                    "art": "h3",
+                    "id": "software-und-lizenzen",
+                    "text": "Software e licenze"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps si basa su questi componenti:"
+                },
+                {
+                    "art": "tafel",
+                    "kopf": ["Ambito", "Componente", "Licenza"],
+                    "schluesselSpalten": 2,
+                    "zeilen": [
+                        {
+                            "id": "software-und-lizenzen-karte-im-browser-maplibre-gl-js",
+                            "zellen": ["Mappa nel browser", "[MapLibre GL JS](https://maplibre.org/)", "BSD-3-Clause"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-oberflaeche-vue",
+                            "zellen": ["Interfaccia", "[Vue](https://vuejs.org/)", "MIT"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-server-fastify",
+                            "zellen": ["Server", "[Fastify](https://fastify.dev/)", "MIT"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-server-typebox",
+                            "zellen": ["Server", "[TypeBox](https://github.com/sinclairzx81/typebox)", "MIT"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-server-postgres-js",
+                            "zellen": ["Server", "[postgres.js](https://github.com/porsager/postgres)", "Unlicense"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-bildverarbeitung-sharp-mit-libvips",
+                            "zellen": [
+                                "Elaborazione delle immagini",
+                                "[sharp](https://sharp.pixelplumbing.com/), con [libvips](https://www.libvips.org/)",
+                                "Apache-2.0, libvips LGPL-3.0"
+                            ]
+                        },
+                        {
+                            "id": "software-und-lizenzen-daten-postgresql",
+                            "zellen": ["Dati", "[PostgreSQL](https://www.postgresql.org/)", "PostgreSQL License"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-daten-postgis",
+                            "zellen": ["Dati", "[PostGIS](https://postgis.net/)", "GPL-2.0 o successiva"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-vektorkacheln-martin",
+                            "zellen": [
+                                "Tessere vettoriali",
+                                "[Martin](https://martin.maplibre.org/)",
+                                "MIT o Apache-2.0"
+                            ]
+                        },
+                        {
+                            "id": "software-und-lizenzen-hausschrift-faculty-glyphic",
+                            "zellen": [
+                                "Carattere tipografico proprio",
+                                "[Faculty Glyphic](https://github.com/google/fonts/tree/main/ofl/facultyglyphic)",
+                                "SIL Open Font License 1.1"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Faculty Glyphic: Copyright 2024 The Faculty Glyphic Project Authors. Il carattere tipografico proprio viene fornito dal server proprio e non caricato da una rete estranea."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Questi componenti riguardano la resa tecnica e l’uso della mappa e non fondano alcun diritto su materiale DSA di mappe, nomi, marchi o sfondo."
+                },
+                {
+                    "art": "h3",
+                    "id": "quellcode",
+                    "text": "Codice sorgente"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Il codice del programma scritto per Avesmaps è a sorgente aperta e si trova su [GitHub](https://github.com/valentin-schwind/avesmaps) sotto licenza MIT. Questa licenza vale esclusivamente per il codice del programma. Non comprende né le tessere cartografiche né i dati di luoghi, vie, territori e geometrie, né testi, stemmi, immagini o marchi legati a DSA. Per questi contenuti restano invariati i diritti delle rispettive fonti e le linee guida per i fan di Ulisses."
+                },
+                {
+                    "art": "h3",
+                    "id": "wegfindung",
+                    "text": "Ricerca di rotte"
+                },
+                {
+                    "art": "absatz",
+                    "text": "La ricerca di rotte viene calcolata sul server. Sulla rete viaria, i cui nodi sono luoghi e incroci e i cui archi sono le vie con lunghezza e tempo di viaggio per mezzo di trasporto, opera l’[algoritmo di Dijkstra](https://it.wikipedia.org/wiki/Algoritmo_di_Dijkstra)."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Dove non c’è una via, per esempio per una meta fuori dalla rete, un [algoritmo A*](https://de.wikipedia.org/wiki/A*-Algorithmus) cerca inoltre su una griglia del terreno: ogni passo viene valutato in base al paesaggio e al dislivello; bosco, palude e montagna rallentano, le pendenze costano tempo, e mare, laghi e fiumi sono percorribili solo dove una via disegnata li attraversa. Il tratto di terreno trovato si appende poi alla rete viaria come singolo arco. Le navi viaggiano da porto a porto su un grafo marittimo derivato, non su vie disegnate."
+                },
+                {
+                    "art": "absatz",
+                    "text": "I mezzi di viaggio volanti calcolano su un campo proprio con altezza di volo e terreno."
+                },
+                {
+                    "art": "h3",
+                    "id": "einsatz-von-kuenstlicher-intelligenz",
+                    "text": "Impiego dell’intelligenza artificiale"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Si apprezza e si rispetta il lavoro di artiste e artisti e si desidera affermare Avesmaps anche a lungo termine come piattaforma su cui le loro opere possono essere presentate e valorizzate. Allo stesso tempo Avesmaps è un progetto con risorse umane e finanziarie limitate. Senza l’impiego dell’intelligenza artificiale, lo sviluppo in questa portata sarebbe al momento difficilmente possibile."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Qui si distingue esplicitamente tra IA generativa per la creazione di contenuti artistici e agenti di programmazione basati su IA, che supportano lo sviluppo tecnico. Entrambi gli ambiti di impiego, a giudizio di Avesmaps, vanno valutati in modo diverso. Soprattutto per le illustrazioni, l’IA non si intende come sostituto di principio della creatività umana, ma come soluzione pragmatica nelle condizioni attuali. L’obiettivo resta coinvolgere più arte umana e offrire ad artiste e artisti interessati la possibilità di contribuire a plasmare Aventuria."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Dove l’IA viene impiegata concretamente, è indicato nel punto corrispondente: per la mappa «Modern», per stemmi e immagini, per le immagini di viaggio e nella protezione dei dati sotto [«Strumento IA»](#ki-werkzeug)."
+                },
+                {
+                    "art": "h3",
+                    "id": "claudia-und-claudio",
+                    "text": "Claudia e Claudio"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps viene costruito in prevalenza da due agenti IA, che girano su Claude di [Anthropic](https://de.wikipedia.org/wiki/Anthropic); a tratti collabora anche Codex."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "claudia-und-claudio-claudia",
+                            "begriff": "Claudia",
+                            "werte": [
+                                "Claudia lavora sul computer di sviluppo: architettura, codice del programma, modello dei dati, test e gli strumenti con cui vengono preparati i dati di mappa e di viaggio."
+                            ]
+                        },
+                        {
+                            "id": "claudia-und-claudio-claudio",
+                            "begriff": "Claudio",
+                            "werte": [
+                                "Claudio lavora sul server: rilascio di nuove versioni, banca dati, servizio delle tessere, backup, monitoraggio e la ricerca delle cause quando qualcosa si inceppa."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Nessuno dei due lavora in piena autonomia: il gestore decide che cosa viene pubblicato o modificato nei dati cartografici. Una modifica alla mappa richiede la sua esplicita approvazione, e ogni accesso in scrittura viene registrato. I testi di questa pagina sono in parte redatti da Claudia, mentre l’approvazione spetta al gestore; l’interpretazione delle fonti e tutto ciò che è redazionale restano affidati a persone."
+                },
+                {
+                    "art": "bild",
+                    "src": "/img/claudia-claudio.webp",
+                    "alt": "Claudia e Claudio, i due agenti IA di Avesmaps, sopra una mappa",
+                    "breite": 520,
+                    "hoehe": 520
+                }
+            ]
+        },
+        {
+            "id": "reisebilder",
+            "titel": "Immagini di viaggio",
+            "hinweis": "Condizioni per le immagini proprie: paternità, uso, verifica, link personale",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Per le immagini proprie valgono queste condizioni. Che cosa viene memorizzato in questo caso è indicato nella [protezione dei dati](#datenschutz-bei-reisebildern)."
+                },
+                {
+                    "art": "h3",
+                    "id": "bedingungen",
+                    "text": "Condizioni"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Per ogni immagine inviata vale quanto segue:"
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "bedingungen-eigenes-werk",
+                            "begriff": "Opera propria",
+                            "werte": [
+                                "Si invia soltanto un’immagine realizzata personalmente: dipinta o disegnata, fotografata, generata con IA oppure acquisita in Avesmaps. Opere altrui, anche illustrazioni ufficiali DSA e scansioni da libri, sono escluse."
+                            ]
+                        },
+                        {
+                            "id": "bedingungen-personen-und-alter",
+                            "begriff": "Persone ed età",
+                            "werte": [
+                                "Persone riconoscibili vengono mostrate solo con il loro consenso. La persona che invia è di almeno 16 anni."
+                            ]
+                        },
+                        {
+                            "id": "bedingungen-pruefung",
+                            "begriff": "Verifica",
+                            "werte": [
+                                "La redazione verifica ogni immagine prima della pubblicazione. Può correggere punto, luogo, riferimento e descrizione, ma non l’immagine. **Non esiste alcun diritto alla pubblicazione**. Le immagini IA vengono contrassegnate come immagini IA."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "nutzung",
+                    "text": "Uso"
+                },
+                {
+                    "art": "absatz",
+                    "text": "La persona che invia sceglie come Avesmaps può usare l’immagine:"
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "nutzung-nur-fuer-avesmaps-vorgabe",
+                            "begriff": "Solo per Avesmaps (impostazione predefinita)",
+                            "werte": [
+                                "Avesmaps può mostrare l’immagine sulla mappa, nella barra delle immagini, nell’infobox e lungo le rotte, e per questo ridurla e ritagliarla, con il nome indicato o come «anonimo». Tutti gli altri diritti restano presso la persona che invia. L’autorizzazione termina quando l’immagine viene rimossa dalla rete."
+                            ]
+                        },
+                        {
+                            "id": "nutzung-cc-by-4-0",
+                            "begriff": "[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.it)",
+                            "werte": [
+                                "Ogni persona può riutilizzare l’immagine con menzione dell’autore, anche a fini commerciali. **Questo non si può ritirare**: se l’immagine viene rimossa, scompare da Avesmaps, ma la licenza per gli altri resta. Essa comprende solo il contributo proprio; restano impregiudicati i diritti di terzi, per esempio quelli di Ulisses sui contenuti DSA."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Una ripresa di Avesmaps esiste solo come «Solo per Avesmaps», perché la mappa in essa non appartiene alla persona che invia."
+                },
+                {
+                    "art": "kasten",
+                    "titel": "Link personale",
+                    "absaetze": [
+                        "Chi conosce il link personale può modificare l’immagine o rimuoverla dalla rete. Va conservato con cura; non è possibile ripristinarlo."
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "grenzen-der-karte-und-haftung",
+            "titel": "Limiti della mappa e responsabilità",
+            "hinweis": "Quanto è precisa la mappa e di che cosa risponde il progetto",
+            "bloecke": [
+                {
+                    "art": "h3",
+                    "id": "grenzen-der-karte",
+                    "text": "Limiti della mappa"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps è un progetto di fan in costante crescita e non rivendica completezza, assenza di errori, canonicità o vincolatività ufficiale. Nonostante un ampio lavoro sulle fonti, possono mancare luoghi, vie e altre informazioni, possono essere imprecisi o provenire da epoche diverse dell’Aventuria."
+                },
+                {
+                    "art": "absatz",
+                    "text": "In particolare i tempi di viaggio e le distanze calcolati vanno intesi **come ausilio per l’orientamento**. Si basano sui dati cartografici disponibili e sui modelli delle regole di viaggio aventuriane («Wege des Entdeckers», pp. 160–162; «Geographia Aventurica», pp. 123, 129 e 131), che non sono sempre privi di contraddizioni. Meteo, terreno, stato delle vie e altri influssi non sempre si possono considerare per intero. Avesmaps intende facilitare la pianificazione del viaggio, non sostituire le decisioni del master né i regolamenti ufficiali."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Per i giocatori che desiderano canonicità e un collegamento a Foundry, si consigliano [DSA Unbound](https://dasschwarzeauge.de/unbound) e l’[Aventurischer Atlas für Foundry VTT](https://foundryvtt.com/packages/dsa5-atlas)."
+                },
+                {
+                    "art": "h3",
+                    "id": "haftungsausschluss",
+                    "text": "Esclusione di responsabilità"
+                },
+                {
+                    "art": "h4",
+                    "id": "haftung-fuer-inhalte",
+                    "text": "Responsabilità per i contenuti"
+                },
+                {
+                    "art": "absatz",
+                    "text": "I contenuti di questo sito sono redatti con la massima cura. Per correttezza, completezza e attualità tuttavia non si assume alcuna garanzia. Nella misura consentita dalla legge, **non si assume alcuna responsabilità** per danni che derivano dall’uso o dal mancato uso delle informazioni fornite. Per i contenuti propri il gestore è responsabile secondo le leggi generali, ma non è obbligato a sorvegliare informazioni altrui trasmesse o memorizzate né a indagare su circostanze che indicano un’attività illecita."
+                },
+                {
+                    "art": "h4",
+                    "id": "haftung-fuer-verweise",
+                    "text": "Responsabilità per i rimandi"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Questo sito contiene rimandi a siti web esterni di terzi, sui cui contenuti il gestore non ha alcuna influenza. Per tali contenuti altrui è sempre responsabile il rispettivo fornitore o gestore delle pagine collegate. Al momento del collegamento non erano riconoscibili violazioni di legge. Un controllo continuo dei contenuti delle pagine collegate non è ragionevole senza concreti indizi; al venire a conoscenza di violazioni di legge, tali rimandi vengono rimossi senza indugio."
+                },
+                {
+                    "art": "h4",
+                    "id": "verfuegbarkeit-und-nutzung",
+                    "text": "Disponibilità e uso"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Non esiste alcun diritto a una disponibilità costante, ininterrotta o priva di errori del sito. Mappa, ricerca e pianificatore di viaggi servono all’uso ludico e privato nell’Aventuria immaginaria e non garantiscono applicabilità reale, percorsi o distanze. L’uso avviene sotto la propria responsabilità."
+                }
+            ]
+        },
+        {
+            "id": "datenschutz",
+            "titel": "Protezione dei dati",
+            "hinweis": "Che cosa viene memorizzato, chi lo vede, quanto tempo resta e quali diritti valgono",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Responsabile è il gestore indicato nelle note legali. Non ci sono pubblicità, né reti pubblicitarie o di tracciamento esterne, né profili riferiti agli utenti."
+                },
+                {
+                    "art": "sprungliste",
+                    "wort": "In questa sezione:",
+                    "ziele": [
+                        {
+                            "text": "Gestione del sito",
+                            "ziel": "#betrieb-der-seite"
+                        },
+                        {
+                            "text": "Funzioni senza account",
+                            "ziel": "#funktionen-ohne-konto"
+                        },
+                        {
+                            "text": "Collaborazione con account",
+                            "ziel": "#mitarbeit-mit-konto"
+                        },
+                        {
+                            "text": "Servizi esterni",
+                            "ziel": "#externe-dienste"
+                        },
+                        {
+                            "text": "Termini e backup",
+                            "ziel": "#fristen-und-sicherungen"
+                        },
+                        {
+                            "text": "Diritti degli interessati",
+                            "ziel": "#rechte-der-betroffenen"
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "betrieb-der-seite",
+                    "text": "Gestione del sito"
+                },
+                {
+                    "art": "h4",
+                    "id": "server-logdaten",
+                    "text": "Dati di log del server"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps gira su un server proprio presso [STRATO](https://de.wikipedia.org/wiki/Strato_AG)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "server-logdaten-was-wird-verarbeitet",
+                            "begriff": "Che cosa viene trattato?",
+                            "werte": [
+                                "Alla consultazione del sito il server tratta dati tecnici di log, tra cui [indirizzo IP](https://it.wikipedia.org/wiki/Indirizzo_IP), momento, risorsa richiesta e tipo di browser e dispositivo, per la fornitura tecnica, la stabilità e la sicurezza."
+                            ]
+                        },
+                        {
+                            "id": "server-logdaten-wie-lange",
+                            "begriff": "Per quanto tempo?",
+                            "werte": [
+                                "I file di log del server web e il registro di sistema vengono cancellati dopo **circa 14 giorni**."
+                            ]
+                        },
+                        {
+                            "id": "server-logdaten-anwendung",
+                            "begriff": "Applicazione",
+                            "werte": [
+                                "L’applicazione stessa scrive nel registro di sistema solo un indirizzo IP abbreviato: [IPv4](https://de.wikipedia.org/wiki/IPv4) senza l’ultimo byte, [IPv6](https://de.wikipedia.org/wiki/IPv6) sui primi 48 bit."
+                            ]
+                        },
+                        {
+                            "id": "server-logdaten-schutzdienst",
+                            "begriff": "Servizio di protezione",
+                            "werte": [
+                                "Se il servizio di protezione blocca un indirizzo IP dopo ripetuti accessi falliti al server ([SSH](https://it.wikipedia.org/wiki/Secure_Shell)), anche l’indirizzo resta per **circa 14 giorni** nel registro proprio di questo servizio."
+                            ]
+                        },
+                        {
+                            "id": "server-logdaten-zusammenfuehrung",
+                            "begriff": "Unione",
+                            "werte": ["Questi dati di log non vengono uniti ad altre fonti di dati."]
+                        },
+                        {
+                            "id": "server-logdaten-rechtsgrundlage",
+                            "begriff": "Base giuridica",
+                            "werte": [
+                                "Il legittimo interesse a un esercizio sicuro (art. 6, par. 1, lett. f), del [GDPR](https://de.wikipedia.org/wiki/Datenschutz-Grundverordnung))."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "cookies-und-browser-speicher",
+                    "text": "Cookie e memoria del browser"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Chi usa Avesmaps senza accesso non riceve [cookie](https://de.wikipedia.org/wiki/HTTP-Cookie), tranne che nel collegamento di una segnalazione con Discord (si veda sotto)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "cookies-und-browser-speicher-sitzungs-cookie",
+                            "begriff": "Cookie di sessione",
+                            "werte": [
+                                "Chi accede riceve un cookie di sessione tecnicamente necessario (__Host-avesmaps-session). Contiene soltanto un identificativo casuale, è illeggibile per gli script della pagina e vale solo per questo indirizzo. Resta anche dopo la chiusura del browser, fino alla fine della sessione: con la disconnessione, se viene terminata dall’account o dall’amministrazione, oppure se l’account viene bloccato o sciolto; non ha una durata fissa, solo l’accesso d’emergenza termina dopo **60 minuti**. Il browser conserva il cookie per **400 giorni** al massimo e lo riceve di nuovo a ogni visita."
+                            ]
+                        },
+                        {
+                            "id": "cookies-und-browser-speicher-anmelde-umweg",
+                            "begriff": "Deviazione dell’accesso",
+                            "werte": [
+                                "Durante l’accesso tramite Discord e nel collegamento di una segnalazione con Discord, Avesmaps imposta per **dieci minuti** al massimo un secondo cookie, ugualmente necessario, che lega il ritorno da Discord allo stesso browser."
+                            ]
+                        },
+                        {
+                            "id": "cookies-und-browser-speicher-browser-speicher",
+                            "begriff": "Memoria del browser",
+                            "werte": [
+                                "Nel browser del rispettivo dispositivo restano inoltre:",
+                                [
+                                    "impostazioni, per esempio lingua, schema dei colori, uso da tastiera e interruttori della mappa",
+                                    "lo stato di lettura delle Novità",
+                                    "quali recensioni questo browser ha apprezzato",
+                                    "su richiesta i link delle proprie immagini di viaggio",
+                                    "durante la collaborazione, le bozze non salvate della modifica e la separazione Nuovo/Archivio della campanella",
+                                    "per la durata della deviazione dell’accesso la vista della mappa (al massimo **15 minuti**, solo in questa scheda), e allo stesso modo la chiave della propria segnalazione, quando una segnalazione viene collegata a Discord"
+                                ],
+                                "**Nulla di tutto questo arriva da sé al server.**"
+                            ]
+                        },
+                        {
+                            "id": "cookies-und-browser-speicher-rechtsgrundlage",
+                            "begriff": "Base giuridica",
+                            "werte": [
+                                "Per cookie di sessione e deviazione dell’accesso vale il § 25, comma 2, n. 2 [TDDDG](https://de.wikipedia.org/wiki/Telekommunikation-Digitale-Dienste-Datenschutz-Gesetz); per questo non serve un consenso."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "anonyme-besucherstatistik",
+                    "text": "Statistica anonima dei visitatori"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps conta le visite in modo anonimo e in totali."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "anonyme-besucherstatistik-was-gezaehlt-wird",
+                            "begriff": "Che cosa viene contato",
+                            "werte": [
+                                [
+                                    "Visualizzazioni di pagina e durata della permanenza",
+                                    "Provenienza come paese e, all’interno della Germania, come Land",
+                                    "Tipo di dispositivo, sistema operativo, browser, lingua del browser e classe della finestra",
+                                    "La lingua impostata sul sito e lo schema di colori (chiaro o scuro)",
+                                    "Capacità del dispositivo (3D, touch, meno movimento, schema di colori scuro)",
+                                    "da dove proveniva la richiesta (diretta, interna o il dominio della pagina di rinvio)",
+                                    "che cosa viene usato sulla mappa"
+                                ]
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-wetter",
+                            "begriff": "Meteo sperimentale",
+                            "werte": [
+                                "Chi usa il meteo sperimentale ha un browser che segnala in modo anonimo e in totali quali interruttori del meteo vengono attivati o disattivati, nonché valori di prestazione approssimativi in classi (frequenza dei fotogrammi e tempo per fotogramma, risoluzione delle nuvole, durata del primo avvio, tipo di un errore, nonché la famiglia della scheda grafica, ad esempio «NVIDIA» o «Adreno», e se si tratta di un computer o di un telefono), senza alcun riferimento alla persona."
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-ip-adressen",
+                            "begriff": "Indirizzi IP",
+                            "werte": [
+                                "Gli indirizzi IP vengono letti, ma non vengono mai memorizzati dalla statistica; servono solo a stabilire il paese e un identificativo giornaliero, che scade a mezzanotte (UTC) e da allora non può più essere riferito a un dispositivo."
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-was-es-nicht-gibt",
+                            "begriff": "Che cosa non esiste",
+                            "werte": [
+                                "Non si crea alcuna tabella delle singole visite, non c’è riconoscimento su più giorni, nessun cookie, nessuna memoria nel browser e nessun servizio di analisi esterno."
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-angemeldete-personen",
+                            "begriff": "Persone che hanno effettuato l’accesso",
+                            "werte": [
+                                "Le persone che hanno effettuato l’accesso vengono contate come gruppo a sé e non compaiono in alcun numero di visitatori."
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-rechtsgrundlage",
+                            "begriff": "Base giuridica",
+                            "werte": [
+                                "Il legittimo interesse a un esercizio privo di errori e sicuro (art. 6, par. 1, lett. f), del GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "fehlerdiagnose",
+                    "text": "Diagnosi degli errori"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Se la pagina incappa in un errore, per esempio all’avvio, nella mappa o nella grafica 3D, il browser invia una breve diagnosi tecnica, perché l’errore possa essere trovato e risolto."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "fehlerdiagnose-was-gesendet-wird",
+                            "begriff": "Che cosa viene inviato",
+                            "werte": [
+                                [
+                                    "Tipo e nome dell’errore",
+                                    "un messaggio ripulito senza indirizzi, identificativi, numeri e dati immessi",
+                                    "fino a cinque punti del codice del programma di Avesmaps",
+                                    "la versione del programma e la famiglia del browser",
+                                    "quale grafica offre il browser ([WebGL](https://de.wikipedia.org/wiki/WebGL) 2, WebGL 1 o nessuna)"
+                                ]
+                            ]
+                        },
+                        {
+                            "id": "fehlerdiagnose-was-nicht-dabei-ist",
+                            "begriff": "Che cosa non è incluso",
+                            "werte": [
+                                "La diagnosi non contiene indirizzo IP, identificativo giornaliero, orario né vista della mappa e non è riconducibile ad alcuna visita; diagnosi uguali di un giorno vengono sommate."
+                            ]
+                        },
+                        {
+                            "id": "fehlerdiagnose-wann-wird-es-geloescht",
+                            "begriff": "Quando viene cancellata?",
+                            "werte": [
+                                "Viene cancellata dopo **14 giorni**; nei backup può restare fino a **sei mesi**; il numero degli errori per tipo e giorno resta come somma."
+                            ]
+                        },
+                        {
+                            "id": "fehlerdiagnose-rechtsgrundlage",
+                            "begriff": "Base giuridica",
+                            "werte": [
+                                "Il legittimo interesse a un esercizio privo di errori e sicuro (art. 6, par. 1, lett. f), del GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "missbrauchsschutz",
+                    "text": "Protezione dagli abusi"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Contro abusi e afflussi anomali, l’applicazione conta in memoria, per segnalazioni, recensioni, proposte di mappe e immagini di viaggio, quanti inserimenti provengono da un indirizzo sottoposto ad [hash](https://de.wikipedia.org/wiki/Hashfunktion); **questo non viene memorizzato**. Per i link condivisi conta in memoria, per ogni indirizzo IP, quanti link vengono inviati; **in questo caso l’indirizzo IP non viene memorizzato**."
+                },
+                {
+                    "art": "kasten",
+                    "titel": "I dati di log del server restano esclusi da ciò",
+                    "absaetze": ["Il server web registra anche queste richieste, con indirizzo IP completo."]
+                },
+                {
+                    "art": "h3",
+                    "id": "funktionen-ohne-konto",
+                    "text": "Funzioni senza account"
+                },
+                {
+                    "art": "h4",
+                    "id": "meldungen-zur-karte",
+                    "text": "Segnalazioni sulla mappa"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Tramite «Segnalare qualcosa qui» e «Proporre modifiche» ogni persona può segnalare qualcosa sulla mappa, anche senza account."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "meldungen-zur-karte-was-wird-gespeichert",
+                            "begriff": "Che cosa viene memorizzato?",
+                            "werte": [
+                                "Vengono memorizzati la descrizione, la fonte facoltativa, a che cosa si riferisce la segnalazione (un oggetto della mappa o un punto, su richiesta con la nuova posizione proposta) e, se indicati, nome o pseudonimo. **Non viene richiesto alcun indirizzo e-mail**. Indirizzo IP, [identificativo del browser](https://de.wikipedia.org/wiki/User_Agent) e indirizzo della pagina non vengono memorizzati.",
+                                "La risposta si trova su una pagina di stato privata. Il link relativo lo riceve soltanto la persona che segnala; Avesmaps memorizza soltanto un valore di controllo della sua chiave. Lì la segnalazione si può anche ritirare.",
+                                "Facoltativamente una segnalazione si può collegare a Discord. In tal caso Avesmaps memorizza identificativo Discord e nome visualizzato, affinché /offen nel Discord di Avesmaps mostri le proprie segnalazioni. Il collegamento si può sciogliere in qualsiasi momento sulla pagina di stato."
+                            ]
+                        },
+                        {
+                            "id": "meldungen-zur-karte-wer-sieht-es",
+                            "begriff": "Chi lo vede?",
+                            "werte": [
+                                "Le segnalazioni le leggono le persone che in redazione trattano le segnalazioni, con il nome indicato e, in caso di segnalazione collegata, con il nome visualizzato su Discord. I gestori trattano le segnalazioni anche con uno strumento IA (Claude di Anthropic, si veda [«Strumento IA»](#ki-werkzeug)), che allora vede testo e nomi. Segnalazione e nome **non compaiono mai pubblicamente**, neppure nei dati cartografici, nelle descrizioni o nelle Novità."
+                            ]
+                        },
+                        {
+                            "id": "meldungen-zur-karte-wann-wird-es-geloescht",
+                            "begriff": "Quando viene cancellata?",
+                            "werte": [
+                                "Finché una segnalazione è aperta, i dati restano memorizzati. Nome, dati Discord e link di stato vengono cancellati **90 giorni** dopo la chiusura. Testo e contenuto sostanziale restano nell’archivio; se vi compare un nome, questo resta finché qualcuno non ne chiede la cancellazione. Ciò che si trova nel cestino, per esempio lo spam, viene cancellato del tutto dopo **30 giorni**. **Su richiesta** i dati e i testi della persona che segnala vengono cancellati **subito**; il contenuto sostanziale resta."
+                            ]
+                        },
+                        {
+                            "id": "meldungen-zur-karte-rechtsgrundlage",
+                            "begriff": "Base giuridica",
+                            "werte": [
+                                "Il legittimo interesse a mantenere corretta la mappa e a rispondere alle segnalazioni (art. 6, par. 1, lett. f), del GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "kontakt-und-mail",
+                    "text": "Contatto ed e-mail"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Le richieste arrivano alla redazione tramite il modulo di contatto o via e-mail."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "kontakt-und-mail-was-wird-gespeichert",
+                            "begriff": "Che cosa viene memorizzato?",
+                            "werte": [
+                                "Tramite il modulo di contatto il messaggio, l’argomento e, se indicati, nome e indirizzo e-mail arrivano alla redazione. Senza indirizzo la risposta compare solo sulla pagina di stato privata; con indirizzo arriva anche via e-mail.",
+                                "Avesmaps scarica le e-mail dalla casella di posta {mail}. Vengono memorizzati mittente, oggetto, testo, HTML ripulito, allegati e l’e-mail originale. Le immagini vengono ricodificate e perdono così i loro metadati. File eseguibili, archivi e documenti con macro non vengono acquisiti, ma soltanto il loro nome e la loro dimensione."
+                            ]
+                        },
+                        {
+                            "id": "kontakt-und-mail-wer-sieht-es",
+                            "begriff": "Chi lo vede?",
+                            "werte": [
+                                "Richieste ed e-mail insieme al mittente le leggono solo i gestori e le persone con l’incarico «Diplomatico». I gestori le trattano anche con uno strumento IA (Claude di Anthropic, si veda [«Strumento IA»](#ki-werkzeug)), che allora vede testo e mittente. Non sono **mai pubbliche**. Se da una richiesta nasce una segnalazione sulla mappa, nome e indirizzo restano nella richiesta."
+                            ]
+                        },
+                        {
+                            "id": "kontakt-und-mail-wann-wird-es-geloescht",
+                            "begriff": "Quando viene cancellata?",
+                            "werte": [
+                                "Finché una richiesta è aperta, i dati restano memorizzati. Nome, indirizzo, mittente, e-mail originale e link di stato vengono cancellati **90 giorni** dopo la chiusura. Testo, oggetto, HTML ripulito, allegati con i loro nomi di file e gli identificativi tecnici dell’e-mail restano nell’archivio; se vi compare un nome o una firma, restano finché qualcuno non ne chiede la cancellazione. Ciò che si trova nel cestino, per esempio lo spam, viene cancellato del tutto dopo **30 giorni**. **Su richiesta** dati, testi e allegati della persona vengono cancellati **subito**. Se la redazione scrive di propria iniziativa una nuova e-mail, il registro amministrativo conserva, senza scadenza, un valore di controllo abbreviato dell’indirizzo del destinatario."
+                            ]
+                        },
+                        {
+                            "id": "kontakt-und-mail-rechtsgrundlage",
+                            "begriff": "Base giuridica",
+                            "werte": [
+                                "Il legittimo interesse a rispondere alle richieste (art. 6, par. 1, lett. f), del GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "bewertungen",
+                    "text": "Recensioni"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Per un luogo si può scrivere una recensione senza account: da una a cinque stelle, facoltativamente un breve testo, un nome scelto liberamente e una data aventuriana."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "bewertungen-was-wird-gespeichert",
+                            "begriff": "Che cosa viene memorizzato?",
+                            "werte": [
+                                "Tutto questo compare pubblicamente nel pannello informativo del luogo. Un nome reale non serve; senza nome compare «Anonimo». Si aggiunge il momento di ricezione. **Indirizzo IP, identificativo del browser e indirizzo della pagina non vengono memorizzati**.",
+                                "Le recensioni della versione precedente di Avesmaps sono state acquisite con stelle, nome, testo e data, senza indirizzo IP o dati del browser.",
+                                "«Mi piace» è soltanto un numero: il server non sa chi l’ha dato. Che un browser abbia già apprezzato una recensione lo memorizza il browser stesso, per al massimo 500 recensioni."
+                            ]
+                        },
+                        {
+                            "id": "bewertungen-wer-sieht-es",
+                            "begriff": "Chi lo vede?",
+                            "werte": [
+                                "Pubbliche, si veda sopra. Le nuove recensioni compaiono **subito**; la redazione le verifica in seguito. Se una recensione contiene un indirizzo o una parola di un elenco di spam, resta trattenuta fino a quando la redazione non la approva."
+                            ]
+                        },
+                        {
+                            "id": "bewertungen-wann-wird-es-geloescht",
+                            "begriff": "Quando viene cancellata?",
+                            "werte": [
+                                "Una recensione resta finché è visibile. Se riguarda una persona, la si può contestare tramite «Segnalare» con il motivo «Dati personali»; la redazione la nasconde e cancella nome, testo e data. Restano le stelle, che però non vengono più mostrate. Recensioni nascoste e trattenute restano finché la redazione non ne cancella il contenuto o non le approva."
+                            ]
+                        },
+                        {
+                            "id": "bewertungen-rechtsgrundlage",
+                            "begriff": "Base giuridica",
+                            "werte": [
+                                "Il legittimo interesse a mostrare sulla mappa valutazioni dei luoghi (art. 6, par. 1, lett. f), del GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "kartenvorschlaege",
+                    "text": "Proposte di mappe"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Tramite «Proporre una mappa» si può proporre senza account una mappa per la raccolta di mappe, come link o come file proprio (JPEG, PNG, WebP o PDF)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "kartenvorschlaege-was-wird-gespeichert",
+                            "begriff": "Che cosa viene memorizzato?",
+                            "werte": [
+                                "Vengono memorizzati titolo, link o file, le indicazioni facoltative sulla mappa, una nota alla redazione, l’uso scelto, la versione delle condizioni e, se indicato, un nome. **Non viene richiesto alcun indirizzo e-mail**. **Indirizzo IP e identificativo del browser non vengono memorizzati**.",
+                                "Per le immagini Avesmaps rimuove già all’arrivo [EXIF](https://de.wikipedia.org/wiki/Exchangeable_Image_File_Format), [XMP](https://de.wikipedia.org/wiki/Extensible_Metadata_Platform), [IPTC](https://de.wikipedia.org/wiki/IPTC-IIM-Standard) e commenti. Un PDF conserva i suoi metadati finché l’originale non viene cancellato.",
+                                "Lo stato è mostrato da una pagina di stato. Il link relativo lo riceve soltanto la persona che invia; Avesmaps memorizza soltanto un valore di controllo della sua chiave. Lì compare anche il motivo di un rifiuto, e la proposta si può ritirare."
+                            ]
+                        },
+                        {
+                            "id": "kartenvorschlaege-wer-sieht-es",
+                            "begriff": "Chi lo vede?",
+                            "werte": [
+                                "Fino alla decisione la proposta la vede solo la redazione. Se viene accettata, la mappa compare con titolo e indicazioni nella raccolta di mappe. Nota, link di anteprima e nome della persona che invia non vengono ripresi; viene citato il disegnatore o l’editore indicato. Il file diventa pubblico solo quando i suoi diritti lo consentono."
+                            ]
+                        },
+                        {
+                            "id": "kartenvorschlaege-wann-wird-es-geloescht",
+                            "begriff": "Quando viene cancellata?",
+                            "werte": [
+                                "Una proposta il cui file non è mai arrivato o non ha potuto essere elaborato viene cancellata dopo **7 giorni**; una proposta rifiutata o ritirata dopo **30 giorni**, in ciascun caso insieme al file e al nome. Per una proposta accettata nome e nota vengono cancellati **90 giorni** dopo la decisione. Una proposta su cui non è ancora stata decisa resta memorizzata fino alla decisione.",
+                                "Il file caricato di una mappa accettata viene cancellato **circa una settimana** dopo l’accettazione. Ne resta una versione calcolata in piena risoluzione; per un PDF solo la prima pagina. Nei backup il file può restare più a lungo (si veda [«Backup»](#sicherungen))."
+                            ]
+                        },
+                        {
+                            "id": "kartenvorschlaege-rechtsgrundlage",
+                            "begriff": "Base giuridica",
+                            "werte": [
+                                "Il legittimo interesse a curare la raccolta di mappe (art. 6, par. 1, lett. f), del GDPR). Per l’uso del file valgono le condizioni a cui la persona acconsente al caricamento."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "datenschutz-bei-reisebildern",
+                    "text": "Protezione dei dati per le immagini di viaggio"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Le immagini di viaggio si possono inviare senza account; le condizioni si trovano sotto [«Immagini di viaggio»](#reisebilder)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "datenschutz-bei-reisebildern-was-wird-gespeichert",
+                            "begriff": "Che cosa viene memorizzato?",
+                            "werte": [
+                                "Si memorizzano l’immagine e le indicazioni (punto, descrizione, origine, uso, direzione di vista, nome facoltativo), il momento, la versione di queste condizioni e una somma di controllo del link personale. **Nessun account, nessuna e-mail, nessun cookie.**",
+                                "Su richiesta il browser ricorda i link personali delle proprie immagini di viaggio su questo dispositivo. Ad Avesmaps vengono inviati soltanto per richiamare lo stato, come quando si apre il link. Sotto «Le mie immagini di viaggio» si possono dimenticare singolarmente.",
+                                "I metadati del file (luogo, ora, dispositivo, nome) vengono rimossi già all’arrivo, anche dall’originale. L’originale resta finché l’immagine si trova presso Avesmaps. Il nome del file non viene memorizzato. Sull’indirizzo IP si veda [«Protezione dagli abusi»](#missbrauchsschutz)."
+                            ]
+                        },
+                        {
+                            "id": "datenschutz-bei-reisebildern-wer-sieht-es",
+                            "begriff": "Chi lo vede?",
+                            "werte": [
+                                "Il nome per la menzione resta visibile finché l’immagine è pubblica. Le immagini pubblicate si possono contestare tramite «Segnalare»."
+                            ]
+                        },
+                        {
+                            "id": "datenschutz-bei-reisebildern-wann-wird-es-geloescht",
+                            "begriff": "Quando viene cancellata?",
+                            "werte": [
+                                "Invii rifiutati, ritirati e rimossi dalla rete vengono cancellati dopo **30 giorni** insieme ai dati; i file delle immagini di invii rimossi dalla rete vengono cancellati già alla successiva esecuzione quotidiana; invii non decisi scadono dopo **60 giorni** e vengono cancellati **30 giorni** dopo. Dopodiché il link porta nel vuoto.",
+                                "Rimuovere dalla rete ha effetto **subito**: l’immagine è tolta da Avesmaps, i file vengono cancellati dalla successiva esecuzione quotidiana. Le copie che altri hanno già fatto non si possono recuperare."
+                            ]
+                        },
+                        {
+                            "id": "datenschutz-bei-reisebildern-rechtsgrundlage",
+                            "begriff": "Base giuridica",
+                            "werte": ["L’invio secondo le condizioni (art. 6, par. 1, lett. b), del GDPR)."]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "geteilte-links",
+                    "text": "Link condivisi"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Mappa e pianificazione del viaggio si possono condividere come link breve."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "geteilte-links-was-wird-gespeichert",
+                            "begriff": "Che cosa viene memorizzato?",
+                            "werte": [
+                                "Un link condiviso memorizza soltanto lo stato della mappa che ripristina, cioè mappa, vista, livello, interruttori di visualizzazione e pianificazione del viaggio. Non contiene dati sulla persona."
+                            ]
+                        },
+                        {
+                            "id": "geteilte-links-wer-sieht-es",
+                            "begriff": "Chi lo vede?",
+                            "werte": ["Chi conosce il link."]
+                        },
+                        {
+                            "id": "geteilte-links-wann-wird-es-geloescht",
+                            "begriff": "Quando viene cancellata?",
+                            "werte": ["I link condivisi restano disponibili."]
+                        },
+                        {
+                            "id": "geteilte-links-rechtsgrundlage",
+                            "begriff": "Base giuridica",
+                            "werte": [
+                                "Il legittimo interesse a poter condividere mappe e viaggi (art. 6, par. 1, lett. f), del GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "mitarbeit-mit-konto",
+                    "text": "Collaborazione con account"
+                },
+                {
+                    "art": "h4",
+                    "id": "konten",
+                    "text": "Account"
+                },
+                {
+                    "art": "absatz",
+                    "text": "**Un account lo riceve solo chi viene invitato**; la mappa pubblica non ne richiede alcuno."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "konten-kontodaten",
+                            "begriff": "Dati dell’account",
+                            "werte": [
+                                "Per un account Avesmaps memorizza il nome visualizzato, il ruolo, se l’account è attivo o bloccato, quando è stato creato e quando è stato l’ultimo accesso. A seconda del percorso di accesso scelto si aggiungono altri dati."
+                            ]
+                        },
+                        {
+                            "id": "konten-benutzername-und-passwort",
+                            "begriff": "Nome utente e password",
+                            "werte": [
+                                "Per l’accesso con nome utente e password Avesmaps memorizza il nome utente e un valore di controllo della password ([Argon2id](https://de.wikipedia.org/wiki/Argon2)). **La password stessa non viene mai memorizzata**."
+                            ]
+                        },
+                        {
+                            "id": "konten-discord",
+                            "begriff": "Discord",
+                            "werte": [
+                                "Per l’accesso con Discord Avesmaps memorizza l’identificativo Discord, il nome utente Discord e il nome visualizzato. Avesmaps chiede a Discord soltanto i dati di base dell’account (autorizzazione identify), né indirizzo e-mail né server, elenco di amici o messaggi, e ne acquisisce soltanto questi tre. Durante l’accesso la pagina inoltra a Discord (per le persone nell’UE Discord Netherlands BV; i dati vanno anche a [Discord Inc.](https://de.wikipedia.org/wiki/Discord) negli USA); in tale sede vale l’[informativa sulla privacy di Discord](https://discord.com/privacy). L’accesso con nome utente e password è possibile anche senza Discord."
+                            ]
+                        },
+                        {
+                            "id": "konten-passkey",
+                            "begriff": "Passkey",
+                            "werte": [
+                                "Per una [passkey](https://de.wikipedia.org/wiki/Passkey) Avesmaps memorizza la sua chiave pubblica, il suo identificativo, un nome scelto liberamente e se viene sincronizzata tra dispositivi, inoltre il suo contatore, i canali di trasmissione, il tipo di dispositivo e quando è stata creata e usata l’ultima volta. Impronta digitale, immagine del volto o PIN del dispositivo non lasciano mai il dispositivo."
+                            ]
+                        },
+                        {
+                            "id": "konten-verantwortlich-fuer",
+                            "begriff": "«Responsabile di»",
+                            "werte": [
+                                "Facoltativamente a un account può essere associata un’indicazione «Responsabile di» (una riga, al massimo 120 caratteri), che la persona stessa inserisce o che un gestore imposta. È visibile nell’amministrazione degli account e nell’elenco degli editor; il registro annota soltanto che è stata modificata, non il suo contenuto."
+                            ]
+                        },
+                        {
+                            "id": "konten-wortform",
+                            "begriff": "Forma di genere",
+                            "werte": [
+                                "Anche questo è facoltativo: la persona sceglie la forma di genere dei propri ruoli (maschile, femminile o neutra)."
+                            ]
+                        },
+                        {
+                            "id": "konten-sonderrolle",
+                            "begriff": "Ruolo speciale",
+                            "werte": [
+                                "Per un ruolo speciale (per esempio «Diplomatico») Avesmaps memorizza il ruolo, se del caso la regione, la motivazione e chi lo ha assegnato o tolto e quando."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "sitzungen-und-protokoll",
+                    "text": "Sessioni e registro"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps tiene sessioni e registri, affinché gli accessi restino sicuri e le modifiche siano ricostruibili."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "sitzungen-und-protokoll-sitzungen",
+                            "begriff": "Sessioni",
+                            "werte": [
+                                "Per ogni sessione Avesmaps memorizza quando è iniziata e quando è stata usata l’ultima volta, il percorso di accesso, una descrizione grossolana del dispositivo (per esempio «Firefox · Windows», mai l’identificativo completo del browser) e un indirizzo IP abbreviato (IPv4 senza l’ultimo byte, IPv6 sui primi 48 bit). Così ogni persona può riconoscere e terminare le proprie sessioni nell’account."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-protokoll",
+                            "begriff": "Registro",
+                            "werte": [
+                                "Un registro annota chi ha effettuato l’accesso e quando, quali accessi sono falliti e quali operazioni amministrative hanno avuto luogo (inviti, ruoli, blocchi, link). Non contiene mai password, valori dei cookie, link di invito o di reimpostazione. Contro i tentativi ripetuti di indovinare le password, Avesmaps memorizza per ogni nome utente inserito un valore di controllo e il numero dei tentativi falliti, anche se il nome non esiste; dopo **30 giorni** di calma la voce viene eliminata."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-fristen",
+                            "begriff": "Termini",
+                            "werte": [
+                                "Accessi e tentativi falliti nel registro vengono cancellati dopo **90 giorni**; l’indirizzo IP abbreviato viene svuotato dopo **14 giorni**. Sessioni scadute, link di reimpostazione e di configurazione scaduti e deviazioni dell’accesso vengono cancellati **30 giorni** dopo la fine. Le operazioni amministrative restano, perché spiegano chi ha assegnato un ruolo o bloccato un account; così pure le modifiche al proprio accesso (password, passkey, collegamento con Discord, sessioni terminate). I dati dell’account restano finché l’account esiste."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-editorenliste",
+                            "begriff": "Elenco degli editor",
+                            "werte": [
+                                "Chi può aprire l’editor vede l’elenco degli editor: nome, ruolo, ruoli speciali e l’indicazione «Responsabile di» delle altre persone con accesso, se sono online e quando sono state presenti l’ultima volta, il loro dispositivo, in quanti degli ultimi trenta giorni sono state attive, su che cosa stanno lavorando e che cosa hanno modificato per ultimo."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-redaktionsprotokoll-und-betreiber-kanal",
+                            "begriff": "Registro della redazione e canale del gestore",
+                            "werte": [
+                                "Chi modifica la mappa o le immagini compare nel registro della redazione: per ogni pratica risultano la persona, il momento e che cosa è cambiato. Questo registro resta, perché spiega chi ha fatto una modifica. Se un account viene sciolto, le motivazioni della persona vengono oscurate e i nomi dei file dei suoi caricamenti rimossi; il contenuto della mappa resta, e il suo nome compare poi come segnaposto. Segnalazioni e immagini del canale del gestore vengono cancellate **90 giorni** dopo la loro approvazione; restano titoli brevi, prove e rapporto di correzione."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-rechtsgrundlage",
+                            "begriff": "Base giuridica",
+                            "werte": [
+                                "Per l’account vale l’art. 6, par. 1, lett. b), del GDPR (la collaborazione per la quale la persona ha chiesto con l’accettazione dell’invito); per il registro, la limitazione e l’indirizzo IP abbreviato vale il legittimo interesse a un esercizio sicuro (art. 6, par. 1, lett. f), del GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "benachrichtigungen",
+                    "text": "Notifiche"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Le persone che hanno effettuato l’accesso ricevono nella barra le notifiche, per esempio su nuove segnalazioni o su pratiche a cui partecipano."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "benachrichtigungen-was-wird-gespeichert",
+                            "begriff": "Che cosa viene memorizzato?",
+                            "werte": [
+                                "Una notifica appartiene all’account e contiene tipo, mittente, momento e un numero o un titolo breve, mai il testo o il nome di una segnalazione. Chi usa la mappa senza accesso non ha la campanella."
+                            ]
+                        },
+                        {
+                            "id": "benachrichtigungen-gelesen-und-neu",
+                            "begriff": "Letto e nuovo",
+                            "werte": [
+                                "Se una notifica è stata letta o risposta, il server lo memorizza insieme a essa. Fino a che punto l’elenco su questo dispositivo vale come «Nuovo» lo memorizza in aggiunta soltanto il browser; ciò non va al server."
+                            ]
+                        },
+                        {
+                            "id": "benachrichtigungen-abfrage",
+                            "begriff": "Richiesta",
+                            "werte": ["Finché la scheda è visibile, la pagina chiede una volta al minuto nuove voci."]
+                        },
+                        {
+                            "id": "benachrichtigungen-wann-wird-es-geloescht",
+                            "begriff": "Quando viene cancellata?",
+                            "werte": [
+                                "Le notifiche vengono cancellate **90 giorni** dopo la lettura o la risposta, in ogni caso dopo **180 giorni**, e con lo scioglimento dell’account **subito**."
+                            ]
+                        },
+                        {
+                            "id": "benachrichtigungen-rechtsgrundlage",
+                            "begriff": "Base giuridica",
+                            "werte": [
+                                "Come per l’account, art. 6, par. 1, lett. b), del GDPR (la collaborazione richiesta dalla persona con l’accettazione dell’invito)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "konto-aufloesen",
+                    "text": "Sciogliere un account"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Su richiesta un account viene sciolto. La richiesta viene accolta dal gestore indicato nelle note legali."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "konto-aufloesen-was-geloescht-wird",
+                            "begriff": "Che cosa viene cancellato",
+                            "werte": [
+                                "Vengono allora cancellati nome utente e valore di controllo della password, il collegamento con Discord insieme ai dati di Discord, le sessioni, l’indicazione «Responsabile di», la forma di genere dei ruoli nonché chiavi e nomi delle passkey; i link aperti verso la persona decadono **subito**, l’accesso, i diritti speciali e i ruoli speciali vengono tolti, e il nome visualizzato viene sostituito da un segnaposto neutro."
+                            ]
+                        },
+                        {
+                            "id": "konto-aufloesen-was-im-protokoll-bleibt",
+                            "begriff": "Che cosa resta nel registro",
+                            "werte": [
+                                "Le operazioni amministrative restano nel registro e nominano la persona con il segnaposto, perché spiegano chi ha assegnato un ruolo o bloccato un account."
+                            ]
+                        },
+                        {
+                            "id": "konto-aufloesen-was-geschwaerzt-wird",
+                            "begriff": "Che cosa viene oscurato",
+                            "werte": [
+                                "Nelle voci sulla persona viene oscurato ciò che la descrive: nomi visualizzati precedenti, il nome Discord, nomi delle passkey, la nota del suo invito, motivi di un blocco, di un diritto speciale o di un ruolo speciale e un nome Legacy assegnato con la sua motivazione; nelle sue voci personali inoltre la descrizione del dispositivo e l’indirizzo IP abbreviato."
+                            ]
+                        },
+                        {
+                            "id": "konto-aufloesen-anmeldungen",
+                            "begriff": "Accessi",
+                            "werte": ["Gli accessi nel registro vengono cancellati secondo i termini indicati."]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "externe-dienste",
+                    "text": "Servizi esterni"
+                },
+                {
+                    "art": "h4",
+                    "id": "discord-befehle",
+                    "text": "Comandi Discord"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Sul server Discord di Avesmaps il bot Avesmaps riceve le segnalazioni."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "discord-befehle-was-wird-gespeichert",
+                            "begriff": "Che cosa viene memorizzato?",
+                            "werte": [
+                                "Chi usa /bug, /idee o /frage invia il contenuto del modulo ad Avesmaps. Vengono memorizzati questo testo, il nome visualizzato che Discord indica (soprannome sul server, altrimenti nome globale o nome utente) e l’identificativo Discord. Questo identificativo resta interno: attribuisce alla persona le sue segnalazioni e aiuta contro gli abusi."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-was-wird-oeffentlich",
+                            "begriff": "Che cosa diventa pubblico?",
+                            "werte": [
+                                "/bug e /idee compaiono poi pubblicamente in #bugs o nel canale delle idee, con numero, titolo, una o due frasi del testo e un ringraziamento che menziona la persona. /frage non viene pubblicato. Il rapporto quotidiano su Discord indica le segnalazioni aperte con titolo e breve stato e, non appena una segnalazione è stata vagliata, il nome della persona che segnala. Ciò vale anche per le segnalazioni dal canale del gestore."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-eigene-meldungen",
+                            "begriff": "Segnalazioni proprie",
+                            "werte": [
+                                "/offen mostra soltanto alla persona che chiede le segnalazioni aperte da Discord e le proprie dal sito; a tal fine il bot chiede ad Avesmaps con il suo identificativo. /erledigt chiude una segnalazione propria; con questo comando i gestori possono chiudere qualsiasi segnalazione."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-wer-sieht-es",
+                            "begriff": "Chi lo vede?",
+                            "werte": [
+                                "Le segnalazioni le leggono i gestori. Le segnalazioni vagliate vengono trattate anche con lo strumento IA (si veda [«Strumento IA»](#ki-werkzeug)), che allora vede testo e nomi visualizzati."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-wann-wird-es-geloescht",
+                            "begriff": "Quando viene cancellata?",
+                            "werte": [
+                                "Finché una segnalazione è aperta, i dati restano memorizzati. **90 giorni** dopo la chiusura vengono cancellati testo, nome visualizzato e identificativo; restano titoli brevi, prove e il rapporto sulla correzione. Ciò che è già su Discord resta lì finché non viene cancellato; su richiesta i nostri post vengono rimossi."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-usa-und-rechtsgrundlage",
+                            "begriff": "USA e base giuridica",
+                            "werte": [
+                                "Ciò che accade su Discord è trattato anche da Discord stessa. Per le persone nell’UE la responsabile è Discord Netherlands BV; i dati vanno anche a Discord Inc. negli USA, secondo Discord tutelati da clausole contrattuali standard e dal [Data Privacy Framework](https://de.wikipedia.org/wiki/EU-US_Data_Privacy_Framework) UE-USA. Vale l’[informativa sulla privacy di Discord](https://discord.com/privacy). La base giuridica è il legittimo interesse a correggere errori e a discutere apertamente idee (art. 6, par. 1, lett. f), del GDPR); **è possibile opporsi in ogni momento**."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "ki-werkzeug",
+                    "text": "Strumento IA"
+                },
+                {
+                    "art": "absatz",
+                    "text": "I gestori trattano anche segnalazioni, richieste ed e-mail con uno strumento IA (Claude di Anthropic), che allora vede il testo e il nome o il mittente; per le segnalazioni vagliate provenienti da Discord vale lo stesso."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "ki-werkzeug-taeglicher-bericht",
+                            "begriff": "Rapporto quotidiano",
+                            "werte": [
+                                "Il rapporto quotidiano su Discord è formulato da Claude Sonnet; a tal fine una volta al giorno vengono inviati titolo e testo delle segnalazioni non ancora vagliate, senza nomi né identificativi."
+                            ]
+                        },
+                        {
+                            "id": "ki-werkzeug-abonnement-und-bedingungen",
+                            "begriff": "Abbonamento e condizioni",
+                            "werte": [
+                                "Entrambi avvengono tramite un abbonamento presso Anthropic; valgono le [condizioni d’uso](https://www.anthropic.com/legal/consumer-terms) e l’[informativa sulla privacy](https://www.anthropic.com/legal/privacy) di Anthropic. Il fornitore è Anthropic Ireland, Limited; i dati possono andare negli USA, secondo Anthropic tutelati da clausole contrattuali standard. L’uso degli input per addestrare i modelli di IA è disattivato negli account di Avesmaps."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "mailpostfach",
+                    "text": "Casella di posta"
+                },
+                {
+                    "art": "absatz",
+                    "text": "La casella di posta si trova presso STRATO, tramite la quale vengono inviate anche le risposte. STRATO tratta le e-mail per Avesmaps come responsabile del trattamento. Avesmaps legge soltanto le e-mail in arrivo e non cancella nulla: le e-mail e le copie restano finché i gestori non le rimuovono."
+                },
+                {
+                    "art": "h4",
+                    "id": "social-media",
+                    "text": "Social media"
+                },
+                {
+                    "art": "absatz",
+                    "text": "La redazione pubblica contributi nelle Novità di Avesmaps e sui propri canali presso [Mastodon](https://joinmastodon.org), Facebook, Instagram e Discord."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "social-media-personenbezug",
+                            "begriff": "Riferimento a persone",
+                            "werte": [
+                                "Un riferimento a persone sorge soltanto se un contributo nomina o mostra una persona."
+                            ]
+                        },
+                        {
+                            "id": "social-media-wohin-es-geht",
+                            "begriff": "Dove va",
+                            "werte": [
+                                "Con l’invio testo e immagine vanno al rispettivo servizio: rollenspiel.social (Mastodon), Meta Platforms Ireland (Facebook, Instagram) e Discord Inc. (USA). Lì valgono le loro informative sulla privacy."
+                            ]
+                        },
+                        {
+                            "id": "social-media-wer-dahintersteht",
+                            "begriff": "Chi c’è dietro",
+                            "werte": [
+                                "Chi redige o approva un contributo compare soltanto nello svolgimento interno e non appare pubblicamente."
+                            ]
+                        },
+                        {
+                            "id": "social-media-was-die-seite-laedt",
+                            "begriff": "Che cosa carica la pagina",
+                            "werte": [
+                                "Avesmaps non carica nulla di questi servizi. I pulsanti verso i canali di Avesmaps sono link normali; solo chi li segue arriva lì, e allora vale la loro protezione dei dati."
+                            ]
+                        },
+                        {
+                            "id": "social-media-wann-wird-es-geloescht",
+                            "begriff": "Quando viene cancellata?",
+                            "werte": [
+                                "Contributi aperti nel cestino vengono cancellati dopo **30 giorni**. I contributi pubblicati restano nello svolgimento interno. Se ritirati, scompaiono dalle Novità e da Mastodon, Facebook e Discord; su Instagram la redazione li rimuove a mano. Chi in un contributo è nominato o mostrato e non lo desidera può rivolgersi all’indirizzo indicato nelle note legali."
+                            ]
+                        },
+                        {
+                            "id": "social-media-rechtsgrundlage",
+                            "begriff": "Base giuridica",
+                            "werte": [
+                                "Il legittimo interesse a informare sul progetto (art. 6, par. 1, lett. f), del GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "fristen-und-sicherungen",
+                    "text": "Termini e backup"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Panoramica; dettagli ed eccezioni si trovano presso la rispettiva funzione."
+                },
+                {
+                    "art": "tafel",
+                    "kopf": ["Che cosa", "Termine", "Che cosa resta o differisce"],
+                    "schluesselSpalten": 1,
+                    "zeilen": [
+                        {
+                            "id": "fristen-und-sicherungen-webserver-und-systemprotokoll-sperrprotokoll",
+                            "zellen": [
+                                "Registro del server web e di sistema, registro dei blocchi",
+                                "**circa 14 giorni**",
+                                ""
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-fehlerdiagnose",
+                            "zellen": [
+                                "Diagnosi degli errori",
+                                "**14 giorni**",
+                                "il numero degli errori per tipo e giorno resta come somma"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-anmeldungen-und-fehlversuche",
+                            "zellen": [
+                                "Accessi e tentativi falliti",
+                                "**90 giorni**",
+                                "indirizzo IP abbreviato già svuotato dopo **14 giorni**"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-abgelaufene-sitzungen-links-anmeldeumwege",
+                            "zellen": [
+                                "Sessioni scadute, link, deviazioni dell’accesso",
+                                "**30 giorni** dopo la fine",
+                                ""
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-drossel-der-anmeldung",
+                            "zellen": ["Limitazione dell’accesso", "**30 giorni** di calma", ""]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-verwaltungshandlungen-aenderungen-am-zugang-redaktionsprotokoll",
+                            "zellen": [
+                                "Operazioni amministrative, modifiche all’accesso, registro della redazione",
+                                "restano",
+                                "oscurato con lo scioglimento dell’account"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-betreiber-kanal",
+                            "zellen": [
+                                "Canale del gestore",
+                                "**90 giorni** dopo l’approvazione",
+                                "titoli brevi, prove e rapporto di correzione restano"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-benachrichtigungen",
+                            "zellen": [
+                                "Notifiche",
+                                "**90 giorni** dopo la lettura o la risposta, al più tardi **180 giorni**",
+                                "**subito** allo scioglimento dell’account"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-meldungen",
+                            "zellen": [
+                                "Segnalazioni",
+                                "Nome, dati Discord, link di stato: **90 giorni** dopo la chiusura",
+                                "aperte: restano; testo e contenuto sostanziale restano nell’archivio"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-kontakt-und-mail",
+                            "zellen": [
+                                "Contatto ed e-mail",
+                                "Nome, indirizzo, mittente, e-mail originale, link di stato: **90 giorni** dopo la chiusura",
+                                "aperte: restano; testo, oggetto, HTML, allegati e identificativi restano nell’archivio"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-discord-befehle",
+                            "zellen": [
+                                "Comandi Discord",
+                                "Testo, nome visualizzato, identificativo: **90 giorni** dopo la chiusura",
+                                "aperte: restano; titoli brevi, prove e rapporto restano"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-papierkorb-meldungen-anfragen-social-media",
+                            "zellen": ["Cestino (segnalazioni, richieste, social media)", "**30 giorni**", ""]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-bewertungen",
+                            "zellen": [
+                                "Recensioni",
+                                "restano finché sono visibili",
+                                "contestate: nome, testo e data vengono eliminati, restano le stelle"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-kartenvorschlaege",
+                            "zellen": [
+                                "Proposte di mappe",
+                                "file mai arrivato o non elaborato: **7 giorni**; rifiutate o ritirate: **30 giorni**",
+                                "aperte: fino alla decisione; accettate: file **circa una settimana**, nome e nota **90 giorni**"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-reisebilder",
+                            "zellen": [
+                                "Immagini di viaggio",
+                                "rifiutate, ritirate, rimosse dalla rete: **30 giorni**",
+                                "non decise: scadono dopo **60 giorni**, cancellate **30 giorni** dopo"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-sicherungen",
+                            "zellen": ["Backup", "fino a **sei mesi**", "media ed e-mail possono restare più a lungo"]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "sicherungen",
+                    "text": "Backup"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps effettua ogni giorno il backup delle proprie banche dati e della propria configurazione; si aggiungono, quando cambiano, gli originali dei media con i relativi documenti sui diritti e le e-mail archiviate."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "sicherungen-was-darin-steht",
+                            "begriff": "Che cosa vi è contenuto",
+                            "werte": [
+                                "I backup contengono quindi anche account, segnalazioni, richieste, recensioni e registri."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-wo-es-liegt",
+                            "begriff": "Dove si trova",
+                            "werte": [
+                                "I file vengono cifrati prima di lasciare il server e si trovano sul server e fuori sede presso un servizio di archiviazione. Il servizio riceve soltanto i file cifrati e una panoramica senza dati personali."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-schluessel",
+                            "begriff": "Chiave",
+                            "werte": [
+                                "La chiave è in possesso del gestore; una seconda chiave per la prova periodica di ripristino si trova sul server."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-wie-lange",
+                            "begriff": "Per quanto tempo",
+                            "werte": [
+                                "Fuori sede restano le sette copie più recenti e inoltre una ciascuna di **quattro settimane** e di sei mesi. Ciò che in Avesmaps è stato cancellato può quindi restare fino a **sei mesi** in un backup."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-wozu",
+                            "begriff": "A che scopo",
+                            "werte": [
+                                "Un backup viene letto soltanto per ripristinare dati dopo un guasto o per provare tale operazione."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-kopie-fuer-die-entwicklung",
+                            "begriff": "Copia per lo sviluppo",
+                            "werte": [
+                                "Per lo sviluppo il gestore preleva di tanto in tanto una copia dei dati cartografici e dei file dei media sul proprio computer. Account, segnalazioni, richieste e registri non sono inclusi, i nomi sono oscurati; i file originali dei media vi sono però compresi."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-rechtsgrundlage",
+                            "begriff": "Base giuridica",
+                            "werte": [
+                                "Il legittimo interesse a un esercizio sicuro (art. 6, par. 1, lett. f), del GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "kasten",
+                    "titel": "Ciò che è stato cancellato può restare più a lungo nei backup",
+                    "absaetze": [
+                        "Media ed e-mail si trovano lì nelle due versioni più recenti e vengono sostituiti solo se qualcosa cambia; un file cancellato può quindi restare lì anche per più di **sei mesi**."
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "rechte-der-betroffenen",
+                    "text": "Diritti degli interessati"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Nell’ambito del GDPR valgono questi diritti:"
+                },
+                {
+                    "art": "liste",
+                    "punkte": [
+                        "Accesso ai dati",
+                        "Rettifica",
+                        "Cancellazione",
+                        "Limitazione del trattamento",
+                        "Portabilità dei dati",
+                        "Opposizione",
+                        "Reclamo presso un’autorità di controllo per la protezione dei dati"
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Le richieste sulla protezione dei dati vanno all’indirizzo indicato nelle note legali."
+                }
+            ]
+        },
+        {
+            "id": "kontakt-und-impressum",
+            "titel": "Contatto e note legali",
+            "hinweis": "Indirizzo ai sensi del § 5 DDG e come si raggiunge il progetto",
+            "bloecke": [
+                {
+                    "art": "absatz",
+                    "text": "Sviluppo, progettazione, programmazione e gestione sono curati da [Valentin Schwind](https://www.valentin-schwind.de) (c/o Nobelstr. 10, D-70569 Stuttgart); nella programmazione viene impiegato [Claude Code](https://www.anthropic.com/claude-code). Responsabile della cura redazionale dei contenuti della mappa è Thomas Braun."
+                },
+                {
+                    "art": "absatz",
+                    "text": "E-mail: [{mail}](mailto:{mail})"
+                },
+                {
+                    "art": "kontaktknoepfe"
+                }
+            ]
+        }
+    ],
+    "schluss": "Queste avvertenze possono essere adattate in caso di modifiche tecniche, giuridiche o di contenuto del progetto."
+}

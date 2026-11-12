@@ -1,0 +1,818 @@
+{
+    "schema": 1,
+    "titel": "Systemsteuerung komplett (SYS-3/9/14/15), Konten (Passkey, Verantwortlich für), Medien-Schreibweg, Geländerezept 18, Zoombänder 7 → 8, Migrationen 0089–0097",
+    "von": "62951ae959f086b652214ac3d8d725ca1785f43f",
+    "bis": "557c6d112652e38b041669b002a47417a84598cd",
+    "datum": "2026-10-10T18:47:07+02:00",
+    "pakete": {
+        "WI-0067": "Kontinuierliches Domain-Terrain für Aventurien",
+        "WI-0068": "Media Asset Management im Editor",
+        "WI-0120": "Auth-Plattform (Identität, Anmeldung, Rechte, Verwaltung)",
+        "WI-0127": "Systemsteuerung, Bau Stufe 1 (SYS-0, SYS-1, SYS-6) und Stufe 2 (SYS-2)",
+        "WI-0128": "Prüfauftrag Orts- und Stättenmodell",
+        "WI-0129": "Zoomstufe 8 freischalten und die Zoomstufe im Editor anzeigen",
+        "WI-0131": "Prüfhaken im Auge für Editoren, darunter „Flüsse bergaufwärts“",
+        "WI-0132": "Kreuzungen ablösen: Routing nur aus der Geometrie der Wege",
+        "WI-0133": "„Verantwortlich für:“ je Person"
+    },
+    "commits": [
+        {
+            "sha": "557c6d112652e38b041669b002a47417a84598cd",
+            "datum": "2026-10-10T18:47:07+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Entscheide F2 (Zoombänder auf Stage) und Datenschutztext WI-0133",
+            "doku": true
+        },
+        {
+            "sha": "bd698129503468d31d4d4dae9a5aa82a9d83ef7e",
+            "datum": "2026-10-10T18:47:07+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(legal): Datenschutztext nennt „Verantwortlich für“ (WI-0133) - freiwillige Angabe, Auflösen löscht sie",
+            "doku": false
+        },
+        {
+            "sha": "0a403e88343bb0cb30922eb9770808e5555a6bbc",
+            "datum": "2026-10-10T18:43:35+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068 P4b): Leiste der Treffer als eine Zeile - Trichter mit allen Filtern, Raster/Liste und Füllen/Ganz als Zeichen",
+            "doku": false
+        },
+        {
+            "sha": "4439471411042de902207aa4300a5e038a8e0c58",
+            "datum": "2026-10-10T18:39:17+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(state): WI-0132 Stage-Test, Legacy-Cutoff und Production-Reparatur klarstellen",
+            "doku": true
+        },
+        {
+            "sha": "f20d7f8c057cc538b74aa54d5baf28f86f17568a",
+            "datum": "2026-10-10T18:39:04+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(decision): Stage nur Werkzeugprobe, Cutoff beendet Legacy, Wegreparaturen in Production",
+            "doku": true
+        },
+        {
+            "sha": "8ade0bfeb406f3aa415f17e6a7c4609e8b4a1e2c",
+            "datum": "2026-10-10T18:38:43+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(WI-0132): Reparatur ausschließlich in Avesmaps3D-Production nach Legacy-Cutoff",
+            "doku": true
+        },
+        {
+            "sha": "5b769f1bb4eead98f9ad0a37d92eb3002e4fd274",
+            "datum": "2026-10-10T18:29:23+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(state): verbindliche Wegenden- und Kreuzungsentscheidung für Claudia verlinken",
+            "doku": true
+        },
+        {
+            "sha": "d152f61a372c8bf4b6664bf1750a10f8614d1cdf",
+            "datum": "2026-10-10T18:29:10+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(decision): keine Wegkreuzungen, präzises Endpunkt-Snapping mit sichtbarer Erfolgsbestätigung",
+            "doku": true
+        },
+        {
+            "sha": "bcae7b5f43c0ff196bf84ee0619454314c9f4cc4",
+            "datum": "2026-10-10T18:25:35+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(WI-0132): Betreiberziel Kreuzungsfreiheit und Claudias Verantwortung verbindlich festhalten",
+            "doku": true
+        },
+        {
+            "sha": "5e1ccc965d0046e316f1cdfa814cbda044d9c893",
+            "datum": "2026-10-10T18:22:18+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0127 SYS-9): Backups mit „Sicherung jetzt\" - Zustand aus Claudios Statusdatei, Auftragsdatei, run_backup",
+            "doku": false
+        },
+        {
+            "sha": "37a350084c6224e5ecd7b4b5c7cbd5aca6526aaf",
+            "datum": "2026-10-10T18:12:18+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068 P4b): Raster mit Umschalter „Kachel füllen | Bild ganz anzeigen“, Kachel bleibt quadratisch (Betreiber 2026-10-10)",
+            "doku": false
+        },
+        {
+            "sha": "223c199f9222c63badb304354240bc53f926867c",
+            "datum": "2026-10-10T17:58:00+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068 P4b): Raster der Medienverwaltung quadratisch und gefüllt; Betreiber zu Blatt 1 (A, Sammelbearbeitung als eigener Schritt)",
+            "doku": false
+        },
+        {
+            "sha": "99383a67bfc1bb52f467bc3774aaa7cbb238c473",
+            "datum": "2026-10-10T17:48:40+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0133): Einordnung Konten, Browserprobe, Konto-Feld über die ganze Breite, Stand und Pläne nachgetragen",
+            "doku": false
+        },
+        {
+            "sha": "55a08ddaf5c190983afc0406c52cff207c210f40",
+            "datum": "2026-10-10T17:45:45+02:00",
+            "wer": "Claudio",
+            "betreff": "Sicherung jetzt (SYS-0001 9e): --request mit path-Unit, O_NOFOLLOW, Drossel 30 min, Statusfelder; Test 38/0",
+            "doku": false
+        },
+        {
+            "sha": "48d0b9c6645a9a2e264961a314ef2948e1659c53",
+            "datum": "2026-10-10T17:43:50+02:00",
+            "wer": "Claudio",
+            "betreff": "SYS-14 Abgleiche auf Stage: Option A, Uebernahme ueber den Korridor mit der Jobs-Rolle, Medien vorerst aus",
+            "doku": true
+        },
+        {
+            "sha": "aa15d337dc598e9e5a0f2f1f8dfaa943c752a274",
+            "datum": "2026-10-10T17:37:22+02:00",
+            "wer": "Claudia",
+            "betreff": "style(WI-0068 P4b): Prettier für die medien.*-Zeilen in de.ts und en.ts (Hinweis der SYS-Sitzung)",
+            "doku": false
+        },
+        {
+            "sha": "07b921b07629124a4b99577e7c24fce5a7c66912",
+            "datum": "2026-10-10T17:35:57+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0127 SYS-14): grober Fortschrittsbalken unter einem laufenden Abgleich, auch beim Zuruf",
+            "doku": false
+        },
+        {
+            "sha": "9ce5f3d57f3e48347d3debd6f6dcf5b4d1b47ab1",
+            "datum": "2026-10-10T17:35:09+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0133): „Verantwortlich für:“ je Person - Migration 0097, Konto und Personenansicht, Protokoll ohne Text",
+            "doku": false
+        },
+        {
+            "sha": "6da37dcdd52b0bf5e75c095a4c986709ffc5c59d",
+            "datum": "2026-10-10T17:30:40+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0131): Blatt 1 abgenommen, Bau wartet auf Freigabe der Koordination",
+            "doku": true
+        },
+        {
+            "sha": "75dd62ae18bbfe589c50fca5dd71356d4cbfac2a",
+            "datum": "2026-10-10T17:24:57+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(discovery): unabhaengige Agenda-Pruefung 2026-10-10",
+            "doku": true
+        },
+        {
+            "sha": "5d9a2a87aeec27b83e0c0ff472e3319013501e10",
+            "datum": "2026-10-10T17:23:44+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(state): WI-0128 Gutachten für Orchestrierung und Reviewer-Triage verlinken",
+            "doku": false
+        },
+        {
+            "sha": "519cb81c989d1124482d480de9a4e10e5b37a929",
+            "datum": "2026-10-10T17:23:02+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(state): WI-0128 Gutachten für Orchestrierungs-Triage verlinken",
+            "doku": true
+        },
+        {
+            "sha": "18468f7b4154395ad12d1394f97097de1591e4dd",
+            "datum": "2026-10-10T17:22:55+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0131): Discovery Stufe 1 und Blatt 1 beim Betreiber - Legacys Pruefhaken, Messung lokal, Befund path.id im Flussbefund",
+            "doku": true
+        },
+        {
+            "sha": "0ee457e38a8b92f3f140ac2162f9b8dc801041d3",
+            "datum": "2026-10-10T17:22:44+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(WI-0128): unabhängiges vorläufiges Gutachten zur Stättenmodellierung",
+            "doku": true
+        },
+        {
+            "sha": "1e1133ffb2230d3f398702ee096ed5d5a4d6be8b",
+            "datum": "2026-10-10T17:15:47+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(WI-0132): unabhaengiges Review der Kreuzungen",
+            "doku": true
+        },
+        {
+            "sha": "7e07b1d6fd9dfb27f6b9ec90592bd0c127392405",
+            "datum": "2026-10-10T17:15:26+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0133): „Verantwortlich für:“ je Person als Work Item (Betreiber 2026-10-10)",
+            "doku": true
+        },
+        {
+            "sha": "74b67728415d4d4bcc2213912b041b1781bf9e7b",
+            "datum": "2026-10-10T17:14:44+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): „Verantwortlich für:“ als eigenes Paket, Migration 0097 reserviert",
+            "doku": true
+        },
+        {
+            "sha": "fb04a4e86fb4b378cf7e51caeae27f7d4f2c15bb",
+            "datum": "2026-10-10T17:11:18+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0129 R1): lokale Ausfuehrung mit F1 - 1.291 Labels und 33 Tafelzeilen 7 -> 8, sonst nichts",
+            "doku": true
+        },
+        {
+            "sha": "bd9cfc138c09e512177b8eb88d9adbb25d95fc21",
+            "datum": "2026-10-10T17:07:40+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): WI-0129 R1 gemergt, Migration 0096 belegt, naechste freie 0097",
+            "doku": true
+        },
+        {
+            "sha": "438151c6c78cd0467d331bdf2f05d4a1169852ae",
+            "datum": "2026-10-10T17:05:57+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0129 R1): Legacys Obergrenze 7 wird an der Migrationsgrenze Ziel 8 - Importer, Migration 0096, Laeufe gedeckelt",
+            "doku": false
+        },
+        {
+            "sha": "779c7e1da25cf056069fffd3a5fe0821852f7f79",
+            "datum": "2026-10-10T17:00:28+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0132): pausiert bis zum externen Review der Kreuzungen (Betreiber 2026-10-10)",
+            "doku": true
+        },
+        {
+            "sha": "2f5565c2c0a6fc568cf6b7738aa0530cca5effd1",
+            "datum": "2026-10-10T16:58:02+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0127 SYS-15): Kontenverwaltung und Systemsteuerung - zwei Fenster aus einem Bauteil, ein Protokoll mit zwei Filtern, Waechter der Protokollpflicht",
+            "doku": false
+        },
+        {
+            "sha": "052600d8dc2ee6603e2365be930f007f0662b22b",
+            "datum": "2026-10-10T16:56:36+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0132): Kreuzungen ablösen - Stellen im Auge sichtbar machen, Routing nur aus der Geometrie, Kreuzungen entfernen (Betreiber 2026-10-10)",
+            "doku": true
+        },
+        {
+            "sha": "cda4c345f38b29f60c4dc54e6f68262146288b3e",
+            "datum": "2026-10-10T16:50:29+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0131): Kreuzungen nicht übernehmen - erst mit einem Wege-Editor (Betreiber 2026-10-10)",
+            "doku": true
+        },
+        {
+            "sha": "bad30ad9b141151cc5c77dfb739bbdee10a1b5af",
+            "datum": "2026-10-10T16:44:43+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0131): Prüfhaken im Auge für Editoren - Analyse gegen Legacys Anzeige-Schalter, Auswahl, Stufen; Flüsse bergaufwärts dazu",
+            "doku": true
+        },
+        {
+            "sha": "1df549c3a7461fc74dd1e8867396d045e83ece27",
+            "datum": "2026-10-10T16:43:57+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068 P4b): Wappenpruefung beim Hochladen - 128 px an der langen Seite, durchsichtig, mit Rand zum Quadrat aufgefuellt",
+            "doku": false
+        },
+        {
+            "sha": "d17c7d364b52f3b76be758e9f33dce27c1e65f70",
+            "datum": "2026-10-10T16:35:37+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0131): Flüsse bergaufwärts als Schalter in der Ansicht für Editoren (Betreiber 2026-10-10), eingeplant nach WI-0129 R1",
+            "doku": true
+        },
+        {
+            "sha": "cf0cb6dc44f607da83d743fc1656cee54c85e944",
+            "datum": "2026-10-10T16:32:31+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068 P4b): Asset-Typ am Asset - Wappen, Bild, Karte, Kartenvorschau, Buchumschlag, 3D-Modell (Migration 0095)",
+            "doku": false
+        },
+        {
+            "sha": "9f89076d6237ee8083078268d48ff8cf02feef67",
+            "datum": "2026-10-10T16:28:36+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): WI-0129 R1 im pausierten Ortseditor-Strang gestartet (WIP-Einordnung)",
+            "doku": true
+        },
+        {
+            "sha": "0f8586e1015f80e59a28611e256c2f73b631dfd8",
+            "datum": "2026-10-10T16:28:01+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): WI-0129 Bau-Go und F1, WI-0130 geplant; naechste freie WI-0131",
+            "doku": true
+        },
+        {
+            "sha": "d1abf3115add340ae32889494a060c8e6e99c82d",
+            "datum": "2026-10-10T16:27:43+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0129, WI-0130): Betreiberantworten - Ortsbaender nachbauen (WI-0130), Bau-Go, Freigabe F1 mit Probelauf und Halt",
+            "doku": true
+        },
+        {
+            "sha": "76d7d25ecc3e2f9dedc68e44fa404ae8b13ca53c",
+            "datum": "2026-10-10T16:26:16+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0127 SYS-14): Handover an Claudio mit dem richtigen Datum (2026-10-10-abgleiche-stage-claudio.md), Verweise nachgezogen",
+            "doku": true
+        },
+        {
+            "sha": "b0076798c49d52ae0b1a088de0827419901d41e4",
+            "datum": "2026-10-10T16:03:34+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0127 SYS-14): Abgleiche in der Systemsteuerung - Legacy-Zug und Medien aus Legacy per Knopf, nur Betreiber, als Job",
+            "doku": false
+        },
+        {
+            "sha": "d51e85b55dfbca1a84b648c2f581922585cb24de",
+            "datum": "2026-10-10T16:17:56+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): WI-0129 Plan Fassung 2 - zwei Releases, Freigaben F1/F2, Frage D1 (MCS-032)",
+            "doku": true
+        },
+        {
+            "sha": "e83e41c51afe2067c8a542faba1a1167712fc7d4",
+            "datum": "2026-10-10T16:17:39+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0129): Plan Fassung 2 nach unabhaengigem Review - Legacy-Maximum 7 wird Ziel 8 an der Migrationsgrenze, zwei Releases, MCS-032",
+            "doku": true
+        },
+        {
+            "sha": "4ac0100aa3e64d580cc9e9829798c83e8547824f",
+            "datum": "2026-10-10T16:16:56+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0068 P4b): Wappen - auffüllen mit durchsichtigem Rand, Mindestgröße 128 px an der langen Kante (Bestand gemessen, kleinstes 90 x 128)",
+            "doku": true
+        },
+        {
+            "sha": "3692c017f4e23b0144b3883cb88aae82ff7ad05d",
+            "datum": "2026-10-10T16:15:09+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): nächstes Stage-Release wartet auf SYS-15 und SYS-9 (Betreiber 2026-10-10)",
+            "doku": true
+        },
+        {
+            "sha": "39c93eff13209723bb6c92a377e08ab86d415394",
+            "datum": "2026-10-10T15:58:24+02:00",
+            "wer": "Claudia",
+            "betreff": "feat: Geländerezept 18 abgenommen (Routing-Basislinie neu, Stage-Sperre aufgehoben), Datenschutztext ohne Discords Zwei-Faktor-Angabe",
+            "doku": false
+        },
+        {
+            "sha": "3154f7ed1b422dd91eeb134f5797119f9757d861",
+            "datum": "2026-10-10T15:52:04+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Geländerezept 18 lokal abgeleitet (Blatt beim Betreiber), Medien-Regel und Asset-Namen lokal eingespielt",
+            "doku": true
+        },
+        {
+            "sha": "deb9db0371f1254e67ed5c3f58416c4b2e2abbac",
+            "datum": "2026-10-10T15:48:54+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(review): WI-0129 unabhaengigen Zoom-8-Migrationsreview hinterlegen",
+            "doku": true
+        },
+        {
+            "sha": "fbb23cc2ad8f496ed240033f784cd446c5326fa0",
+            "datum": "2026-10-10T15:47:46+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(SYS-0001): Teilung in Kontenverwaltung und Systemsteuerung (SYS-15), Protokollpflicht, „Sicherung jetzt“ bestätigt (SYS-9); Antwort an Claudio",
+            "doku": true
+        },
+        {
+            "sha": "e6086ac0441836fa44acc1911ca4e1c11c527681",
+            "datum": "2026-10-10T15:44:47+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0128 Korrektur): Orts- und Stättenmodell - Herkunft, Parent-Kennungen, Zielmodell, Decision Gate",
+            "doku": true
+        },
+        {
+            "sha": "e2c446d68ec05db709b7539465799e40499872a7",
+            "datum": "2026-10-10T15:44:11+02:00",
+            "wer": "Claudio",
+            "betreff": "Teilung Verwaltung: Redaktion & Integrationen in die Systemsteuerung (Betreiber)",
+            "doku": true
+        },
+        {
+            "sha": "6d5b3d87db465970d7eb6c766b1a0dd949750f04",
+            "datum": "2026-10-10T15:42:44+02:00",
+            "wer": "Claudio",
+            "betreff": "Vorschlag an Claudia (SYS): Verwaltung teilen in Kontenverwaltung und Systemsteuerung, ein Protokoll mit Filtern",
+            "doku": true
+        },
+        {
+            "sha": "fe5d4284c260777aae73263b5e1349efdd7d74ab",
+            "datum": "2026-10-10T15:39:03+02:00",
+            "wer": "Claudio",
+            "betreff": "Release 62951ae9 auf Stage gruen (PASS=171), SYS-7-vhost aktiv, Proben",
+            "doku": true
+        },
+        {
+            "sha": "60270244866e086f2a8d617e25c89f318e0e8e5e",
+            "datum": "2026-10-10T15:38:24+02:00",
+            "wer": "Claudio",
+            "betreff": "Vorschlag an Claudia: Knopf 'Sicherung jetzt' im Reiter Backups (Auftragsdatei, path-Unit, Drossel)",
+            "doku": true
+        },
+        {
+            "sha": "820001b076bd344b8922202bffa4935fa84f440c",
+            "datum": "2026-10-10T15:37:45+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0068 P4b): Betreiber - Asset-Typen am Asset, Wappen getrennt mit Qualitätsmerkmalen; Bestand gemessen; Migration 0095 vorgemerkt",
+            "doku": true
+        },
+        {
+            "sha": "01355f0dfef61dd1869ad4f5508f8d8fca0cb015",
+            "datum": "2026-10-10T15:37:01+02:00",
+            "wer": "Claudio",
+            "betreff": "Deploy-Rollback: Fastify mit vorherigem Release weiterlaufen lassen (nicht abschalten); /ws 401/403 gilt als erreicht; Zwischenstand Release 62951ae9",
+            "doku": false
+        },
+        {
+            "sha": "47f7514cc7a0d6112ff3e05fc4b041afadb655e5",
+            "datum": "2026-10-10T15:24:52+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0068 P4b): Betreiber zu Medientypen und Verwendungen - Lücke Asset-Typ, Widerspruch zu §2 Nr. 2 benannt, Vorschlag",
+            "doku": true
+        },
+        {
+            "sha": "1c4201604a4ad6d00e5eaf5017a43eae203572ac",
+            "datum": "2026-10-10T15:23:52+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): WI-0129 Zoomstufe 8 - Analyse und Plan fertig, drei Fragen beim Betreiber; naechste freie WI-0130",
+            "doku": true
+        },
+        {
+            "sha": "5e048af8cad281cda0f334796e956c0235fd0916",
+            "datum": "2026-10-10T15:23:29+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0129): Zoomstufe 8 und Zoomanzeige - Analyse, Legacy-Finding MCS-031, Plan mit drei Betreiberfragen",
+            "doku": true
+        },
+        {
+            "sha": "71c0219f78c3cc03ecc8161b03e0be6ecc9004ef",
+            "datum": "2026-10-10T15:21:11+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: Datum 2026-10-10 auch in den nachgemergten Zweigen (Discord, MAM-Regel); de.ts/en.ts nach Prettier",
+            "doku": false
+        },
+        {
+            "sha": "ae6d90af3d6169e3efb6a61de6fab3d35cc89083",
+            "datum": "2026-10-10T15:19:49+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(WI-0128): Korrekturanalyse als eigenständige Sitzung ohne Orchestrierungsstopp",
+            "doku": true
+        },
+        {
+            "sha": "2a2d0c4036551d82f06b578d6dfadfbd7b79f044",
+            "datum": "2026-10-10T15:18:59+02:00",
+            "wer": "Valentin",
+            "betreff": "docs: Prüfauftrag Orts- und Stättenmodell",
+            "doku": true
+        },
+        {
+            "sha": "ab967ccd7d948ff543175ac57d85ad945a7f133c",
+            "datum": "2026-10-10T15:18:42+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: Datum der Betreiberentscheide berichtigt - 2026-10-10, nicht 2026-10-11",
+            "doku": false
+        },
+        {
+            "sha": "f32b42236ce97d0f16834f18f2d087443531e03d",
+            "datum": "2026-10-10T15:17:10+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0120): Discords Zwei-Faktor-Angabe nicht mehr speichern - Release N, Migration 0093",
+            "doku": false
+        },
+        {
+            "sha": "f2632401b0b3b0144c6cef3456246abb21fa12ed",
+            "datum": "2026-10-10T15:10:48+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0068 P4b): Blatt 1 (Inspector beim Bearbeiten, A gegen B) beim Betreiber",
+            "doku": true
+        },
+        {
+            "sha": "1eb149fb9ab0ed152ab1a879d5710378dfc9806c",
+            "datum": "2026-10-10T15:08:14+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0068): Vorschau des Formulars reicht die Entstehung durch (Überschneidung mit P4b-Client)",
+            "doku": false
+        },
+        {
+            "sha": "27ba1bc531da4a1916205507f5cc02d1f2fea7d3",
+            "datum": "2026-10-10T15:06:14+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068 P4b): gemeinsames Hochladeformular - Fenster, Felder, Pruefung und Satz der Policy",
+            "doku": false
+        },
+        {
+            "sha": "0d6e0c4060c9bda952b3d373d0b5a4c504298f41",
+            "datum": "2026-10-10T15:01:11+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068): Freigaberegel über die Entstehung ai_generated und Asset-Namen aus dem Objekt",
+            "doku": false
+        },
+        {
+            "sha": "670fbac7efc785d9993227ec9a8fa5efcb8a2745",
+            "datum": "2026-10-10T15:00:22+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0127 SYS-14): Migration 0094 statt 0093 (0093 ist fuer den Abbau von mfa_enabled reserviert)",
+            "doku": true
+        },
+        {
+            "sha": "cbc8203ac36db33e88417ec40faf90ec30a2d149",
+            "datum": "2026-10-10T14:59:35+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0127 SYS-14): Scope, Reihenfolge und Plan der Sitzung SYS (Issue #5 Punkt 2), Handover Abgleiche auf Stage",
+            "doku": true
+        },
+        {
+            "sha": "100b9528beef3797e889860d0a7f3a952e995761",
+            "datum": "2026-10-10T14:57:38+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Stage-Schnitt-Sperre bis zur Abnahme von Geländerezept 18, Migrationsnummern 0092/0093, Entscheid mfa_enabled",
+            "doku": true
+        },
+        {
+            "sha": "87b52a6be556a661b3f619ed8408b37e383d8ed3",
+            "datum": "2026-10-10T14:56:33+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068 P4b): Client der Medien-Operationen - eine Kennung je Handlung, Hochladen-dann-Binden, Fehler nach Code",
+            "doku": false
+        },
+        {
+            "sha": "1f9d637f211bb23c09bcd7a2bf9a14a9785108d0",
+            "datum": "2026-10-10T14:50:28+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0068 P4b): Scope, Abgrenzung und Plan der Sitzung „MAM P4b“ (Issue #5 Punkt 1)",
+            "doku": true
+        },
+        {
+            "sha": "236cf09b93f088f5cf3026e588a1f1d85bf4cfc1",
+            "datum": "2026-10-10T14:47:15+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0128 E4): within nicht mehr über die Wiki-Adresse der Stätte herleiten",
+            "doku": false
+        },
+        {
+            "sha": "1d411680aeeb8b4d8210fb9941fd13f45106b7f0",
+            "datum": "2026-10-10T14:46:16+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Issue #5 - drei Stränge in eigenen Sitzungen (Ortseditor, MAM, SYS) plus Analyse Zoomstufe 8",
+            "doku": true
+        },
+        {
+            "sha": "23030ae64cfc4571194373de4041c4139596bbd7",
+            "datum": "2026-10-10T14:39:54+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0128 E4): „Fehlt“ mit einer Zeile je Wiki-Artikel - 3.596 statt 7.686, die Stätte gibt ihre Siedlung",
+            "doku": false
+        },
+        {
+            "sha": "3b7520f0df03a861ae241c3e38bd25b2fef02e63",
+            "datum": "2026-10-10T14:38:55+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0067, SYS-0001): Rezept-Fassung 18 festgehalten, Befehle der Neuabnahme, Stage-Skizze; Entwurf SYS-13 Höhenmodell",
+            "doku": true
+        },
+        {
+            "sha": "05de4008ea95c487f70a59a4f20bae844b5d979c",
+            "datum": "2026-10-10T14:37:16+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0120): Discord-2FA ist kein zweiter Faktor mehr - Stufe V nur mit Passkey, einmal je Sitzung",
+            "doku": false
+        },
+        {
+            "sha": "1e7cab881f5ea4988c5ba4f6f1cf74497ff8a2ab",
+            "datum": "2026-10-10T14:30:57+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0067): Geländerezept in Fassungen - Fassung 18 (Prototyp D, Radius 16 E, Sättigung 10) aktiv, Fassung 17 bleibt Rückweg",
+            "doku": false
+        },
+        {
+            "sha": "e49fd2797894488a7cb989e5d06cb21d3d3189c6",
+            "datum": "2026-10-10T14:29:48+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): X3 ausgerollt und lokal eingespielt, Befund doppelte Zeilen in „Fehlt“",
+            "doku": true
+        },
+        {
+            "sha": "6df7243190c55ae56618191f34d4fe8818aec6fb",
+            "datum": "2026-10-10T14:28:12+02:00",
+            "wer": "Claudio",
+            "betreff": "Fix Tageszug 2026-10-10: Probe 'ohne Zugang' von der oeffentlichen Adresse (Tuer laesst Loopback durch); /health/mode und /health/routing nur Loopback; Pin staging-import",
+            "doku": false
+        },
+        {
+            "sha": "d7e49f7dff456bd0ae9026fb90dfb3fd5d91dcd1",
+            "datum": "2026-10-10T14:22:21+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(SYS-0001): „Abgleiche“ vorgezogen - Legacy-Zug und Medien aus Legacy als Knopf für den Betreiber (Betreiber 2026-10-11)",
+            "doku": true
+        },
+        {
+            "sha": "f890b8d65c8d11fa1202a4b79eea31163a53c1af",
+            "datum": "2026-10-10T14:11:37+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Betreiberentscheide 2026-10-11 (Datenschutztext, KI-Regel und Asset-Namen, Prototyp D als Rezept 18, Discord-2FA, X3, Export-B-Dateien)",
+            "doku": true
+        },
+        {
+            "sha": "a0e3875bbff6d6edd95b7a38d893459f6efd3029",
+            "datum": "2026-10-10T14:09:26+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(legal): Datenschutztext sagt die Laufzeit der Sitzung wie der Code - keine Frist, Cookie höchstens 400 Tage",
+            "doku": false
+        },
+        {
+            "sha": "ae947a801773b4d7913e200e2b6375dee4283d4f",
+            "datum": "2026-10-10T13:58:30+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128 E10a): Fachoperationen am Ort - Detail mit Revision, place.update, place.move samt Wegenden und Kurve",
+            "doku": false
+        },
+        {
+            "sha": "bd9a69c417ca186c97d84f28ab42cb37f7f55f10",
+            "datum": "2026-10-10T13:34:26+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128 E9): Schalter MAP_EDITING - lokal Testwelt, sonst aus, Production verweigert Testwelt, 423 map_editing_off, Status-Route",
+            "doku": false
+        },
+        {
+            "sha": "bab954d175595fede6e566395fecb8edf170ade4",
+            "datum": "2026-10-10T13:28:35+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128 E8): Kartenrevision und Schreibnaht - Migration 0091 map_operation, Speicherstelle für runOperation, map-grants.psql",
+            "doku": false
+        },
+        {
+            "sha": "9212dae0d4a9d709ed1415967ab5737ab30ff80b",
+            "datum": "2026-10-10T13:08:07+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Prototyp D nachgestimmt, Blatt beim Betreiber",
+            "doku": true
+        },
+        {
+            "sha": "0b7514cc127db304626fd24053c546700a4886d2",
+            "datum": "2026-10-10T13:05:25+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Migration 0091 für WI-0128 E8 vorgemerkt",
+            "doku": true
+        },
+        {
+            "sha": "a9a910717d41d71621e83cd8e96369a9a470a6c2",
+            "datum": "2026-10-10T13:04:41+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0128): Editorpanel bis Bauende nur im Entwicklungsbuild (D23)",
+            "doku": false
+        },
+        {
+            "sha": "d5701b82c702689c150e4ec97b6aabc2b40012cc",
+            "datum": "2026-10-10T12:57:43+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(terrain): Prototyp D nachgestimmt – Sättigung der regionalen Rückverteilung (standardmäßig aus)",
+            "doku": false
+        },
+        {
+            "sha": "f5f0bc90ca591c67015afabe30ddf353173b36fd",
+            "datum": "2026-10-10T12:09:29+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Ort-Editor-Zeile nach E7, Stufe B lokal freigegeben",
+            "doku": true
+        },
+        {
+            "sha": "e5dee4e22346386935c1bb9d2fdd7a3976675be3",
+            "datum": "2026-10-10T12:05:42+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128 E7): Hinflug und Auswahl - freie Fläche nach der Landung, Verb öffnet nach dem Flug, Karte wählt in der Liste; Stufe A fertig",
+            "doku": false
+        },
+        {
+            "sha": "1934d8477a39f547c1e12260c35f17636e80f425",
+            "datum": "2026-10-10T11:39:11+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Prototyp D nachstimmen gestartet",
+            "doku": true
+        },
+        {
+            "sha": "d46f5397c4690bb7d1c44cd45d689d871b19c94e",
+            "datum": "2026-10-10T11:38:02+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): SYS-3 gemergt, Runtime-Bedarf fürs Release danach",
+            "doku": true
+        },
+        {
+            "sha": "ee0b45f9bac4dd3f094c0868ee8b49c9cf3ebf78",
+            "datum": "2026-10-10T11:32:13+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0127): SYS-3 Testlauf nach dem Merge von 0887f4ac",
+            "doku": true
+        },
+        {
+            "sha": "a987c2a30d4b80184158ce4772e89ce48167df44",
+            "datum": "2026-10-10T11:21:15+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Ort-Editor-Zeile nach E6",
+            "doku": true
+        },
+        {
+            "sha": "fc2e0e5fdac77d30109d181fecea795ea29eb217",
+            "datum": "2026-10-10T11:16:49+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(auth): WI-0127 SYS-3 Nachmessung mit gedeckelter Pause, Satz für restricted_mode",
+            "doku": false
+        },
+        {
+            "sha": "e2cdff99cb9dfd2cf6dec330b8214cebcc463af4",
+            "datum": "2026-10-10T11:16:48+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): WI-0068 P4a gemergt (0090), Betreiberfrage own_work, Runtime-Bedarf fürs Release danach",
+            "doku": true
+        },
+        {
+            "sha": "f3068d41a4eb0a1c6489d8f127dc594b32d1d89a",
+            "datum": "2026-10-10T11:14:53+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128 E6): Ortseditor als Werkzeugfenster in drei Lagen - angedockt, gelöst, abgelegt; Offene Bearbeitungen; Medienverwaltung aus dem Ortseditor nicht modal",
+            "doku": false
+        },
+        {
+            "sha": "9ba69399bb03ca4a0133ba564de1f00d0c45638b",
+            "datum": "2026-10-10T11:08:15+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Wiki-Siedlungsregistry gemergt (0089), Legacy-Datei X3 beim Betreiber",
+            "doku": true
+        },
+        {
+            "sha": "24a9dbfa0e476979a2dc1ffe9bf1daf529bff271",
+            "datum": "2026-10-10T11:04:32+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): Stage-Release 62951ae9 an Claudio - Systemsteuerung, Medienverwaltung P1-P3, Hotfix zweiter Faktor, Ortsliste, Deckel der Verbindungspause",
+            "doku": true
+        },
+        {
+            "sha": "635e945a3e71c6ad8d109782812e48caa70488b5",
+            "datum": "2026-10-10T11:02:44+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0068): P4a Stand - Schreibpfad, Upload-Vertrag, Schutzregel, Migration 0090",
+            "doku": true
+        },
+        {
+            "sha": "07e86eded5c534a6b11f23869d3dd3b9ce61c3c6",
+            "datum": "2026-10-10T10:49:37+02:00",
+            "wer": "Claudia",
+            "betreff": "test(media): WI-0068 P4a Vertrag des Upload-Formulars als reine Funktion",
+            "doku": false
+        },
+        {
+            "sha": "8a62a6babf6ad540644a4c42d8c0e4872bd99e16",
+            "datum": "2026-10-10T10:48:35+02:00",
+            "wer": "Claudia",
+            "betreff": "test(media): WI-0068 P4a Schreibpfad, Schutzregel und Rechte gegen echtes PostgreSQL",
+            "doku": false
+        },
+        {
+            "sha": "d44e920a0615c10188e7b61c4e32a329af9a0723",
+            "datum": "2026-10-10T10:47:32+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(migration): Wiki-Siedlungsregistry - der Zeilenschlüssel ist der kanonische Wiki-Key selbst (wiki:gareth statt wiki:wiki:gareth)",
+            "doku": false
+        },
+        {
+            "sha": "eac86e5eb2d4225dbd3b9da7f2f6d73174f15c3d",
+            "datum": "2026-10-10T10:44:40+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0128 E5): Filterblatt als Gruppe statt Dialog, Kürzen über .einzeilig - fenster-huelle.test.ts und design-canon.test.ts waren seit 1e992268 rot",
+            "doku": false
+        },
+        {
+            "sha": "20719450d072f57839371dca63641675decfae5a",
+            "datum": "2026-10-10T10:36:02+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(migration): Wiki-Siedlungsregistry - Migration 0089, Import I28, Prüfer V22, „Fehlt“ in der Ortsliste (WI-0128 E4)",
+            "doku": false
+        },
+        {
+            "sha": "032ee0cb2e34898740d02381c60c2cc91d54f599",
+            "datum": "2026-10-10T10:35:48+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(migration): Wiki-Siedlungsregistry - Legacy-Anfrage X3, lesender Export von wiki_sync_pages (WI-0128 E4)",
+            "doku": true
+        },
+        {
+            "sha": "dd25709d2ac95f4b17c551f92590ebba3a2f8d2d",
+            "datum": "2026-10-10T10:35:33+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0127): SYS-3 Stand (Gate-Matrix, Bereitschaft, Wächter, limit_req-Pfade), AUTH-0001 §4.5 gebaut",
+            "doku": true
+        },
+        {
+            "sha": "0a8b6d8b8a287145a1da33ec7becfee4451b6d87",
+            "datum": "2026-10-10T10:22:48+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(auth): WI-0127 SYS-3 Tür mit Profil, Betriebszustand und Bereitschaft",
+            "doku": false
+        },
+        {
+            "sha": "194d37ae7957280831e200118f0148ef77d139ee",
+            "datum": "2026-10-10T10:22:18+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(media): WI-0068 P4a Schreibpfad der Medienverwaltung auf dem Server",
+            "doku": false
+        }
+    ]
+}

@@ -1,0 +1,325 @@
+{
+    "schema": 1,
+    "titel": "",
+    "von": "878c244afe5df6103c851273cb8c0d16154ea0f3",
+    "bis": "d338b8f53ad174e8279b8b9342e2b7321388de73",
+    "datum": "2026-10-12T21:53:29+02:00",
+    "pakete": {},
+    "commits": [
+        {
+            "sha": "d338b8f53ad174e8279b8b9342e2b7321388de73",
+            "datum": "2026-10-12T21:53:29+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): Antwort an Claudio - die vier Fragen zur Production-Lesekarte",
+            "doku": true
+        },
+        {
+            "sha": "b26100e7988e232d391a03b8d17fe135e387c110",
+            "datum": "2026-10-12T21:28:08+02:00",
+            "wer": "Claudio",
+            "betreff": "Handover an Claudia: Production live als Lesekarte - Zusammenfassung und Bitten",
+            "doku": true
+        },
+        {
+            "sha": "df122625a3ecec8540a4a7b68918dccf734299f7",
+            "datum": "2026-10-12T21:23:52+02:00",
+            "wer": "Claudio",
+            "betreff": "Production live: avesmaps.de als Lesekarte (Notfall), Smoke gruen, current.md",
+            "doku": true
+        },
+        {
+            "sha": "817b8981439daa6dcc2c64a0b6e7afc181b84881",
+            "datum": "2026-10-12T21:19:31+02:00",
+            "wer": "Claudio",
+            "betreff": "production-vhost.sh: avesmaps.de aus dem gepruefen Stage-vhost abgeleitet, ohne Tuer und ohne noindex; Phase A (http, vor DNS) und B (Zertifikat, https); nginx -t und Probe gegen Production gruen",
+            "doku": false
+        },
+        {
+            "sha": "cac2a530a988138c06b28f30f0a37c87271a6fa3",
+            "datum": "2026-10-12T21:11:49+02:00",
+            "wer": "Claudio",
+            "betreff": "production-seed.sh: ACTIVE-Marke der Stage, ausfuehrbar",
+            "doku": false
+        },
+        {
+            "sha": "47af3f580f953b063c63edd0347b22892de190bf",
+            "datum": "2026-10-12T21:11:32+02:00",
+            "wer": "Claudio",
+            "betreff": "Notfall: Arbeitsplan Production-Lesekarte, Claudia informiert; production-seed.sh (Entwurf)",
+            "doku": false
+        },
+        {
+            "sha": "be624b1c091d8c018837d24d4cbbbb0561e81588",
+            "datum": "2026-10-12T21:06:55+02:00",
+            "wer": "Claudio",
+            "betreff": "Freeze: Legacy-Zuege auf Stage gestoppt, eingefrorener Satz map182518-eco181057 festgehalten",
+            "doku": true
+        },
+        {
+            "sha": "ac0aba432d65a6084780ce88ab11daf8d6a1cca1",
+            "datum": "2026-10-12T21:01:28+02:00",
+            "wer": "Claudio",
+            "betreff": "Handover: Notfall Legacy lahmgelegt - frueher Production-Start als Lesekarte, Einschaetzung und Ablauf",
+            "doku": true
+        },
+        {
+            "sha": "d9d0b7d8a2d717a1815f5a827fdbafd56a3b6cc2",
+            "datum": "2026-10-12T20:56:20+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(discovery): Briefing fuer einen externen Reviewer zum iPhone-Absturz",
+            "doku": true
+        },
+        {
+            "sha": "6cfbbd521c1d4c0615ab0b5af6f22c66b575f0ea",
+            "datum": "2026-10-12T20:50:23+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(dev): „maxneigung\" - die Neigung ist der Kostentreiber, und der Taeter ist nicht unser Code",
+            "doku": false
+        },
+        {
+            "sha": "a956946167ebac9231c770552ac0bf15a5fd25ee",
+            "datum": "2026-10-12T20:33:36+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(dev): „dunst=aus\" - geprueft und als Ursache verworfen",
+            "doku": false
+        },
+        {
+            "sha": "80c9b9fdb830757d21cd17197dd759327b9eb502",
+            "datum": "2026-10-12T19:55:13+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(discovery): die systematische Ursachenanalyse - was ausgeschlossen ist und was uebrig bleibt",
+            "doku": false
+        },
+        {
+            "sha": "4a7a74a18e0b8a176d675023e40ec938fa0c61da",
+            "datum": "2026-10-12T18:37:50+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(dev): „eigene=aus\" - die Trennlinie, nachdem Gelaende, Kacheln und Stil entlastet sind",
+            "doku": false
+        },
+        {
+            "sha": "131dfe031557d611363268b68dfb1051bbc8d61e",
+            "datum": "2026-10-12T17:19:15+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(web): ohne Grafikkarte bleibt der Gelaendezeiger ungelesen - auch fuers Mithoeren",
+            "doku": false
+        },
+        {
+            "sha": "ef9c433f0036053a3fef4caf6700308367aaff55",
+            "datum": "2026-10-12T16:01:10+02:00",
+            "wer": "Valentin",
+            "betreff": "docs: iPhone regression testing plan",
+            "doku": true
+        },
+        {
+            "sha": "8560a50b3ba83038afe5274721120473e71698c1",
+            "datum": "2026-10-12T15:59:35+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(dev): die beiden eigenen WebGL-Ebenen abschaltbar - der Speicher ist aus dem Rennen",
+            "doku": false
+        },
+        {
+            "sha": "cb705b0dc843fdb922b81d239fdd27b4979d3794",
+            "datum": "2026-10-12T15:48:58+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(dev): der Gipfel liegt im Flug - Kachelspeicher als Grenze, und die Korrektur zu 878c244a",
+            "doku": false
+        },
+        {
+            "sha": "ce566935e58e6856427af2964050c2d31a2fa008",
+            "datum": "2026-10-12T14:24:27+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(dev): die Steilheit des Anstiegs - Betreiberspur „im Mobilfunknetz ging es\"",
+            "doku": false
+        },
+        {
+            "sha": "6d98ffae417c5c1f37937b4445c859b8b6449a47",
+            "datum": "2026-10-12T14:14:58+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(web): die leere Messlinie kostete das Gelaende den halben Speicher",
+            "doku": false
+        },
+        {
+            "sha": "d0525d415ee008a3cdb01ba889b49250231a5e32",
+            "datum": "2026-10-12T13:36:15+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(web): 171 MB Zwischenbilder - die Stellschraube des Gelaendes, die wirklich zaehlt",
+            "doku": false
+        },
+        {
+            "sha": "c638d760764ec3b0102e1c1c12bf846f96974fc0",
+            "datum": "2026-10-12T12:17:36+02:00",
+            "wer": "Claudio",
+            "betreff": "Messauftrag §3: Typbild-Oberflaeche nicht in 878c244a, Messung wartet",
+            "doku": true
+        },
+        {
+            "sha": "20366e08cfe3ee8370c7c0f0ba1bfb679675793d",
+            "datum": "2026-10-12T12:08:28+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(dev): Bildpunktdichte ueber die Adresse - und der Messfehler, der die bisherigen Laufzeiten erklaert",
+            "doku": false
+        },
+        {
+            "sha": "721fa189b8676947fc2cf2729ce406b891628ede",
+            "datum": "2026-10-12T11:56:54+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(dev): der Melder nennt die Stellschrauben der Adresse mit",
+            "doku": false
+        },
+        {
+            "sha": "a0bc8f28828f10f99cfb8622a3a85b8b37e622ea",
+            "datum": "2026-10-12T11:45:57+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(dev): Gelaendeguete als Leiter fuers Telefon, dazu ein Schalter fuer das eigene Kachelprotokoll",
+            "doku": false
+        },
+        {
+            "sha": "a1ce9b2a8f725c626b52d602c6cbfe715734b973",
+            "datum": "2026-10-12T11:33:19+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(review): iPhone-Absturz - der Gegenversuch entscheidet, das Gelaende ist der Taeter",
+            "doku": true
+        },
+        {
+            "sha": "2fa639072cc66725857d2271a3c3f03f955b4718",
+            "datum": "2026-10-12T11:20:17+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(dev): „gelaende=aus\" in der Adresse - derselbe Zustand wie der Inhaltsschalter map.terrain3d",
+            "doku": false
+        },
+        {
+            "sha": "51d72734714e8037f324909b8d5faeb7c2faed74",
+            "datum": "2026-10-12T11:13:13+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(review): iPhone-Absturz - Tabs ausgeschlossen, Entwicklungsbuild ist der falsche Pruefstand",
+            "doku": true
+        },
+        {
+            "sha": "a449d95436538a70d7f1162b1372600426d5c7d6",
+            "datum": "2026-10-12T11:00:23+02:00",
+            "wer": "Claudio",
+            "betreff": "Sicherung: harter Upload-Deckel 3 GB je Lauf (darueber nur lokal, Warnung), hoeher nur per upload-max-mb des Betreibers (Betreiber: „sowas darf nie wieder passieren!“), Tests 47/0",
+            "doku": false
+        },
+        {
+            "sha": "b131edf2200123750b0ddfdd7e7b48947b5541f1",
+            "datum": "2026-10-12T10:48:20+02:00",
+            "wer": "Claudio",
+            "betreff": "Sicherung: Foundry in zwei Teile (welten ~1,5 GB, medien ~23 GB), ohne Foundrys eigene Backups/Module/Logs; altes Vollarchiv lokal weg, sobald beide Teile liegen; Tests 45/0",
+            "doku": false
+        },
+        {
+            "sha": "b22372b4633c6c69851b65202509d3a0a636df40",
+            "datum": "2026-10-12T10:47:12+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(dev): Horcher lauscht nur lokal, nimmt nur /melder und traut dem Fremdtext nicht",
+            "doku": false
+        },
+        {
+            "sha": "93a5faeff32d2fb01a55c5150e5d20c19a257aa1",
+            "datum": "2026-10-12T10:46:21+02:00",
+            "wer": "Claudio",
+            "betreff": "Sicherung: Foundry-Teil aus bis zum Umbau (foundrydata 45 GB, Dropbox ueberlastet), wieder an nur mit foundry.on; Tests 44/0",
+            "doku": false
+        },
+        {
+            "sha": "4f05a959ee61c8a52788669cea0faa39be148822",
+            "datum": "2026-10-12T10:41:33+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(review): iPhone-Absturz - Befund berichtigt, Ursache als Klasse bestimmt (Speicher)",
+            "doku": true
+        },
+        {
+            "sha": "2933216d2c2da312f21528fe4c86d9ba96137ced",
+            "datum": "2026-10-12T10:35:51+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(dev): Melder rechnet Texturen richtig und fasst WebGL ohne melder=2 nicht mehr an",
+            "doku": false
+        },
+        {
+            "sha": "a9d053c927c509c53bb95e859cc7c9c193575e46",
+            "datum": "2026-10-12T10:13:41+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(dev): Melder ohne GPU-Abfrage je Hochladung, dazu das Signal „Kontext verloren\"",
+            "doku": false
+        },
+        {
+            "sha": "c0fb50eece9aebd7d5107542e0aa5f84b776027e",
+            "datum": "2026-10-12T10:04:08+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(dev): Melder und Horcher - die Karte schickt jede Sekunde ihre Zahlen, bis der Tab stirbt",
+            "doku": false
+        },
+        {
+            "sha": "4978de1abe50f79a936429ad6804b6b16cc3a68b",
+            "datum": "2026-10-12T09:54:20+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(dev): zwei Stellschrauben des Playmode-Flugs ueber die Adresse, nur im Entwicklungsbuild",
+            "doku": false
+        },
+        {
+            "sha": "3d31e13a5b522f8962f6f4c081190056894b3c56",
+            "datum": "2026-10-12T10:35:12+02:00",
+            "wer": "Claudio",
+            "betreff": "iPhone-3D-Absturz: Geraetespur aus dem Stage-Log (Todeszeit ueber /ws-Schliessen, 4-13 s nach Flugbeginn, wenig Daten), Gegenversuch map.terrain3d",
+            "doku": true
+        },
+        {
+            "sha": "b4064bf3b1277ea64dbb9d7f07494dccf083a76d",
+            "datum": "2026-10-12T10:34:05+02:00",
+            "wer": "Claudio",
+            "betreff": "Infopanel-Zwischenspeicher live: HIT 24 ms statt 882 ms kalt",
+            "doku": true
+        },
+        {
+            "sha": "3775ffccb86a5f2a3bd2dbe14b913c19330e5906",
+            "datum": "2026-10-12T10:32:13+02:00",
+            "wer": "Claudio",
+            "betreff": "vhost: Infopanel-Zwischenspeicher /api/subjects/ (60 s laut App, Tuer davor, private nie), Tests 173/0 (Betreiber 2026-10-12 „1 ja“)",
+            "doku": false
+        },
+        {
+            "sha": "24702c4226b00c7a8e4e1de6b4e3a2d7bfbbe202",
+            "datum": "2026-10-12T10:26:27+02:00",
+            "wer": "Claudio",
+            "betreff": "Release 878c244a auf Stage: Ergebnis, Postflight, Vorher/Nachher Infopanel",
+            "doku": true
+        },
+        {
+            "sha": "5d12431ef7d25a59d75e2938a3d7db5d6c8b5ae6",
+            "datum": "2026-10-12T10:15:17+02:00",
+            "wer": "Claudio",
+            "betreff": "Import: Speicherbremse startet setpriv statt der Shell-Funktion as_svc (Abbruch 2026-10-12 10:03), Programmpruefung in mem_scope; Bootstrap-Pruefsummen",
+            "doku": false
+        },
+        {
+            "sha": "a71f178b829a03de00e16843096ba08ec7b0f952",
+            "datum": "2026-10-12T10:02:51+02:00",
+            "wer": "Claudio",
+            "betreff": "Antwort an Claudia: Kachelsockel 100-140 ms je Kachel unabhaengig vom Zoom, berechnete Geometrie ohne Index (path_render, region_area_render)",
+            "doku": true
+        },
+        {
+            "sha": "c3bf798ec08765664a1c5cc42552fad260d82801",
+            "datum": "2026-10-12T09:55:46+02:00",
+            "wer": "Claudio",
+            "betreff": "runtime-foundation: media-grants-Block nachgezogen (corners_transparent fuer die Jobs-Rolle, Release 878c244a)",
+            "doku": false
+        },
+        {
+            "sha": "e0b3fa6693d1b41919a69e0eac8633b306adbc48",
+            "datum": "2026-10-12T09:50:43+02:00",
+            "wer": "Claudio",
+            "betreff": "Qualitaetspruefung: Umsetzung 1/2/4/5, Kachelcache warm p50 0,4 ms statt 96 ms",
+            "doku": true
+        },
+        {
+            "sha": "2ca20b230267e7fe5026945a41184997df3de625",
+            "datum": "2026-10-12T05:58:52+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): Korrektur an Claudio - Hotfix zurueckgenommen, Release jetzt 878c244a",
+            "doku": true
+        }
+    ]
+}

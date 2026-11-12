@@ -1,0 +1,773 @@
+{
+    "format": "avesmaps-abzug-regeln",
+    "version": 1,
+    "beschreibung": "Was ein Abzug für lokal (WI-0251) enthält. Jede Tafel des Schemas public steht hier, mit art mitnehmen oder weglassen; mitnehmen kann Spalten leeren (NULL), weglassen kann vorausgesetzt (bleibt, lokal gleich) oder lokalLeeren (lokale Zeilen gehen beim Einspielen mit weg) sein. Ein Test hält die Datei gegen das Schema; eine neue Tafel ohne Eintrag macht ihn rot.",
+    "schemataWeglassen": {
+        "avesmaps_auth": "Konten, Sitzungen, Passkeys, Einladungen, Rechte und ihr Protokoll: Konten wandern nie (ADR-0013)",
+        "avesmaps_community": "Community (WI-0268): Meldungen und Anfragen von Personen mit Kontaktdaten; die Stage füllt sich mit eigenen Probevorgängen",
+        "avesmaps_kanal": "Betreiber-Kanal: Meldungen, Antworten und Bilder von Personen",
+        "avesmaps_ops": "Betrieb des VPS (Claudio): nicht Teil der Anwendung, nie in einem Abzug"
+    },
+    "tafeln": {
+        "public.adventure": {
+            "art": "mitnehmen",
+            "verdecken": ["authors"]
+        },
+        "public.adventure_field_origin": {
+            "art": "mitnehmen"
+        },
+        "public.adventure_link": {
+            "art": "mitnehmen"
+        },
+        "public.adventure_media": {
+            "art": "mitnehmen",
+            "verdecken": ["override_decided_by"]
+        },
+        "public.adventure_place": {
+            "art": "mitnehmen"
+        },
+        "public.api_metric": {
+            "art": "weglassen",
+            "grund": "Statistik: Anfragen an die eigenen Schnittstellen"
+        },
+        "public.benachrichtigung": {
+            "art": "weglassen",
+            "grund": "Glocke: Meldungen an Personen"
+        },
+        "public.canon_object_label_setting": {
+            "art": "weglassen",
+            "grund": "Etikett für Objekte ohne Wiki und ohne Quelle je Umgebung (WI-0253 B-2): gehört der Umgebung, lokal bleibt sie",
+            "vorausgesetzt": true
+        },
+        "public.canon_table_state": {
+            "art": "weglassen",
+            "grund": "Revision der beiden Kanon-Tafeln, gehört zu ihnen",
+            "vorausgesetzt": true
+        },
+        "public.citymap": {
+            "art": "mitnehmen",
+            "verdecken": ["author"]
+        },
+        "public.citymap_link": {
+            "art": "mitnehmen"
+        },
+        "public.citymap_media": {
+            "art": "mitnehmen",
+            "verdecken": ["override_decided_by"]
+        },
+        "public.citymap_place": {
+            "art": "mitnehmen"
+        },
+        "public.citymap_related": {
+            "art": "mitnehmen"
+        },
+        "public.citymap_source": {
+            "art": "mitnehmen"
+        },
+        "public.citymap_suggestion": {
+            "art": "mitnehmen",
+            "verdecken": ["description", "attribution_name", "note", "decision_reason", "decided_by"]
+        },
+        "public.citymap_type": {
+            "art": "mitnehmen"
+        },
+        "public.citymap_wiki_assignment": {
+            "art": "mitnehmen"
+        },
+        "public.client_error_diagnosis": {
+            "art": "weglassen",
+            "grund": "Statistik: Fehlerdiagnosen aus dem Browser"
+        },
+        "public.climate_band": {
+            "art": "mitnehmen"
+        },
+        "public.climate_band_smooth": {
+            "art": "mitnehmen"
+        },
+        "public.climate_divider": {
+            "art": "mitnehmen"
+        },
+        "public.climate_zone_type": {
+            "art": "mitnehmen"
+        },
+        "public.content_switch": {
+            "art": "weglassen",
+            "grund": "Einstellung dieser Umgebung (Inhaltsschalter), bleibt je Umgebung wie beim Production-Zug"
+        },
+        "public.crossing": {
+            "art": "mitnehmen"
+        },
+        "public.discord_routine": {
+            "art": "weglassen",
+            "grund": "Schalter des Discord-Tagesberichts dieser Umgebung (WI-0255); lokal sendet nie"
+        },
+        "public.discord_zustellung": {
+            "art": "weglassen",
+            "grund": "Sendearchiv und Zustellstatus des Discord-Tagesberichts (WI-0255): gehört der Umgebung, die gesendet hat"
+        },
+        "public.editor_lock": {
+            "art": "weglassen",
+            "grund": "Sperren während der Bearbeitung (Personen)"
+        },
+        "public.editor_lock_request": {
+            "art": "weglassen",
+            "grund": "Bitten um Freigabe einer Sperre (Personen, WI-0262)"
+        },
+        "public.feature_source": {
+            "art": "mitnehmen"
+        },
+        "public.field_origin": {
+            "art": "mitnehmen"
+        },
+        "public.job": {
+            "art": "weglassen",
+            "grund": "Warteschlange: Aufträge, Auslöser sind Personen"
+        },
+        "public.job_dependency": {
+            "art": "weglassen",
+            "grund": "Warteschlange: Abhängigkeiten der Aufträge"
+        },
+        "public.job_event": {
+            "art": "weglassen",
+            "grund": "Warteschlange: Ereignisse der Aufträge"
+        },
+        "public.karten_abruf": {
+            "art": "weglassen",
+            "grund": "Karten herunterladen: Abrufe dieser Umgebung"
+        },
+        "public.karten_zugang": {
+            "art": "weglassen",
+            "grund": "Karten herunterladen: Links und Schlüssel gelten nur in ihrer Umgebung"
+        },
+        "public.label_class_rank": {
+            "art": "mitnehmen"
+        },
+        "public.landscape_display_art": {
+            "art": "mitnehmen"
+        },
+        "public.landscape_display_source": {
+            "art": "mitnehmen"
+        },
+        "public.landscape_label_run": {
+            "art": "mitnehmen"
+        },
+        "public.license_catalog": {
+            "art": "mitnehmen"
+        },
+        "public.lore_entry": {
+            "art": "mitnehmen"
+        },
+        "public.lore_entry_field_origin": {
+            "art": "mitnehmen"
+        },
+        "public.lore_entry_source": {
+            "art": "mitnehmen"
+        },
+        "public.lore_place": {
+            "art": "mitnehmen"
+        },
+        "public.lore_place_target": {
+            "art": "mitnehmen"
+        },
+        "public.lore_rule": {
+            "art": "mitnehmen"
+        },
+        "public.lore_rule_term": {
+            "art": "mitnehmen"
+        },
+        "public.lore_rule_term_type": {
+            "art": "mitnehmen"
+        },
+        "public.map_audit_event": {
+            "art": "weglassen",
+            "grund": "Protokoll der Karte mit Personenbezug"
+        },
+        "public.map_domain": {
+            "art": "weglassen",
+            "grund": "Kartendomäne: lokal vorhanden; das Manifest prüft Kennung, Koordinatenraum und Prüfsumme",
+            "vorausgesetzt": true
+        },
+        "public.map_label": {
+            "art": "mitnehmen"
+        },
+        "public.map_operation": {
+            "art": "weglassen",
+            "grund": "Operationsprotokoll der Karte mit Personenbezug"
+        },
+        "public.map_operation_revert_link": {
+            "art": "weglassen",
+            "grund": "Verknüpfung der Rücknahmen mit den zurückgenommenen Operationen (WI-0265); hängt an map_operation, das lokal bleibt"
+        },
+        "public.map_series": {
+            "art": "weglassen",
+            "grund": "Kartenserien hängen an Dateien (Kacheln und Quellen unter TILE_ROOT), die ein Abzug nicht trägt"
+        },
+        "public.map_series_state": {
+            "art": "weglassen",
+            "grund": "Revision der Kartenserien, gehört zu map_series"
+        },
+        "public.map_setting": {
+            "art": "mitnehmen",
+            "leeren": ["changed_by", "changed_by_label"]
+        },
+        "public.map_setting_state": {
+            "art": "mitnehmen"
+        },
+        "public.media_asset": {
+            "art": "mitnehmen",
+            "leeren": ["ingest_actor_legacy"]
+        },
+        "public.media_audit_event": {
+            "art": "weglassen",
+            "grund": "Protokoll der Medien mit Personenbezug"
+        },
+        "public.media_creation": {
+            "art": "mitnehmen"
+        },
+        "public.media_file": {
+            "art": "mitnehmen"
+        },
+        "public.media_gallery": {
+            "art": "mitnehmen"
+        },
+        "public.media_gallery_item": {
+            "art": "mitnehmen",
+            "verdecken": ["override_decided_by"]
+        },
+        "public.media_ingest": {
+            "art": "mitnehmen",
+            "verdecken": ["actor_person_id", "legacy_actor_label"]
+        },
+        "public.media_legacy_source": {
+            "art": "mitnehmen"
+        },
+        "public.media_merge": {
+            "art": "mitnehmen",
+            "verdecken": ["lifted_by_person", "merged_by_person"]
+        },
+        "public.media_merge_move": {
+            "art": "mitnehmen"
+        },
+        "public.media_operation": {
+            "art": "weglassen",
+            "grund": "Operationsprotokoll der Medien mit Personenbezug"
+        },
+        "public.media_publication_suspension": {
+            "art": "mitnehmen",
+            "verdecken": ["lifted_by_person", "suspended_by_person"]
+        },
+        "public.media_quarantine": {
+            "art": "mitnehmen"
+        },
+        "public.media_rights": {
+            "art": "mitnehmen",
+            "leeren": ["creator", "reviewed_by"],
+            "verdecken": ["reviewed_by_person"]
+        },
+        "public.media_rights_evidence": {
+            "art": "weglassen",
+            "grund": "private Genehmigungsbelege (Mails, PDFs, Notizen) mit Angaben Dritter; verweist auf Medien und Regeln, die ersetzt werden",
+            "lokalLeeren": true
+        },
+        "public.media_submission": {
+            "art": "mitnehmen",
+            "verdecken": ["description", "attribution_name", "pending_description", "editor_message"]
+        },
+        "public.media_type_image": {
+            "art": "mitnehmen"
+        },
+        "public.migration_run": {
+            "art": "mitnehmen"
+        },
+        "public.news_entry": {
+            "art": "mitnehmen",
+            "leeren": ["von_person"]
+        },
+        "public.nodix": {
+            "art": "mitnehmen"
+        },
+        "public.path": {
+            "art": "mitnehmen"
+        },
+        "public.path_canon": {
+            "art": "mitnehmen"
+        },
+        "public.path_label_run": {
+            "art": "mitnehmen"
+        },
+        "public.path_source": {
+            "art": "mitnehmen"
+        },
+        "public.path_visual": {
+            "art": "mitnehmen"
+        },
+        "public.path_wiki_assignment": {
+            "art": "mitnehmen"
+        },
+        "public.photobox_gefaellt": {
+            "art": "mitnehmen"
+        },
+        "public.photobox_media": {
+            "art": "mitnehmen",
+            "verdecken": ["override_decided_by"]
+        },
+        "public.place": {
+            "art": "mitnehmen"
+        },
+        "public.place_canon": {
+            "art": "mitnehmen"
+        },
+        "public.place_detail": {
+            "art": "mitnehmen"
+        },
+        "public.place_media": {
+            "art": "mitnehmen",
+            "verdecken": ["override_decided_by"]
+        },
+        "public.place_media_gallery": {
+            "art": "mitnehmen"
+        },
+        "public.place_media_suppression": {
+            "art": "mitnehmen"
+        },
+        "public.place_review": {
+            "art": "mitnehmen",
+            "verdecken": ["author_name"],
+            "leeren": ["statuslink_hash", "operation_id"],
+            "ohneZeilen": { "spalte": "zustand", "nicht": ["verborgen", "zurueckgehalten"] }
+        },
+        "public.place_source": {
+            "art": "mitnehmen"
+        },
+        "public.place_unplaced": {
+            "art": "mitnehmen"
+        },
+        "public.place_wiki_assignment": {
+            "art": "mitnehmen"
+        },
+        "public.powerline": {
+            "art": "mitnehmen"
+        },
+        "public.powerline_canon": {
+            "art": "mitnehmen"
+        },
+        "public.powerline_wiki_assignment": {
+            "art": "mitnehmen"
+        },
+        "public.publication_rule": {
+            "art": "mitnehmen",
+            "leeren": ["decided_by_person"],
+            "verdecken": ["revoked_by_person"]
+        },
+        "public.region": {
+            "art": "mitnehmen"
+        },
+        "public.region_area": {
+            "art": "mitnehmen"
+        },
+        "public.region_area_smooth": {
+            "art": "mitnehmen"
+        },
+        "public.region_canon": {
+            "art": "mitnehmen"
+        },
+        "public.region_retirement": {
+            "art": "mitnehmen"
+        },
+        "public.region_source": {
+            "art": "mitnehmen"
+        },
+        "public.routing_setting": {
+            "art": "mitnehmen",
+            "leeren": ["changed_by", "changed_by_label"]
+        },
+        "public.routing_setting_applied": {
+            "art": "mitnehmen"
+        },
+        "public.routing_setting_state": {
+            "art": "mitnehmen",
+            "leeren": ["applied_by", "applied_by_label"]
+        },
+        "public.schema_migration": {
+            "art": "weglassen",
+            "grund": "Migrationsstand dieser Datenbank; das Manifest des Abzugs prüft ihn"
+        },
+        "public.sea_route_graph": {
+            "art": "mitnehmen"
+        },
+        "public.settlement_place": {
+            "art": "mitnehmen"
+        },
+        "public.share_link": {
+            "art": "weglassen",
+            "grund": "Teilen-Links"
+        },
+        "public.site": {
+            "art": "mitnehmen"
+        },
+        "public.site_named_place": {
+            "art": "mitnehmen"
+        },
+        "public.site_settlement": {
+            "art": "mitnehmen"
+        },
+        "public.social_hashtag": {
+            "art": "mitnehmen"
+        },
+        "public.source_corpus": {
+            "art": "mitnehmen"
+        },
+        "public.sprache": {
+            "art": "mitnehmen"
+        },
+        "public.sprache_flaeche": {
+            "art": "mitnehmen"
+        },
+        "public.sprache_misch": {
+            "art": "mitnehmen"
+        },
+        "public.sprache_treffer": {
+            "art": "mitnehmen"
+        },
+        "public.sprache_wiki": {
+            "art": "mitnehmen"
+        },
+        "public.system_hour": {
+            "art": "weglassen",
+            "grund": "Betrieb: Serverlast, Stundenmittel"
+        },
+        "public.system_sample": {
+            "art": "weglassen",
+            "grund": "Betrieb: Serverlast, Stichproben"
+        },
+        "public.system_state": {
+            "art": "weglassen",
+            "grund": "Betrieb dieser Umgebung: Betriebszustand, Sperren, Pause, Revisionen (mit Personen)"
+        },
+        "public.terrain_continental_base": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_contour": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_control": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_dem": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_dem_tile": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_display_height": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_domain_raster": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_height_band": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_hollow_point": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_path_profile": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_peak": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_peak_bezug": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_peak_canon": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_peak_source": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_peak_wiki_assignment": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_raster": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_recipe_acceptance": {
+            "art": "mitnehmen",
+            "leeren": ["accepted_by", "accepted_by_label"]
+        },
+        "public.terrain_recipe_choice": {
+            "art": "mitnehmen",
+            "leeren": ["chosen_by", "chosen_by_label"]
+        },
+        "public.terrain_recipe_draft": {
+            "art": "mitnehmen",
+            "leeren": ["created_by", "created_by_label"]
+        },
+        "public.terrain_recipe_test": {
+            "art": "mitnehmen",
+            "leeren": ["geaendert_von_label"]
+        },
+        "public.terrain_recipe_test_event": {
+            "art": "mitnehmen",
+            "leeren": ["von_label"]
+        },
+        "public.terrain_ridge_edge": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_ridge_point": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_valley_edge": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_visual_relief": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_visual_relief_tile": {
+            "art": "mitnehmen"
+        },
+        "public.terrain_water_height": {
+            "art": "mitnehmen"
+        },
+        "public.territory": {
+            "art": "mitnehmen"
+        },
+        "public.territory_area": {
+            "art": "mitnehmen"
+        },
+        "public.territory_border": {
+            "art": "mitnehmen"
+        },
+        "public.territory_canon": {
+            "art": "mitnehmen"
+        },
+        "public.territory_capital_band": {
+            "art": "mitnehmen"
+        },
+        "public.territory_claim": {
+            "art": "mitnehmen"
+        },
+        "public.territory_claim_shape": {
+            "art": "mitnehmen"
+        },
+        "public.territory_detail": {
+            "art": "mitnehmen"
+        },
+        "public.territory_detail_field_origin": {
+            "art": "mitnehmen"
+        },
+        "public.territory_display_area": {
+            "art": "mitnehmen"
+        },
+        "public.territory_media": {
+            "art": "mitnehmen",
+            "verdecken": ["override_decided_by"]
+        },
+        "public.territory_media_suppression": {
+            "art": "mitnehmen"
+        },
+        "public.territory_shape": {
+            "art": "mitnehmen"
+        },
+        "public.territory_inner_edge": {
+            "art": "mitnehmen"
+        },
+        "public.territory_source": {
+            "art": "mitnehmen"
+        },
+        "public.territory_state": {
+            "art": "mitnehmen"
+        },
+        "public.visitor_daily_seen": {
+            "art": "weglassen",
+            "grund": "Statistik: Tageskennungen der Besucher"
+        },
+        "public.visitor_geo_range": {
+            "art": "weglassen",
+            "grund": "Statistik: Netzbereiche für die Besucherzählung, kein Kartendatum"
+        },
+        "public.visitor_live": {
+            "art": "weglassen",
+            "grund": "Statistik: Anwesenheit der Besucher"
+        },
+        "public.visitor_metric": {
+            "art": "weglassen",
+            "grund": "Statistik: Tagessummen der Nutzung"
+        },
+        "public.weather_model_setting": {
+            "art": "mitnehmen",
+            "leeren": ["changed_by", "changed_by_label"]
+        },
+        "public.weather_model_state": {
+            "art": "mitnehmen"
+        },
+        "public.weather_preset": {
+            "art": "mitnehmen",
+            "leeren": ["changed_by", "changed_by_label"]
+        },
+        "public.weather_symbol": {
+            "art": "mitnehmen",
+            "leeren": ["changed_by", "changed_by_label"]
+        },
+        "public.wiki_key_assignment": {
+            "art": "mitnehmen"
+        },
+        "public.wiki_link_page": {
+            "art": "mitnehmen"
+        },
+        "public.wiki_link_target": {
+            "art": "mitnehmen"
+        },
+        "public.wiki_landmarke_artikel": {
+            "art": "mitnehmen"
+        },
+        "public.wiki_lore_snapshot": {
+            "art": "mitnehmen"
+        },
+        "public.wiki_namespace_setting": {
+            "art": "weglassen",
+            "grund": "Namensräume des Wikis je Umgebung (WI-0253 B-2): Die Tafel gehört der Umgebung, die sie stellt; lokal bleibt sie, wie der Entwicklungsrechner sie führt (man will solche Umstiege testen können)",
+            "vorausgesetzt": true
+        },
+        "public.wiki_path_snapshot": {
+            "art": "mitnehmen"
+        },
+        "public.wiki_powerline_snapshot": {
+            "art": "mitnehmen"
+        },
+        "public.wiki_region_snapshot": {
+            "art": "mitnehmen"
+        },
+        "public.wiki_region_snapshot_neighbor": {
+            "art": "mitnehmen"
+        },
+        "public.wiki_region_snapshot_synonym": {
+            "art": "mitnehmen"
+        },
+        "public.wiki_settlement_registry": {
+            "art": "mitnehmen"
+        },
+        "public.wiki_settlement_registry_named_place": {
+            "art": "mitnehmen"
+        },
+        "public.wiki_settlement_snapshot": {
+            "art": "mitnehmen"
+        },
+        "public.wiki_settlement_traffic_link": {
+            "art": "mitnehmen"
+        },
+        "public.wiki_sprache_artikel": {
+            "art": "mitnehmen"
+        },
+        "public.wiki_territory_snapshot": {
+            "art": "mitnehmen"
+        },
+        "public.wiki_territory_snapshot_unknown": {
+            "art": "mitnehmen"
+        },
+        "public.wikisync_begriff_setting": {
+            "art": "weglassen",
+            "grund": "Die Begriffstafel der Regelableitung (WI-0253 §24): nur Abweichungen von den Startwerten, eine Einstellung der Umgebung; lokal bleibt sie, wie der Entwicklungsrechner sie führt",
+            "vorausgesetzt": true
+        },
+        "public.wikisync_begriff_state": {
+            "art": "weglassen",
+            "grund": "Revision der Begriffstafel, gehört zu ihr",
+            "vorausgesetzt": true
+        },
+        "public.wikisync_bereich_setting": {
+            "art": "weglassen",
+            "grund": "Wem ein Bereich gehört (Legacy-Zug oder WikiSync, WI-0253 D-1): der Schalter der Umgebung, nie Teil der Daten; lokal bleibt er, wie der Entwicklungsrechner ihn führt",
+            "vorausgesetzt": true
+        },
+        "public.wikisync_bereich_state": {
+            "art": "weglassen",
+            "grund": "Revision des Schalters, gehört zu ihm",
+            "vorausgesetzt": true
+        },
+        "public.wikisync_lauf": {
+            "art": "weglassen",
+            "grund": "Läufe der Vorschau des WikiSync (WI-0253 C): ein Protokoll dieser Umgebung, gepinnt an einen Dump, den lokal nur dieser Rechner hat"
+        },
+        "public.wikisync_lauf_zeile": {
+            "art": "weglassen",
+            "grund": "Planzeilen der Läufe des WikiSync, gehören zu wikisync_lauf"
+        },
+        "public.wikisync_quelle_zitat": {
+            "art": "weglassen",
+            "grund": "Was das Wiki je Quelle und Objekt zitiert (WI-0254 §12), gehört zu einem Lauf der Vorschau (wikisync_lauf)"
+        },
+        "public.wikisync_regel_lauf": {
+            "art": "weglassen",
+            "grund": "Kopf der Ableitung der Regelvorschläge zu einem Lauf der Vorschau (WI-0253 §24): ein Protokoll dieser Umgebung, gepinnt an einen Dump, den lokal nur dieser Rechner hat",
+            "lokalLeeren": true
+        },
+        "public.wikisync_regel_uebernahme": {
+            "art": "weglassen",
+            "grund": "Übernahmen von Regelvorschlägen mit Auslösern (WI-0253 §24); hängt an map_operation und an Regeln, die lokal bleiben oder ersetzt werden",
+            "lokalLeeren": true
+        },
+        "public.wikisync_regel_uebernahme_zeile": {
+            "art": "weglassen",
+            "grund": "Was eine Übernahme von Regelvorschlägen je Eintrag tat; verweist auf Einträge und Regeln, die beim Einspielen ersetzt werden",
+            "lokalLeeren": true
+        },
+        "public.wikisync_regel_vorschlag": {
+            "art": "weglassen",
+            "grund": "Die Regelvorschläge eines Laufs der Vorschau (WI-0253 §24); verweisen auf Einträge, die beim Einspielen ersetzt werden",
+            "lokalLeeren": true
+        },
+        "public.wikisync_regel_wort": {
+            "art": "weglassen",
+            "grund": "Die Wörter, die die Ableitung der Regelvorschläge sah, gehören zu ihrem Lauf",
+            "lokalLeeren": true
+        },
+        "public.wikisync_uebernahme": {
+            "art": "weglassen",
+            "grund": "Protokoll der Übernahme und der Rücknahme des WikiSync (WI-0253 D-1) mit Auslösern; hängt an map_operation, das lokal bleibt"
+        },
+        "public.wikisync_uebernahme_befund": {
+            "art": "weglassen",
+            "grund": "Befunde der Übernahme, gehören zu wikisync_uebernahme"
+        },
+        "public.wikisync_wiki_teil": {
+            "art": "weglassen",
+            "grund": "Der Wiki-Teil eines WikiSync-Laufs (WI-0253 C-2): ein Protokoll dieser Umgebung, gepinnt an einen Dump und an eine Vorschau, die lokal nur dieser Rechner hat"
+        },
+        "public.wikisync_wiki_teil_bereich": {
+            "art": "weglassen",
+            "grund": "Je Bereich der Stand des Wiki-Teils, gehört zu wikisync_wiki_teil"
+        },
+        "public.wikisync_abfrage_stand": {
+            "art": "weglassen",
+            "grund": "Der Cursor der Kategorie-Abfragen des Wiki-Teils, gehört zu wikisync_wiki_teil"
+        },
+        "public.wikisync_abfrage_wert": {
+            "art": "weglassen",
+            "grund": "Was die Kategorie-Abfragen des Wiki-Teils lieferten, gehört zu wikisync_wiki_teil"
+        },
+        "public.wikisync_artikel": {
+            "art": "weglassen",
+            "grund": "Der Vergleich eines einzelnen Wiki-Artikels (WI-0253 D-2): ein Protokoll dieser Umgebung mit Auslöser, ohne Wert für die Kopie"
+        },
+        "public.wikisync_objekt": {
+            "art": "weglassen",
+            "grund": "Der Stand des Syncs je Objekt für die Wiki-Box (WI-0253): ein Protokoll dieser Umgebung mit Auslöser, ohne Wert für die Kopie"
+        },
+        "public.zoom_band_setting": {
+            "art": "mitnehmen",
+            "leeren": ["changed_by", "changed_by_label"]
+        },
+        "public.zoom_band_state": {
+            "art": "mitnehmen"
+        }
+    },
+    "medien": {
+        "tafel": "public.media_file",
+        "schluessel": "storage_key",
+        "groesse": "byte_size",
+        "sha256": "sha256",
+        "beschreibung": "Zu jeder Zeile von media_file kommt die Datei unter MEDIA_ROOT mit (Originale, Master, Ableitungen, veröffentlichte Bilder), damit lokal kein Bild leer bleibt. Nicht dabei: private Belege (media_rights_evidence, private/evidence), Betreiber-Kanal (private/kanal), Eingang (incoming) und die Kacheln der Kartenserien (TILE_ROOT)."
+    }
+}

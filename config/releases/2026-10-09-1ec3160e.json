@@ -1,0 +1,512 @@
+{
+    "schema": 1,
+    "titel": "Anmeldung und Verwaltung (WI-0120 A13), Sammelstand seit 16fbf6b",
+    "von": "be2991d028fc28c8d70c62f8fb11e44f82901492",
+    "bis": "1ec3160ed8d9518dbf94815c41df86999e0fef84",
+    "datum": "2026-10-09T14:56:35+02:00",
+    "pakete": {
+        "WI-0109": "Die Stätten eines Ortes",
+        "WI-0118": "Kartensammlung und Literatur als Fenster: das Verzeichnis, die drei Knöpfe und der vergrößerte Eintrag",
+        "WI-0120": "Auth-Plattform (Identität, Anmeldung, Rechte, Verwaltung)",
+        "WI-0121": "Die Wappen der Herrschaftsgebiete auf der Karte"
+    },
+    "commits": [
+        {
+            "sha": "1ec3160ed8d9518dbf94815c41df86999e0fef84",
+            "datum": "2026-10-09T14:56:35+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0120): Stufe E - mit echtem Discord angemeldet",
+            "doku": true
+        },
+        {
+            "sha": "56912313334afb8f0ab6e956c54fe7e132ec828a",
+            "datum": "2026-10-09T14:54:42+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0120): Stufe E - Discord lokal mit echter App verknüpft",
+            "doku": true
+        },
+        {
+            "sha": "fe0fb7c644ad3157720fd47ed5d98667a2b90156",
+            "datum": "2026-10-09T14:42:07+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0063 Nachtrag - weiße Innenkontur im „Was ist hier?“-Tropfen",
+            "doku": false
+        },
+        {
+            "sha": "9b71302b3e33ca8bab826133f65a3b8c070fb6dd",
+            "datum": "2026-10-09T14:40:21+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0063 Nachtrag - Fragezeichen im „Was ist hier?“-Tropfen noch tiefer",
+            "doku": false
+        },
+        {
+            "sha": "ec44cc1db9fa3885e3c585458a9e2e2c35fb4f6c",
+            "datum": "2026-10-09T14:37:39+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0063 Nachtrag - „Was ist hier?“ gelb, Fragezeichen fett und tiefer",
+            "doku": false
+        },
+        {
+            "sha": "506e6d8ce9298443c07e0b83ce40a131fb473247",
+            "datum": "2026-10-09T13:52:19+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): WI-0120 - Anmeldetabellen lokal eingespielt",
+            "doku": true
+        },
+        {
+            "sha": "2030a6eb8ed1b3f4256f017eceacb8ef3a21ac83",
+            "datum": "2026-10-09T13:32:54+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0063 Nachtrag - „Was ist hier?“ mit Fragezeichen im Tropfen",
+            "doku": false
+        },
+        {
+            "sha": "bb301001b5faa61e76d51266802f615080269ea5",
+            "datum": "2026-10-09T13:29:05+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0122 - am Telefon steht im Suchfeld nur „Suchen“",
+            "doku": false
+        },
+        {
+            "sha": "d052968f75ce02971664188f88b13190c7f58d3f",
+            "datum": "2026-10-09T13:16:12+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0122 zweiter Nachtrag - Ordnen als Symbolknopf neben dem Feld, Zeile heißt \"Innerorts\"",
+            "doku": false
+        },
+        {
+            "sha": "f04cf8a5633212fc296092583ddb61833cebf439",
+            "datum": "2026-10-09T13:06:39+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0120 Discord-Symbol - hell Blurple, dunkel Weiß",
+            "doku": false
+        },
+        {
+            "sha": "5e9054dc2567b25c2e2d7a2f319f3605f7d0a023",
+            "datum": "2026-10-09T13:04:57+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: WI-0122 - Innerorts für Editoren: was Besucher sehen, drei Wege in die Liste, was fehlt",
+            "doku": true
+        },
+        {
+            "sha": "bcf215bd1ddd91e37976a02a2059a3d09be22feb",
+            "datum": "2026-10-09T11:45:07+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0120 A12 Nachtrag - Editor-Werkzeuge nur im Editor-Modus; Discord-Symbol auf den Discord-Knöpfen",
+            "doku": false
+        },
+        {
+            "sha": "3376a5fd6fc5a6099415dfc98ed6d1ca60791e30",
+            "datum": "2026-10-09T11:36:08+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0122 Nachtrag - Stätten: alle Gruppen zu, Ordnung alphabetisch oder nach Häufigkeit",
+            "doku": false
+        },
+        {
+            "sha": "a43af7fabf0575f0f1123bd3229c78f0fffec551",
+            "datum": "2026-10-09T10:38:07+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(server,web): WI-0120 A12 - Härtung und Abnahme lokal; Claudios Einschätzung; Editor-Balken nur im Editor-Modus",
+            "doku": false
+        },
+        {
+            "sha": "e4b8a0d6bf0d3a8d1bafe0bc8bd4e91346c491c3",
+            "datum": "2026-10-09T10:37:53+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0122 - lange Klapplisten: Einzelne gesammelt, \"Weitere Stätten\" abgesetzt, Suchfeld",
+            "doku": false
+        },
+        {
+            "sha": "69c2fe0dd31572f9b5b4e7267df25e7d279db2ef",
+            "datum": "2026-10-09T10:32:54+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(ops): ServerGuard24-Check auf avesmaps.de umgestellt, Handover an Claudio",
+            "doku": true
+        },
+        {
+            "sha": "047fcbbde574b083491e9eac12bc8f8c562a803f",
+            "datum": "2026-10-09T10:17:31+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: WI-0122 - bereinigte Arten lokal eingespielt, V21 grün",
+            "doku": true
+        },
+        {
+            "sha": "d11f31a7a79cc0e0a62d45759196bd84d3459f1b",
+            "datum": "2026-10-09T10:10:36+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(server): WI-0122 - Arten der Stätten ohne Markup im Import",
+            "doku": false
+        },
+        {
+            "sha": "23f3a123bda58aa2b37714dea2b3c6add73696b4",
+            "datum": "2026-10-09T08:47:10+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0121 Nachtrag - Gebietsnamen 18 px",
+            "doku": false
+        },
+        {
+            "sha": "d8afc019158b96b33bbdcfafda25af61d117685e",
+            "datum": "2026-10-09T08:45:17+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0121 Nachtrag - Gebietsnamen 17,5 px",
+            "doku": false
+        },
+        {
+            "sha": "24d1c7b4de1e9a61594dd7b356e450f78070889d",
+            "datum": "2026-10-09T08:40:57+02:00",
+            "wer": "Claudio",
+            "betreff": "Auth-Einschaetzung an Claudia: D1 C passt; Grants abschreiben statt aus dem Release ausfuehren; Aufbewahrung ueber SECURITY-DEFINER-Funktion als Queue-Job; Geheimnisse in secrets.env; CSP ohne Inline-Hash; Stage-Tuer ohne DB je Kachel; Sicherung mit age vor dem ersten Konto; Platte unverschluesselt",
+            "doku": true
+        },
+        {
+            "sha": "c63551b57502c7c33a2a84b7f48470f6d24c8c2a",
+            "datum": "2026-10-09T08:38:01+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0121 Nachtrag - Gebietsnamen weiß mit schwarzer Kontur",
+            "doku": false
+        },
+        {
+            "sha": "8355182e3e5b5deddf4a74061bfb5ec1b05997c9",
+            "datum": "2026-10-09T08:03:10+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(server): WI-0120 A11 - Editor-Naht: /ws mit Sitzung und Entzug, Statusseite nach D1 A, Suchschalter aus der Sitzung, M10-Probe",
+            "doku": false
+        },
+        {
+            "sha": "6d93a9cdd29959e1fa08194f6752ab2b659ebfb0",
+            "datum": "2026-10-09T07:29:43+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0120 A10 - Fenster „Verwaltung …“ mit Personen, Einladungen, Rollen & Rechte, Backup und Protokoll",
+            "doku": false
+        },
+        {
+            "sha": "76675ca84a41ab0bb03e359bc0d39dcdfd5e1aea",
+            "datum": "2026-10-09T06:18:15+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: WI-0121 Nachtrag - Phasen des Abnahmeblatts nachgetragen (zaehlung, nachher-nah)",
+            "doku": false
+        },
+        {
+            "sha": "c2fcaa3e494de6f844b46a59e648277e0c357f43",
+            "datum": "2026-10-09T06:18:04+02:00",
+            "wer": "Claudia",
+            "betreff": "test(web): WI-0121 Nachtrag - Abnahmeblatt Gebietsname (npm run review:gebietsname)",
+            "doku": false
+        },
+        {
+            "sha": "b1d012ed2a744d51f646b9c9b866b7b7b31f424c",
+            "datum": "2026-10-09T06:17:59+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0121 Nachtrag - Gebietsname beim Klick nur gelb, Schrift 16 px, Saum lesbarer",
+            "doku": false
+        },
+        {
+            "sha": "fd495b43dff09e1138082fb2d6156510e3a20da3",
+            "datum": "2026-10-09T06:19:09+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0120 A9 Teil 2 - Kopfleiste (L1), Konto-Menue und die eigenen Fenster der Anmeldung",
+            "doku": false
+        },
+        {
+            "sha": "323c39ee075850f491bc7dd558698266a509284b",
+            "datum": "2026-10-09T04:50:01+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0120 A9 Teil 1 - Sitzung vor dem Start, Einstieg ueber Links, Anmeldefenster",
+            "doku": false
+        },
+        {
+            "sha": "137f064a644df0e99a85485e43ad16f0a4928143",
+            "datum": "2026-10-09T04:41:18+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: WI-0121 - Umbruch bleibt (Betreiber: nein), Nachtrag Schrift, Saum und Auswahl in Gelb",
+            "doku": true
+        },
+        {
+            "sha": "36595288ffdc41a553203188851a9dcc02cea56c",
+            "datum": "2026-10-09T04:31:28+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(auth): WI-0120 A9 Server - eigenes Konto (Uebersicht, Sitzungen, Anzeigename, Discord loesen)",
+            "doku": false
+        },
+        {
+            "sha": "28216a12bc8b753b3d28ee8eec1c300793bc1c9b",
+            "datum": "2026-10-09T04:26:52+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0120 A8 - Bausteine und Kanon-Ergaenzungen fuer Anmeldung und Verwaltung",
+            "doku": false
+        },
+        {
+            "sha": "8a0fa7378adf77edee1c8b84f6ba51c3d4dbbdf0",
+            "datum": "2026-10-09T04:24:35+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(auth): WI-0120 A7 - Verwaltungs-API (Personen, Rollen, Sonderrechte, Einladungen, Protokoll, Legacy-Namen)",
+            "doku": false
+        },
+        {
+            "sha": "775962e49581a97c90d329130bfa784f4747809d",
+            "datum": "2026-10-09T04:20:30+02:00",
+            "wer": "Claudia",
+            "betreff": "test+docs: WI-0121 uebernommen; Schraffurfall nennt den Grund eines fehlenden Wappens",
+            "doku": false
+        },
+        {
+            "sha": "3f7f59935a43542dd1ef2a70fc502caba5a53783",
+            "datum": "2026-10-09T04:01:53+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(auth): WI-0120 A6 Teil 2 - Einladungen (einmalig, Rolle je Umgebung, Admin nur an Discord-ID gebunden)",
+            "doku": false
+        },
+        {
+            "sha": "4c799de618fb6450ff929d0aa5be04cd294d4215",
+            "datum": "2026-10-09T04:01:38+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(auth): WI-0120 A6 Teil 2 - Einladungen (einmalig, Rolle je Umgebung, Admin nur an Discord-ID gebunden)",
+            "doku": false
+        },
+        {
+            "sha": "e9fb00b6145a6f29113b2285892b8c6ed76f7af3",
+            "datum": "2026-10-09T03:56:35+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: WI-0121 gebaut - Legacy-Rechnung am DOM nachgemessen, Messung je Fall, zwei Befunde (Umbruch, Zeilenzahl); Guide Wappen und Katalog V9 nachgezogen",
+            "doku": true
+        },
+        {
+            "sha": "a94f74d2e9868d0a2ac67d001bf8098bb190cf03",
+            "datum": "2026-10-09T03:56:34+02:00",
+            "wer": "Claudia",
+            "betreff": "WI-0121: Wappen der Herrschaftsgebiete an ihren Namen auf der Karte (Politisch), Block zentriert wie Legacy",
+            "doku": false
+        },
+        {
+            "sha": "6703475e254c464719f8c7f6d7a387ccdc63a2ba",
+            "datum": "2026-10-09T03:51:12+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(auth): WI-0120 A6 Teil 1 - Passkeys ohne Bibliothek (ADR-0021), Relying Party je Umgebung",
+            "doku": false
+        },
+        {
+            "sha": "fc740f74ce0883e96c66a88574988e720ac72067",
+            "datum": "2026-10-09T03:43:56+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(auth): WI-0120 A5 - Anmelden mit Discord (OAuth2, identify, state, Browser-Nonce, PKCE S256)",
+            "doku": false
+        },
+        {
+            "sha": "1f449d56c4004f2185418f370b490b4377a58954",
+            "datum": "2026-10-09T03:36:57+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(auth): WI-0120 A4 - Konten mit Benutzername und Passwort, Ruecksetzlink, Notzugang",
+            "doku": false
+        },
+        {
+            "sha": "25fee03187f284428250b01bb3b4ee39bb0bdca6",
+            "datum": "2026-10-09T03:28:06+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(auth): WI-0120 A3 - Sitzungen, Herkunftspruefung, serverseitige Rechte und Sicherheitsstufen",
+            "doku": false
+        },
+        {
+            "sha": "d50c846b2931c834549a69596424fc57a653baed",
+            "datum": "2026-10-09T03:07:31+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(auth): WI-0120 A2 - Schema avesmaps_auth (Migration 0079), Rechtekatalog, Grant-Vorlage",
+            "doku": false
+        },
+        {
+            "sha": "6e9af06ab37775236305fd04033726fb930d596c",
+            "datum": "2026-10-09T03:01:25+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(api): WI-0120 A1 - M10-Vertraege Fehlerumschlag, Operation/Idempotenz, Revision (ADR-0018 bis ADR-0020)",
+            "doku": false
+        },
+        {
+            "sha": "8f0b8fe4c60f118f6210777a8eeec0dab56fef1f",
+            "datum": "2026-10-09T02:53:45+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(auth): Betreiberentscheidung 2026-10-09 - D2 B' Passkeys, lokaler Bau von WI-0120 freigegeben",
+            "doku": true
+        },
+        {
+            "sha": "374e2e9611ac3bdabf61b2a0672697ab288af5ad",
+            "datum": "2026-10-09T02:44:10+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(auth): AUTH-0001 zweite Runde - Bewertung des Betreibers eingearbeitet",
+            "doku": true
+        },
+        {
+            "sha": "878044bdaede42bd99343f4cab7fedd5d9485bb6",
+            "datum": "2026-10-09T02:43:01+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: WI-0118 abgenommen - \"Katalogfenster perfekt genau so wollt ichs\"",
+            "doku": true
+        },
+        {
+            "sha": "76236db65d1bcb498e0b07694fadd2ff3e769110",
+            "datum": "2026-10-09T02:29:00+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: WI-0118 Nachbau - Gestalt des vergroesserten Eintrags, Messung, Abweichungen von Legacy; Guide 12 um Leiste, Fussknopf und Verzeichnis-Zeilen; review:katalogfenster",
+            "doku": true
+        },
+        {
+            "sha": "1b1342f0c75b25fbcd927be6095b1dba97b7a3ba",
+            "datum": "2026-10-09T02:28:56+02:00",
+            "wer": "Claudia",
+            "betreff": "WI-0118: Kartensammlung und Literatur als Fenster - die drei Knoepfe unter den Streifen, der vergroesserte Eintrag, Filter nur wo sie teilen",
+            "doku": false
+        },
+        {
+            "sha": "99e90b06fcd3ecd967829872ca6aec0e6588669e",
+            "datum": "2026-10-09T02:16:35+02:00",
+            "wer": "Claudia",
+            "betreff": "WI-0118: Lesevertrag fuer die Katalogfenster - Kartensammlung und Literatur liefern alle Angaben, alle Links und das Vollbild (additiv)",
+            "doku": false
+        },
+        {
+            "sha": "7ef71edd5cfab5fea5e0849c391d0ff59a91f24b",
+            "datum": "2026-10-09T02:21:57+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: WI-0121 Gestalt entschieden - Wappen mittig ueber dem Namen wie Legacy",
+            "doku": true
+        },
+        {
+            "sha": "553227b9432ac328ccce894e02d8c601688035be",
+            "datum": "2026-10-09T02:19:48+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: WI-0121 angelegt - Wappen der Herrschaftsgebiete auf der Karte (Discovery)",
+            "doku": true
+        },
+        {
+            "sha": "37d31a67c8dbce37d8479ea325ef4e148b373c2d",
+            "datum": "2026-10-09T02:18:42+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(infopanel): Urheberzeile nur noch als Satz, ohne Weg in den F-Shop",
+            "doku": false
+        },
+        {
+            "sha": "31a8e6bb501a899ff3a4bb2845504e2591967737",
+            "datum": "2026-10-09T02:10:12+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(auth): AUTH-0001 nach der Recherche - Argon2 ab Node 24.19, Passwort ab 15 Zeichen, Frische der Verwaltungsrechte, Bindung ueber Discord-ID, Stage/Production same-site",
+            "doku": true
+        },
+        {
+            "sha": "fb024f3b5113283d57fd6cb0a254b6692e6e0080",
+            "datum": "2026-10-09T02:07:20+02:00",
+            "wer": "Claudio",
+            "betreff": "Nachschub 16fbf6b auf Stage, Detailzug und media-files gruen: 2484 Medien oeffentlich (citymap_preview 367/367, citymap_full 1/1), Gareth 7 Vorschauen",
+            "doku": true
+        },
+        {
+            "sha": "82a8ccba5e63af32d9ff69e03069364bb6cb51e5",
+            "datum": "2026-10-09T01:49:36+02:00",
+            "wer": "Claudia",
+            "betreff": "﻿docs(auth): WI-0120 Auth-Plattform - Discovery, Architekturvorlage AUTH-0001, sechs Betreiberentscheidungen",
+            "doku": true
+        },
+        {
+            "sha": "313f2a7afe9d2353da78eb7c021397f27e8528c7",
+            "datum": "2026-10-09T01:45:31+02:00",
+            "wer": "Claudio",
+            "betreff": "Datenteil gruen: Detailzug I17-I27 (Staetten 4092, PASS=193), Binaerimport 3 neue Wappen (2479 oeffentlich), Postflight automatisch gruen",
+            "doku": true
+        },
+        {
+            "sha": "7610df1602e8cc7f80478cbab189d3deb9ea18e8",
+            "datum": "2026-10-09T01:42:04+02:00",
+            "wer": "Valentin",
+            "betreff": "docs: WI-0119 als nachgelagertes Systemsteuerungs-Gate im Projektstand erfassen",
+            "doku": true
+        },
+        {
+            "sha": "17ed47c98fcecd23ff77a82c3b3f741c2f1e8c86",
+            "datum": "2026-10-09T01:41:55+02:00",
+            "wer": "Valentin",
+            "betreff": "docs: WI-0119 Systemsteuerung nach Auth planen und mit Betreiber abnehmen",
+            "doku": true
+        },
+        {
+            "sha": "16fbf6bcbe1c060c6ad0d367bc258b278b57e83c",
+            "datum": "2026-10-09T01:14:23+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: Handover an Claudio - Nachschub 3069bb41 vor dem Detailzug (zwei Freigaberegeln)",
+            "doku": true
+        },
+        {
+            "sha": "b49ee83095caf55bd424780e585be7c2f6520171",
+            "datum": "2026-10-09T01:13:26+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: WI-0118 Datenpruefung - alles da ausser Link-Status, Vorgaben fuer den Nachbau",
+            "doku": true
+        },
+        {
+            "sha": "e4dd6870da81804db786774bd7c5b54bf895dc7e",
+            "datum": "2026-10-09T01:04:02+02:00",
+            "wer": "Claudio",
+            "betreff": "Stage-Rollout be2991d gruen (0078, Saljethweg gruen, RSS 741 MB); I27 im Korridor; Daten folgen",
+            "doku": true
+        },
+        {
+            "sha": "2c3f67d476c8ce9ec8b57df25e5352c09a73dc46",
+            "datum": "2026-10-09T01:03:36+02:00",
+            "wer": "Claudio",
+            "betreff": "log-retention: PostgreSQL-Log ebenfalls 14 Tage, Parameter langsamer Anweisungen auf 1024 Zeichen (Drop-in, nur Reload); Sandbox 19 PASS",
+            "doku": false
+        },
+        {
+            "sha": "208aeadc58009ab4cb79b59122bbb06d4a9995f1",
+            "datum": "2026-10-09T01:03:36+02:00",
+            "wer": "Claudio",
+            "betreff": "Korridor I27 (Staetten der Orte, WI-0109): Gate 0078, Wrapper mit Betreiberzitat, V21, Idempotenz; PIN_LABEL_RUNS_ALGO 5 (WI-0116); stagePending von I27 in pipeline-steps.ts geschnitten (Handover sieht es vor, Paritaet nachgerechnet); Import 509, Corridor 134 PASS; Bootstrap-Pin neu",
+            "doku": false
+        },
+        {
+            "sha": "ff0f5e36eb1c6ec1bc1d94b791e24121ba9d55d8",
+            "datum": "2026-10-09T01:00:51+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: WI-0118 angelegt - Kartensammlung und Literatur als Fenster (Discovery)",
+            "doku": true
+        },
+        {
+            "sha": "91e787d9cdd4d1ed72e0b343493d651033bf1c2e",
+            "datum": "2026-10-09T00:48:54+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: Vollkarte Rhondur freigegeben, Release-Handover auf f73b3d4f",
+            "doku": true
+        },
+        {
+            "sha": "f73b3d4f55f38f5d8ddf9aa3c8008190529fc487",
+            "datum": "2026-10-09T00:48:29+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(media): Freigaberegel permission/map_full fuer die Vollkarte Rhondur",
+            "doku": false
+        },
+        {
+            "sha": "5c47f869205ffaed279284b1c23d9de89d364c1a",
+            "datum": "2026-10-09T00:46:23+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: Release-Handover zaehlt 181 Commits bis 39898ed7",
+            "doku": true
+        },
+        {
+            "sha": "3aef94c68d3d2cdccd646a67b06151e555e1d54c",
+            "datum": "2026-10-09T00:46:14+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: vier Kartenbilder freigegeben, Release-Handover auf 39898ed7",
+            "doku": true
+        },
+        {
+            "sha": "39898ed73a5e3bcec0075a40bc5f221e9f655700",
+            "datum": "2026-10-09T00:45:45+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(media): Freigaberegel permission/map_preview fuer die vier hochgeladenen Kartenbilder",
+            "doku": false
+        },
+        {
+            "sha": "603ed890911d2fec34af5d5b5f8b94225896c6eb",
+            "datum": "2026-10-09T00:15:18+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: Release-Handover freigegeben - Go des Betreibers, Stand be2991d0",
+            "doku": true
+        }
+    ]
+}

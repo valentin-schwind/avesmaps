@@ -1,0 +1,33 @@
+-- Die Leserolle des Dirigenten der gemeinsamen Warteschlange (WI-0163 §1.2, Migration 0133). psql-Datei mit \gexec.
+--
+-- Vorlage fuer Claudios `avesmaps3d-db-grants` (`grants_sql_tmpl` in ops/runtime/runtime-foundation.sh): `${e}` ist die Umgebung
+-- (staging, production), wie dort. Die Rolle `avesmaps3d_${e}_queue_read` legt Claudio an (LOGIN, je Umgebung eine, mit CONNECT auf
+-- die Datenbank ihrer Umgebung wie die Jobs-Rolle); der Dirigent auf dem Host liest mit ihr die Schlange jeder Umgebung, ordnet sie
+-- und haelt die Pause. Er schreibt in KEINE Datenbank: Was er weiss, legt er als Datei ab (`QUEUE_STAND_FILE`), und gestartet wird
+-- ueber den Ausfuehrer der Umgebung mit deren eigenen Rechten.
+--
+-- 🔴 Genau drei Tafeln, nur lesen: `job` (was wartet, was laeuft), `job_dependency` (wer auf wen wartet) und `system_state` (die
+--    letzte Anweisung zur Pause, `queue_paused` und `queue_changed_at`). Kein Schreibrecht, keine Funktion, keine Sequenz, kein
+--    anderes Schema. Deshalb nimmt die Datei zuerst alles weg und gibt dann gezielt: Eine spaeter umbenannte oder entfernte Tafel
+--    bleibt nicht stehen, und was jemand von Hand vergeben hat, faellt beim naechsten Lauf wieder weg (Muster der Kachelrolle).
+--    Funktionen, die PUBLIC ausfuehren darf, nimmt auf dem VPS schon die Default-Privilegie der Migrationsrolle weg
+--    (`ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC` in `sql_env`).
+--
+-- 🪤 CONNECT steht NICHT hier: `avesmaps3d-corridor-grants` weist jedes `ON DATABASE` ab, und die Rolle bekommt es beim Anlegen.
+-- 🪤 Derselbe Filter kennt nur die Rollen app, tiles, jobs, claudio, claudia und news. Solange die Rolle fehlt, erzeugt diese Datei
+--    keinen Befehl; wer sie anlegt, nimmt `queue_read` vorher in den Filter auf, sonst weist er den ganzen Lauf ab (Exit 3).
+--
+-- Fehlt die Rolle oder eine Tafel, entfaellt die Zeile still. Wie die anderen Vorlagen gehoert sie hinter JEDE Migration. Geprueft in
+-- apps/server/test/abgleiche-korridor.test.ts (Wegwerf-Cluster wie der VPS: erst grants_sql_tmpl, dann diese Datei).
+
+SELECT format('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM %I', r.rolname) FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_queue_read' \gexec
+SELECT format('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM %I', r.rolname) FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_queue_read' \gexec
+SELECT format('REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM %I', r.rolname) FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_queue_read' \gexec
+SELECT format('GRANT USAGE ON SCHEMA public TO %I', r.rolname) FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_queue_read' \gexec
+SELECT format('GRANT SELECT ON %I TO %I', t, r.rolname)
+  FROM unnest(ARRAY['job', 'job_dependency', 'system_state']) AS t, pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_queue_read' AND to_regclass('public.' || t) IS NOT NULL \gexec

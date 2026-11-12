@@ -1,0 +1,36 @@
+{
+    "$comment": "Authoritative Definition des Map Domains aventuria und seines Map Coordinate Space (Kapitel 4.9, 4.10). Einzige Quelle: keine zweite Kopie dieser Werte in Code oder Konfiguration. Jede Zahl ist durch ein VERIFIED Finding belegt, siehe provenance.",
+    "schemaVersion": 1,
+    "mapDomain": "aventuria",
+    "coordinateSpace": {
+        "id": "aventuria-v1",
+        "type": "cartesian",
+        "geographic": false,
+        "bounds": { "minX": 0, "minY": 0, "maxX": 1024, "maxY": 1024 },
+        "axis": {
+            "x": "east",
+            "y": "north"
+        },
+        "storageOrder": "xy",
+        "distance": {
+            "unit": "map_unit",
+            "milesPerUnit": 3,
+            "schrittPerUnit": 3000
+        },
+        "elevation": {
+            "unit": "schritt",
+            "metresPerUnit": 1
+        }
+    },
+    "planetaryRegistration": {
+        "status": "none"
+    },
+    "provenance": {
+        "baselineId": "legacy-2026-09-20",
+        "findings": ["MCS-001", "MCS-002"],
+        "note": "1 Meile = 1 Kilometer und 1 Schritt = 1 Meter sind fachliche Relationen aus Kapitel 5.2.1, keine Legacy-Messwerte."
+    },
+    "openQuestions": [
+        "Koordinatenpraezision im Legacy-Bestand ist nicht erzwungen, nur beobachtet (Finding MCS-005). Vor der Migration messen."
+    ]
+}

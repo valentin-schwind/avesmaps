@@ -1,0 +1,1968 @@
+{
+    "uebersetzung": "Deze informatie is vertaald uit het Duits. Als de twee versies verschillen, geldt de Duitse versie.",
+    "abschnitte": [
+        {
+            "id": "bedienung",
+            "titel": "Bediening",
+            "hinweis": "Toetsopdrachten, gebaren en bedieningshulpen",
+            "bloecke": []
+        },
+        {
+            "id": "haeufige-fragen",
+            "titel": "Veelgestelde vragen",
+            "hinweis": "Korte antwoorden op wat het vaakst wordt gevraagd",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "De korte antwoorden op wat het vaakst wordt gevraagd. De verwijzingen leiden naar de uitvoerige passage."
+                },
+                {
+                    "art": "frage",
+                    "id": "kostet-avesmaps-etwas",
+                    "frage": "Kost Avesmaps iets?",
+                    "antwort": "**Nee.** Avesmaps [kost niets](#was-es-kostet), **toont geen reclame** en **verkoopt geen gegevens**."
+                },
+                {
+                    "art": "frage",
+                    "id": "ist-avesmaps-eine-offizielle-dsa-quelle",
+                    "frage": "Is Avesmaps een officiële DSA-bron?",
+                    "antwort": "**Nee.** Avesmaps is een fanproject en heeft geen officiële band met Ulisses Spiele. [Bindend](#was-avesmaps-nicht-ist) blijft het gepubliceerde materiaal van Ulisses Spiele."
+                },
+                {
+                    "art": "frage",
+                    "id": "braucht-man-ein-konto",
+                    "frage": "Is een account nodig?",
+                    "antwort": "**Nee.** Kaart en routeplanner, meldingen, beoordelingen, kaartvoorstellen en reisbeelden werken zonder account. Een [account](#konten) krijgt alleen wie voor het meewerken is uitgenodigd."
+                },
+                {
+                    "art": "frage",
+                    "id": "warum-haben-orte-unterschiedliche-farben",
+                    "frage": "Waarom hebben plaatsen verschillende kleuren?",
+                    "antwort": "De kleur van de plaatsmarkering laat zien of een plaats uit officiële publicaties komt of een [inofficiële aanvulling](#offizielle-und-inoffizielle-inhalte) is, bijvoorbeeld uit het Aventurische briefspel."
+                },
+                {
+                    "art": "frage",
+                    "id": "lassen-sich-inoffizielle-inhalte-ausblenden",
+                    "frage": "Kunnen inofficiële inhouden worden verborgen?",
+                    "antwort": "**Nu nog niet volledig:** straten en wegen laten zich [niet altijd eenduidig toewijzen](#offizielle-und-inoffizielle-inhalte) en zouden deels naar niets leiden."
+                },
+                {
+                    "art": "frage",
+                    "id": "gibt-es-eine-zeitleiste-oder-fruehere-politische-karten",
+                    "frage": "Is er een tijdlijn of zijn er eerdere politieke kaarten?",
+                    "antwort": "**Nee.** Daarvoor ontbreekt ons de capaciteit: in mensen, tijd en techniek. Zelfs de stand van de weergave “Politiek” (**1047 BF**) is alleen door zeer intensief onderzoek tot stand gekomen; voor andere jaren is er geen volledige of betrouwbare gegevensbasis. Wel plannen we een sectie met kroniekthema’s die in plaats en tijd begrensde ontwikkelingen weergeeft. De ontwikkeling daarvan is echter bewerkelijk en moeilijk."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-genau-sind-reisezeiten-und-entfernungen",
+                    "frage": "Hoe nauwkeurig zijn reistijden en afstanden?",
+                    "antwort": "Ze zijn een [oriëntatiehulp](#grenzen-der-karte). Ze berusten op de beschikbare kaartgegevens en op de modellen van de Aventurische reisregels, die niet altijd vrij van tegenstrijdigheden zijn; weer, terrein en de staat van de weg kunnen niet altijd volledig worden meegerekend."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-laesst-sich-ein-fehler-oder-ein-fehlender-ort-melden",
+                    "frage": "Hoe meldt men een fout of een ontbrekende plaats?",
+                    "antwort": "Via “Hier iets melden” of “Wijzigingen voorstellen” op de kaart, [ook zonder account](#meldungen-zur-karte), of met /bug en /idee op de Discordserver. Andere mogelijkheden staan onder [Meedoen](#mitmachen)."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-kommt-ein-eigenes-bild-oder-eine-karte-auf-avesmaps",
+                    "frage": "Hoe komt een eigen beeld of een kaart op Avesmaps?",
+                    "antwort": "Eigen beelden komen binnen als [reisbeeld](#reisebilder), kaarten via [“Kaart voorstellen”](#kartenvorschlaege). De redactie controleert elke inzending voordat die verschijnt."
+                },
+                {
+                    "art": "frage",
+                    "id": "duerfen-karten-oder-daten-weiterverwendet-werden",
+                    "frage": "Mogen kaarten of gegevens hergebruikt worden?",
+                    "antwort": "**Niet automatisch:** [inhouden van verschillende herkomst](#was-fuer-welche-inhalte-gilt) vallen onder eigen voorwaarden. De programmacode valt onder de MIT-licentie, DSA-materiaal onder geen vrije licentie. Bij twijfel helpt een vraag aan het adres in het colofon."
+                },
+                {
+                    "art": "frage",
+                    "id": "wird-ki-eingesetzt",
+                    "frage": "Wordt KI ingezet?",
+                    "antwort": "**Ja.** [KI-agenten](#einsatz-von-kuenstlicher-intelligenz) ondersteunen de technische ontwikkeling, en een deel van de beelden en de kaart “Modern” zijn met generatieve KI gemaakt. Wat wordt gepubliceerd of aan de kaartgegevens gewijzigd, beslist de beheerder."
+                },
+                {
+                    "art": "frage",
+                    "id": "speichert-avesmaps-daten-ueber-besuche",
+                    "frage": "Slaat Avesmaps gegevens over bezoeken op?",
+                    "antwort": "Bezoeken worden alleen [anoniem en in totalen](#anonyme-besucherstatistik) geteld, zonder cookies en zonder herkenning. De webserver houdt **ongeveer 14 dagen** technische [serverloggegevens](#server-logdaten) met IP-adres bij."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-lassen-sich-eigene-angaben-loeschen",
+                    "frage": "Hoe worden eigen gegevens verwijderd?",
+                    "antwort": "Een [verzoek](#rechte-der-betroffenen) aan het adres in het colofon volstaat. Beoordelingen kunnen via “Melden” met de reden “Persoonlijke gegevens” worden aangevochten; reisbeelden via de persoonlijke link offline halen."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-bleibt-man-auf-dem-laufenden",
+                    "frage": "Hoe blijft men op de hoogte?",
+                    "antwort": "Via het nieuws bovenaan dit venster en via de kanalen op Discord, Instagram, Facebook en Mastodon."
+                }
+            ]
+        },
+        {
+            "id": "projekt-und-mitmachen",
+            "titel": "Project en meedoen",
+            "hinweis": "Wat Avesmaps is, hoe de kaart ontstaat en hoe men meedoet",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Open, onafhankelijk, niet-commercieel fanproject over [Het Oog des Meesters](https://nl.wikipedia.org/wiki/Het_Oog_des_Meesters) van [Valentin Schwind](https://www.valentin-schwind.de) en Thomas Braun. Het project heeft geen officiële band met [Ulisses Spiele](https://de.wikipedia.org/wiki/Ulisses_Spiele)."
+                },
+                {
+                    "art": "h3",
+                    "id": "die-karte",
+                    "text": "De kaart"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps toont [Aventurië](https://de.wiki-aventurica.de/wiki/Aventurien) in de browser: plaatsen en nederzettingen, heerschappijgebieden, landschappen en wateren, en daarbij het wegennet dat ze verbindt. De kaart laat zich draaien en kantelen, en wat daarbij in 3D te zien is, is een berekend [hoogtemodel](https://de.wikipedia.org/wiki/Digitales_H%C3%B6henmodell) en geen geschilderd reliëf. De routeplanner zoekt de weg tussen twee plaatsen en noemt afstand en reistijd te voet, te paard, per schip en door de lucht."
+                },
+                {
+                    "art": "h3",
+                    "id": "wie-die-karte-entsteht",
+                    "text": "Hoe de kaart ontstaat"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Achter elke plaats, elke weg en elk vlak staat een redactionele keuze. Redacteuren verzamelen de bronnen, zetten plaatsen, tekenen wegen en gebieden en schrijven een deel van de korte beschrijvingen; veel daarvan wordt getoetst aan [Wiki Aventurica](https://de.wiki-aventurica.de/) en gepubliceerd materiaal. De kaart is daarom nooit af, en zij groeit niet door bestanden maar door mensen. Waar de gegevens in detail vandaan komen, staat onder [“Inhouden en gegevensbronnen”](#inhalte-und-datenquellen)."
+                },
+                {
+                    "art": "h3",
+                    "id": "mitmachen",
+                    "text": "Meedoen"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps leeft van de steun van de community. Bijdragen zijn op meerdere manieren mogelijk:"
+                },
+                {
+                    "art": "liste",
+                    "punkte": [
+                        "Fouten, ontbrekende plaatsen, informatie en bronnen: via de meldfuncties op de kaart, via Discord en de overige kanalen bovenaan dit venster.",
+                        "Eigen beelden en illustraties: als reisbeeld, wanneer het werk zelf gemaakt is (zie [“Reisbeelden”](#reisebilder)).",
+                        "Kaarten: als voorstel voor de kaartenverzameling, wanneer het eigen werken zijn of de maker dat heeft toegestaan.",
+                        "Werk aan de kaart: met een account met gestaffelde rechten; wat daarbij wordt opgeslagen, staat in het onderdeel [Gegevensbescherming](#datenschutz)."
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Vooral willen wij kunstenaars aanmoedigen hun werk op Avesmaps te tonen en de wereld van Aventurië mee te vormen. Ons doel is een open platform dat dankzij de kennis, creativiteit en inzet van de community steeds beter wordt."
+                },
+                {
+                    "art": "h3",
+                    "id": "was-avesmaps-nicht-ist",
+                    "text": "Wat Avesmaps niet is"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps is **geen officiële publicatie en geen canonieke bron**. Waar de bronnen zwijgen of elkaar tegenspreken, neemt de redactie een beslissing; welke bron achter een afzonderlijk object staat, toont het infopaneel. Bindend blijft het gepubliceerde materiaal van Ulisses Spiele, niet deze kaart. Avesmaps is een oriëntatiehulp en geen bindende atlas van het officiële Aventurië; welke inhouden een speelgroep overneemt, beslist zij zelf."
+                },
+                {
+                    "art": "h3",
+                    "id": "was-es-kostet",
+                    "text": "Wat het kost"
+                },
+                {
+                    "art": "absatz",
+                    "text": "**Avesmaps kost niets**, **toont geen reclame** en **verkoopt geen gegevens**. Server, beheer en ontwikkeling draagt de beheerder privé; het werk aan kaart en software gebeurt in de vrije tijd."
+                }
+            ]
+        },
+        {
+            "id": "inhalte-und-datenquellen",
+            "titel": "Inhouden en gegevensbronnen",
+            "hinweis": "Waar plaatsen, wegen en gebieden vandaan komen, wat officieel is en hoe er wordt afgestemd",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "De kaart brengt eerdere fanarbeid, [Wiki Aventurica](https://de.wiki-aventurica.de/), kaarten uit het [briefspel](https://de.wikipedia.org/wiki/Briefspiel) en eigen redactioneel werk samen. Hier staat wat waar vandaan komt en hoe het wordt afgestemd."
+                },
+                {
+                    "art": "h3",
+                    "id": "offizielle-und-inoffizielle-inhalte",
+                    "text": "Officiële en inofficiële inhouden"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps bevat naast plaatsen uit officiële publicaties ook aanvullingen uit het Aventurische briefspel. Die maken geen deel uit van de officiële DSA-canon, maar verrijken de speelwereld door hun jarenlange ontwikkeling en uitgebreide documentatie. Wij willen deze inhouden bewust toegankelijk maken, zonder ze gelijk te stellen aan officiële vaststellingen. De kaart toont het verschil aan de kleur van de plaatsmarkering."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Het volledig verbergen van inofficiële inhouden is op dit moment niet mogelijk, omdat vooral straten en wegen niet altijd eenduidig kunnen worden toegewezen en deels naar niets zouden leiden. Ook de aanwezige wegen zijn niet noodzakelijk door officiële bronnen onderbouwd."
+                },
+                {
+                    "art": "h3",
+                    "id": "avespfade",
+                    "text": "Avespfade"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Van 2014 tot 2026 was [Avespfade](https://avespfade.de/) de routeplanner voor Aventurië. Oliver Hackstein en Florian Mazur presenteerden hem op 13 februari 2014, na een half jaar werk: reizen te voet, te paard, over rivier en zee, met wegpunten, alternatieve routes en gebieden waar de route omheen loopt. Zoiets bestond daarvoor niet."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps is op dat werk gebaseerd. Een deel van de plaatsen, kruispunten en wegen waarmee deze kaart vandaag reizen berekent, komt uit Avespfade. Zonder het wegennet dat daar twaalf jaar is gegroeid, zou Avesmaps heel anders zijn begonnen."
+                },
+                {
+                    "art": "absatz",
+                    "text": "In oktober 2026 hebben Oliver Hackstein en Florian Mazur Avespfade met pensioen gestuurd en vanaf daar naar Avesmaps verwezen. Daarvoor, en voor twaalf jaar Avespfade, geldt onze dank."
+                },
+                {
+                    "art": "h3",
+                    "id": "orts-wege-und-routendaten",
+                    "text": "Plaats-, weg- en routegegevens"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Plaats-, kruispunt-, weg- en routegegevens zijn uit openbaar toegankelijke fan- en referentiebronnen deels afgeleid, redactioneel bewerkt, aangevuld en technisch verwerkt. Delen van de uitgangsgegevens gaan volgens de huidige bronnenstand terug op avespfade.de; daar zijn volgens eigen opgave enkele plaatsposities gebaseerd op het [DereGlobus-project](https://www.dereglobus.org/)."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Landschapsvlakken en klimaatzones daarentegen ontstaan overwegend hier en zijn een redactionele uitleg van de bronnensituatie, geen overname uit een voorbeeld. De vermeldingen over natuur en goederen volgen grotendeels Wiki Aventurica (zie [“Gegevensafstemming”](#datenabgleich))."
+                },
+                {
+                    "art": "h3",
+                    "id": "datenabgleich",
+                    "text": "Gegevensafstemming"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Een deel van de inhouden, vooral heerschappijgebieden, plaatsen en regio’s, wordt regelmatig met [Wiki Aventurica](https://de.wiki-aventurica.de/) afgestemd. Een redacteur start de afstemming. De afstemming neemt eenduidige wijzigingen zelfstandig over; eigen en dubbelzinnige gegevens blijven onaangeroerd, en elke afstemming laat zich terugdraaien."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "datenabgleich-kurzbeschreibungen",
+                            "begriff": "Korte beschrijvingen",
+                            "werte": [
+                                "Ook veel korte beschrijvingen in het infopaneel komen daarvandaan, en het bijbehorende artikel is telkens gelinkt."
+                            ]
+                        },
+                        {
+                            "id": "datenabgleich-rechte-an-den-texten",
+                            "begriff": "Rechten op de teksten",
+                            "werte": [
+                                "De rechten op deze teksten blijven bij hun auteurs; zij vallen onder [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/deed.nl) en blijven dat ook in bewerkte vorm. Als naamsvermelding dient de verwijzing naar het artikel en de daar bijgehouden lijst van auteurs. Citaten en inhouden van Ulisses zijn van deze licentie uitgesloten en worden niet overgenomen."
+                            ]
+                        },
+                        {
+                            "id": "datenabgleich-dateien",
+                            "begriff": "Bestanden",
+                            "werte": [
+                                "Bestanden uit Wiki Aventurica, zoals wapens, dragen daarvan afwijkend elk een eigen licentie."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "kartendaten-aus-garetien-und-dem-kosch",
+                    "text": "Kaartgegevens uit Garetien en de Kosch"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Een deel van de wateren, wegen, wouden, bergen, nederzettingen en heerschappijgebieden in het gebied Garetien, Greifenfurt, Perricum en Kosch komt uit de kaarten van Volker Strunk (VolkoV), gepubliceerd op [garetien.de](https://www.garetien.de/) en [koschwiki.de](https://www.koschwiki.de/)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "kartendaten-aus-garetien-und-dem-kosch-genehmigung",
+                            "begriff": "Toestemming",
+                            "werte": [
+                                "De overname gebeurt met uitdrukkelijke toestemming van de Freundeskreis des phantastischen Briefspiels e. V. van 12.08.2026 en vindt plaats na redactionele controle, niet automatisch."
+                            ]
+                        },
+                        {
+                            "id": "kartendaten-aus-garetien-und-dem-kosch-lizenz-und-nennung",
+                            "begriff": "Licentie en naamsvermelding",
+                            "werte": [
+                                "Deze inhouden vallen onder [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/deed.nl) en blijven dat ook in bewerkte vorm; als naamsvermelding dient “VolkoV / garetien.de” respectievelijk “VolkoV / koschwiki.de” bij de betreffende bron in het infopaneel, samen met de verwijzing naar het bijbehorende artikel."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "quelle-je-objekt",
+                    "text": "Bron per object"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Welke bron achter een afzonderlijke plaats, gebied of weg staat, toont het infopaneel bij dat object, voor zover die is vastgelegd, samen met licentie en naamsvermelding."
+                }
+            ]
+        },
+        {
+            "id": "karten-auf-avesmaps",
+            "titel": "Kaarten op Avesmaps",
+            "hinweis": "De oorspronkelijke kaart van Ina Kramer, wat daaruit werd en onder welke licentie",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Alle drie kaartseries gaan terug op dezelfde officiële kaart en staan daarom onder dezelfde licentie; ze verschillen alleen in de bewerking."
+                },
+                {
+                    "art": "h3",
+                    "id": "die-originalkarte",
+                    "text": "De originele kaart"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Officiële kaart van Aventurië van Ulisses Spiele, voor fans beschikbaar gesteld via de Aventurische Atlas. De originele kaarten zijn beschikbaar in 8192 pixels."
+                },
+                {
+                    "art": "h3",
+                    "id": "die-kartenserien",
+                    "text": "De kaartseries"
+                },
+                {
+                    "art": "absatz",
+                    "text": "De kaart is in drie series te bekijken:"
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "die-kartenserien-old",
+                            "begriff": "Old",
+                            "werte": [
+                                "De kaart, zoals grafisch ontwerpster [Ina Kramer](https://de.wikipedia.org/wiki/Ina_Kramer) die destijds voor zich had. De gepubliceerde scans van de kaart bevatten opschriften die met behulp van [kunstmatige intelligentie](https://nl.wikipedia.org/wiki/Kunstmatige_intelligentie) zijn verwijderd. Opgave van de beheerder van 12.10.2026."
+                            ]
+                        },
+                        {
+                            "id": "die-kartenserien-original",
+                            "begriff": "Original",
+                            "werte": [
+                                "Dezelfde kaart als “Old”, alleen zonder de ingebrande opschriften: die zijn verwijderd, waarna het beeld met KI-conversie is opgeschaald naar 32 768 pixels. Geometrisch identiek aan de andere series."
+                            ]
+                        },
+                        {
+                            "id": "die-kartenserien-modern",
+                            "begriff": "Modern",
+                            "werte": [
+                                "In acht stappen met [generatieve KI](https://de.wikipedia.org/wiki/Generative_k%C3%BCnstliche_Intelligenz) uit de Ina-Kramer-kaart ontstaan: de originele kaart werd in tegels van 1024 pixels opgedeeld, [Qwen](https://de.wikipedia.org/wiki/Qwen) haalde van elke tegel het opschrift weg, [ChatGPT](https://de.wikipedia.org/wiki/ChatGPT) Image tekende de kaart als geschilderde terreinkaart opnieuw en groter, en een Dense Warp legde elke tegel punt voor punt terug op de geometrie van het origineel – kusten, rivieren, wegen en grenzen liggen daarom waar ze eerder lagen, en er kwam niets bij wat er niet al was.",
+                                "Land- en watervlakken zijn apart bewerkt en weer samengevoegd, het resultaat is in [Photoshop](https://de.wikipedia.org/wiki/Adobe_Photoshop) met de hand nabewerkt en tenslotte in tegels gesneden (32 768 × 32 768 pixels); de kaart zoomt in de zoomniveaus 0 tot en met 8."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "lizenz-und-genehmigung",
+                    "text": "Licentie en toestemming"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Voor het kaartmateriaal geldt de [licentieovereenkomst voor het Ulisses-kaartpakket](https://de.wiki-aventurica.de/wiki/Kartenpaket/Lizenz). Verveelvoudiging, verspreiding en uitdrukkelijk ook bewerking zijn toegestaan, zolang het gebruik niet-commercieel blijft en de bewerking als fanproject wordt gekenmerkt. Sublicenties zijn uitgesloten; de rechten vervallen bij een overtreding. Bij elke verspreiding moet een kopie van de licentie of het volledige internetadres ervan worden bijgevoegd."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "lizenz-und-genehmigung-genehmigung",
+                            "begriff": "Toestemming",
+                            "werte": [
+                                "Het gebruik voor Avesmaps is projectspecifiek goedgekeurd. Opgave van de beheerder van 20.09.2026. Verlenende instantie, tijdstip en vorm van deze toestemming zijn niet gedocumenteerd. Daaruit volgt niet dat er geen toestemming bestaat – alleen dat zij hier niet aantoonbaar is."
+                            ]
+                        },
+                        {
+                            "id": "lizenz-und-genehmigung-nennung",
+                            "begriff": "Naamsvermelding",
+                            "werte": [
+                                "Kaartmateriaal © Ulisses Spiele · Originele kaart: Ina Kramer · Bewerking: Avesmaps (DSA-fanproject)"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "kasten",
+                    "titel": "Tot wederopzegging",
+                    "absaetze": [
+                        "De toestemming om beeldmateriaal te gebruiken wordt volgens Ulisses alleen tot wederopzegging verleend."
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "urheberrecht-marken-und-bildrechte",
+            "titel": "Auteursrecht, merken en beeldrechten",
+            "hinweis": "Wat voor welke inhouden geldt: fanrichtlijnen, wapens, beelden, covers en merken",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Avesmaps gebruikt inhouden van verschillende herkomst, waarvoor elk eigen gebruiksvoorwaarden kunnen gelden. Een vrij hergebruik van alle inhouden is daarom niet automatisch toegestaan. Wie gegevens, kaarten of andere onderdelen van Avesmaps voor eigen projecten wil gebruiken, houdt zich aan de betreffende licenties en neemt bij twijfel contact met ons op."
+                },
+                {
+                    "art": "h3",
+                    "id": "was-fuer-welche-inhalte-gilt",
+                    "text": "Wat voor welke inhouden geldt"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Er zijn vier groepen te onderscheiden:"
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "was-fuer-welche-inhalte-gilt-dsa-inhalte",
+                            "begriff": "DSA-inhouden",
+                            "werte": [
+                                "De rechten op Het Oog des Meesters, Aventurië en de gebruikte merken, kaarten, teksten en illustraties blijven bij de respectieve rechthebbenden. Details staan onder [“Geen vrije licentie voor DSA-materiaal”](#keine-freie-lizenz-fuer-dsa-material)."
+                            ]
+                        },
+                        {
+                            "id": "was-fuer-welche-inhalte-gilt-kartenpaket",
+                            "begriff": "Kaartpakket",
+                            "werte": ["Daarvoor geldt de licentie onder [“Kaarten op Avesmaps”](#karten-auf-avesmaps)."]
+                        },
+                        {
+                            "id": "was-fuer-welche-inhalte-gilt-drittmaterial",
+                            "begriff": "Materiaal van derden",
+                            "werte": [
+                                "Teksten uit [Wiki Aventurica](https://de.wiki-aventurica.de/) vallen onder CC BY-SA 3.0, inhouden uit Garetien en de Kosch onder CC BY-NC-SA 3.0 (zie [“Inhouden en gegevensbronnen”](#inhalte-und-datenquellen)); voor wapens, beelden en covers geldt wat hieronder staat."
+                            ]
+                        },
+                        {
+                            "id": "was-fuer-welche-inhalte-gilt-programmcode",
+                            "begriff": "Programmacode",
+                            "werte": [
+                                "Deze valt onder de [MIT-licentie](https://de.wikipedia.org/wiki/MIT-Lizenz) (zie [“Techniek en KI”](#technik-und-kuenstliche-intelligenz))."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Wij respecteren het werk van de oorspronkelijke makers en streven naar een transparante vermelding van de gebruikte bronnen en auteurs."
+                },
+                {
+                    "art": "h3",
+                    "id": "fanrichtlinien-und-fanprojekt-kennzeichnung",
+                    "text": "Fanrichtlijnen en aanduiding als fanproject"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps kenmerkt zichzelf als fanproject. Het gebruik van het DSA-FANPROJECT-logo en de juridische aanwijzingen gebeurt in de geest van de door Ulisses gepubliceerde [fanrichtlijnen](https://ulisses-spiele.de/fan-richtlinie/). De toestemming om bepaalde materialen te gebruiken kan door de rechthebbenden worden ingetrokken of in een afzonderlijk geval worden verboden. Bij een aanwijzing van een rechthebbende worden betrokken inhouden gecontroleerd en, voor zover nodig, verwijderd of aangepast."
+                },
+                {
+                    "art": "h3",
+                    "id": "keine-freie-lizenz-fuer-dsa-material",
+                    "text": "Geen vrije licentie voor DSA-materiaal"
+                },
+                {
+                    "art": "absatz",
+                    "text": "DSA-gerelateerd kaart-, beeld-, merk-, naam- en achtergrondmateriaal wordt op Avesmaps niet gepubliceerd onder [Creative Commons](https://de.wikipedia.org/wiki/Creative_Commons), Open Data, Open Source of een vergelijkbare vrije licentie. Dat geldt vooral voor inhouden die berusten op officiële publicaties, kaarten, namen, begrippen, merken of ander beschermd materiaal van Ulisses of andere rechthebbenden. Hergebruik is alleen toegestaan binnen het kader van de telkens relevante rechten."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Hiervan blijven twee zaken onaangetast: de programmacode die Avesmaps zelf heeft geschreven en die [open source](https://nl.wikipedia.org/wiki/Open_source) onder de MIT-licentie staat, en overgenomen teksten uit Wiki Aventurica, die onder de licentie van hun auteurs staan."
+                },
+                {
+                    "art": "h3",
+                    "id": "wappen-bilder-und-cover",
+                    "text": "Wapens, beelden en covers"
+                },
+                {
+                    "art": "h4",
+                    "id": "wappen",
+                    "text": "Wapens"
+                },
+                {
+                    "art": "absatz",
+                    "text": "De wapens van de heerschappijgebieden die op de kaart worden getoond, komen uit Wiki Aventurica of zijn speciaal gegenereerde KI-beelden. Elk medium heeft in Avesmaps een eigen rechtsgrondslag en een vrijgavestatus; openbaar getoond wordt wat als publiek domein, [CC0](https://creativecommons.org/publicdomain/zero/1.0/deed.nl), eigen werk of speciaal gegenereerd KI-beeld is vastgelegd, en daarnaast wat de redactie per regel of afzonderlijk heeft vrijgegeven. Wapens met een onbekende of beperkende rechtenstatus blijven zonder zo’n vrijgave verborgen. De rechten blijven bij de respectieve makers en rechthebbenden; de weergave op Avesmaps levert geen eigen rechten daarop op. Op aanwijzing van rechthebbenden worden betrokken wapens gecontroleerd en, voor zover nodig, verwijderd of aangepast."
+                },
+                {
+                    "art": "h4",
+                    "id": "bilder",
+                    "text": "Beelden"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Regio’s, nederzettingen en andere plaatsen kunnen daarnaast een beeld dragen. Het moet een herkenbare indruk van de plaats geven en niet het werk van kunstenaars of van Ulisses vervangen. Er wordt uitsluitend ingebouwd wat na controle voldoende recht heeft, in de regel materiaal in het publiek domein en speciaal voor Avesmaps gegenereerde KI-beelden. Niet gebruikt worden scans of foto’s van Ulisses-artwork en fanart van andere kunstenaars zonder hun uitdrukkelijke toestemming. Op aanwijzing van rechthebbenden worden betrokken beelden gecontroleerd en, voor zover nodig, verwijderd of aangepast."
+                },
+                {
+                    "art": "h4",
+                    "id": "cover",
+                    "text": "Covers"
+                },
+                {
+                    "art": "absatz",
+                    "text": "De bij literatuurvermeldingen getoonde covers van DSA-publicaties worden met toestemming van Ulisses gebruikt. De cover verwijst, voor zover beschikbaar in de shop, naar de betreffende publicatie bij Ulisses of in de F-Shop; anders leidt de verwijzing naar het bijbehorende artikel in Wiki Aventurica of naar de Deutsche Nationalbibliothek."
+                },
+                {
+                    "art": "h3",
+                    "id": "marken-und-disclaimer",
+                    "text": "Merken en disclaimer"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Artwork © Ulisses Spiele. DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA, RIESLAND and THE DARK EYE are registered trademarks of Ulisses Spiele GmbH, Waldems. The graphics are used within the guidelines permitted by Ulisses Spiele. Use beyond these guidelines may only take place with the prior written permission of Ulisses Medien und Spiel Distribution GmbH."
+                },
+                {
+                    "art": "absatz",
+                    "text": "DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA and RIESLAND are trademarks of Significant Fantasy Medienrechte GbR."
+                }
+            ]
+        },
+        {
+            "id": "technik-und-kuenstliche-intelligenz",
+            "titel": "Techniek en KI",
+            "hinweis": "De bouwstenen, de broncode, hoe de route rekent en waar KI wordt ingezet",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Avesmaps bestaat uit vrije software, eigen programmacode en een ontwikkeling die grotendeels door KI-agenten wordt verricht."
+                },
+                {
+                    "art": "h3",
+                    "id": "software-und-lizenzen",
+                    "text": "Software en licenties"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps bouwt op deze bouwstenen voort:"
+                },
+                {
+                    "art": "tafel",
+                    "kopf": ["Gebied", "Bouwsteen", "Licentie"],
+                    "schluesselSpalten": 2,
+                    "zeilen": [
+                        {
+                            "id": "software-und-lizenzen-karte-im-browser-maplibre-gl-js",
+                            "zellen": ["Kaart in de browser", "[MapLibre GL JS](https://maplibre.org/)", "BSD-3-Clause"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-oberflaeche-vue",
+                            "zellen": ["Interface", "[Vue](https://vuejs.org/)", "MIT"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-server-fastify",
+                            "zellen": ["Server", "[Fastify](https://fastify.dev/)", "MIT"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-server-typebox",
+                            "zellen": ["Server", "[TypeBox](https://github.com/sinclairzx81/typebox)", "MIT"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-server-postgres-js",
+                            "zellen": ["Server", "[postgres.js](https://github.com/porsager/postgres)", "Unlicense"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-bildverarbeitung-sharp-mit-libvips",
+                            "zellen": [
+                                "Beeldverwerking",
+                                "[sharp](https://sharp.pixelplumbing.com/), met [libvips](https://www.libvips.org/)",
+                                "Apache-2.0, libvips LGPL-3.0"
+                            ]
+                        },
+                        {
+                            "id": "software-und-lizenzen-daten-postgresql",
+                            "zellen": ["Gegevens", "[PostgreSQL](https://www.postgresql.org/)", "PostgreSQL License"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-daten-postgis",
+                            "zellen": ["Gegevens", "[PostGIS](https://postgis.net/)", "GPL-2.0 of nieuwer"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-vektorkacheln-martin",
+                            "zellen": ["Vectortegels", "[Martin](https://martin.maplibre.org/)", "MIT of Apache-2.0"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-hausschrift-faculty-glyphic",
+                            "zellen": [
+                                "Huisletter",
+                                "[Faculty Glyphic](https://github.com/google/fonts/tree/main/ofl/facultyglyphic)",
+                                "SIL Open Font License 1.1"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Faculty Glyphic: Copyright 2024 The Faculty Glyphic Project Authors. De huisletter wordt door de eigen server geleverd en niet uit een vreemd netwerk geladen."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Deze bouwstenen betreffen de technische weergave en bediening van de kaart en leveren geen rechten op aan DSA-gerelateerd kaart-, naam-, merk- of achtergrondmateriaal."
+                },
+                {
+                    "art": "h3",
+                    "id": "quellcode",
+                    "text": "Broncode"
+                },
+                {
+                    "art": "absatz",
+                    "text": "De voor Avesmaps geschreven programmacode is open source en staat op [GitHub](https://github.com/valentin-schwind/avesmaps) onder de MIT-licentie. Deze licentie geldt uitsluitend voor de programmacode. Zij omvat niet de kaarttegels, noch de plaats-, weg-, gebied- en geometriegegevens, ook niet DSA-gerelateerde teksten, wapens, beelden of merken. Voor deze inhouden gelden ongewijzigd de rechten van de respectieve bronnen en de Ulisses-fanrichtlijnen."
+                },
+                {
+                    "art": "h3",
+                    "id": "wegfindung",
+                    "text": "Wegvinding"
+                },
+                {
+                    "art": "absatz",
+                    "text": "De wegvinding rekent op de server. Over het wegennet, waarvan de knooppunten plaatsen en kruispunten zijn en de zijden de wegen met lengte en reistijd per vervoermiddel, loopt het [Dijkstra-algoritme](https://nl.wikipedia.org/wiki/Kortstepad-algoritme)."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Waar geen weg ligt, bijvoorbeeld bij een doel buiten het netwerk, zoekt daarnaast een [A*-algoritme](https://de.wikipedia.org/wiki/A*-Algorithmus) over een terreinraster: elke stap wordt geprijsd naar landschap en hoogteverschil; bos, moeras en gebergte vertragen, stijgingen kosten tijd, en zee, meren en rivieren zijn alleen begaanbaar waar een getekende weg kruist. De gevonden terreinroute hangt daarna als afzonderlijke zijde aan het wegennet. Schepen varen van haven naar haven via een afgeleide zeegraaf, niet over getekende wegen."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Vliegende reismiddelen rekenen via een eigen veld met vlieghoogte en terrein."
+                },
+                {
+                    "art": "h3",
+                    "id": "einsatz-von-kuenstlicher-intelligenz",
+                    "text": "Inzet van KI"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Wij waarderen en respecteren het werk van kunstenaars en willen Avesmaps op de lange termijn ook als platform vestigen waarop hun werken kunnen worden getoond en gewaardeerd. Tegelijk is Avesmaps een project met beperkte personele en financiële middelen. Zonder de inzet van KI zou de ontwikkeling in deze omvang op dit moment nauwelijks mogelijk zijn."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Daarbij maken wij uitdrukkelijk onderscheid tussen generatieve KI voor het maken van artistieke inhouden en door KI ondersteunde programmeeragenten die ons bij de technische ontwikkeling helpen. Beide inzetgebieden beoordelen wij naar onze mening verschillend. Vooral bij illustraties zien wij KI niet als principiële vervanging van menselijke creativiteit, maar als pragmatische oplossing onder de huidige omstandigheden. Ons doel blijft om menselijke kunst sterker te betrekken en geïnteresseerde kunstenaars de kans te geven Aventurië mee vorm te geven."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Waar KI concreet wordt ingezet, staat dat op de betreffende plaats: bij de kaart “Modern”, bij wapens en beelden, bij de reisbeelden en in de gegevensbescherming onder [“KI-hulpmiddel”](#ki-werkzeug)."
+                },
+                {
+                    "art": "h3",
+                    "id": "claudia-und-claudio",
+                    "text": "Claudia en Claudio"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps wordt overwegend gebouwd door twee KI-agenten die draaien op Claude van [Anthropic](https://de.wikipedia.org/wiki/Anthropic); af en toe werkt ook Codex mee."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "claudia-und-claudio-claudia",
+                            "begriff": "Claudia",
+                            "werte": [
+                                "Claudia werkt op de ontwikkelingscomputer: architectuur, programmacode, datamodel, tests en de hulpmiddelen waarmee kaart- en reisgegevens worden voorbereid."
+                            ]
+                        },
+                        {
+                            "id": "claudia-und-claudio-claudio",
+                            "begriff": "Claudio",
+                            "werte": [
+                                "Claudio werkt op de server: nieuwe versies uitrollen, de database, de tegeldienst, back-ups, bewaking en het zoeken naar de oorzaak wanneer iets blijft haperen."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Beide werken niet zelfstandig: wat wordt gepubliceerd of aan de kaartgegevens gewijzigd, beslist de beheerder. Een wijziging aan de kaart heeft zijn uitdrukkelijke vrijgave nodig, en elke schrijfactie wordt vastgelegd. De teksten van deze pagina ontwerpt deels Claudia; goedgekeurd worden ze door de beheerder. De uitleg van de bronnen en alles wat redactioneel is, blijft bij mensen."
+                },
+                {
+                    "art": "bild",
+                    "src": "/img/claudia-claudio.webp",
+                    "alt": "Claudia en Claudio, de twee KI-agenten van Avesmaps, boven een kaart",
+                    "breite": 520,
+                    "hoehe": 520
+                }
+            ]
+        },
+        {
+            "id": "reisebilder",
+            "titel": "Reisbeelden",
+            "hinweis": "Voorwaarden voor eigen beelden: maker, gebruik, controle, persoonlijke link",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Voor eigen beelden gelden deze voorwaarden. Wat daarbij wordt opgeslagen, staat in de [gegevensbescherming bij reisbeelden](#datenschutz-bei-reisebildern)."
+                },
+                {
+                    "art": "h3",
+                    "id": "bedingungen",
+                    "text": "Voorwaarden"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Voor elk ingezonden beeld geldt:"
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "bedingungen-eigenes-werk",
+                            "begriff": "Eigen werk",
+                            "werte": [
+                                "Ingezonden wordt alleen een zelfgemaakt beeld: geschilderd of getekend, gefotografeerd, met KI gemaakt of in Avesmaps opgenomen. Werken van anderen, ook officiële DSA-illustraties en scans uit boeken, zijn uitgesloten."
+                            ]
+                        },
+                        {
+                            "id": "bedingungen-personen-und-alter",
+                            "begriff": "Personen en leeftijd",
+                            "werte": [
+                                "Herkenbare personen worden alleen met hun instemming getoond. De indienende persoon is minstens 16 jaar oud."
+                            ]
+                        },
+                        {
+                            "id": "bedingungen-pruefung",
+                            "begriff": "Controle",
+                            "werte": [
+                                "De redactie controleert elk beeld vóór de publicatie. Zij mag de plek, de plaats, het verband en de beschrijving corrigeren, het beeld niet. **Er bestaat geen recht op publicatie**. KI-beelden markeren wij als KI-beeld."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "nutzung",
+                    "text": "Gebruik"
+                },
+                {
+                    "art": "absatz",
+                    "text": "De indienende persoon kiest hoe Avesmaps het beeld mag gebruiken:"
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "nutzung-nur-fuer-avesmaps-vorgabe",
+                            "begriff": "Alleen voor Avesmaps (standaard)",
+                            "werte": [
+                                "Avesmaps mag het beeld tonen op de kaart, in de beeldbalk, in het infopaneel en langs routen, en het daarvoor verkleinen en bijsnijden, met de opgegeven naam of als “anoniem”. Alle andere rechten blijven bij de indienende persoon. De toestemming eindigt wanneer het beeld offline wordt gehaald."
+                            ]
+                        },
+                        {
+                            "id": "nutzung-cc-by-4-0",
+                            "begriff": "[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.nl)",
+                            "werte": [
+                                "Iedere persoon mag het beeld met vermelding van de naam verder gebruiken, ook commercieel. **Dat laat zich niet terugnemen**: wordt het offline gehaald, dan verdwijnt het uit Avesmaps, maar de licentie voor anderen blijft. Zij omvat alleen de eigen bijdrage; rechten van derden, zoals die van Ulisses op DSA-inhouden, blijven onaangetast."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Een Avesmaps-opname bestaat alleen als “Alleen voor Avesmaps”, omdat de kaart daarin niet van de indienende persoon is."
+                },
+                {
+                    "art": "kasten",
+                    "titel": "Persoonlijke link",
+                    "absaetze": [
+                        "Wie de persoonlijke link kent, kan het beeld wijzigen of offline halen. Hij moet goed worden bewaard; wij kunnen hem niet herstellen."
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "grenzen-der-karte-und-haftung",
+            "titel": "Grenzen van de kaart en aansprakelijkheid",
+            "hinweis": "Hoe nauwkeurig de kaart is en waarvoor het project instaat",
+            "bloecke": [
+                {
+                    "art": "h3",
+                    "id": "grenzen-der-karte",
+                    "text": "Grenzen van de kaart"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps is een gestaag groeiend fanproject en maakt geen aanspraak op volledigheid, foutloosheid, canoniciteit of officiële bindendheid. Ondanks uitgebreid bronnenwerk kunnen plaatsen, wegen en andere informatie ontbreken, onnauwkeurig zijn of uit verschillende tijdstippen van Aventurië afkomstig zijn."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Vooral de berekende reistijden en afstanden zijn **als oriëntatiehulp** te verstaan. Ze berusten op de beschikbare kaartgegevens en op de modellen van de Aventurische reisregels (“Wege des Entdeckers”, blz. 160–162; “Geographia Aventurica”, blz. 123, 129 en 131), die niet altijd vrij van tegenstrijdigheden zijn. Weer, terrein, wegtoestand en andere invloeden kunnen niet altijd volledig worden meegerekend. Avesmaps is bedoeld om de reisplanning te vergemakkelijken, niet om de beslissingen van de spelleiding of de officiële regelwerken te vervangen."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Voor spelers die canoniciteit en een aansluiting op Foundry wensen, bevelen wij [DSA Unbound](https://dasschwarzeauge.de/unbound) en de [Aventurische Atlas voor Foundry VTT](https://foundryvtt.com/packages/dsa5-atlas) aan."
+                },
+                {
+                    "art": "h3",
+                    "id": "haftungsausschluss",
+                    "text": "Uitsluiting van aansprakelijkheid"
+                },
+                {
+                    "art": "h4",
+                    "id": "haftung-fuer-inhalte",
+                    "text": "Aansprakelijkheid voor inhouden"
+                },
+                {
+                    "art": "absatz",
+                    "text": "De inhouden van deze website worden met de grootst mogelijke zorg opgesteld. Voor juistheid, volledigheid en actualiteit wordt echter geen garantie gegeven. Voor zover wettelijk toegestaan, wordt **geen aansprakelijkheid** aanvaard voor schade die ontstaat uit het gebruik of het niet-gebruik van de verstrekte informatie. Voor eigen inhouden is de beheerder volgens de algemene wetten verantwoordelijk, maar hij is niet verplicht doorgegeven of opgeslagen vreemde informatie te controleren of naar omstandigheden te zoeken die op een onrechtmatige activiteit wijzen."
+                },
+                {
+                    "art": "h4",
+                    "id": "haftung-fuer-verweise",
+                    "text": "Aansprakelijkheid voor verwijzingen"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Deze website bevat verwijzingen naar externe websites van derden, op wier inhouden de beheerder geen invloed heeft. Voor deze vreemde inhouden is steeds de respectieve aanbieder of beheerder van de gelinkte pagina’s verantwoordelijk. Op het moment van de koppeling waren geen inbreuken herkenbaar. Een voortdurende inhoudelijke controle van de gelinkte pagina’s is zonder concrete aanwijzingen niet redelijk te verlangen; zodra inbreuken bekend worden, worden zulke verwijzingen onmiddellijk verwijderd."
+                },
+                {
+                    "art": "h4",
+                    "id": "verfuegbarkeit-und-nutzung",
+                    "text": "Beschikbaarheid en gebruik"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Er bestaat geen aanspraak op een voortdurende, ononderbroken of foutloze beschikbaarheid van de website. Kaart, zoekfunctie en routeplanner zijn bedoeld voor spelend en privégebruik in het fictieve Aventurië en geven geen garantie voor reële toepasbaarheid, wegverloop of afstanden. Het gebruik gebeurt op eigen verantwoordelijkheid."
+                }
+            ]
+        },
+        {
+            "id": "datenschutz",
+            "titel": "Gegevensbescherming",
+            "hinweis": "Wat wordt opgeslagen, wie het ziet, hoe lang het blijft en welke rechten gelden",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Verantwoordelijk is de in het colofon genoemde beheerder. Er is geen reclame, geen externe reclame- of trackingnetwerken en geen gebruikersgebonden profielen."
+                },
+                {
+                    "art": "sprungliste",
+                    "wort": "In dit onderdeel:",
+                    "ziele": [
+                        {
+                            "text": "Werking van de site",
+                            "ziel": "#betrieb-der-seite"
+                        },
+                        {
+                            "text": "Functies zonder account",
+                            "ziel": "#funktionen-ohne-konto"
+                        },
+                        {
+                            "text": "Meewerken met account",
+                            "ziel": "#mitarbeit-mit-konto"
+                        },
+                        {
+                            "text": "Externe diensten",
+                            "ziel": "#externe-dienste"
+                        },
+                        {
+                            "text": "Termijnen en back-ups",
+                            "ziel": "#fristen-und-sicherungen"
+                        },
+                        {
+                            "text": "Rechten van de betrokkenen",
+                            "ziel": "#rechte-der-betroffenen"
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "betrieb-der-seite",
+                    "text": "Werking van de site"
+                },
+                {
+                    "art": "h4",
+                    "id": "server-logdaten",
+                    "text": "Serverloggegevens"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps draait op een eigen server bij [STRATO](https://de.wikipedia.org/wiki/Strato_AG)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "server-logdaten-was-wird-verarbeitet",
+                            "begriff": "Wat wordt verwerkt?",
+                            "werte": [
+                                "Bij het opvragen van de website verwerkt de server technische serverloggegevens, waaronder het [IP-adres](https://nl.wikipedia.org/wiki/IP-adres), het tijdstip, de opgevraagde bron en het browser- en apparaattype, voor de technische levering, stabiliteit en veiligheid."
+                            ]
+                        },
+                        {
+                            "id": "server-logdaten-wie-lange",
+                            "begriff": "Hoe lang?",
+                            "werte": [
+                                "De logbestanden van de webserver en het systeemprotocol worden na **ongeveer 14 dagen** verwijderd."
+                            ]
+                        },
+                        {
+                            "id": "server-logdaten-anwendung",
+                            "begriff": "Toepassing",
+                            "werte": [
+                                "De toepassing zelf schrijft alleen een ingekort IP-adres in het systeemprotocol: [IPv4](https://de.wikipedia.org/wiki/IPv4) zonder de laatste byte, [IPv6](https://de.wikipedia.org/wiki/IPv6) tot de eerste 48 bits."
+                            ]
+                        },
+                        {
+                            "id": "server-logdaten-schutzdienst",
+                            "begriff": "Beveiligingsdienst",
+                            "werte": [
+                                "Blokkeert de beveiligingsdienst een IP-adres na herhaalde mislukte aanmeldingen op de server ([SSH](https://nl.wikipedia.org/wiki/Secure_Shell)), dan blijft dit eveneens **ongeveer 14 dagen** in het eigen protocol van die dienst staan."
+                            ]
+                        },
+                        {
+                            "id": "server-logdaten-zusammenfuehrung",
+                            "begriff": "Samenvoeging",
+                            "werte": ["Deze logdata worden niet samengevoegd met andere gegevensbronnen."]
+                        },
+                        {
+                            "id": "server-logdaten-rechtsgrundlage",
+                            "begriff": "Rechtsgrondslag",
+                            "werte": [
+                                "Het gerechtvaardigd belang bij een veilige werking (art. 6, lid 1, onder f, [AVG](https://de.wikipedia.org/wiki/Datenschutz-Grundverordnung))."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "cookies-und-browser-speicher",
+                    "text": "Cookies en browseropslag"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Wie Avesmaps zonder aanmelding gebruikt, krijgt geen [cookies](https://de.wikipedia.org/wiki/HTTP-Cookie), behalve bij het koppelen van een melding aan Discord (zie hieronder)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "cookies-und-browser-speicher-sitzungs-cookie",
+                            "begriff": "Sessiecookie",
+                            "werte": [
+                                "Wie zich aanmeldt, krijgt een technisch noodzakelijk sessiecookie (__Host-avesmaps-session). Het bevat alleen een willekeurige identificatie, is voor scripts van de pagina niet leesbaar en geldt alleen voor dit adres. Het blijft ook na het sluiten van de browser bewaard tot de sessie eindigt: met de afmelding, wanneer zij in het account of door het beheer wordt beëindigd, of wanneer het account wordt geblokkeerd of opgeheven. Zij heeft geen vaste looptijd; alleen de noodtoegang eindigt na **60 minuten**. De browser bewaart het cookie hoogstens **400 dagen** en krijgt het bij elk bezoek opnieuw."
+                            ]
+                        },
+                        {
+                            "id": "cookies-und-browser-speicher-anmelde-umweg",
+                            "begriff": "Aanmeldomweg",
+                            "werte": [
+                                "Bij aanmelding via Discord en bij het koppelen van een melding aan Discord zet Avesmaps gedurende hoogstens **tien minuten** een tweede, even noodzakelijk cookie, dat de terugweg van Discord aan dezelfde browser bindt."
+                            ]
+                        },
+                        {
+                            "id": "cookies-und-browser-speicher-browser-speicher",
+                            "begriff": "Browseropslag",
+                            "werte": [
+                                "In de browser van het betreffende apparaat blijven daarnaast:",
+                                [
+                                    "instellingen, zoals taal, kleurenschema, toetsenbordbediening en schakelaars van de kaart",
+                                    "de leesstand van het nieuws",
+                                    "welke beoordelingen deze browser leuk vond",
+                                    "desgewenst de links van eigen reisbeelden",
+                                    "bij het meewerken niet-opgeslagen concepten van de bewerking en de scheiding Nieuw/Archief van de bel",
+                                    "voor de duur van de aanmeldomweg het kaartuitsnede (hoogstens **15 minuten**, alleen in dit tabblad), evenzo de sleutel van de eigen melding, wanneer een melding met Discord wordt gekoppeld"
+                                ],
+                                "**Dat alles gaat niet vanzelf naar de server.**"
+                            ]
+                        },
+                        {
+                            "id": "cookies-und-browser-speicher-rechtsgrundlage",
+                            "begriff": "Rechtsgrondslag",
+                            "werte": [
+                                "Voor sessiecookie en aanmeldomweg geldt § 25 lid 2 nr. 2 [TDDDG](https://de.wikipedia.org/wiki/Telekommunikation-Digitale-Dienste-Datenschutz-Gesetz); daarvoor is geen toestemming nodig."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "anonyme-besucherstatistik",
+                    "text": "Anonieme bezoekersstatistiek"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps telt bezoeken anoniem en in totalen."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "anonyme-besucherstatistik-was-gezaehlt-wird",
+                            "begriff": "Wat wordt geteld",
+                            "werte": [
+                                [
+                                    "Paginaweergaven en verblijfsduur",
+                                    "Herkomst als land en, binnen Duitsland, als deelstaat",
+                                    "Apparaattype, besturingssysteem, browser, browsertaal en vensterklasse",
+                                    "De ingestelde taal van de site en het kleurenschema (licht of donker)",
+                                    "Mogelijkheden van het apparaat (3D, aanraking, minder beweging, donker kleurenschema)",
+                                    "waarvandaan de oproep kwam (direct, intern of het domein van de verwijzende pagina)",
+                                    "wat op de kaart wordt gebruikt"
+                                ]
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-wetter",
+                            "begriff": "Experimenteel weer",
+                            "werte": [
+                                "Wie het experimentele weer gebruikt, heeft een browser die anoniem en in totalen meldt welke weerschakelaars worden in- of uitgeschakeld, en grove prestatiewaarden in klassen (beeldsnelheid en beeldtijd, wolkenresolutie, duur van de eerste start, soort van een fout, evenals de familie van de videokaart, zoals “NVIDIA” of “Adreno”, en of het een computer of een telefoon is), zonder verband met de persoon."
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-ip-adressen",
+                            "begriff": "IP-adressen",
+                            "werte": [
+                                "IP-adressen worden daarbij gelezen, maar door de statistiek nooit opgeslagen; zij dienen alleen om het land op te zoeken en voor een dagcode die om middernacht (UTC) vervalt en daarna aan geen apparaat meer kan worden toegewezen."
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-was-es-nicht-gibt",
+                            "begriff": "Wat er niet is",
+                            "werte": [
+                                "Er ontstaat geen tabel met afzonderlijke bezoeken, er is geen herkenning over dagen heen, geen cookies, geen opslag in de browser en geen externe analysedienst."
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-angemeldete-personen",
+                            "begriff": "Aangemelde personen",
+                            "werte": [
+                                "Aangemelde personen tellen als afzonderlijke groep en verschijnen in geen enkel bezoekersaantal."
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-rechtsgrundlage",
+                            "begriff": "Rechtsgrondslag",
+                            "werte": [
+                                "Het gerechtvaardigd belang bij een foutloze en veilige werking (art. 6, lid 1, onder f, AVG)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "fehlerdiagnose",
+                    "text": "Foutdiagnose"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Loopt de pagina vast in een fout, bijvoorbeeld bij het starten, op de kaart of in de 3D-weergave, dan stuurt de browser een korte technische diagnose, zodat wij de fout kunnen vinden en verhelpen."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "fehlerdiagnose-was-gesendet-wird",
+                            "begriff": "Wat wordt verzonden",
+                            "werte": [
+                                [
+                                    "Soort en naam van de fout",
+                                    "een gezuiverd bericht zonder adressen, kenmerken, cijfers en invoer",
+                                    "tot vijf plekken in de programmacode van Avesmaps",
+                                    "de programmaversie en de browserfamilie",
+                                    "welke grafische mogelijkheden de browser biedt ([WebGL](https://de.wikipedia.org/wiki/WebGL) 2, WebGL 1 of geen)"
+                                ]
+                            ]
+                        },
+                        {
+                            "id": "fehlerdiagnose-was-nicht-dabei-ist",
+                            "begriff": "Wat er niet bij zit",
+                            "werte": [
+                                "De diagnose bevat geen IP-adres, geen dagcode, geen tijdstip en geen kaartuitsnede en is aan geen enkel bezoek te koppelen; gelijke diagnoses van één dag worden bij elkaar opgeteld."
+                            ]
+                        },
+                        {
+                            "id": "fehlerdiagnose-wann-wird-es-geloescht",
+                            "begriff": "Wanneer wordt het verwijderd?",
+                            "werte": [
+                                "Het wordt na **14 dagen** verwijderd; in back-upkopieën ligt het tot **zes maanden**; het aantal fouten per soort en dag blijft als totaal bewaard."
+                            ]
+                        },
+                        {
+                            "id": "fehlerdiagnose-rechtsgrundlage",
+                            "begriff": "Rechtsgrondslag",
+                            "werte": [
+                                "Het gerechtvaardigd belang bij een foutloze en veilige werking (art. 6, lid 1, onder f, AVG)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "missbrauchsschutz",
+                    "text": "Misbruikbeveiliging"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Tegen misbruik en vloed telt de toepassing bij meldingen, beoordelingen, kaartvoorstellen en reisbeelden in het werkgeheugen hoeveel invoer van een [gehasht](https://de.wikipedia.org/wiki/Hashfunktion) adres komt; **dit wordt niet opgeslagen**. Bij gedeelde links telt zij in het werkgeheugen per IP-adres mee hoeveel links uitgaan; **het IP-adres wordt daarbij niet opgeslagen**."
+                },
+                {
+                    "art": "kasten",
+                    "titel": "Serverloggegevens blijven daarvan onaangetast",
+                    "absaetze": ["De webserver registreert ook deze oproepen, met het volledige IP-adres."]
+                },
+                {
+                    "art": "h3",
+                    "id": "funktionen-ohne-konto",
+                    "text": "Functies zonder account"
+                },
+                {
+                    "art": "h4",
+                    "id": "meldungen-zur-karte",
+                    "text": "Meldingen op de kaart"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Via “Hier iets melden” en “Wijzigingen voorstellen” kan iedereen op de kaart iets melden, ook zonder account."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "meldungen-zur-karte-was-wird-gespeichert",
+                            "begriff": "Wat wordt opgeslagen?",
+                            "werte": [
+                                "Opgeslagen worden de beschrijving, de vrijwillige bron, waarop de melding betrekking heeft (een kaartobject of een plek, desgewenst met een voorgestelde nieuwe ligging) en, indien opgegeven, naam of pseudoniem. **Een mailadres wordt niet gevraagd**. IP-adres, [browserkenmerk](https://de.wikipedia.org/wiki/User_Agent) en paginaadres worden niet opgeslagen.",
+                                "Het antwoord staat op een privé statuspagina. De link daarnaar krijgt alleen de meldende persoon; Avesmaps slaat alleen een controlewaarde van de sleutel op. Daar kan de melding ook worden ingetrokken.",
+                                "Vrijwillig kan een melding aan Discord worden gekoppeld. Dan slaat Avesmaps daarvoor de Discord-identificatie en de weergavenaam op, zodat /offen op de Avesmaps-Discord de eigen meldingen toont. De koppeling kan op de statuspagina altijd worden opgeheven."
+                            ]
+                        },
+                        {
+                            "id": "meldungen-zur-karte-wer-sieht-es",
+                            "begriff": "Wie ziet het?",
+                            "werte": [
+                                "Meldingen lezen de personen die bij de redactie meldingen behandelen, met de opgegeven naam en, bij een gekoppelde melding, de weergavenaam op Discord. De beheerders behandelen meldingen ook met een KI-hulpmiddel (Claude van Anthropic, zie [“KI-hulpmiddel”](#ki-werkzeug)) dat dan tekst en namen ziet. Melding en naam verschijnen **nooit openbaar**, ook niet in kaartgegevens, beschrijvingen of nieuws."
+                            ]
+                        },
+                        {
+                            "id": "meldungen-zur-karte-wann-wird-es-geloescht",
+                            "begriff": "Wanneer wordt het verwijderd?",
+                            "werte": [
+                                "Zolang een melding open is, blijven de gegevens opgeslagen. Naam, Discord-gegevens en statuslink worden **90 dagen** na de afsluiting verwijderd. Tekst en zakelijke inhoud blijven in het archief; staat er een naam in, dan blijft die staan tot iemand verwijdering vraagt. Wat in de prullenbak ligt, zoals spam, wordt na **30 dagen** helemaal verwijderd. **Op verzoek verwijderen wij** gegevens en teksten van de meldende persoon **onmiddellijk**; de zakelijke inhoud blijft."
+                            ]
+                        },
+                        {
+                            "id": "meldungen-zur-karte-rechtsgrundlage",
+                            "begriff": "Rechtsgrondslag",
+                            "werte": [
+                                "Het gerechtvaardigd belang om de kaart juist te houden en meldingen te beantwoorden (art. 6, lid 1, onder f, AVG)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "kontakt-und-mail",
+                    "text": "Contact en mail"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Vragen bereiken de redactie via het contactformulier of per mail."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "kontakt-und-mail-was-wird-gespeichert",
+                            "begriff": "Wat wordt opgeslagen?",
+                            "werte": [
+                                "Via het contactformulier gaan bericht, onderwerp en, indien opgegeven, naam en mailadres naar de redactie. Zonder adres staat het antwoord alleen op de privé statuspagina; met adres komt het ook per mail.",
+                                "Avesmaps haalt mails aan {mail} uit de postbus op. Opgeslagen worden afzender, onderwerp, tekst, gezuiverde HTML, bijlagen en het oorspronkelijke bericht. Beelden worden opnieuw gecodeerd en verliezen daarbij hun metadata. Uitvoerbare bestanden, archieven en documenten met macro’s worden niet overgenomen, alleen hun naam en grootte."
+                            ]
+                        },
+                        {
+                            "id": "kontakt-und-mail-wer-sieht-es",
+                            "begriff": "Wie ziet het?",
+                            "werte": [
+                                "Vragen en mails met afzender lezen alleen de beheerders en personen met de taak “Diplomat”. De beheerders behandelen ze ook met een KI-hulpmiddel (Claude van Anthropic, zie [“KI-hulpmiddel”](#ki-werkzeug)) dat dan tekst en afzender ziet. Ze zijn **nooit openbaar**. Wordt uit een vraag een melding op de kaart, dan blijven naam en adres bij de vraag."
+                            ]
+                        },
+                        {
+                            "id": "kontakt-und-mail-wann-wird-es-geloescht",
+                            "begriff": "Wanneer wordt het verwijderd?",
+                            "werte": [
+                                "Zolang een vraag open is, blijven de gegevens opgeslagen. Naam, adres, afzender, oorspronkelijke mail en statuslink worden **90 dagen** na de afsluiting verwijderd. Tekst, onderwerp, gezuiverde HTML, bijlagen met hun bestandsnamen en de technische kenmerken van de mail blijven in het archief; staat er een naam of handtekening in, dan blijft die staan tot iemand verwijdering vraagt. Wat in de prullenbak ligt, zoals spam, wordt na **30 dagen** helemaal verwijderd. **Op verzoek verwijderen wij** gegevens, teksten en bijlagen van de persoon **onmiddellijk**. Schrijft de redactie uit zichzelf een nieuwe mail, dan legt het beheerprotocol een ingekorte controlewaarde van het ontvangeradres vast, zonder termijn."
+                            ]
+                        },
+                        {
+                            "id": "kontakt-und-mail-rechtsgrundlage",
+                            "begriff": "Rechtsgrondslag",
+                            "werte": [
+                                "Het gerechtvaardigd belang om vragen te beantwoorden (art. 6, lid 1, onder f, AVG)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "bewertungen",
+                    "text": "Beoordelingen"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Bij een plaats kan zonder account een beoordeling worden geschreven: één tot vijf sterren, vrijwillig een korte tekst, een vrij gekozen naam en een Aventurische datum."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "bewertungen-was-wird-gespeichert",
+                            "begriff": "Wat wordt opgeslagen?",
+                            "werte": [
+                                "Dat alles staat openbaar in het infopaneel van de plaats. Een echte naam is niet nodig; zonder naam verschijnt “Anoniem”. Daarbij komt het tijdstip van ontvangst. **IP-adres, browserkenmerk en paginaadres worden niet opgeslagen**.",
+                                "Beoordelingen uit de vorige versie van Avesmaps zijn met sterren, naam, tekst en datum overgenomen, zonder IP-adres of browsergegevens.",
+                                "“Vind ik leuk” is alleen een getal: de server weet niet wie het was. Dat een browser een beoordeling al leuk vond, onthoudt die zelf, voor hoogstens 500 beoordelingen."
+                            ]
+                        },
+                        {
+                            "id": "bewertungen-wer-sieht-es",
+                            "begriff": "Wie ziet het?",
+                            "werte": [
+                                "Openbaar, zie hierboven. Nieuwe beoordelingen verschijnen **onmiddellijk**; de redactie controleert ze daarna. Bevat een beoordeling een adres of een woord van een spamlijst, dan blijft ze achtergehouden tot de redactie ze vrijgeeft."
+                            ]
+                        },
+                        {
+                            "id": "bewertungen-wann-wird-es-geloescht",
+                            "begriff": "Wanneer wordt het verwijderd?",
+                            "werte": [
+                                "Een beoordeling blijft zolang zij zichtbaar is. Betreft zij een persoon, dan kan zij via “Melden” met de reden “Persoonlijke gegevens” worden aangevochten; de redactie verbergt haar en verwijdert naam, tekst en datum. De sterren blijven, maar worden dan niet meer getoond. Verborgen en achtergehouden beoordelingen blijven bewaard, tot de redactie hun inhoud verwijdert of ze vrijgeeft."
+                            ]
+                        },
+                        {
+                            "id": "bewertungen-rechtsgrundlage",
+                            "begriff": "Rechtsgrondslag",
+                            "werte": [
+                                "Het gerechtvaardigd belang om inschattingen van plaatsen op de kaart te tonen (art. 6, lid 1, onder f, AVG)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "kartenvorschlaege",
+                    "text": "Kaartvoorstellen"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Via “Kaart voorstellen” kan zonder account een kaart voor de kaartenverzameling worden voorgesteld, als link of als eigen bestand (JPEG, PNG, WebP of PDF)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "kartenvorschlaege-was-wird-gespeichert",
+                            "begriff": "Wat wordt opgeslagen?",
+                            "werte": [
+                                "Opgeslagen worden titel, link of bestand, de vrijwillige gegevens over de kaart, een notitie aan de redactie, de gekozen gebruiksvorm, de versie van de voorwaarden en, indien opgegeven, een naam. **Een mailadres wordt niet gevraagd**. **IP-adres en browserkenmerk worden niet opgeslagen**.",
+                                "Bij beelden verwijdert Avesmaps [EXIF](https://de.wikipedia.org/wiki/Exchangeable_Image_File_Format), [XMP](https://de.wikipedia.org/wiki/Extensible_Metadata_Platform), [IPTC](https://de.wikipedia.org/wiki/IPTC-IIM-Standard) en opmerkingen al bij ontvangst. Een pdf behoudt zijn metadata tot het origineel is verwijderd.",
+                                "De stand van zaken staat op een privé statuspagina. De link daarnaar krijgt alleen de indienende persoon; Avesmaps slaat alleen een controlewaarde van zijn sleutel op. Daar staat ook de reden van een afwijzing, en het voorstel kan worden ingetrokken."
+                            ]
+                        },
+                        {
+                            "id": "kartenvorschlaege-wer-sieht-es",
+                            "begriff": "Wie ziet het?",
+                            "werte": [
+                                "Tot de beslissing ziet alleen de redactie het voorstel. Wordt het aangenomen, dan verschijnt de kaart met titel en gegevens in de kaartenverzameling. Notitie, voorbeeldlink en de naam van de indienende persoon worden niet overgenomen; genoemd wordt de opgegeven tekenaar of uitgeverij. Het bestand wordt pas openbaar wanneer de rechten dat toestaan."
+                            ]
+                        },
+                        {
+                            "id": "kartenvorschlaege-wann-wird-es-geloescht",
+                            "begriff": "Wanneer wordt het verwijderd?",
+                            "werte": [
+                                "Een voorstel waarvan het bestand nooit is aangekomen of niet kon worden verwerkt, wordt na **7 dagen** verwijderd; een afgewezen of ingetrokken voorstel na **30 dagen**, telkens samen met bestand en naam. Bij een aangenomen voorstel worden naam en notitie **90 dagen** na de beslissing verwijderd. Een voorstel waarover nog niet is beslist, blijft tot de beslissing bewaard.",
+                                "Het geüploade bestand van een aangenomen kaart wordt **ongeveer een week** na de aanvaarding verwijderd. Er blijft een daaruit berekende versie in volledige resolutie bewaard; bij een pdf alleen de eerste pagina. In back-ups kan het bestand langer blijven staan (zie [“Back-ups”](#sicherungen))."
+                            ]
+                        },
+                        {
+                            "id": "kartenvorschlaege-rechtsgrundlage",
+                            "begriff": "Rechtsgrondslag",
+                            "werte": [
+                                "Het gerechtvaardigd belang om de kaartenverzameling te onderhouden (art. 6, lid 1, onder f, AVG). Voor het gebruik van het bestand gelden de voorwaarden waarmee de persoon bij het uploaden instemt."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "datenschutz-bei-reisebildern",
+                    "text": "Gegevensbescherming bij reisbeelden"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Reisbeelden kunnen zonder account worden ingezonden; de voorwaarden staan onder [“Reisbeelden”](#reisebilder)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "datenschutz-bei-reisebildern-was-wird-gespeichert",
+                            "begriff": "Wat wordt opgeslagen?",
+                            "werte": [
+                                "Wij slaan het beeld en de gegevens op (plek, beschrijving, ontstaan, gebruik, kijkrichting, vrijwillige naam), het tijdstip, de versie van deze voorwaarden en een controlewaarde van de persoonlijke link. **Geen account, geen mail, geen cookie.**",
+                                "Op verzoek onthoudt de browser de persoonlijke links van eigen reisbeelden op dit apparaat. Naar Avesmaps gaan ze alleen om de stand op te halen, zoals bij het openen van de link. Onder “Mijn reisbeelden” kunnen ze afzonderlijk worden vergeten.",
+                                "Metadata in het bestand (plaats, tijd, apparaat, naam) verwijderen wij al bij ontvangst, ook uit het origineel. Het origineel blijft bewaard zolang het beeld bij ons ligt. De bestandsnaam slaan wij niet op. Over het IP-adres zie [“Misbruikbeveiliging”](#missbrauchsschutz)."
+                            ]
+                        },
+                        {
+                            "id": "datenschutz-bei-reisebildern-wer-sieht-es",
+                            "begriff": "Wie ziet het?",
+                            "werte": [
+                                "De naam voor de vermelding blijft zichtbaar zolang het beeld openbaar is. Gepubliceerde beelden kunnen via “Melden” worden aangevochten."
+                            ]
+                        },
+                        {
+                            "id": "datenschutz-bei-reisebildern-wann-wird-es-geloescht",
+                            "begriff": "Wanneer wordt het verwijderd?",
+                            "werte": [
+                                "Afgewezen, ingetrokken en offline gehaalde inzendingen wissen wij na **30 dagen** samen met de gegevens; de beeldbestanden van offline gehaalde inzendingen verdwijnen al bij de eerstvolgende dagelijkse run. Onbeslist verlopen na **60 dagen** en worden **30 dagen** later verwijderd. Daarna leidt de link nergens meer naartoe.",
+                                "Offline halen werkt **onmiddellijk**: het beeld is uit Avesmaps verwijderd, de bestanden verwijdert de eerstvolgende dagelijkse run. Kopieën die anderen al hebben gemaakt, kunnen wij niet terughalen."
+                            ]
+                        },
+                        {
+                            "id": "datenschutz-bei-reisebildern-rechtsgrundlage",
+                            "begriff": "Rechtsgrondslag",
+                            "werte": ["De inzending volgens de voorwaarden (art. 6, lid 1, onder b, AVG)."]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "geteilte-links",
+                    "text": "Gedeelde links"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Kaart en reisplanning kunnen als korte link worden gedeeld."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "geteilte-links-was-wird-gespeichert",
+                            "begriff": "Wat wordt opgeslagen?",
+                            "werte": [
+                                "Een gedeelde link slaat alleen de kaartstand op die hij herstelt, dus kaart, weergave, laag, schakelaars en reisplanning. Gegevens over de persoon bevat hij niet."
+                            ]
+                        },
+                        {
+                            "id": "geteilte-links-wer-sieht-es",
+                            "begriff": "Wie ziet het?",
+                            "werte": ["Wie de link kent."]
+                        },
+                        {
+                            "id": "geteilte-links-wann-wird-es-geloescht",
+                            "begriff": "Wanneer wordt het verwijderd?",
+                            "werte": ["Gedeelde links blijven bewaard."]
+                        },
+                        {
+                            "id": "geteilte-links-rechtsgrundlage",
+                            "begriff": "Rechtsgrondslag",
+                            "werte": [
+                                "Het gerechtvaardigd belang om kaarten en reizen te kunnen delen (art. 6, lid 1, onder f, AVG)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "mitarbeit-mit-konto",
+                    "text": "Meewerken met account"
+                },
+                {
+                    "art": "h4",
+                    "id": "konten",
+                    "text": "Accounts"
+                },
+                {
+                    "art": "absatz",
+                    "text": "**Een account krijgt alleen wie wordt uitgenodigd**; de openbare kaart heeft er geen nodig."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "konten-kontodaten",
+                            "begriff": "Accountgegevens",
+                            "werte": [
+                                "Bij een account slaat Avesmaps de weergavenaam op, de rol, of het account actief of geblokkeerd is, wanneer het is aangemaakt en wanneer de laatste aanmelding was. Afhankelijk van de gekozen aanmeldweg komen er gegevens bij."
+                            ]
+                        },
+                        {
+                            "id": "konten-benutzername-und-passwort",
+                            "begriff": "Gebruikersnaam en wachtwoord",
+                            "werte": [
+                                "Voor de aanmelding met gebruikersnaam en wachtwoord slaat Avesmaps de gebruikersnaam en een controlewaarde van het wachtwoord op ([Argon2id](https://de.wikipedia.org/wiki/Argon2)). **Het wachtwoord zelf wordt nooit opgeslagen**."
+                            ]
+                        },
+                        {
+                            "id": "konten-discord",
+                            "begriff": "Discord",
+                            "werte": [
+                                "Voor de aanmelding met Discord slaat Avesmaps de Discord-identificatie, de Discord-gebruikersnaam en de weergavenaam op. Avesmaps vraagt bij Discord alleen de basisgegevens van het account op (bevoegdheid identify), dus geen mailadres, geen server, geen vriendenlijst en geen berichten, en neemt daarvan alleen deze drie over. Bij de aanmelding stuurt de pagina door naar Discord (voor personen in de EU Discord Netherlands BV; gegevens gaan ook naar [Discord Inc.](https://de.wikipedia.org/wiki/Discord) in de VS); daarbij geldt de [privacyverklaring van Discord](https://discord.com/privacy). Aanmelden met gebruikersnaam en wachtwoord kan ook zonder Discord."
+                            ]
+                        },
+                        {
+                            "id": "konten-passkey",
+                            "begriff": "Passkey",
+                            "werte": [
+                                "Voor een [passkey](https://de.wikipedia.org/wiki/Passkey) slaat Avesmaps zijn openbare sleutel op, zijn identificatie, een zelfgekozen benaming en of hij tussen apparaten wordt afgestemd, daarnaast zijn teller, de overdrachtskanalen, het apparaattype en wanneer hij is aangemaakt en voor het laatst is gebruikt. Vingerafdruk, gezichtsbeeld of pincode van het apparaat verlaten het apparaat nooit."
+                            ]
+                        },
+                        {
+                            "id": "konten-verantwortlich-fuer",
+                            "begriff": "Verantwoordelijk voor",
+                            "werte": [
+                                "Vrijwillig kan bij een account een korte vermelding “Verantwoordelijk voor” staan (één regel, hoogstens 120 tekens), die de persoon zelf invult of een beheerder instelt. Zij is zichtbaar in het beheer van de accounts en in de editorenlijst; het protocol vermeldt alleen dat zij is gewijzigd, niet wat er stond."
+                            ]
+                        },
+                        {
+                            "id": "konten-wortform",
+                            "begriff": "Genusvorm",
+                            "werte": [
+                                "Eveneens vrijwillig kiest de persoon de genusvorm van de rollen (mannelijk, vrouwelijk of neutraal)."
+                            ]
+                        },
+                        {
+                            "id": "konten-sonderrolle",
+                            "begriff": "Bijzondere rol",
+                            "werte": [
+                                "Bij een bijzondere rol (bijvoorbeeld “Diplomat”) slaat Avesmaps de rol op, eventueel de regio, de motivering en wie die wanneer heeft toegekend of ingetrokken."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "sitzungen-und-protokoll",
+                    "text": "Sessies en protocol"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps houdt sessies en protocollen bij, zodat aanmeldingen veilig blijven en wijzigingen traceerbaar zijn."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "sitzungen-und-protokoll-sitzungen",
+                            "begriff": "Sessies",
+                            "werte": [
+                                "Bij elke sessie slaat Avesmaps op wanneer zij begon en voor het laatst is gebruikt, de aanmeldweg, een grove apparaataanduiding (bijvoorbeeld “Firefox · Windows”, nooit het volledige browserkenmerk) en een ingekort IP-adres (IPv4 zonder de laatste byte, IPv6 tot de eerste 48 bits). Zo kan iedere persoon de eigen sessies in het account herkennen en beëindigen."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-protokoll",
+                            "begriff": "Protocol",
+                            "werte": [
+                                "Een protocol legt vast wie zich wanneer heeft aangemeld, welke aanmeldingen mislukten en welke beheerhandelingen plaatsvonden (uitnodigingen, rollen, blokkades, links). Het bevat nooit wachtwoorden, cookiewaarden, uitnodigings- of herstellinks. Tegen het uitproberen van wachtwoorden onthoudt Avesmaps bij elke ingevoerde gebruikersnaam een controlewaarde en het aantal mislukte pogingen, ook als de naam niet bestaat; na **30 dagen** zonder nieuwe pogingen vervalt de vermelding."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-fristen",
+                            "begriff": "Termijnen",
+                            "werte": [
+                                "Aanmeldingen en mislukte pogingen in het protocol worden na **90 dagen** verwijderd, het ingekorte IP-adres na **14 dagen** leeggemaakt. Verlopen sessies, verlopen herstel- en instellinglinks en aanmeldomwegen worden **30 dagen** na hun einde verwijderd. Beheerhandelingen blijven, omdat zij verklaren wie een rol heeft toegekend of een account heeft geblokkeerd; evenzo wijzigingen aan de eigen toegang (wachtwoord, passkey, Discord-koppeling, beëindigde sessies). Accountgegevens blijven zolang het account bestaat."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-editorenliste",
+                            "begriff": "Editorenlijst",
+                            "werte": [
+                                "Wie de editor mag openen, ziet de editorenlijst: naam, rol, bijzondere rollen en verantwoordelijkheid van de andere personen met toegang, of zij online zijn en wanneer zij het laatst aanwezig waren, hun apparaat, op hoeveel van de laatste dertig dagen zij actief waren, waaraan zij nu werken en wat zij het laatst hebben gewijzigd."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-redaktionsprotokoll-und-betreiber-kanal",
+                            "begriff": "Redactieprotocol en beheerderskanaal",
+                            "werte": [
+                                "Wie de kaart of de beelden bewerkt, verschijnt in het redactieprotocol: bij elke handeling staan de persoon, het tijdstip en wat er is veranderd. Dit protocol blijft, omdat het verklaart wie een wijziging heeft gemaakt. Wordt een account opgeheven, dan worden de motiveringen van de persoon daarin onleesbaar gemaakt en de bestandsnamen van de uploads van die persoon verwijderd; de kaartinhoud blijft, en de naam van die persoon verschijnt daarna als plaatshouder. Meldingen en beelden uit het beheerderskanaal worden **90 dagen** na hun goedkeuring verwijderd; er blijven korte titels, bewijzen en het herstelrapport."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-rechtsgrundlage",
+                            "begriff": "Rechtsgrondslag",
+                            "werte": [
+                                "Voor het account geldt art. 6, lid 1, onder b, AVG (het meewerken waarom de persoon bij het aannemen van de uitnodiging heeft verzocht); voor protocol, begrenzing en ingekort IP-adres het gerechtvaardigd belang bij een veilige werking (art. 6, lid 1, onder f, AVG)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "benachrichtigungen",
+                    "text": "Notificaties"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Aangemelde personen krijgen notificaties in de balk, bijvoorbeeld over nieuwe meldingen of over handelingen waarbij zij betrokken zijn."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "benachrichtigungen-was-wird-gespeichert",
+                            "begriff": "Wat wordt opgeslagen?",
+                            "werte": [
+                                "Een notificatie hoort bij het account en bevat soort, afzender, tijdstip en een nummer of kortetitel, nooit de tekst of de naam uit een melding. Wie de kaart zonder aanmelding gebruikt, heeft geen bel."
+                            ]
+                        },
+                        {
+                            "id": "benachrichtigungen-gelesen-und-neu",
+                            "begriff": "Gelezen en nieuw",
+                            "werte": [
+                                "Of een notificatie gelezen of beantwoord is, slaat de server met haar op. Hoe ver de lijst op dit apparaat als “Nieuw” geldt, onthoudt alleen de browser; dat gaat niet naar de server."
+                            ]
+                        },
+                        {
+                            "id": "benachrichtigungen-abfrage",
+                            "begriff": "Opvraging",
+                            "werte": [
+                                "Zolang het tabblad zichtbaar is, vraagt de pagina elke minuut één keer naar nieuwe items."
+                            ]
+                        },
+                        {
+                            "id": "benachrichtigungen-wann-wird-es-geloescht",
+                            "begriff": "Wanneer wordt het verwijderd?",
+                            "werte": [
+                                "Notificaties worden **90 dagen** na het lezen of beantwoorden verwijderd, in ieder geval na **180 dagen**, en bij opheffing van het account **onmiddellijk**."
+                            ]
+                        },
+                        {
+                            "id": "benachrichtigungen-rechtsgrundlage",
+                            "begriff": "Rechtsgrondslag",
+                            "werte": [
+                                "Net als bij het account geldt art. 6, lid 1, onder b, AVG (het meewerken waarom de persoon bij het aannemen van de uitnodiging heeft verzocht)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "konto-aufloesen",
+                    "text": "Account opheffen"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Op aanvraag wordt een account opgeheven. De aanvraag neemt de in het colofon genoemde beheerder in ontvangst."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "konto-aufloesen-was-geloescht-wird",
+                            "begriff": "Wat wordt verwijderd",
+                            "werte": [
+                                "Dan worden verwijderd: de gebruikersnaam en de controlewaarde van het wachtwoord, de koppeling met Discord met de gegevens van Discord, de sessies, de vermelding “Verantwoordelijk voor”, de genusvorm van de rollen, en de sleutels en benamingen van de passkeys; openstaande links naar de persoon vervallen **onmiddellijk**, toegang, bijzondere rechten en bijzondere rollen worden ingetrokken, en de weergavenaam wordt vervangen door een neutrale plaatshouder."
+                            ]
+                        },
+                        {
+                            "id": "konto-aufloesen-was-im-protokoll-bleibt",
+                            "begriff": "Wat in het protocol blijft",
+                            "werte": [
+                                "Beheerhandelingen blijven in het protocol staan en noemen de persoon met de plaatshouder, omdat zij verklaren wie een rol heeft toegekend of een account heeft geblokkeerd."
+                            ]
+                        },
+                        {
+                            "id": "konto-aufloesen-was-geschwaerzt-wird",
+                            "begriff": "Wat onleesbaar wordt gemaakt",
+                            "werte": [
+                                "In de vermeldingen over de persoon wordt onleesbaar gemaakt wat die persoon beschrijft: vroegere weergavenamen, de Discord-naam, benamingen van de passkeys, de notitie bij de uitnodiging, redenen van een blokkade, een bijzonder recht of een bijzondere rol en een toegewezen legacy-naam met motivering; in de eigen vermeldingen daarnaast de apparaataanduiding en het ingekorte IP-adres."
+                            ]
+                        },
+                        {
+                            "id": "konto-aufloesen-anmeldungen",
+                            "begriff": "Aanmeldingen",
+                            "werte": ["Aanmeldingen in het protocol worden na de genoemde termijnen verwijderd."]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "externe-dienste",
+                    "text": "Externe diensten"
+                },
+                {
+                    "art": "h4",
+                    "id": "discord-befehle",
+                    "text": "Discord-Befehle"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Op onze Discordserver neemt de Avesmaps-bot meldingen in ontvangst."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "discord-befehle-was-wird-gespeichert",
+                            "begriff": "Wat wordt opgeslagen?",
+                            "werte": [
+                                "Wie /bug, /idee of /frage gebruikt, stuurt de inhoud van het formulier naar Avesmaps. Opgeslagen worden deze tekst, de weergavenaam die Discord noemt (bijnaam op de server, anders globale naam of gebruikersnaam) en de Discord-identificatie. De identificatie blijft intern: zij koppelt de meldingen aan de persoon en helpt tegen misbruik."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-was-wird-oeffentlich",
+                            "begriff": "Wat wordt openbaar?",
+                            "werte": [
+                                "/bug en /idee verschijnen daarna openbaar in #bugs of in het ideeënkanaal, met nummer, titel, één tot twee zinnen uit de tekst en een dank die de persoon noemt. /frage wordt niet gepost. Het dagrapport op Discord noemt openstaande meldingen met titel en korte stand en, zodra een melding is gecontroleerd, de naam van de meldende persoon. Dat geldt ook voor meldingen uit het beheerderskanaal."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-eigene-meldungen",
+                            "begriff": "Eigen meldingen",
+                            "werte": [
+                                "/offen toont alleen de vragende persoon de openstaande meldingen uit Discord en de eigen meldingen van de website; daarvoor vraagt de bot met de identificatie van die persoon bij Avesmaps na. /erledigt sluit een eigen melding af; beheerders sluiten daarmee elke melding af."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-wer-sieht-es",
+                            "begriff": "Wie ziet het?",
+                            "werte": [
+                                "Meldingen lezen de beheerders. Gecontroleerde meldingen behandelen zij ook met het KI-hulpmiddel (zie [“KI-hulpmiddel”](#ki-werkzeug)), dat dan tekst en weergavenamen ziet."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-wann-wird-es-geloescht",
+                            "begriff": "Wanneer wordt het verwijderd?",
+                            "werte": [
+                                "Zolang een melding open is, blijven de gegevens opgeslagen. **90 dagen** na de afsluiting worden tekst, weergavenaam en identificatie verwijderd; korte titels, bewijzen en het herstelrapport blijven. Wat al in Discord staat, blijft daar staan totdat het wordt verwijderd; op verzoek verwijderen wij onze berichten."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-usa-und-rechtsgrundlage",
+                            "begriff": "VS en rechtsgrondslag",
+                            "werte": [
+                                "Wat op Discord gebeurt, verwerkt Discord ook zelf. Voor personen in de EU is Discord Netherlands BV verantwoordelijk; gegevens gaan ook naar Discord Inc. in de VS, volgens Discord beveiligd door standaardcontractbepalingen en het EU-VS-[Data Privacy Framework](https://de.wikipedia.org/wiki/EU-US_Data_Privacy_Framework). De [privacyverklaring van Discord](https://discord.com/privacy) geldt. Rechtsgrondslag is het gerechtvaardigd belang om fouten te herstellen en ideeën openlijk te bespreken (art. 6, lid 1, onder f, AVG); **bezwaar is op elk moment mogelijk**."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "ki-werkzeug",
+                    "text": "KI-hulpmiddel"
+                },
+                {
+                    "art": "absatz",
+                    "text": "De beheerders behandelen meldingen, vragen en mails ook met een KI-hulpmiddel (Claude van Anthropic), dat dan de tekst en de naam of afzender ziet; uit Discord geldt dat voor gecontroleerde meldingen."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "ki-werkzeug-taeglicher-bericht",
+                            "begriff": "Dagelijks rapport",
+                            "werte": [
+                                "Het dagrapport op Discord wordt opgesteld door Claude Sonnet; daarvoor gaan eenmaal per dag titels en tekst van nog niet gecontroleerde meldingen mee, zonder naam en identificatie."
+                            ]
+                        },
+                        {
+                            "id": "ki-werkzeug-abonnement-und-bedingungen",
+                            "begriff": "Abonnement en voorwaarden",
+                            "werte": [
+                                "Beide loopt via een abonnement bij Anthropic; de [gebruiksvoorwaarden](https://www.anthropic.com/legal/consumer-terms) en de [privacyverklaring](https://www.anthropic.com/legal/privacy) van Anthropic gelden. Aanbieder is Anthropic Ireland, Limited; gegevens kunnen naar de VS gaan, volgens Anthropic beveiligd door standaardcontractbepalingen. Het gebruik van invoer voor het trainen van de KI-modellen is in de accounts van Avesmaps uitgeschakeld."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "mailpostfach",
+                    "text": "Mailbox"
+                },
+                {
+                    "art": "absatz",
+                    "text": "De mailbox staat bij STRATO, waarlangs ook antwoorden worden verzonden. STRATO verwerkt de mails voor ons als verwerker. Avesmaps leest inkomende mails alleen en verwijdert niets: mails en kopieën blijven staan tot de beheerders ze verwijderen."
+                },
+                {
+                    "art": "h4",
+                    "id": "social-media",
+                    "text": "Social media"
+                },
+                {
+                    "art": "absatz",
+                    "text": "De redactie plaatst berichten in het nieuws van Avesmaps en op de eigen kanalen bij [Mastodon](https://joinmastodon.org), Facebook, Instagram en Discord."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "social-media-personenbezug",
+                            "begriff": "Persoonsgegevens",
+                            "werte": [
+                                "Persoonsgegevens ontstaan alleen wanneer een bericht een persoon noemt of toont."
+                            ]
+                        },
+                        {
+                            "id": "social-media-wohin-es-geht",
+                            "begriff": "Waar het naartoe gaat",
+                            "werte": [
+                                "Met het verzenden gaan tekst en beeld naar de betreffende dienst: rollenspiel.social (Mastodon), Meta Platforms Ireland (Facebook, Instagram) en Discord Inc. (VS). Daar gelden de privacyverklaringen van die diensten."
+                            ]
+                        },
+                        {
+                            "id": "social-media-wer-dahintersteht",
+                            "begriff": "Wie er achter staat",
+                            "werte": [
+                                "Wie een bericht opstelt of vrijgeeft, staat alleen in het interne verloop en verschijnt niet openbaar."
+                            ]
+                        },
+                        {
+                            "id": "social-media-was-die-seite-laedt",
+                            "begriff": "Wat de pagina laadt",
+                            "werte": [
+                                "Avesmaps laadt niets van deze diensten. De knoppen naar onze kanalen zijn gewone links; pas wie ze volgt, is daar, en dan gelden daar hun privacyregels."
+                            ]
+                        },
+                        {
+                            "id": "social-media-wann-wird-es-geloescht",
+                            "begriff": "Wanneer wordt het verwijderd?",
+                            "werte": [
+                                "Open berichten in de prullenbak worden na **30 dagen** verwijderd. Gepubliceerde berichten blijven in het interne verloop. Teruggetrokken verdwijnen zij uit het nieuws en van Mastodon, Facebook en Discord; op Instagram verwijdert de redactie ze met de hand. Wie in een bericht wordt genoemd of getoond en dat niet wil, kan zich wenden tot het adres in het colofon."
+                            ]
+                        },
+                        {
+                            "id": "social-media-rechtsgrundlage",
+                            "begriff": "Rechtsgrondslag",
+                            "werte": [
+                                "Het gerechtvaardigd belang om over het project te informeren (art. 6, lid 1, onder f, AVG)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "fristen-und-sicherungen",
+                    "text": "Termijnen en back-ups"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Overzicht; details en uitzonderingen staan bij de betreffende functie."
+                },
+                {
+                    "art": "tafel",
+                    "kopf": ["Wat", "Termijn", "Wat blijft of afwijkt"],
+                    "schluesselSpalten": 1,
+                    "zeilen": [
+                        {
+                            "id": "fristen-und-sicherungen-webserver-und-systemprotokoll-sperrprotokoll",
+                            "zellen": [
+                                "Webserver- en systeemprotocol, blokkeringsprotocol",
+                                "**ongeveer 14 dagen**",
+                                ""
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-fehlerdiagnose",
+                            "zellen": [
+                                "Foutdiagnose",
+                                "**14 dagen**",
+                                "het aantal fouten per soort en dag blijft als totaal"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-anmeldungen-und-fehlversuche",
+                            "zellen": [
+                                "Aanmeldingen en mislukte pogingen",
+                                "**90 dagen**",
+                                "ingekort IP-adres al na **14 dagen** leeggemaakt"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-abgelaufene-sitzungen-links-anmeldeumwege",
+                            "zellen": ["Verlopen sessies, links, aanmeldomwegen", "**30 dagen** na het einde", ""]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-drossel-der-anmeldung",
+                            "zellen": ["Begrenzing van de aanmelding", "**30 dagen** rust", ""]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-verwaltungshandlungen-aenderungen-am-zugang-redaktionsprotokoll",
+                            "zellen": [
+                                "Beheerhandelingen, wijzigingen aan de toegang, redactieprotocol",
+                                "blijven",
+                                "bij de opheffing van het account onleesbaar gemaakt"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-betreiber-kanal",
+                            "zellen": [
+                                "Beheerderskanaal",
+                                "**90 dagen** na de goedkeuring",
+                                "Korte titels, bewijzen en herstelrapport blijven"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-benachrichtigungen",
+                            "zellen": [
+                                "Notificaties",
+                                "**90 dagen** na lezen of antwoord, uiterlijk **180 dagen**",
+                                "**onmiddellijk** bij de opheffing van het account"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-meldungen",
+                            "zellen": [
+                                "Meldingen",
+                                "Naam, Discord-gegevens, statuslink: **90 dagen** na de afsluiting",
+                                "open: blijven; tekst en zakelijke inhoud blijven in het archief"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-kontakt-und-mail",
+                            "zellen": [
+                                "Contact en mail",
+                                "Naam, adres, afzender, oorspronkelijke mail, statuslink: **90 dagen** na de afsluiting",
+                                "open: blijven; tekst, onderwerp, HTML, bijlagen en kenmerken blijven in het archief"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-discord-befehle",
+                            "zellen": [
+                                "Discord-Befehle",
+                                "Tekst, weergavenaam, identificatie: **90 dagen** na de afsluiting",
+                                "open: blijven; korte titels, bewijzen en rapport blijven"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-papierkorb-meldungen-anfragen-social-media",
+                            "zellen": ["Prullenbak (meldingen, vragen, social media)", "**30 dagen**", ""]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-bewertungen",
+                            "zellen": [
+                                "Beoordelingen",
+                                "blijven, zolang zij zichtbaar zijn",
+                                "aangevochten: naam, tekst en datum vervallen, de sterren blijven"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-kartenvorschlaege",
+                            "zellen": [
+                                "Kaartvoorstellen",
+                                "bestand nooit aangekomen of niet verwerkt: **7 dagen**; afgewezen of ingetrokken: **30 dagen**",
+                                "open: tot de beslissing; aangenomen: bestand **ongeveer een week**, naam en notitie **90 dagen**"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-reisebilder",
+                            "zellen": [
+                                "Reisbeelden",
+                                "afgewezen, ingetrokken, offline: **30 dagen**",
+                                "onbeslist: verlopen na **60 dagen**, **30 dagen** later verwijderd"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-sicherungen",
+                            "zellen": ["Back-ups", "tot **zes maanden**", "media en mails kunnen langer blijven staan"]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "sicherungen",
+                    "text": "Back-ups"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps maakt elke dag back-ups van zijn databases en configuratie; daarbij komen, wanneer zij veranderen, de originelen van de media met rechtenbewijzen en de opgeslagen mails."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "sicherungen-was-darin-steht",
+                            "begriff": "Wat erin staat",
+                            "werte": [
+                                "De back-ups bevatten daarmee ook accounts, meldingen, vragen, beoordelingen en protocollen."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-wo-es-liegt",
+                            "begriff": "Waar het ligt",
+                            "werte": [
+                                "De bestanden worden versleuteld voordat zij de server verlaten, en liggen op de server en elders bij een opslagdienst. De dienst krijgt alleen de versleutelde bestanden en een overzicht zonder persoonsgegevens."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-schluessel",
+                            "begriff": "Sleutel",
+                            "werte": [
+                                "De sleutel houdt de beheerder; een tweede sleutel voor de regelmatige herstelproef ligt op de server."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-wie-lange",
+                            "begriff": "Hoe lang",
+                            "werte": [
+                                "Elders blijven de zeven jongste back-ups bewaard, en daarnaast telkens één van **vier weken** en één van zes maanden. Wat in Avesmaps is verwijderd, kan daarom tot **zes maanden** in een back-up liggen."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-wozu",
+                            "begriff": "Waarvoor",
+                            "werte": [
+                                "Een back-up wordt alleen gelezen om gegevens na een storing te herstellen of om dat te oefenen."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-kopie-fuer-die-entwicklung",
+                            "begriff": "Kopie voor de ontwikkeling",
+                            "werte": [
+                                "Voor de ontwikkeling haalt de beheerder af en toe een kopie van de kaartgegevens en mediabestanden naar zijn computer. Accounts, meldingen, vragen en protocollen zitten daar niet bij; namen zijn afgeschermd; de originele mediabestanden komen wel mee."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-rechtsgrundlage",
+                            "begriff": "Rechtsgrondslag",
+                            "werte": [
+                                "Het gerechtvaardigd belang bij een veilige werking (art. 6, lid 1, onder f, AVG)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "kasten",
+                    "titel": "Verwijderde gegevens kunnen in back-ups langer blijven staan",
+                    "absaetze": [
+                        "Media en mails blijven daar in de twee jongste versies staan en worden alleen vervangen wanneer er iets verandert; een verwijderd bestand kan daarom ook langer dan **zes maanden** blijven staan."
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "rechte-der-betroffenen",
+                    "text": "Rechten van de betrokkenen"
+                },
+                {
+                    "art": "absatz",
+                    "text": "In het kader van de AVG bestaan deze rechten:"
+                },
+                {
+                    "art": "liste",
+                    "punkte": [
+                        "Inzage",
+                        "Rectificatie",
+                        "Verwijdering",
+                        "Beperking van de verwerking",
+                        "Overdraagbaarheid van gegevens",
+                        "Bezwaar",
+                        "Klacht bij een toezichthouder voor gegevensbescherming"
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Verzoeken over gegevensbescherming gaan naar het adres in het colofon."
+                }
+            ]
+        },
+        {
+            "id": "kontakt-und-impressum",
+            "titel": "Contact en colofon",
+            "hinweis": "Adres naar § 5 DDG en hoe het project bereikbaar is",
+            "bloecke": [
+                {
+                    "art": "absatz",
+                    "text": "Ontwikkeling, vormgeving, programmering en beheer gebeuren door [Valentin Schwind](https://www.valentin-schwind.de) (c/o Nobelstr. 10, D-70569 Stuttgart); bij de programmering wordt [Claude Code](https://www.anthropic.com/claude-code) ingezet. Verantwoordelijk voor het redactionele onderhoud van de kaartinhoud is Thomas Braun."
+                },
+                {
+                    "art": "absatz",
+                    "text": "E-mail: [{mail}](mailto:{mail})"
+                },
+                {
+                    "art": "kontaktknoepfe"
+                }
+            ]
+        }
+    ],
+    "schluss": "Deze informatie kan bij technische, juridische of inhoudelijke wijzigingen van het project worden aangepast."
+}

@@ -1,0 +1,12 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        // Die Browsertests laufen in Node, ihre `page.evaluate`-Rückrufe im Browser.
+        "lib": ["ES2023", "DOM", "DOM.Iterable"],
+        // Die Specs importieren `./map-handle.ts` mit Endung; Playwright führt sie aus, tsc prüft nur.
+        "allowImportingTsExtensions": true,
+        "noEmit": true,
+        "types": ["node"]
+    },
+    "include": ["e2e/**/*.ts", "playwright.config.ts", "playwright.build.config.ts"]
+}

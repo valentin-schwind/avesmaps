@@ -1,0 +1,12 @@
+{
+    "extends": "./tsconfig.base.json",
+    "compilerOptions": {
+        // TypeScript außerhalb der Workspaces: Vitests Konfiguration und die Skripte unter
+        // `scripts/`. Node führt sie direkt aus und entfernt die Typen nur; geprüft werden sie hier.
+        "composite": false,
+        "allowImportingTsExtensions": true,
+        "noEmit": true,
+        "types": ["node"]
+    },
+    "include": ["*.ts", "scripts/**/*.ts"]
+}

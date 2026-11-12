@@ -1,0 +1,49 @@
+{
+    "format": "avesmaps-referenzrezept",
+    "version": 1,
+    "id": "kettengebirge-ch-bern",
+    "quelle": {
+        "art": "cog-fenster",
+        "urls": ["https://data.geo.admin.ch/ch.swisstopo.swissaltiregio/swissaltiregio/swissaltiregio_2056_5728.tif"],
+        "rand_zellen": 8,
+        "metadaten": {
+            "stac_sammlung": "https://data.geo.admin.ch/api/stac/v0.9/collections/ch.swisstopo.swissaltiregio",
+            "stac_gesamtdatei_sha256": "e1cade929d3007d74be67e5d107e517e40b13e0597a114097744b032fc6527e5",
+            "hinweis": "Prüfsumme der gesamten 10-GB-Datei laut STAC (multihash 1220…); das Manifest führt die Prüfsumme des bezogenen Fensters."
+        }
+    },
+    "ziel": {
+        "crs": "EPSG:2056",
+        "fenster": [2600250, 1135500, 2660250, 1183500]
+    },
+    "nodata": {
+        "quelle": null,
+        "mindestanteil_gueltig": 0.5
+    },
+    "stufen": [
+        {
+            "name": "30m",
+            "zellgroesse_m": 30,
+            "verfahren": "warp-mittel"
+        },
+        {
+            "name": "187_5m",
+            "zellgroesse_m": 187.5,
+            "verfahren": "warp-mittel"
+        },
+        {
+            "name": "375m",
+            "zellgroesse_m": 375,
+            "verfahren": "block-mittel",
+            "aus": "187_5m",
+            "faktor": 2
+        },
+        {
+            "name": "750m",
+            "zellgroesse_m": 750,
+            "verfahren": "block-mittel",
+            "aus": "187_5m",
+            "faktor": 4
+        }
+    ]
+}

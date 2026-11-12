@@ -1,0 +1,775 @@
+/*
+ * Die Stile der Formulare der Besucher mit Ablage, Chips, Häkchen und Linkkasten-Rahmen (`.rb*`): ursprünglich der Block von `reisebild-formular.vue` (WI-0272), seit WI-0275 Stufe C auch der von
+ * `kartenvorschlag/karte-formular.vue`. Beide binden die Datei als `<style scoped src>` ein, die Regeln wirken also wie vorher je Bauteil (gleiche Spezifität). Neue Regeln, die nur ein Formular
+ * braucht, gehören in dessen eigenen `<style>`-Block.
+ */
+/*
+ * Alle Maße aus dem Kanon (`--space-*`, `--icon-*`, `--avm-control-h`), keine Zahl im Bauteil. Die Mehrfachen unten sind die Maße der Probierseite (Entwurf 8) in Kanonschritten:
+ * Platz für Ablage und Vorschau 9 Takte (`--space-24`), Mindesthöhe der Ablagefläche 6,5 Takte, Feld und Chip eine Bedienhöhe plus ein Schritt, der Hauptknopf zwei.
+ */
+.rb {
+    --rb-platz: calc(9 * var(--space-24));
+    --rb-ablage-min: calc(6.5 * var(--space-24));
+    --rb-feld: calc(var(--avm-control-h) + var(--space-6));
+    --rb-ablage-symbol: calc(var(--icon-xxl) * 1.75);
+    --rb-plus: calc(var(--icon-lg) + var(--space-4));
+
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-16);
+    min-width: 0;
+    /* Der Rumpf der Hülle polstert 8 / 14; zusammen mit diesem Polster stehen die Felder 14 oben, 18 an den Seiten und 18 unten. */
+    padding: var(--space-4) var(--space-2) var(--space-8);
+}
+
+.rb--telefon {
+    --rb-ablage-min: calc(6 * var(--space-24));
+    --rb-feld: calc(var(--avm-control-h) + var(--space-10));
+    --rb-ablage-symbol: calc(var(--icon-xxl) * 1.5);
+}
+
+.rb__nur-vorleser {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.rb__abschnitt {
+    display: grid;
+    gap: var(--space-6);
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.rb__titel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+    margin: 0;
+    padding: 0;
+    color: var(--color-text-strong);
+    font-size: var(--font-size-reading);
+    line-height: var(--leading-snug);
+}
+
+.rb__titel label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+label.rb__titel {
+    display: flex;
+}
+
+.rb__sym {
+    flex: none;
+    width: var(--icon-md);
+    height: var(--icon-md);
+    object-fit: contain;
+}
+
+.rb__frei {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-small);
+}
+
+.rb__hinweis {
+    color: var(--color-accent-strong);
+    font-size: var(--font-size-body);
+    font-style: italic;
+}
+
+.rb__zaehler {
+    margin-left: auto;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-small);
+    font-variant-numeric: tabular-nums;
+}
+
+.rb__leisetext {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-caption);
+}
+
+/* Stelle: gemalte Nadel, Ort, „Stelle ändern“. */
+.rb__stelle {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4) var(--space-6);
+    margin: 0;
+}
+
+.rb__nadel {
+    flex: none;
+    width: var(--icon-lg);
+    height: var(--icon-lg);
+    object-fit: contain;
+}
+
+.rb__ort {
+    margin-right: var(--space-4);
+    color: var(--color-text-strong);
+    font-size: var(--font-size-reading);
+    overflow-wrap: anywhere;
+}
+
+/* Der feste Platz: Ablage und Vorschau sind gleich hoch, das Fenster ändert seine Höhe mit der Wahl nicht. */
+.rb__platz {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    height: var(--rb-platz);
+    border-radius: var(--radius-lg);
+    transition: box-shadow 140ms ease;
+}
+
+/* Die ganze Fläche ist der Knopf: ruhig, einladend, mit dem Pergament und einem goldenen Plus. */
+.rb__ablage {
+    --rb-grund: var(--color-panel-soft);
+
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: var(--space-2);
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    padding: var(--space-16) var(--space-12);
+    border: 2px dashed var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    background: var(--rb-grund);
+    color: var(--color-text);
+    cursor: pointer;
+    font: inherit;
+    text-align: center;
+    transition:
+        border-color 140ms ease,
+        background-color 140ms ease,
+        box-shadow 140ms ease;
+}
+
+.rb__ablage:hover:not(:disabled) {
+    --rb-grund: color-mix(in srgb, var(--color-accent) 8%, var(--color-panel-soft));
+
+    border-color: var(--color-accent);
+}
+
+.rb__ablage:active:not(:disabled),
+.rb__platz.is-drueber .rb__ablage {
+    --rb-grund: color-mix(in srgb, var(--color-accent) 16%, var(--color-panel-soft));
+
+    border-color: var(--color-accent);
+}
+
+.rb__platz.is-drueber .rb__ablage {
+    border-style: solid;
+}
+
+.rb__ablage:focus-visible {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: var(--focus-ring);
+}
+
+.rb__ablage:disabled {
+    --rb-grund: var(--color-disabled-bg);
+
+    border-color: var(--color-disabled-border);
+    color: var(--color-disabled-text);
+    cursor: not-allowed;
+}
+
+/* Fehlt das Bild nach einem Druck auf den gesperrten Knopf: Warnrand und Warnhauch, kein Deckkraftspiel. */
+.rb__abschnitt.is-fehlt .rb__ablage {
+    border-color: var(--color-warning);
+    box-shadow: 0 0 0 var(--space-2) var(--color-warning-halo);
+}
+
+.rb__ablage-symbol {
+    position: relative;
+    display: block;
+    width: var(--rb-ablage-symbol);
+    height: var(--rb-ablage-symbol);
+    margin-bottom: var(--space-6);
+    transition: transform 180ms ease;
+}
+
+.rb__ablage:hover:not(:disabled) .rb__ablage-symbol {
+    transform: translateY(calc(-1 * var(--space-2) / 2)) rotate(-2deg);
+}
+
+.rb__ablage-bild {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.rb__plus {
+    position: absolute;
+    right: calc(-1 * var(--space-4));
+    bottom: calc(-1 * var(--space-2) / 2);
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    width: var(--rb-plus);
+    height: var(--rb-plus);
+    border: var(--space-2) solid var(--rb-grund);
+    border-radius: 50%;
+    background: var(--color-accent);
+    color: var(--color-page-bg-deep);
+    transition: border-color 140ms ease;
+}
+
+.rb__plus svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+    stroke-width: 3;
+}
+
+.rb__ablage-titel {
+    color: var(--color-text-strong);
+    font-size: var(--font-size-subhead);
+    line-height: var(--leading-snug);
+}
+
+.rb__ablage:disabled .rb__ablage-titel {
+    color: inherit;
+}
+
+.rb__ablage-ziehen {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-body);
+}
+
+.rb__ablage-formate {
+    margin-top: var(--space-6);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-small);
+}
+
+/* Ohne Maus gibt es nichts zu ziehen. */
+@media (hover: none), (pointer: coarse) {
+    .rb__ablage-ziehen {
+        display: none;
+    }
+}
+
+/* Nach der Wahl: die Vorschau an der Stelle der Fläche, eingepasst und unverfälscht (Inhaltsbilder werden nie abgedunkelt, Guide §30.2). */
+.rb__bild {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: var(--space-4);
+    height: 100%;
+    margin: 0;
+}
+
+.rb__platz.is-drueber .rb__rahmen {
+    border-color: var(--color-accent);
+}
+
+.rb__rahmen {
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-panel-soft);
+    transition: border-color 140ms ease;
+}
+
+.rb__rahmen img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.rb__bild figcaption {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+/* Der Name der Datei kürzt über `.einzeilig` (Guide §3, app.vue), nie mit eigenem `text-overflow`. */
+.rb__dateiname {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-small);
+}
+
+/* Leise Textknöpfe („Anderes Bild“, „Entfernen“): ohne Fläche, bis man sie berührt. */
+.rb__leise {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    min-height: var(--icon-lg);
+    padding: 0 var(--space-6);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: none;
+    color: var(--color-button-soft-text);
+    cursor: pointer;
+    font: inherit;
+    font-size: var(--font-size-small);
+    white-space: nowrap;
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease,
+        color 120ms ease;
+}
+
+.rb__leise:hover {
+    border-color: var(--color-button-soft-border);
+    background: var(--color-button-soft-hover);
+    color: var(--color-text-strong);
+}
+
+.rb__leise:active {
+    background: var(--color-button-soft-active);
+}
+
+.rb__leise:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* Das Dateifeld ist unsichtbar; die Ablage öffnet es. */
+.rb__datei {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Eingabefelder: etwas größer und weicher als die Werkzeugfelder des Hauses. */
+.rb__eingabe {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--rb-feld);
+    padding: var(--space-6) var(--space-8);
+    border: 1px solid var(--color-button-soft-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-panel-soft);
+    color: var(--color-text);
+    font: inherit;
+    font-size: var(--font-size-reading);
+    line-height: var(--leading-normal);
+    transition:
+        border-color 120ms ease,
+        background-color 120ms ease,
+        box-shadow 120ms ease;
+}
+
+.rb--telefon .rb__eingabe {
+    font-size: var(--font-size-touch);
+}
+
+.rb__eingabe::placeholder {
+    color: var(--color-placeholder);
+    opacity: 1;
+}
+
+.rb__eingabe:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--color-accent) 60%, var(--color-button-soft-border));
+}
+
+.rb__eingabe:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    background: var(--color-panel);
+    box-shadow: var(--focus-ring);
+}
+
+.rb__eingabe:disabled {
+    border-color: var(--color-disabled-border);
+    background: var(--color-disabled-bg);
+    color: var(--color-disabled-text);
+    cursor: not-allowed;
+}
+
+.rb__eingabe.is-fehlt {
+    border-color: var(--color-warning);
+    box-shadow: 0 0 0 var(--space-2) var(--color-warning-halo);
+}
+
+textarea.rb__eingabe {
+    display: block;
+    min-height: calc(3.4 * var(--space-24));
+    resize: vertical;
+}
+
+select.rb__eingabe {
+    padding-right: calc(var(--icon-md) + var(--space-8) * 1.4);
+    appearance: none;
+    cursor: pointer;
+}
+
+.rb__wahl {
+    position: relative;
+    min-width: 0;
+}
+
+.rb__pfeil {
+    position: absolute;
+    top: 50%;
+    right: var(--space-6);
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+    margin-top: calc(-1 * var(--icon-sm) / 2);
+    color: var(--color-text-muted);
+    pointer-events: none;
+}
+
+.rb__zeile {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-16) var(--space-6);
+}
+
+.rb--telefon .rb__zeile {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+/* Bezug aus der Suche: Treffer als gestrichelte Vorschläge, der gewählte als Chip mit ✕. */
+.rb__vorschlaege {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4) var(--space-6);
+    font-size: var(--font-size-small);
+}
+
+.rb__vorschlag {
+    padding: var(--space-2) var(--space-8);
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-text);
+    cursor: pointer;
+    font: inherit;
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease;
+}
+
+.rb__vorschlag:hover {
+    border-style: solid;
+    background: var(--color-hover-wash);
+}
+
+.rb__vorschlag:active {
+    background: var(--color-active-wash);
+}
+
+.rb__vorschlag:focus-visible {
+    outline: none;
+    border-style: solid;
+    border-color: var(--color-accent);
+    box-shadow: var(--focus-ring);
+}
+
+.rb__vorschlag span,
+.rb__bezug span {
+    color: var(--color-text-muted);
+}
+
+.rb__bezug {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-8);
+    border: 1px solid var(--color-accent-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-panel-active);
+    color: var(--color-text-strong);
+}
+
+.rb__bezug button {
+    padding: 0 var(--space-4);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition:
+        background-color 120ms ease,
+        color 120ms ease;
+}
+
+.rb__bezug button:hover {
+    background: var(--color-hover-wash);
+    color: var(--color-text-strong);
+}
+
+.rb__bezug button:active {
+    background: var(--color-active-wash);
+}
+
+.rb__bezug button:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* Chips mit Zeichen: „Entstanden als“ und „Nutzung“, je zwei nebeneinander. */
+.rb__chips {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-6);
+    border-radius: var(--radius-lg);
+}
+
+.rb__chip {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+    box-sizing: border-box;
+    min-height: var(--rb-feld);
+    padding: var(--space-4) var(--space-8);
+    border: 1px solid var(--color-button-soft-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-panel);
+    color: var(--color-text);
+    cursor: pointer;
+    font-size: var(--font-size-reading);
+    line-height: var(--leading-tight);
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease,
+        color 120ms ease,
+        box-shadow 120ms ease;
+}
+
+.rb__chip svg {
+    flex: none;
+    width: var(--icon-kachel);
+    height: var(--icon-kachel);
+    color: var(--color-text-muted);
+    transition: color 120ms ease;
+}
+
+.rb__chipwahl {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.rb__chip:hover:not(:has(input:disabled)) {
+    border-color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 7%, var(--color-panel));
+}
+
+.rb__chip:hover:not(:has(input:disabled)) svg,
+.rb__chip:has(input:checked) svg {
+    color: var(--color-accent-strong);
+}
+
+.rb__chip:active:not(:has(input:disabled)) {
+    background: color-mix(in srgb, var(--color-accent) 18%, var(--color-panel));
+}
+
+.rb__chip:has(input:checked) {
+    border-color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 14%, var(--color-panel));
+    box-shadow: inset 0 0 0 1px var(--color-accent);
+    color: var(--color-text-strong);
+}
+
+.rb__chip:has(input:focus-visible) {
+    box-shadow: var(--focus-ring);
+}
+
+.rb__chip:has(input:checked:focus-visible) {
+    box-shadow:
+        inset 0 0 0 1px var(--color-accent),
+        var(--focus-ring);
+}
+
+/* Gesperrt: eigene Farbfassung, keine Hand, kein Hover; der Satz dazu steht darunter (Guide §7, §30.5), nie Deckkraft (§30.2). */
+.rb__chip:has(input:disabled) {
+    border-color: var(--color-disabled-border);
+    background: var(--color-disabled-bg);
+    color: var(--color-disabled-text);
+    cursor: not-allowed;
+}
+
+.rb__chip:has(input:disabled) svg {
+    color: var(--color-disabled-text);
+}
+
+.rb__chips.is-fehlt .rb__chip {
+    border-color: var(--color-warning);
+    box-shadow: 0 0 0 var(--space-2) var(--color-warning-halo);
+}
+
+.rb__satz {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-small);
+    line-height: var(--leading-normal);
+}
+
+/* Das Häkchen: eigenes Kästchen in Kanonfarbe, die ganze Zeile klickbar. */
+.rb__haken {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-8);
+    margin: 0 calc(-1 * var(--space-8));
+    padding: var(--space-8);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    font-size: var(--font-size-body);
+    line-height: var(--leading-normal);
+    transition:
+        background-color 120ms ease,
+        box-shadow 120ms ease;
+}
+
+.rb__haken:hover {
+    background: var(--color-hover-wash);
+}
+
+.rb__haken.is-fehlt {
+    box-shadow:
+        inset 0 0 0 1px var(--color-warning),
+        0 0 0 var(--space-2) var(--color-warning-halo);
+}
+
+.rb__haken-feld {
+    position: absolute;
+    top: var(--space-8);
+    left: var(--space-8);
+    width: var(--icon-md);
+    height: var(--icon-md);
+    margin: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.rb__haken-kasten {
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    width: var(--icon-md);
+    height: var(--icon-md);
+    border: 2px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-panel);
+    color: var(--color-page-bg-deep);
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease,
+        box-shadow 120ms ease;
+}
+
+.rb__haken-kasten svg {
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+    stroke-width: 3;
+    opacity: 0;
+    transform: scale(0.4);
+    transition:
+        opacity 140ms ease,
+        transform 140ms ease;
+}
+
+.rb__haken:hover .rb__haken-kasten {
+    border-color: var(--color-accent);
+}
+
+.rb__haken:active .rb__haken-kasten {
+    background: var(--color-active-wash);
+}
+
+.rb__haken-feld:checked + .rb__haken-kasten {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+}
+
+.rb__haken-feld:checked + .rb__haken-kasten svg {
+    opacity: 1;
+    transform: none;
+}
+
+.rb__haken-feld:focus-visible + .rb__haken-kasten {
+    box-shadow: var(--focus-ring);
+}
+
+/* „Bedingungen“ im Häkchen: ein Verweis, kein Knopf; ein Klick darauf setzt das Häkchen nicht. */
+.rb__verweis {
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-link);
+    cursor: pointer;
+    font: inherit;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: calc(var(--space-2) / 2);
+    transition: color 120ms ease;
+}
+
+.rb__verweis:hover {
+    color: var(--color-link-hover);
+    text-decoration-thickness: 2px;
+}
+
+.rb__verweis:active {
+    color: var(--color-accent-strong);
+}
+
+.rb__verweis:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* Der Honigtopf liegt im Dokument, aber weder im Bild noch im Weg: links neben dem Fenster, durchsichtig, ohne Zeigerereignisse - nicht `display: none`. */
+.rb__honig {
+    position: absolute;
+    inset-inline-start: -100vw;
+    opacity: 0;
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rb__platz,
+    .rb__ablage,
+    .rb__ablage-symbol,
+    .rb__plus,
+    .rb__rahmen,
+    .rb__leise,
+    .rb__eingabe,
+    .rb__vorschlag,
+    .rb__bezug button,
+    .rb__chip,
+    .rb__chip svg,
+    .rb__haken,
+    .rb__haken-kasten,
+    .rb__haken-kasten svg,
+    .rb__verweis {
+        transition: none;
+    }
+
+    .rb__ablage:hover:not(:disabled) .rb__ablage-symbol {
+        transform: none;
+    }
+}

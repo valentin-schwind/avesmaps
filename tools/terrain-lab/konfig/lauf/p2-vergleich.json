@@ -1,0 +1,47 @@
+{
+    "name": "p2-vergleich",
+    "beschreibung": "Regressionsbericht WI-0249 P2 (Formerhaltung): dieselben Fälle an zwei Generator-Ständen, gemessen an den Referenzausschnitten desselben Typs und Maßstabs (Rohvergleich ohne Reliefangleichung, wie lauf vergleiche ihn kennt); Aufruf: lauf vergleiche <vor P2> <nach P2> konfig/lauf/p2-vergleich.json",
+    "vorgabe": { "rezept": { "fassung": 19 } },
+    "qualitaet": { "gruppen": null, "ohne_teuer": false, "parameter": {} },
+    "ziele": {},
+    "faelle": [
+        {
+            "name": "blutzinnen-saat",
+            "gebirge": { "fixture": "blutzinnen" },
+            "typ": "kettengebirge",
+            "stufe": "saat",
+            "referenz": "C:/avesmaps3d-data/terrain-lab/referenz/kettengebirge-ch-bern/750m.json"
+        },
+        {
+            "name": "blutzinnen-vorschau-2x",
+            "gebirge": { "fixture": "blutzinnen" },
+            "typ": "kettengebirge",
+            "stufe": "vorschau",
+            "vorschau": { "aufloesung": 2 },
+            "referenz": "C:/avesmaps3d-data/terrain-lab/referenz/kettengebirge-ch-bern/375m.json"
+        },
+        {
+            "name": "trollzacken-saat",
+            "gebirge": { "fixture": "trollzacken" },
+            "typ": "karst",
+            "stufe": "saat",
+            "referenz": "C:/avesmaps3d-data/terrain-lab/referenz/karst-us-kentucky/750m.json"
+        },
+        {
+            "name": "trollzacken-vorschau-2x",
+            "gebirge": { "fixture": "trollzacken" },
+            "typ": "karst",
+            "stufe": "vorschau",
+            "vorschau": { "aufloesung": 2 },
+            "referenz": "C:/avesmaps3d-data/terrain-lab/referenz/karst-us-kentucky/375m.json"
+        },
+        {
+            "name": "nordwalser-hoehen-vorschau-2x",
+            "gebirge": { "fixture": "nordwalser-hoehen" },
+            "typ": "bergland",
+            "stufe": "vorschau",
+            "vorschau": { "aufloesung": 2 },
+            "referenz": "C:/avesmaps3d-data/terrain-lab/referenz/bergland-us-westvirginia/375m.json"
+        }
+    ]
+}

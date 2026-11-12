@@ -1,0 +1,42 @@
+/*
+ * Die Maßtafel der Formulare im Ortseditor (WI-0128 E11/E16; Guide §12.6 „zum Baustein ziehen, nicht abschreiben“).
+ *
+ * 🔴 EINE Tafel für „Eigenschaften“ und für „✚ Neuer Ort“. Beide stehen an derselben Stelle desselben Fensters, und das
+ * eine wird nach dem Anlegen unmittelbar zum anderen. Als jedes seine eigenen Werte trug, sprangen die Felder in genau
+ * diesem Augenblick (gemessen 2026-10-13): Beschriftungsspalte 144 gegen 91 px, Feld 351 gegen 408 px, Spaltenabstand 10
+ * gegen 12 px, Zeilen mittig gegen oben, kein Kasten gegen Kasten.
+ *
+ * 🪤 Nicht `scoped`: Die Klassen sollen in mehreren Komponenten gelten. Darum tragen sie den eigenen Präfix
+ * `ortsform__` und werden nur dort eingezogen, wo eine Form des Ortseditors steht.
+ */
+
+.ortsform__kasten {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    padding: var(--space-6) var(--space-8);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.ortsform__titel {
+    margin: 0;
+    color: var(--color-accent-strong);
+    font-size: var(--font-size-caption);
+    font-weight: normal;
+    letter-spacing: var(--letter-spacing-caps);
+    text-transform: uppercase;
+}
+
+.ortsform__zeile {
+    display: grid;
+    grid-template-columns: minmax(7em, auto) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-10);
+    margin: 0;
+}
+
+.ortsform__name {
+    padding-top: var(--space-2);
+    color: var(--color-text-muted);
+}

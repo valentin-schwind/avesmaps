@@ -1,0 +1,73 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "sprache": "thorwalsch",
+                "name": "Thorwalsch / Gjalskisch / Fjarningsch",
+                "farbe": "#1baad4",
+                "teilflaechen": 2
+            },
+            "geometry": {
+                "type": "MultiPolygon",
+                "coordinates": [
+                    [
+                        [
+                            [100, 100],
+                            [200, 100],
+                            [200, 200],
+                            [100, 200],
+                            [100, 100]
+                        ]
+                    ],
+                    [
+                        [
+                            [300, 100],
+                            [400, 100],
+                            [400, 200],
+                            [300, 200],
+                            [300, 100]
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": { "sprache": "garethi", "name": "Garethi", "farbe": "#ffb901", "teilflaechen": 1 },
+            "geometry": {
+                "type": "MultiPolygon",
+                "coordinates": [
+                    [
+                        [
+                            [150, 100],
+                            [250, 100],
+                            [250, 200],
+                            [150, 200],
+                            [150, 100]
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": { "sprache": "nujuka", "name": "Nujuka (Nivesisch)", "farbe": "#268170", "teilflaechen": 1 },
+            "geometry": {
+                "type": "MultiPolygon",
+                "coordinates": [
+                    [
+                        [
+                            [500, 500],
+                            [600, 500],
+                            [600, 600],
+                            [500, 600],
+                            [500, 500]
+                        ]
+                    ]
+                ]
+            }
+        }
+    ]
+}

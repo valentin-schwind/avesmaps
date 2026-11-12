@@ -1,0 +1,192 @@
+{
+    "$comment": "Profil der Warteschlange auf der Stage (JOBS-0001 Abschnitt 7, WI-0074). 🔴 Jeder Wert ist ein STARTWERT, Claudios Richtwert aus Stage-Läufen (project-control/handovers/2026-10-04-jobs-0001-antwort-claudio.md, Kennungen MS1 bis MS20), bis das Messtor der Etappe ihn bestätigt oder durch eine Messung ersetzt (dann steht hier 'messung: <Protokoll>'). Ein Wert ohne Beleg lehnt packages/shared/test/jobs-config.test.ts ab. Was fehlt, ist unbekannt: Die Jobart läuft allein.",
+    "schemaVersion": 1,
+    "profile": "staging",
+    "values": {
+        "heartbeatS": {
+            "value": 10,
+            "evidence": "start: handovers/2026-10-04-jobs-0001-antwort-claudio.md MS1 (10 s, wie derive-lock.ts); gemessen wird die p99-Verzögerung unter I11-Last",
+            "note": "MS1"
+        },
+        "leaseS": {
+            "value": { "default": 60 },
+            "evidence": "start: handovers/2026-10-04-jobs-0001-antwort-claudio.md MS2 (60 s, das Sechsfache von MS1)",
+            "note": "MS2"
+        },
+        "recordedLeaseS": {
+            "value": {
+                "default": 900,
+                "import": 900,
+                "rollout": 300,
+                "stage_rollout": 2700,
+                "pruefung_nach_push": 2700
+            },
+            "evidence": "start: Entwurf der Entwicklung (WI-0074, WI-0143), kein Wert aus dem Register; ein aufgezeichneter Job hat keinen Aufseher, die Lease muss länger sein als die längste Phase (I11 voll 354 s) und die Marke rollout heilt sich selbst; stage_rollout 2700 s, weil die Phase wartet von Takt zu Takt gemeldet wird (auto-stage.sh alle 10 min): die Lease trägt drei ausgefallene Takte, danach steht der Lauf als hängend und wird recorder_lost; pruefung_nach_push 2700 s, weil ihr längster Schritt (Tests unter nice, rund 20 min für den ganzen Lauf) kein Lebenszeichen gibt; Claudio bestätigt im Messtor von Etappe 1",
+            "note": "MS2 (aufgezeichnet)"
+        },
+        "maxConcurrent": {
+            "value": {
+                "terrain_local": 1,
+                "display_heights": 1,
+                "import": 1,
+                "benachrichtigung": 2,
+                "routing_reload": 1,
+                "legacy_zug": 1,
+                "terrain_full": 1,
+                "production_pull": 1,
+                "territory_derive": 1,
+                "sea_derive": 1,
+                "map_series_tile": 1,
+                "karten_svg": 1,
+                "path_label_runs": 1,
+                "path_profile": 1,
+                "wiki_dump_holen": 1,
+                "sprache_treffer": 1,
+                "land_smooth": 1,
+                "label_runs": 1
+            },
+            "evidence": "messung: land_smooth und label_runs nach Claudio 2026-11-06 (handovers/2026-11-06-production-erster-editorentag-an-claudia.md: Rechnen im Median 3 und 1 s, höchstens 19 und 2 s), leichte Arten des Dirigenten (WI-0283), je einer zur Zeit; start: handovers/2026-10-04-jobs-0001-antwort-claudio.md MS3 (Parallelität schwerer Jobs gibt es vorerst nicht; mit den kleinen Kachel-Jobs von Etappe 2 neu messen); messung: Claudio 2026-10-15 unter dem Host-Dirigenten (WI-0163): benachrichtigung 8 Läufe auf Stage und Production, RSS-Spitze 84 MB, Wandzeit unter 0,5 s, also 2 nebeneinander; routing_reload 1 Lauf, 107 MB, 5,6 s; legacy_zug, terrain_full und production_pull je 1 (Korridor-Arten; der Dirigent lässt ohnehin nur einen Schweren auf dem Host zu); territory_derive 1 nach Claudio 2026-10-17 (handovers/2026-10-17-herrschaftsgebiete-ableitung-einschaetzung-an-claudia.md, schwer, schreibt alle abgeleiteten Gebietszeilen in einer Transaktion); sea_derive 1 nach Claudio 2026-10-17 (handovers/2026-10-17-seegraph-auftrag-und-0148-antwort-an-claudia.md: schwer, zwei Seegraphen nebeneinander nie); map_series_tile nach Claudio 2026-10-17 (handovers/2026-10-17-kartenverwaltung-upload-und-zerlegen-antwort-an-claudia.md: auf dem VPS 32k in 70 s mit 375 MB, 64k in 350 s mit 780 MB; Werte für den Katalog memExpectedMb 900, Threads 2, Dauer 120 bis 600 s): schwer, einer zur Zeit; messung: path_label_runs und path_profile nach Claudio 2026-10-18 (handovers/2026-10-18-wegnamen-und-profile-leicht-an-claudia.md: auf der Stage 4 Läufe path_label_runs, RSS höchstens 136 MB, Wandzeit höchstens 598 ms; 23 Läufe path_profile, RSS höchstens 346 MB, Wandzeit höchstens 3,7 s; je ein Thread), leichte Arten des Dirigenten (WI-0177); wiki_dump_holen 1 (Entwurf der Entwicklung, WI-0253 §22): genau ein Schreiber im gemeinsamen Dump-Ordner (Sperrdatei im Skript, Claudio 2026-10-26: handovers/2026-10-26-wikisync-stage-scharf-antwort-an-claudia.md), schwer, einer zur Zeit für den Host; start: sprache_treffer 1 nach Claudio 2026-10-30 (handovers/2026-10-30-wi0261-sprachen-antwort-an-claudia.md §3): ein Lauf zur Zeit, kein Parallelisieren im Auftrag (WI-0261 S4)",
+            "note": "MS3"
+        },
+        "exclusivePairs": {
+            "value": [
+                ["import", "terrain_local"],
+                ["import", "territory_derive"],
+                ["production_pull", "territory_derive"],
+                ["wiki_uebernehmen", "legacy_zug"],
+                ["wiki_uebernehmen", "import"],
+                ["wiki_uebernehmen", "territory_derive"],
+                ["wiki_zuruecknehmen", "legacy_zug"],
+                ["wiki_zuruecknehmen", "import"],
+                ["wiki_zuruecknehmen", "territory_derive"],
+                ["import", "sprache_treffer"],
+                ["production_pull", "sprache_treffer"]
+            ],
+            "evidence": "start: handovers/2026-10-04-jobs-0001-antwort-claudio.md MS3 (nie import neben terrain_local); Claudio 2026-10-19 (handovers/2026-10-19-gebietsableitung-gleitend-antwort-an-claudia.md §2): territory_derive ist leicht, aber nie neben der Kopie von Production und dem vollen Import, die die Gebietstafeln neu schreiben (eine Ableitung mittendrin läse einen halben Stand); wiki_uebernehmen und wiki_zuruecknehmen (WI-0253 D-1, Entwurf der Entwicklung, Claudio bestätigt am echten Bestand): schwere Arten, die Fachtafeln der Karte schreiben, nie neben dem Legacy-Zug, dem vollen Import und der Gebietsableitung (die Zeilen der Übernahme sind eine Operation an der Karte; sie nimmt zusätzlich die geteilte Domänensperre und scheitert unter dem Zug mit map_import_running); start: sprache_treffer nach Claudio 2026-10-30 (handovers/2026-10-30-wi0261-sprachen-antwort-an-claudia.md §3) wie territory_derive (WI-0261 S4, Entwurf der Entwicklung): leicht, liest Orte, Wege, Gebiete und Regionen, also nie neben der Kopie von Production und dem vollen Import, die sie neu schreiben",
+            "note": "MS3"
+        },
+        "cpuBudgetThreads": {
+            "value": 4,
+            "evidence": "messung: Claudio 2026-10-19 Weg A (handovers/2026-10-19-leicht-cpu-budget-und-bachnamen-antwort-an-claudia.md §2, Nachtrag adfe7cf9): schwer läuft nur einer zur Zeit, das Gelände mit 3 Threads (Erosion 2 Worker plus Hauptthread, WI-0227); den vierten Kern nehmen nur leichte Ein-Thread-Aufträge, kurz und mit Nice=5 und CPUWeight=50 im Wrapper gegen 100 für Fastify, PostgreSQL und Foundry. Vorher 3 nach handovers/2026-10-04-jobs-0001-antwort-claudio.md MS4 (3 von 4 Kernen)",
+            "note": "MS4"
+        },
+        "threads": {
+            "value": { "legacy_zug": 2, "production_pull": 1 },
+            "evidence": "messung: Claudio 2026-10-15: legacy_zug rechnet im Schritt I11 mit --workers 2 (kategorie-import.sh, Protokoll 2026-10-14 23:28 bis 23:35, Spitze 1233 MB im MemoryHigh-Scope), sonst ein Prozess; production_pull ist pg_dump und pg_restore als ein Prozess (production-to-stage.sh). Ohne Wert liefe jede dieser Arten allein und hielte die kleinen auf (Stau 2026-10-15 abends: Meldung 82 wartete hinter legacy_zug 81)",
+            "note": "MS4 (Threads je Art)"
+        },
+        "memExpectedMb": {
+            "value": {
+                "terrain_full": 1850,
+                "terrain_publish_only": 800,
+                "display_heights": 700,
+                "import": 300,
+                "land_smooth": 400,
+                "territory_derive": 150,
+                "sea_derive": 1200,
+                "map_series_tile": 900,
+                "karten_svg": 800,
+                "probe_base": 51,
+                "path_label_runs": 150,
+                "path_profile": 400,
+                "sprache_treffer": 150,
+                "label_runs": 120
+            },
+            "evidence": "messung: label_runs 120 nach dem Stage-Lauf vom 2026-11-05 (95 MB Spitze, 759 ms, WI-0283); start: handovers/2026-10-04-jobs-0001-antwort-claudio.md MS5 (import ohne I11 und I13); probe_base 51 und land_smooth 400 aus dem Messlauf handovers/2026-10-05-stage-rollout-9b6213f.md (Grundbedarf eines Probe-Prozesses auf dem VPS 51 MB statt 41; land_smooth voller Lauf als Startwert, bis eine RSS-Messung vorliegt); die Abweichung zwischen Selbstmeldung und Messung von außen prüft Claudio in Etappe 2; messung: terrain_full 1850 nach Claudio 2026-10-19 (handovers/2026-10-19-gelaende-speicher-budget-antwort-an-claudia.md, Wahl A; Messung handovers/2026-10-19-gelaende-speicher-je-kachel-antwort-an-claudio.md: terrain_local braucht unabhängig von der Kachelzahl rund 1727 MiB, Stage-Job 1923 hing mit 12 Kacheln an MemoryHigh 1500M), vorher 1400; territory_derive 150 nach Claudio 2026-10-19 (handovers/2026-10-19-gebietsableitung-gleitend-antwort-an-claudia.md §1: Stage-Jobs 1827, 1837, 1838 mit 120 bis 123 MB Spitze, „300 ist großzügig“; als leichte Art passt sie mit 150 neben ein Gelände mit 1850 ins Budget von 2000), vorher 300 als Startwert nach Claudio 2026-10-17; sea_derive 1200 nach Claudio 2026-10-17 (handovers/2026-10-17-seegraph-auftrag-und-0148-antwort-an-claudia.md: lokal gemessen 957 bis 1016 MB Spitze, WI-0153 §11; das Budget von 2000 lässt ihn nie neben terrain_full laufen), belegte Werte nach den ersten drei Läufen auf der Stage; map_series_tile nach Claudio 2026-10-17 (handovers/2026-10-17-kartenverwaltung-upload-und-zerlegen-antwort-an-claudia.md: auf dem VPS 32k in 70 s mit 375 MB, 64k in 350 s mit 780 MB; Werte für den Katalog memExpectedMb 900, Threads 2, Dauer 120 bis 600 s), belegt nach den ersten Läufen auf der Stage; messung: path_label_runs und path_profile nach Claudio 2026-10-18 (handovers/2026-10-18-wegnamen-und-profile-leicht-an-claudia.md: auf der Stage 4 Läufe path_label_runs, RSS höchstens 136 MB, Wandzeit höchstens 598 ms; 23 Läufe path_profile, RSS höchstens 346 MB, Wandzeit höchstens 3,7 s; je ein Thread), leichte Arten des Dirigenten (WI-0177); start: sprache_treffer 150 nach Claudio 2026-10-30 (handovers/2026-10-30-wi0261-sprachen-antwort-an-claudia.md §3): Speicher des Node-Prozesses deutlich unter 1 GB, die Rechnung liegt in PostgreSQL; wie territory_derive (gemessen 120 bis 123 MB) passt er als leichte Art neben ein Gelände (1850 + 150 ≤ 2000) (WI-0261 S4)",
+            "note": "MS5"
+        },
+        "memTotalBudgetMb": {
+            "value": 2000,
+            "evidence": "messung: Claudio 2026-10-19 (handovers/2026-10-19-gelaende-speicher-budget-antwort-an-claudia.md, Wahl A): ein Gelände mit 1850 plus eine leichte Art mit 150; vorher 1600 nach handovers/2026-10-04-jobs-0001-antwort-claudio.md MS6 (gemessene Spitze I11 1.326 MB plus 20 %)",
+            "note": "MS6"
+        },
+        "memAvailFloorMb": {
+            "value": 560,
+            "evidence": "messung: Claudio 2026-11-06 (handovers/2026-11-06-wi0283-antwort-an-claudia.md §4, handovers/2026-11-06-wi0283-messungen-runde1-an-claudia.md): MemAvailable lag am 05.11. von 21:10 bis 22:20 durchgehend unter 3024 MB (1452 bis 2984), ein Gelände mit 2000 erwartet wartete dort still; Entscheidung Vali 2026-11-06 (WI-0283 §5). Mit 560 startet es ab 2560 MB frei, dem Speichertor des Wrappers; display_heights und dem_publish dürfen dann am MIN=2048 des Wrappers anstoßen und laufen eine Minute später; vorher 1024: messung: Claudio 2026-10-19 (handovers/2026-10-19-gelaende-speicherboden-1024-an-claudia.md): 1536 war zu hoch, ruhig heißt auf der Stage 3000 bis 4400 MB frei (Job 1993 wartete bei 3038 MB); mit 1024 startet ein Gelände ab 2874 MB, dem Host bleibt gut 1 GB plus Swap, im schlechtesten Fall greift MemoryMax 2600M; vorher 1536 (handovers/2026-10-19-gelaende-speicher-budget-antwort-an-claudia.md: mit 2048 bräuchte ein Gelände (1850) 3898 MB MemAvailable, das hat der Host nur in ruhigen Stunden (4000 bis 4400 MB); mit 1536 startet es ab 3386 MB, und dem Host bleiben mindestens 1,5 GB für Foundry, PostgreSQL und die Server; vorher 2048 nach MS7 (wie das Tor TERRAIN_MIN_AVAIL_MB)",
+            "note": "MS7"
+        },
+        "memAvailFloorLightMb": {
+            "value": 512,
+            "evidence": "start: WI-0283 (Entwurf der Entwicklung, Claudio bestätigt nach der Messung): dieselbe Grenze wie das Speichertor des Wrappers für leichte Arten (ops/corridor/sbin/avesmaps3d-auftrag, leicht: MIN=512). Mit dem Boden von 1024 startete während der Speicherspitze eines Geländes kein Auftrag von 95 MB und einer Sekunde",
+            "note": "MS7 (leichte Arten)"
+        },
+        "rolloutMaxJobMb": {
+            "value": 300,
+            "evidence": "start: JOBS-0001 Abschnitt 10, Q3 (Claudio: solange die Marke rollout aktiv ist, nur Jobs bis 300 MB)",
+            "note": "Q3"
+        },
+        "memReportWarnMb": {
+            "value": { "terrain_full": 2000, "display_heights": 700 },
+            "evidence": "messung: terrain_full 2000 nach Claudio 2026-10-19 (handovers/2026-10-19-gelaende-meldegrenze-antwort-an-claudia.md: ein Lauf mit 1,75 bis 1,9 GB ist der Normalfall; gleich dem Budget, 200 MB unter MemoryHigh 2200M des Wrappers), vorher 1400; start: handovers/2026-10-04-jobs-0001-antwort-claudio.md MS8 (die bisherigen 1.100 und 450 schlugen jedes Mal an); die Meldegrenzen des Routing-Workers (RSS 900 MB, ArrayBuffer 192/170 MB) sind nicht Teil der Queue",
+            "note": "MS8"
+        },
+        "swapNoiseMb": {
+            "value": 64,
+            "evidence": "messung: Claudio 2026-10-19 (handovers/2026-10-19-befund-swap-in-use-nach-mehr-swap-an-claudia.md): seit dem Swap von 4 GB liegen dauernd 1 bis 2 GB ruhender Seiten im Swap, der Befund misst darum das Eingelagerte WÄHREND des Auftrags (pswpin), Schwelle 64 MB; vorher 16 MB auf den Bestand nach handovers/2026-10-04-jobs-0001-antwort-claudio.md MS9 (3 MB sind Rauschen des Kernels)",
+            "note": "MS9"
+        },
+        "swapInRateMbPerMin": {
+            "value": 21,
+            "evidence": "messung: Claudio 2026-10-19 (handovers/2026-10-19-swap-befund-schwelle-rauschen-an-claudia.md): pswpin zaehlt den ganzen Host, sar -W eingelagert je 10-Minuten-Fenster im Median 22 MB (18.10.) und 71 MB (19.10.), also rund 7 MB je Minute Grundrauschen; der Befund kommt erst ueber dem Dreifachen (Rollout 87 MB und Pruefung 90 MB am 19.10. waren Rauschen)",
+            "note": "MS9"
+        },
+        "swapInRateMbPerMinByKind": {
+            "value": { "stage_rollout": 200 },
+            "evidence": "messung: Claudio 2026-10-19 (handovers/2026-10-19-swap-befund-erster-abend-an-claudia.md): 6 von 15 Rollouts zwischen 20:10 und 21:44 trugen den Befund, 3 davon ohne Pruefung daneben (30, 35 und 170 MB je Minute); Bauen mit 1,5 bis 2 GB, Wechsel und Kacheln holen Seiten anderer Dienste zurueck; Production in derselben Zeit p95 unter 11 ms, p99 unter 157 ms. Seine Moeglichkeit 1: der Rollout meldet erst ueber 200 MB je Minute",
+            "note": "MS9"
+        },
+        "expectedDurationS": {
+            "value": {
+                "terrain_full": 360,
+                "terrain_publish_only": 90,
+                "display_heights": 120,
+                "import": 900,
+                "land_smooth": 10,
+                "territory_derive": 60,
+                "territory_derive:teil": 5,
+                "sea_derive": 180,
+                "map_series_tile": 300,
+                "karten_svg": 60,
+                "wiki_dump_holen": 60,
+                "sprache_treffer": 60
+            },
+            "evidence": "messung: territory_derive:teil 5 nach Stage-Lauf 5516 (3,4 s, handovers/2026-11-06-wi0283-messungen-runde1-an-claudia.md); start: handovers/2026-10-04-jobs-0001-antwort-claudio.md MS10; land_smooth 10 s nach handovers/2026-10-05-stage-rollout-9b6213f.md (vorher 7,3 s aus dem Rollout ea2512a); import ohne Gelände-Änderung dort gemessen 410 s, der Wert bleibt 900 für den Lauf mit Gelände-Änderung, weil das Profil je Jobart nur einen Wert kennt; territory_derive 60 s als Startwert nach Claudio 2026-10-17 (handovers/2026-10-17-herrschaftsgebiete-ableitung-einschaetzung-an-claudia.md: gemessen 46 s auf der Stage); sea_derive 180 s als Startwert (I9 im Orte-Zug der Stage 2026-10-16 zweimal rund 137 s, handovers/2026-10-17-seegraph-auftrag-und-0148-antwort-an-claudia.md; lokal ungestört 120,5 s, WI-0153 §11); map_series_tile 300 s als Mitte (map_series_tile nach Claudio 2026-10-17 (handovers/2026-10-17-kartenverwaltung-upload-und-zerlegen-antwort-an-claudia.md: auf dem VPS 32k in 70 s mit 375 MB, 64k in 350 s mit 780 MB; Werte für den Katalog memExpectedMb 900, Threads 2, Dauer 120 bis 600 s)); wiki_dump_holen 60 s als Obergrenze nach Claudio 2026-10-26 (handovers/2026-10-26-wikisync-stage-scharf-antwort-an-claudia.md: Abruf in 11 s, dazu bzip2 -t und Umbenennen; WI-0253 §22), bis der Wrapper eigene Läufe misst; messung: Claudio 2026-10-27 Auftrag #3739 auf der Stage 10,4 s bei unverändertem Dump (bzip2 -t allein 9,8 s), mit neuem Dump also rund 25 s; 60 bleibt die Obergrenze; start: sprache_treffer 60 s als Obergrenze des vollen Laufs nach Claudio 2026-10-30 (handovers/2026-10-30-wi0261-sprachen-antwort-an-claudia.md §3) (unter 5 Minuten verlangt); lokal gemessen 2026-10-30 mit den 527 Teilflächen der Sprachenkarte: voller Lauf 5,0 s (Orte 0,2, Gebiete 0,5, Regionen 3,3, Wege 1,0), Garethi allein 2,9 s, ein Objekt 0,15 bis 0,22 s je Art",
+            "note": "MS10"
+        },
+        "historyMinRuns": {
+            "value": 5,
+            "evidence": "start: handovers/2026-10-04-jobs-0001-antwort-claudio.md MS10 (minRuns 5)",
+            "note": "MS10"
+        },
+        "drainMaxS": {
+            "value": 420,
+            "evidence": "start: handovers/2026-10-04-jobs-0001-antwort-claudio.md MS12 (längster Job I11 voll mit 354 s plus Puffer)",
+            "note": "MS12"
+        },
+        "wsMaxConnections": {
+            "value": null,
+            "evidence": "offen: MS14 hat keinen Startwert, Claudio misst den Speicher je Verbindung in Etappe 1 (Ballastprobe mit rund 200 Verbindungen); bis dahin unbegrenzt",
+            "note": "MS14"
+        },
+        "retention": {
+            "value": { "keepDays": 30, "keepRuns": 200, "eventKeepDays": 14 },
+            "evidence": "start: handovers/2026-10-04-jobs-0001-antwort-claudio.md MS15 (30 Tage, 200 Läufe je Art); eventKeepDays 14 ist ein Entwurf der Entwicklung (Ereignisse kürzer als Jobzeilen, Kap. 7.38); die Zeilengröße misst Claudio in Etappe 1",
+            "note": "MS15"
+        },
+        "apiLatencyTargetMs": {
+            "value": { "p95": 300, "p99": 1000 },
+            "evidence": "start: handovers/2026-10-04-jobs-0001-antwort-claudio.md MS19 (Ziel unter Jobs p95 höchstens 300 ms, p99 höchstens 1.000 ms)",
+            "note": "MS19"
+        },
+        "dbConnectionBudget": {
+            "value": 6,
+            "evidence": "start: handovers/2026-10-04-jobs-0001-antwort-claudio.md MS20 (Rolle avesmaps3d_<env>_jobs, Limit 6)",
+            "note": "MS20"
+        },
+        "tickS": {
+            "value": 2,
+            "evidence": "start: Entwurf der Entwicklung (WI-0074), kein Wert aus dem Register; der Planer reagiert zusätzlich sofort auf NOTIFY",
+            "note": "Takt des Planers"
+        }
+    }
+}

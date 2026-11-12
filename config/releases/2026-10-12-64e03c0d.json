@@ -1,0 +1,846 @@
+{
+    "schema": 1,
+    "titel": "",
+    "von": "5c37bc88d7dd9827bb4244929062646ca6b6fb58",
+    "bis": "64e03c0dca9ab3b0b799f840728ac59f095141dd",
+    "datum": "2026-10-12T05:28:28+02:00",
+    "pakete": {
+        "WI-0068": "Media Asset Management im Editor",
+        "WI-0086": "Claudia und Claudio ziehen und synchronisieren Legacys `uploads/` selbst",
+        "WI-0120": "Auth-Plattform (Identität, Anmeldung, Rechte, Verwaltung)",
+        "WI-0124": "Verbindliche Arbeitsanweisung für den Betreiber-Chat mit Claudio",
+        "WI-0127": "Systemsteuerung, Bau Stufe 1 (SYS-0, SYS-1, SYS-6) und Stufe 2 (SYS-2)",
+        "WI-0128": "Prüfauftrag Orts- und Stättenmodell",
+        "WI-0132": "Kreuzungen ablösen: Routing nur aus der Geometrie der Wege",
+        "WI-0135": "Markierungen frei von Namen, Namensabstand nah am Marker",
+        "WI-0137": "„Versionen“ in der Systemsteuerung (Commit-Liste je Release)"
+    },
+    "commits": [
+        {
+            "sha": "64e03c0dca9ab3b0b799f840728ac59f095141dd",
+            "datum": "2026-10-12T05:28:17+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(hotfix): Obergrenze des Kachelspeichers - der 3D-Flug beendete den Zugriff auf dem iPhone",
+            "doku": false
+        },
+        {
+            "sha": "bcc542384dd0f15757ac27fb88542e539b7b19da",
+            "datum": "2026-10-12T05:22:59+02:00",
+            "wer": "Claudio",
+            "betreff": "Korridor: prepare (Schema vor Code, ein Neustart); Import: Speicherbremse MemoryHigh 1536M fuer schwere Ableitungen, Martin-Neustart nach Datenzug bei Kachelcache; Bootstrap-Pruefsummen (Betreiber 2026-10-12 1/2/4 ja)",
+            "doku": false
+        },
+        {
+            "sha": "1df768433d341ed710dfb24c2a07c73528152366",
+            "datum": "2026-10-12T04:53:02+02:00",
+            "wer": "Claudio",
+            "betreff": "Qualitaetspruefung: Betreiberentscheidungen 1-5, Messpunkt /health/memory an Claudia",
+            "doku": true
+        },
+        {
+            "sha": "6929ac119b522419aab240d237981c9c0dcbb316",
+            "datum": "2026-10-12T04:52:48+02:00",
+            "wer": "Claudio",
+            "betreff": "pg-stats-enable.sh: pg_stat_statements fuer Stage (Betreiber 2026-10-12 „5 ja“), mit Rueckweg",
+            "doku": false
+        },
+        {
+            "sha": "94c4e19a9797fca271beb509100fd423550537a1",
+            "datum": "2026-10-12T04:32:49+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(review): Haertung „development ist nur ein Wort\" als vierte Entscheidung, sechs Folge-Work-Items nachgetragen",
+            "doku": true
+        },
+        {
+            "sha": "eee407a6169c66eb5791e5560fd1ce9ea3307759",
+            "datum": "2026-10-12T04:28:28+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(review): Claudios Stichprobe bestaetigt die Ursache des Flaechen-Infopanels, Empfehlung berichtigt",
+            "doku": true
+        },
+        {
+            "sha": "a538e8197f92942bfee24df8716a617b8eda117e",
+            "datum": "2026-10-12T04:26:19+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(review): Ergebnis der Qualitaetsreview-Runde 1, Handover an Claudio, Projektzustand",
+            "doku": true
+        },
+        {
+            "sha": "d171c4aafbd3fef1cac635aaefccd3b9a994a1be",
+            "datum": "2026-10-12T04:21:34+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0120): ohne Anmeldung ueberall die Besucheransicht; Messung der Ortslisten-Suche",
+            "doku": false
+        },
+        {
+            "sha": "f94604dda8cd5cb1fc2e9827c414aeb3992228fb",
+            "datum": "2026-10-12T04:15:07+02:00",
+            "wer": "Claudia",
+            "betreff": "perf(subjects): Kasten je Linienstueck vor dem Schnitt - Weg-Infopanel p50 188 -> 152 ms, dazu das Messwerkzeug",
+            "doku": false
+        },
+        {
+            "sha": "626da9eb52beb5081d645f80aeeec9199f5afaf7",
+            "datum": "2026-10-12T04:03:57+02:00",
+            "wer": "Claudio",
+            "betreff": "Qualitaetspruefung: Ursache Gebiets-Infopanel belegt (areaGeometry rechnet ST_Union/MakeValid je Anfrage)",
+            "doku": true
+        },
+        {
+            "sha": "97e191677e66010988f12deadc8149e90b769ab7",
+            "datum": "2026-10-12T04:03:18+02:00",
+            "wer": "Claudio",
+            "betreff": "pull-legacy: Dauer je Detailquelle protokollieren; Qualitaetspruefung: Testsuiten alle gruen",
+            "doku": false
+        },
+        {
+            "sha": "2fdd5030170c02950b034b55e75a3a211e186ffd",
+            "datum": "2026-10-12T04:01:07+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0128): Staetten am Ort auch ueber Legacys Kennung (Q-01), Tests fuer Q-02 und Q-03",
+            "doku": false
+        },
+        {
+            "sha": "b089eaf64b19141064f8e59954510c7ab121f4a4",
+            "datum": "2026-10-12T04:00:43+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0068): „GET /api/media/type-images“ traegt „auth: public“ - der Waechter auth-routes war rot",
+            "doku": false
+        },
+        {
+            "sha": "decdfa3c5a21a42a0184892a0aa8bbaa51d236ba",
+            "datum": "2026-10-12T03:59:28+02:00",
+            "wer": "Claudio",
+            "betreff": "Qualitaetspruefung Runde 1: Laufzeitmessung (runtime-messung.sh, perf-nginx.py), Ergebnis-Handover, current.md RSS widerlegt",
+            "doku": false
+        },
+        {
+            "sha": "b47fbaed369e12ebe1728212644dddba98750db0",
+            "datum": "2026-10-12T03:21:53+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(handover): link detailed source audit for claudio",
+            "doku": true
+        },
+        {
+            "sha": "b219506f92887ab026928c3501752d34521928c0",
+            "datum": "2026-10-12T03:21:51+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(handover): link detailed source audit for claudia",
+            "doku": true
+        },
+        {
+            "sha": "2cab2fc8520531b7900d2500ba8bf31f6c80eeb6",
+            "datum": "2026-10-12T03:21:22+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(review): source-level follow-up with measurable performance and browser test matrices",
+            "doku": true
+        },
+        {
+            "sha": "6de4fc09fdc52efb489e63558c1748734addbbc5",
+            "datum": "2026-10-12T03:17:56+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(handover): quality review actions for Claudio",
+            "doku": true
+        },
+        {
+            "sha": "225a801ded56fa7575dd033ef7db051b3b9eccb5",
+            "datum": "2026-10-12T03:17:53+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(handover): quality review actions for Claudia",
+            "doku": true
+        },
+        {
+            "sha": "e71db149bde2d3feb8d2e1c34eb59f7e284cdbe9",
+            "datum": "2026-10-12T03:16:02+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(review): source-level quality tasks for Claudia and Claudio",
+            "doku": true
+        },
+        {
+            "sha": "77fbf1c9f8271097f4921380583e3be7a3f60a9a",
+            "datum": "2026-10-12T02:49:44+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0128): „Bearbeiten“ bringt den Ort in die Ortsliste, eine Wahl schließt „Neuer Ort“",
+            "doku": false
+        },
+        {
+            "sha": "1ae97f28c68064d0b0939c292e2dd9881066750c",
+            "datum": "2026-10-12T02:36:38+02:00",
+            "wer": "Claudia",
+            "betreff": "refactor(WI-0128 E22): takePlaceOffMap bleibt in place-edit.ts, Sperrregeln in place-removal-regeln.ts",
+            "doku": false
+        },
+        {
+            "sha": "c588f2dbe78568c171eea99036d66249508a9be4",
+            "datum": "2026-10-12T02:00:05+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0128): „Von der Karte nehmen“ - Revision eines Orts steigt über place und place_unplaced (Migration 0115)",
+            "doku": false
+        },
+        {
+            "sha": "97d5a80764d793a518bb46e4c1d439b74d69debd",
+            "datum": "2026-10-12T01:48:18+02:00",
+            "wer": "Claudia",
+            "betreff": "test: Schreibklassen der Typbild-Routen der MAM nachgetragen (type-images adopt, set)",
+            "doku": false
+        },
+        {
+            "sha": "107b03b95c94c307187048088adfc110a54c6a12",
+            "datum": "2026-10-12T01:44:49+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Migration 0115 reserviert für den Fix „Von der Karte nehmen“ (Revision über place und place_unplaced)",
+            "doku": true
+        },
+        {
+            "sha": "7fafaeac4f75ab2db1482ef2c4a9dbad58cef5a8",
+            "datum": "2026-10-12T01:43:52+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(agents): Editor-Menue am Objekt hat seit E15 Actions",
+            "doku": true
+        },
+        {
+            "sha": "b671fc598023cbd40bdf3e9b8a4b2eeb4eec8776",
+            "datum": "2026-10-12T01:43:51+02:00",
+            "wer": "Claudia",
+            "betreff": "test(WI-0128 E22): Schreibklassen der Routen take-off-map, delete, restore (und header/relation der MAM) nachgetragen",
+            "doku": false
+        },
+        {
+            "sha": "5aa88b45de9384593f92ec16abe043495aaefe6b",
+            "datum": "2026-10-12T01:39:38+02:00",
+            "wer": "Claudia",
+            "betreff": "test(e2e): vier rote Browsertests - drei veraltete Erwartungen, eine Uhr",
+            "doku": false
+        },
+        {
+            "sha": "8e3b2601312ec513737c7a4befb96a7503ec4065",
+            "datum": "2026-10-12T01:37:54+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(dev): Hinweis im Startskript in ASCII (PowerShell 5.1 liest die Datei ohne BOM als ANSI)",
+            "doku": false
+        },
+        {
+            "sha": "a46d2c5581f8c1d1b7e7e9b9e75be0a96ea2118a",
+            "datum": "2026-10-12T01:37:23+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(dev): Startskript nennt localhost fuer den PC, Tailscale nur fuers Telefon ohne Anmeldung",
+            "doku": false
+        },
+        {
+            "sha": "330a4359b9dc2b21096dfce3b283012c92abe29f",
+            "datum": "2026-10-12T01:36:55+02:00",
+            "wer": "Claudia",
+            "betreff": "test/docs(WI-0068): Typbilder - Rechte der Tafel geprüft, Schema-Liste, Vertrag und Plan; Galerien-Plan (P6) zur Entscheidung",
+            "doku": false
+        },
+        {
+            "sha": "1b68244cc59216903610aeee3ebfe05cebc05ed9",
+            "datum": "2026-10-12T01:21:57+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068): Typbilder - Tafel media_type_image (0113), ★ je Kategorie setzen, eingebaute Grafiken übernehmen, öffentliche Karte",
+            "doku": false
+        },
+        {
+            "sha": "ab876de2d6b45f588c2afff0bb31465d1541e755",
+            "datum": "2026-10-12T01:35:47+02:00",
+            "wer": "Claudio",
+            "betreff": "Medienabzug: Handzug gruen, Import 0 neu (Legacy referenziert 2484), Waisen-Befund",
+            "doku": true
+        },
+        {
+            "sha": "7bfc0f112a8d0fc27101df91acca270f48f3abcd",
+            "datum": "2026-10-12T01:31:15+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128 E22): Ort entfernen - ein Knopf, ein Blatt für alle Fälle",
+            "doku": false
+        },
+        {
+            "sha": "bbd899d0a4af46bc7e7979e8376a0f9f66fa873c",
+            "datum": "2026-10-12T01:30:34+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(dev): lokal angemeldet bleiben auf der Tailscale-Adresse, ohne Anmeldung Besucheransicht",
+            "doku": false
+        },
+        {
+            "sha": "e190be39e823c842fa955f974032ac12d2a87d44",
+            "datum": "2026-10-12T01:06:57+02:00",
+            "wer": "Claudia",
+            "betreff": "Infopanel: ein Satzzeichen hinter einem Link beginnt nie eine Zeile",
+            "doku": false
+        },
+        {
+            "sha": "059a5873a4f2290799561e0f0318435471b72c59",
+            "datum": "2026-10-12T01:06:38+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(listen): Leiste am Telefon - eine Höhe (44 px am Finger), die Suche wird zum Lupen-Knopf, wenn nicht einmal „Suchen …“ passt",
+            "doku": false
+        },
+        {
+            "sha": "363bdb8b10da7e66f019572db6452f470859ee32",
+            "datum": "2026-10-12T01:09:06+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Betreiberentscheide Galerien - Titelbild und Galerie getrennt, erst ein Blatt",
+            "doku": true
+        },
+        {
+            "sha": "f399b55d153f925f296afa1356c20e2b9c1fa410",
+            "datum": "2026-10-12T00:59:55+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Betreiberentscheid Hochladen mit Ortszusammenhang und tote Knoepfe im Ortseditor",
+            "doku": true
+        },
+        {
+            "sha": "8414f2d80871cf4ab20ac8d1566a79a2235fac28",
+            "datum": "2026-10-12T00:58:07+02:00",
+            "wer": "Claudio",
+            "betreff": "pull-legacy: bis zu 4 Versuche (20 s Pause), wenn Legacy-Staende waehrend des Abrufs wechseln (Editoren rund um die Uhr; Zug 00:20 scheiterte nach 2)",
+            "doku": false
+        },
+        {
+            "sha": "8e3354b24ada299b5244de19bffcf99bb5a0216e",
+            "datum": "2026-10-12T00:53:13+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0068 P4b T2b): Jobs-Rolle darf die Messung der Ecken schreiben (UPDATE corners_transparent ON media_file)",
+            "doku": false
+        },
+        {
+            "sha": "6ce97df0cdd1852c1fe95b16679bf635aec83651",
+            "datum": "2026-10-12T00:52:19+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): WI-0128 „Ort entfernen“ - Konzept abgenommen (ein Knopf, ein Popup)",
+            "doku": true
+        },
+        {
+            "sha": "4d9be38b52bde3e0f00f89b703d3b24f70389c93",
+            "datum": "2026-10-12T00:51:43+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(dev): Startskript fuehrt die Tailscale-Instanz auf 5174 mit - eine Adresse fuer PC und Telefon, immer aktuell",
+            "doku": false
+        },
+        {
+            "sha": "84851328062024990d23f920634dad94e1a6f670",
+            "datum": "2026-10-12T00:50:50+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068 P4b 7b): Name beim Hochladen aus der Auswahl nach der Namensregel vorbelegt",
+            "doku": false
+        },
+        {
+            "sha": "10e1f2dfb0ad2fda28aad1bae1ed57b39ef5ed3d",
+            "datum": "2026-10-12T00:35:35+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Typbilder - Blatt abgenommen, Rechte der Kopfgrafiken (KI, Betreiber)",
+            "doku": true
+        },
+        {
+            "sha": "9eee70029009db503034bb8547fa76a355174e8d",
+            "datum": "2026-10-11T23:56:42+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0137): Versionen mit Freitextsuche über der Liste (AvmListenleiste), Pillen in die Trefferzeile (§13.45)",
+            "doku": false
+        },
+        {
+            "sha": "b273184efe8cc4d7bd7fd88e9656eaa15ce133fd",
+            "datum": "2026-10-11T23:50:06+02:00",
+            "wer": "Claudio",
+            "betreff": "Medienabzug: Fach uebernommen; Binaerimport haelt an (Satz ohne media-export.json, braucht Zug mit --details = PHP)",
+            "doku": true
+        },
+        {
+            "sha": "a97173dd6c1b6d046d9ad4ac364ea803e58c99a1",
+            "datum": "2026-10-11T23:48:19+02:00",
+            "wer": "Claudio",
+            "betreff": "media-pull.sh --from-zip: gleicher Inhalt unter anderer Endung zeigt auf die vorhandene Datei (Pruefer-Befund Lauf 1)",
+            "doku": false
+        },
+        {
+            "sha": "3a0c10d9d1463e10b1b7ccd4c92da68c3800714b",
+            "datum": "2026-10-11T23:40:12+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Migration 0112 belegt (WI-0068 T2b), 0113/0114 fuer die MAM reserviert",
+            "doku": true
+        },
+        {
+            "sha": "9fad2bef723bd03b48dd660fcae43c8b4f56f3e3",
+            "datum": "2026-10-11T23:37:18+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068 P4b T2b): Korb „Wappen mit Mängeln“ - Messung der Ecken am Original (Migration 0112)",
+            "doku": false
+        },
+        {
+            "sha": "4f555369ca71fac100eebcfbafc57cbcbe819b98",
+            "datum": "2026-10-11T23:21:40+02:00",
+            "wer": "Claudia",
+            "betreff": "Infopanel: Bildbezug auf dem Kopfbild (Ortsansicht, Ortsansichten, Typbild)",
+            "doku": false
+        },
+        {
+            "sha": "358578d26fb12464ce1f3c43417a1b254c0bca63",
+            "datum": "2026-10-11T23:21:18+02:00",
+            "wer": "Claudia",
+            "betreff": "Bildbezug je Verwendung: Regel über die Quelldatei, Feld relation, Operation header.relation (Migration 0111)",
+            "doku": false
+        },
+        {
+            "sha": "4b99f4bfeafa369cd886cb938918d75c2d549074",
+            "datum": "2026-10-11T23:07:19+02:00",
+            "wer": "Claudio",
+            "betreff": "Medienabzug: ZIP-Weg - 628 neue Adressen, 286 neue Dateien, nichts geaendert; Dumps geloescht",
+            "doku": true
+        },
+        {
+            "sha": "2199bc90431fdc674ac376e28d07306f5af270ac",
+            "datum": "2026-10-11T23:07:07+02:00",
+            "wer": "Claudio",
+            "betreff": "media-pull.sh --from-zip: nur Medienordner und Bilder (ZIP enthielt db-backups/, dumps/, map/)",
+            "doku": false
+        },
+        {
+            "sha": "616f06e44e52c69ab882e55559ad77a2a2b2e161",
+            "datum": "2026-10-11T22:38:38+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0068): Typbilder - Auftrag, Plan, Blatt, Rechtefrage; Reihenfolge mit richtiger Begründung für D1",
+            "doku": true
+        },
+        {
+            "sha": "7f0ffd083cb3162685b7736e2db184996cd6f629",
+            "datum": "2026-10-11T22:32:00+02:00",
+            "wer": "Claudia",
+            "betreff": "Stand: Migration 0111 reserviert (Bildbezug Ortsansicht/Typbild)",
+            "doku": true
+        },
+        {
+            "sha": "4be6b9891fcda4d961b8d0f2bb49ef04f1d13a38",
+            "datum": "2026-10-11T22:31:36+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Betreiberentscheide Bildbezug (1A, 2B, 3) und Typbilder in der MAM",
+            "doku": true
+        },
+        {
+            "sha": "74d2a82d4b2cb3897022a9f9676246b34109250b",
+            "datum": "2026-10-11T22:14:08+02:00",
+            "wer": "Valentin",
+            "betreff": "docs: handover image relation badges to Claudia",
+            "doku": true
+        },
+        {
+            "sha": "118efa94ace6f06757181b1b9073b496c67eec1d",
+            "datum": "2026-10-11T22:13:18+02:00",
+            "wer": "Valentin",
+            "betreff": "docs: add image-relation panel mockup (Ortsansicht/Typbild)",
+            "doku": true
+        },
+        {
+            "sha": "d68d98cc7d002628e3f3b9114439ecb19137f5c9",
+            "datum": "2026-10-11T21:09:46+02:00",
+            "wer": "Claudio",
+            "betreff": "media-pull.sh --from-zip: netzloser Weg ueber die ZIP des Betreibers (PHP-Pool STRATO), sichere Entpackung, Liste je Zug; Sandbox geprueft",
+            "doku": false
+        },
+        {
+            "sha": "95a8cdc721a480126075dfea48c6afc19811efb7",
+            "datum": "2026-10-11T20:32:21+02:00",
+            "wer": "Claudio",
+            "betreff": "Medienabzug: auch media-export.php haengt (PHP-Pool), ZIP-Weg vorgeschlagen",
+            "doku": true
+        },
+        {
+            "sha": "13164f7e50574fba88b9ad34ab2986c9d882e2f5",
+            "datum": "2026-10-11T20:24:04+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0124): Kanal sagt ehrlich, ob Claudio abholt - kein 30-Minuten-Takt, wenn die Routine nicht laeuft",
+            "doku": false
+        },
+        {
+            "sha": "d908ffd10408c0d2befb9f3ac2ba667299652b03",
+            "datum": "2026-10-11T20:22:28+02:00",
+            "wer": "Claudio",
+            "betreff": "Medienabzug: erster Zug scheitert an haengendem uploads-export.php (3 Abrufe, nichts geaendert)",
+            "doku": true
+        },
+        {
+            "sha": "ac6df47af256abbe35b20caba9ea2226483ee395",
+            "datum": "2026-10-11T20:19:43+02:00",
+            "wer": "Claudia",
+            "betreff": "style(WI-0128): Prettier für Leiste und Suche der Änderungen",
+            "doku": false
+        },
+        {
+            "sha": "8f21e8e36da157a34bb56c9d3079521d48f54090",
+            "datum": "2026-10-11T20:15:07+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128): Ortsliste und Änderungen auf die Leiste jeder Liste, Änderungen mit Freitextsuche",
+            "doku": false
+        },
+        {
+            "sha": "ac12f3a567bdcdf14d9681265d0a059ea6344e50",
+            "datum": "2026-10-11T20:10:33+02:00",
+            "wer": "Claudio",
+            "betreff": "Handover: Abendarbeit Kanal-Routine, Medienabzug, Foundry-Sicherung (Info an Claudia)",
+            "doku": true
+        },
+        {
+            "sha": "fc7ea663af2f551d95f5721a74ef3f65c6549d1f",
+            "datum": "2026-10-11T20:10:08+02:00",
+            "wer": "Claudio",
+            "betreff": "Sicherung: Foundry (nur users=0, nur bei Aenderung, eigene Ablage lokal 1 / Dropbox 4, nie fatal), Tests 43/0",
+            "doku": false
+        },
+        {
+            "sha": "31b7bef6399788b7fcaf56786c9e6e3ed29d0aa7",
+            "datum": "2026-10-11T20:08:37+02:00",
+            "wer": "Claudio",
+            "betreff": "Medienabzug aus Legacy (WI-0086): media-pull.sh (Arbeitsfach als claudio, uploads-sync mit Zitat, Archiv), media-seed.sh --update (Tausch mit .prev), Tests 15/0",
+            "doku": false
+        },
+        {
+            "sha": "ef0d6bcac28eeb2a21eada7b6f10249a517b99d9",
+            "datum": "2026-10-11T20:07:18+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0068 P4b): „verwendet von … ✕“ in der Trefferzeile, Platzhalter der Suche nie abgeschnitten",
+            "doku": false
+        },
+        {
+            "sha": "756af2d9cd7faf84c5936dd6adfa534e704832a2",
+            "datum": "2026-10-11T20:06:26+02:00",
+            "wer": "Claudio",
+            "betreff": "Kanal-Routine: kanal-cli.sh (Zugang ohne Claude), scharfer Lauf mit Schalter, Vorpruefung, Merker, angekuendigter Tagesgrenze (Bearbeitungsteil nach Abnahme)",
+            "doku": false
+        },
+        {
+            "sha": "f7b8f67b19c74cb609c279001c7f639375cfc6b1",
+            "datum": "2026-10-11T20:05:29+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0124, SYS-15): AvmListenleiste in Kanal-Vorgaengen und Protokoll - Suche links (im Server), Trichter rechtsbuendig",
+            "doku": false
+        },
+        {
+            "sha": "c91775e492ee110f02829caefd299cdaafa53c10",
+            "datum": "2026-10-11T19:57:19+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Abnahme Listenleiste als Regelstil",
+            "doku": true
+        },
+        {
+            "sha": "c59b1e6c6644108b5cd10c452ac2f969a277a8fa",
+            "datum": "2026-10-11T19:56:59+02:00",
+            "wer": "Claudia",
+            "betreff": "refactor(WI-0068 P4b): Trefferleiste der Medienverwaltung auf AvmListenleiste (Suche links, Zeichen rechtsbündig)",
+            "doku": false
+        },
+        {
+            "sha": "090d28b49383e0a99e7005cf8ee8adf32b77207d",
+            "datum": "2026-10-11T19:51:31+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(listen): Leiste jeder Liste (AvmListenleiste), Kataloge mit Suche, Trichter und Sortierzeichen",
+            "doku": false
+        },
+        {
+            "sha": "9479a09e3fe59a07f5ab814f1cb49b03fa08b200",
+            "datum": "2026-10-11T19:45:09+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(SYS-15, WI-0124): Freitextsuche q im Protokoll und in den Kanal-Vorgaengen, im Server",
+            "doku": false
+        },
+        {
+            "sha": "3f7acfc84e7a0c6d040d9158b0a57892b76fe3ea",
+            "datum": "2026-10-11T19:36:33+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Betreiberentscheid Leiste - Trichter und Sortierung rechtsbuendig, Suche links",
+            "doku": true
+        },
+        {
+            "sha": "f68ed164989b0d02835a08824f76664d3f840c86",
+            "datum": "2026-10-11T19:34:35+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128): gezeichnete Editorzeichen in allen Menüs, Gruppe in vier Spalten",
+            "doku": false
+        },
+        {
+            "sha": "a113e8120c3f2a09e8049bb0654b337cef2779aa",
+            "datum": "2026-10-11T19:32:26+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Abnahme Ausweichstellen der Kurvennamen",
+            "doku": true
+        },
+        {
+            "sha": "00f06ce5296b6c898a3e3f5be1bb0b822612fdf9",
+            "datum": "2026-10-11T19:12:45+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(test): Hausregel R7 - Kanal und Protokoll sind schon umgebaut, aus NOCH_UMZUBAUEN gestrichen",
+            "doku": false
+        },
+        {
+            "sha": "ce73ae7c3fd0b7eda451edb1e657b092d6af5eda",
+            "datum": "2026-10-11T19:12:16+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(listen): Innerorts ordnen mit der Zeichenfamilie, Hausregel R7 fuer Filter in der Leiste",
+            "doku": false
+        },
+        {
+            "sha": "90e7155da2a801fd1a4a04e693c2c701db712404",
+            "datum": "2026-10-11T19:08:48+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128): Ortsliste und Änderungen auf Filterknopf und Sortierzeichen",
+            "doku": false
+        },
+        {
+            "sha": "42e03aa4073e2d2bb17967fe134f743a27d5ef8d",
+            "datum": "2026-10-11T19:06:03+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0068): D3 angehalten - Symbolbild ist eine Eigenschaft der Verwendung (Betreiber 2026-10-11)",
+            "doku": true
+        },
+        {
+            "sha": "8b3ef08ce7540250b732b3efff67b6d5221c56b4",
+            "datum": "2026-10-11T19:04:53+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0124, SYS-15): Trichter in Kanal-Vorgaengen und Protokoll (Hausregel §13.45)",
+            "doku": false
+        },
+        {
+            "sha": "9a17e42c78a79f0da1590e70be8837e02032a379",
+            "datum": "2026-10-11T19:04:14+02:00",
+            "wer": "Claudia",
+            "betreff": "refactor(WI-0068 P4b): Trichter und Sortierung der Medienverwaltung auf die Bauteile des Hauses (AvmFilterknopf, AvmSortierzeichen)",
+            "doku": false
+        },
+        {
+            "sha": "6ff7f9994ef8f972c606d95c3b4d4e70794a7f80",
+            "datum": "2026-10-11T19:01:23+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(kurvenlauf): Kurvennamen weichen aus wie Wegnamen - Ausweichraum, Kandidaten in der Kachel (Migration 0110)",
+            "doku": false
+        },
+        {
+            "sha": "b741f1fc884b2debde8e75597c48e2e80fffebd2",
+            "datum": "2026-10-11T18:57:31+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0068): Entscheide Legacy-Zug nach Zusammenführen (A, ein Klick für byte-gleiche), Name beim Hochladen vorbelegt, Platzhalter-Blatt",
+            "doku": true
+        },
+        {
+            "sha": "bb5a3d5712df8747e2e64d2ae51afa25618393d5",
+            "datum": "2026-10-11T18:53:35+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Betreiberentscheid Medien-Duplikate A (Legacy-Zug kennt die Zusammenfuehrung)",
+            "doku": true
+        },
+        {
+            "sha": "d1682823e83f39a7f2ba1ed54a49bfe66bb42227",
+            "datum": "2026-10-11T18:47:23+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068 P4b 7): Hochladen im Medienfenster - „↥ Neues Wappen/Titelbild hochladen“ vorn in der Trefferspalte",
+            "doku": false
+        },
+        {
+            "sha": "879431f5c58989544980e1434e8ce79b199560c0",
+            "datum": "2026-10-11T18:50:16+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(guide): §13.45 Filterknopf und Sortierzeichen, Hausregel-Test fuer Listen",
+            "doku": false
+        },
+        {
+            "sha": "4318f415f928d264db8759f1a372b3dc4e5b9ea0",
+            "datum": "2026-10-11T18:45:09+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(controls): Filterknopf und Sortierzeichen als gemeinsame Bauteile jeder Liste",
+            "doku": false
+        },
+        {
+            "sha": "06844cb2e24978a2d9139c7b6286d174ac65ab1c",
+            "datum": "2026-10-11T18:44:18+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Betreiberentscheid Filter und Sortierung als je ein Zeichen (Blatt 2)",
+            "doku": true
+        },
+        {
+            "sha": "ec9235f95f201ea4889da4cedba82bd6190c4264",
+            "datum": "2026-10-11T18:41:51+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0124 K3): Kanal bestaetigt Absenden mit OPS-Nummer und Erwartung, gesperrt bis alles durch ist",
+            "doku": false
+        },
+        {
+            "sha": "f4909ad0b15ab5226f7c4ea4520b002f3f9a56cc",
+            "datum": "2026-10-11T18:41:43+02:00",
+            "wer": "Claudio",
+            "betreff": "Release 5c37bc88: RSS +60 min 588 MB (wie df6f840c)",
+            "doku": true
+        },
+        {
+            "sha": "286ded23719416bfb6250c85ea6320e96647ac49",
+            "datum": "2026-10-11T18:37:30+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Migration 0110 fuer die Ausweichstellen der Kurvennamen reserviert",
+            "doku": true
+        },
+        {
+            "sha": "de25d249c2d8a3dccaaae2c74c5a3eb13eae3611",
+            "datum": "2026-10-11T18:36:32+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0135): Art als zweite Zeile unter gleichnamigen Landschaftsnamen in \"Alle\"",
+            "doku": false
+        },
+        {
+            "sha": "200201b7605fe91f95e580dfd2d433e07db82b9f",
+            "datum": "2026-10-11T18:30:38+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0068): Bewertung Medien-Duplikate - Erkennung exakt und ähnlich, Zusammenführen mit Umleitung im Legacy-Import, drei Betreiberfragen",
+            "doku": true
+        },
+        {
+            "sha": "e034aa425c1a69357d03f58209bd0b537a85bab5",
+            "datum": "2026-10-11T18:27:32+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): Fasar-Korrektur (gleiches Motiv), Duplikat-Vorschlag an die MAM-Sitzung",
+            "doku": true
+        },
+        {
+            "sha": "4f9c01c23d1c68f763fe205b79ebf050aa22c76f",
+            "datum": "2026-10-11T18:22:25+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(reiseplan): ein Stück querfeldein von 0,00 Meilen ist keine Etappe und keine Pille",
+            "doku": false
+        },
+        {
+            "sha": "d52198f6ab408189acc818e69b8c73ebcb940b0e",
+            "datum": "2026-10-11T18:22:08+02:00",
+            "wer": "Claudio",
+            "betreff": "Handover: Medien-Duplikate (218 byte-gleiche Gruppen auf Stage) - Befund und Vorschlag an Claudia",
+            "doku": true
+        },
+        {
+            "sha": "13b7f0b36a9231489699a7eae7ccaccee48a8921",
+            "datum": "2026-10-11T18:19:27+02:00",
+            "wer": "Claudio",
+            "betreff": "Release 5c37bc88: erster Kanalvorgang OPS-000001 technisch gruen, Bestaetigung fehlt in der UI",
+            "doku": true
+        },
+        {
+            "sha": "3850f1f7d1f0ab845f93eaf29d4f071adaa6563e",
+            "datum": "2026-10-11T18:01:48+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Migration 0109 fuer WI-0135 Art-Zeile reserviert",
+            "doku": true
+        },
+        {
+            "sha": "87a7f55d9295e97a8309207f66b942902e94a1c2",
+            "datum": "2026-10-11T17:59:50+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(release): 5c37bc88 - Antwort auf die Browserbefunde (✦ und Fasar-Wappen erwartet), Kopftafel Stage",
+            "doku": true
+        },
+        {
+            "sha": "3ca839d26372e5fda2f32df497d5e69e9c339fb3",
+            "datum": "2026-10-11T17:55:24+02:00",
+            "wer": "Claudia",
+            "betreff": "test(WI-0128): Revision der Quittung im Test von place.take_off_map typsicher",
+            "doku": false
+        },
+        {
+            "sha": "0baea2ab3ac6567f679ad99d25b6a7f5cea5a0fe",
+            "datum": "2026-10-11T17:54:06+02:00",
+            "wer": "Claudio",
+            "betreff": "Release 5c37bc88: Browserproben des Betreibers, Sternchen fehlt, Fasar-Wappen doppelt, RSS +10",
+            "doku": true
+        },
+        {
+            "sha": "51e3619eb9797d7fd06bc9466929b754efd7bb3f",
+            "datum": "2026-10-11T17:53:08+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0128): Menü am Objekt und Ortsliste nach den Funden des Betreibers",
+            "doku": false
+        },
+        {
+            "sha": "ad6eb3763fa26867452b4f8ef4fc3e2185a3bcc7",
+            "datum": "2026-10-11T17:49:01+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068 P4b 6c): Korb „Fehlende Derivate“ - was öffentlich sein dürfte, aber keine öffentliche Datei hat",
+            "doku": false
+        },
+        {
+            "sha": "5f2873a1e8e84a9dc2d05821a83b50678a3b6cbf",
+            "datum": "2026-10-11T17:44:07+02:00",
+            "wer": "Claudio",
+            "betreff": "Release 5c37bc88 auf Stage: Ergebnis und Postflight (Claudio)",
+            "doku": true
+        },
+        {
+            "sha": "88a2536102c20ae9e132816634a3d66ba64a872d",
+            "datum": "2026-10-11T17:42:01+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Betreiberentscheid Ueberlappung von Namen (A, Laeufe sollen ausweichen)",
+            "doku": true
+        },
+        {
+            "sha": "6fc7ecf7b85288f5f3cc82860abe2ff4d2ceb0c1",
+            "datum": "2026-10-11T17:36:06+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068 P4b): Sortierung der Medienverwaltung als Zeichen mit Ausklappmenü, die Suche nimmt den Rest der Zeile",
+            "doku": false
+        },
+        {
+            "sha": "6cfe5fd9e90ce93b8f733b77c0ad13cfa9c79dab",
+            "datum": "2026-10-11T17:32:04+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(kurvenlauf): ein zu kurzer Einzellauf kostete den Namen - Lauf wird verlaengert",
+            "doku": false
+        },
+        {
+            "sha": "714add07e73f8726af8235ea67a71ef4758ae170",
+            "datum": "2026-10-11T17:35:50+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0132 N): Wege treffen sich nicht - Gestalt abgenommen, knapp verfehlt als Scheibe, kein Doppelrand",
+            "doku": false
+        },
+        {
+            "sha": "c453e4ba800fc41aaf10e55a147a5ef056d9ea3d",
+            "datum": "2026-10-11T17:34:26+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(AGENTS): Filter und Sortierung in jeder Liste nur als Zeichen mit Menue, aus einem gemeinsamen Bauteil (Betreiber 2026-10-11)",
+            "doku": true
+        },
+        {
+            "sha": "0471f19c65a931a658757eda285449025539018d",
+            "datum": "2026-10-11T17:26:10+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Kopftafel - Stage-Release 5c37bc88 bei Claudio",
+            "doku": true
+        },
+        {
+            "sha": "c55d0633e161fd29583cb456c5450bae808cba3d",
+            "datum": "2026-10-11T17:25:38+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): Stage-Release 5c37bc88 an Claudio - Kanal, Glocke, Versionen, Inhaltsschalter, Ortseditor-Teile (aus), Migrationen 0102-0108",
+            "doku": true
+        },
+        {
+            "sha": "7cd43bba65a772f231614dc1902e3ab07b24519a",
+            "datum": "2026-10-11T17:11:24+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128): Neuer Ort im Untermenü „Hier hinzufügen“, Andocken durch Ziehen",
+            "doku": false
+        },
+        {
+            "sha": "3d2a36947525b19a8b01c4cf674d2d0c73ad21cc",
+            "datum": "2026-10-11T17:01:56+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068 P4b 6b): geschützter Bildweg - private Vorschau für Bilder ohne öffentliche Datei",
+            "doku": false
+        },
+        {
+            "sha": "2d77d87c82b6de7ff17505030f7657b2c2d57c8c",
+            "datum": "2026-10-11T17:03:59+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0132 N): Blatt „Wege treffen sich nicht“ erstellt, zwei Formfragen beim Betreiber",
+            "doku": true
+        },
+        {
+            "sha": "714aca1205c37f798d30c4b66316aca1d964725f",
+            "datum": "2026-10-11T17:00:20+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0127 SYS-8): Systemzustand - Spalte Aufgabe, was jede Komponente fuer die Karte tut",
+            "doku": false
+        }
+    ]
+}

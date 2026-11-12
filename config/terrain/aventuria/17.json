@@ -1,0 +1,318 @@
+{
+    "version": 17,
+    "mountainMorphology": {
+        "seedSmoothing": 1,
+        "foothills": {
+            "reach": 24,
+            "smoothing": 8,
+            "hillTransition": 4,
+            "hillAsymmetry": 0.4,
+            "capAtMountain": 0.1,
+            "macroRetention": 0.85,
+            "erosionFocus": 2,
+            "material": {
+                "upliftWeight": 1.5,
+                "erodibility": 2.5,
+                "diffusivity": 2,
+                "runoff": 1.75,
+                "channelBias": 0
+            }
+        },
+        "fragments": {
+            "spacing": 6,
+            "attempts": 8,
+            "relativeHeight": 0.45,
+            "lengthMinimum": 3,
+            "lengthMaximum": 9,
+            "radiusMinimum": 0.8,
+            "radiusMaximum": 2.2,
+            "massifFraction": 0.35,
+            "interruption": 0.22,
+            "warp": 0.45,
+            "inward": 2
+        },
+        "interior": {
+            "fragments": {
+                "spacing": 1.2,
+                "attempts": 8,
+                "relativeHeight": 0.45,
+                "lengthMinimum": 1,
+                "lengthMaximum": 2.5,
+                "radiusMinimum": 0.6,
+                "radiusMaximum": 1.2,
+                "massifFraction": 0.6,
+                "interruption": 0.22,
+                "warp": 0.45,
+                "inward": 0.5
+            },
+            "inward": 1,
+            "iterations": 12,
+            "streamPowerK": 0.08,
+            "diffusion": 0.004375,
+            "maximumGrade": 0.7,
+            "relaxationSteps": 60,
+            "halo": 8,
+            "alpine": {
+                "from": 1500,
+                "to": 3000,
+                "crest": 1,
+                "diffusion": 0,
+                "maximumGrade": 1.2,
+                "summit": {
+                    "grade": { "minimum": 0.6, "maximum": 0.8 },
+                    "profile": { "minimum": 1.15, "maximum": 1.45 },
+                    "outline": { "minimum": 0.15, "maximum": 0.4 },
+                    "ridges": { "minimum": 5, "maximum": 9 },
+                    "relief": { "minimum": 0.1, "maximum": 0.2 },
+                    "detail": { "minimum": 1.5, "maximum": 2.5 },
+                    "restoreFull": { "minimum": 0.4, "maximum": 0.6 },
+                    "restoreNone": { "minimum": 0.85, "maximum": 1 }
+                },
+                "volcano": {
+                    "grade": { "minimum": 0.5, "maximum": 0.7 },
+                    "plateau": { "minimum": 0.3, "maximum": 0.5 }
+                }
+            }
+        }
+    },
+    "riverValley": {
+        "flankGrade": 0.1
+    },
+    "generator": {
+        "size": 4096,
+        "seed": 67001,
+        "fine": {
+            "size": 8192,
+            "tiles": 8,
+            "halo": 64,
+            "blend": 32,
+            "detail": { "amplitude": 80, "wavelength": 0.75, "octaves": 3, "persistence": 0.5, "relief": 0.6 },
+            "erosion": {
+                "iterations": 3,
+                "streamPowerK": 0.05,
+                "exponent": 0.5,
+                "diffusion": 0.1,
+                "fill": 0.01,
+                "maximumChange": 150
+            }
+        },
+        "continentalHeight": 300,
+        "continentalRadius": 100,
+        "materialBlur": 5,
+        "iterations": 20,
+        "timeStep": 1,
+        "streamPowerK": 0.08,
+        "streamPowerM": 0.5,
+        "diffusion": 0.015,
+        "drainageBurn": 5000,
+        "drainageStep": 0.05,
+        "detail": {
+            "amplitude": 220,
+            "wavelength": 4,
+            "octaves": 3,
+            "persistence": 0.65,
+            "coastFade": 8
+        },
+        "lakes": { "bedQuantile": 0.05, "mouthReach": 2 }
+    },
+    "topographie": {
+        "gebirge": {
+            "upliftWeight": 20,
+            "erodibility": 0.08,
+            "diffusivity": 1,
+            "runoff": 1,
+            "channelBias": 0,
+            "influence": {
+                "outward": 12,
+                "inward": 4
+            }
+        },
+        "hochebene": {
+            "landform": {
+                "kind": "plateau",
+                "minimum": 50,
+                "maximum": 900,
+                "wavelength": 24
+            },
+            "upliftWeight": 1,
+            "erodibility": 0.4,
+            "diffusivity": 2,
+            "runoff": 0.8,
+            "channelBias": 0,
+            "influence": {
+                "outward": 8,
+                "inward": 4
+            }
+        },
+        "huegelland": {
+            "landform": {
+                "kind": "hills",
+                "minimum": 50,
+                "maximum": 500,
+                "wavelength": 2,
+                "hills": {
+                    "attempts": 8,
+                    "radiusAtMinimum": 1.5,
+                    "heightExponent": 4,
+                    "overlapPower": 4
+                }
+            },
+            "upliftWeight": 4,
+            "erodibility": 1,
+            "diffusivity": 1.5,
+            "runoff": 1,
+            "channelBias": 0,
+            "influence": {
+                "outward": 16,
+                "inward": 4
+            }
+        },
+        "tiefebene": {
+            "upliftWeight": 0.3,
+            "erodibility": 1,
+            "diffusivity": 3,
+            "runoff": 0.8,
+            "channelBias": 0
+        },
+        "tal": {
+            "upliftWeight": 0.5,
+            "erodibility": 1.5,
+            "diffusivity": 1.5,
+            "runoff": 1.2,
+            "channelBias": 2,
+            "influence": {
+                "outward": 0,
+                "inward": 3
+            }
+        },
+        "schlucht": {
+            "upliftWeight": 0.5,
+            "erodibility": 2,
+            "diffusivity": 0.3,
+            "runoff": 1.2,
+            "channelBias": 4,
+            "influence": {
+                "outward": 0,
+                "inward": 1
+            }
+        },
+        "wadi": {
+            "upliftWeight": 0.5,
+            "erodibility": 1.5,
+            "diffusivity": 0.8,
+            "runoff": 0.3,
+            "channelBias": 4,
+            "influence": {
+                "outward": 0,
+                "inward": 2
+            }
+        },
+        "flussdelta": {
+            "upliftWeight": 0.2,
+            "erodibility": 1.2,
+            "diffusivity": 4,
+            "runoff": 0.8,
+            "channelBias": 2
+        },
+        "kueste": {
+            "upliftWeight": 1,
+            "erodibility": 1,
+            "diffusivity": 1,
+            "runoff": 1,
+            "channelBias": 0
+        },
+        "insel": {
+            "upliftWeight": 1,
+            "erodibility": 1,
+            "diffusivity": 1,
+            "runoff": 1,
+            "channelBias": 0
+        }
+    },
+    "vegetation": {
+        "wald": {
+            "upliftWeight": 1,
+            "erodibility": 0.8,
+            "diffusivity": 1,
+            "runoff": 0.8,
+            "channelBias": 0
+        },
+        "urwald": {
+            "upliftWeight": 1,
+            "erodibility": 0.6,
+            "diffusivity": 1,
+            "runoff": 0.7,
+            "channelBias": 0
+        },
+        "dschungel": {
+            "upliftWeight": 1,
+            "erodibility": 0.6,
+            "diffusivity": 1,
+            "runoff": 0.7,
+            "channelBias": 0
+        },
+        "graslandschaft": {
+            "upliftWeight": 1,
+            "erodibility": 1,
+            "diffusivity": 1,
+            "runoff": 1,
+            "channelBias": 0
+        },
+        "kulturlandschaft": {
+            "upliftWeight": 1,
+            "erodibility": 1,
+            "diffusivity": 1,
+            "runoff": 1,
+            "channelBias": 0
+        },
+        "steppe": {
+            "upliftWeight": 1,
+            "erodibility": 1.2,
+            "diffusivity": 1.3,
+            "runoff": 0.7,
+            "channelBias": 0
+        },
+        "wueste": {
+            "upliftWeight": 1,
+            "erodibility": 1,
+            "diffusivity": 1,
+            "runoff": 0.15,
+            "channelBias": 0
+        },
+        "wuestenoase": {
+            "upliftWeight": 1,
+            "erodibility": 1,
+            "diffusivity": 2,
+            "runoff": 1.2,
+            "channelBias": 1
+        },
+        "tundra": {
+            "upliftWeight": 1,
+            "erodibility": 1,
+            "diffusivity": 1.5,
+            "runoff": 0.8,
+            "channelBias": 0
+        },
+        "suempfe_moore": {
+            "upliftWeight": 1,
+            "erodibility": 0.8,
+            "diffusivity": 4,
+            "runoff": 0.4,
+            "channelBias": 1
+        },
+        "auenlandschaft": {
+            "upliftWeight": 1,
+            "erodibility": 1.3,
+            "diffusivity": 3,
+            "runoff": 1.2,
+            "channelBias": 2
+        },
+        "flussland_flusstal": {
+            "upliftWeight": 1,
+            "erodibility": 1.5,
+            "diffusivity": 2,
+            "runoff": 1.3,
+            "channelBias": 2
+        }
+    }
+}

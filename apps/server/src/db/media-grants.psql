@@ -1,0 +1,131 @@
+-- Rechte an den MAM-Tabellen im Schema public (WI-0068 P1, Migration 0086). psql-Datei mit \gexec.
+--
+-- Vorlage fuer Claudios `avesmaps3d-db-grants` (`grants_sql_tmpl` in ops/runtime/runtime-foundation.sh): `${e}` ist die Umgebung
+-- (staging, production), wie dort. In public gibt die Default-Privilegie der Migrationsrolle der App-Rolle JEDE neue Tabelle mit
+-- SELECT, INSERT, UPDATE, DELETE (`sql_env` im selben Skript), der Jobs-Rolle SELECT, der Kachelrolle nichts (sie liest nur
+-- *_render). Diese Datei vergibt nichts; sie nimmt der App weg, was sie an den MAM-Tabellen nicht darf. Wie die Zeilen fuer job*
+-- gehoert sie hinter JEDE Migration.
+--
+-- Fehlt eine Tabelle (0086 noch nicht angewandt), entfaellt ihre Zeile still. Geprueft in apps/server/test/media-mam-grants.test.ts
+-- (Wegwerf-Cluster wie der VPS: erst grants_sql_tmpl, dann diese Datei); der Test verlangt fuer jede Tabelle aus 0086 eine Zusage.
+
+-- Operation, Fachprotokoll und Provenienz: nur anhaengen (ADR-0019 Nr. 2 und 5; WI-0068 §2 Nr. 7 "Uploadhistorie ist unveraenderlich").
+SELECT format('REVOKE UPDATE, DELETE, TRUNCATE ON %I FROM avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['media_operation', 'media_audit_event', 'media_ingest']) AS t
+ WHERE to_regclass('public.' || t) IS NOT NULL \gexec
+
+-- Einzelbild-Notaus: setzen (INSERT) und aufheben (UPDATE), nie loeschen; der Verlauf bleibt (AUTH-0001 §7.2 suspend_media_publication).
+SELECT 'REVOKE DELETE, TRUNCATE ON media_publication_suspension FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.media_publication_suspension') IS NOT NULL \gexec
+-- Den Zustand der Datei (`file_state`) schreibt der Job media_quarantine mit der Jobs-Rolle, wenn er die Datei bewegt hat (WI-0189 B2,
+-- apps/server/src/media/notaus.ts); nur diese Spalte, die Entscheidung selbst nie.
+SELECT format('GRANT UPDATE (file_state) ON media_publication_suspension TO %I', r.rolname) FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.media_publication_suspension') IS NOT NULL \gexec
+
+-- Konto auflösen (Migration 0088, WI-0068 P2): `public.redact_person_media(uuid)` ruft `auth aufloesen` als App-Rolle. EXECUTE bekommt
+-- sie aus den Default-Privilegien des Schemas public (`sql_env`: Funktionen der Migrationsrolle für die App, nie für PUBLIC); die
+-- Migration nimmt PUBLIC das Recht. Hier steht deshalb keine Zeile dafür; media-mam-grants.test.ts prüft beides.
+
+-- Rechte und Entstehung einer erzeugten Kartenvorschau folgen ihrer Karte (WI-0287, Migration 0320): vier Auslöserfunktionen. Das Feuern prüft kein EXECUTE; direkt ruft
+-- sie niemand, also nimmt diese Datei der App das Recht aus den Default-Privilegien. Fehlt eine (0320 noch nicht angewandt), entfällt ihre Zeile still.
+SELECT format('REVOKE EXECUTE ON FUNCTION public.%I() FROM avesmaps3d_${e}_app', f)
+  FROM unnest(ARRAY['media_rights_folgt_quelle', 'media_rights_an_erzeugte', 'media_asset_entstehung_folgt_quelle',
+                    'media_asset_entstehung_an_erzeugte']) AS f
+ WHERE to_regprocedure('public.' || f || '()') IS NOT NULL \gexec
+
+-- Abgleich der Dateien eines Assets (WI-0068 P4a, Jobart media_settle, apps/server/src/jobs/media-settle.ts): der Worker schreibt mit der
+-- Jobs-Rolle die Dateizeilen (`media_file`, veroeffentlichte Fassung anlegen und wegnehmen) und den technischen Zustand des Assets, sonst
+-- nichts am Asset (keine fachliche Spalte, keine Revision). Eingereiht wird ueber `job_enqueue` (Migration 0090), das die App schon darf.
+-- Fehlt die Jobs-Rolle (ops/jobs/jobs-setup.sh), entfallen die Zeilen still.
+SELECT format('GRANT INSERT, DELETE ON media_file TO %I', r.rolname) FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.media_file') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE media_file_id_seq TO %I', r.rolname) FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.media_file_id_seq') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (technical_state, updated_at) ON media_asset TO %I', r.rolname) FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.media_asset') IS NOT NULL \gexec
+-- Die Messung der Ecken eines Wappens (WI-0068 P4b T2b, Migration 0112) schreibt der Abgleich an die Zeile des Originals; nur diese Spalte.
+SELECT format('GRANT UPDATE (corners_transparent) ON media_file TO %I', r.rolname) FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.media_file') IS NOT NULL
+   AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'media_file' AND column_name = 'corners_transparent') \gexec
+-- Ebenso der Wahrnehmungs-Hash des Originals (WI-0068 D2, Migration 0196); nur diese Spalte.
+SELECT format('GRANT UPDATE (perceptual_hash) ON media_file TO %I', r.rolname) FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.media_file') IS NOT NULL
+   AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'media_file' AND column_name = 'perceptual_hash') \gexec
+-- Das Original eines angenommenen Kartenvorschlags fällt weg (WI-0275, Migration 0308, kartenvorschlag/original-loeschen.ts): Der Lauf stempelt die Zeile; nur diese Spalte.
+SELECT format('GRANT UPDATE (bytes_deleted_at) ON media_file TO %I', r.rolname) FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.media_file') IS NOT NULL
+   AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'media_file' AND column_name = 'bytes_deleted_at') \gexec
+-- Der CHECK `media_file_storage_key_relative` ruft `media_storage_key_is_relative(text)` mit den Rechten der schreibenden Rolle; EXECUTE
+-- hat aus den Default-Privilegien nur die App.
+SELECT format('GRANT EXECUTE ON FUNCTION media_storage_key_is_relative(text) TO %I', r.rolname) FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regprocedure('public.media_storage_key_is_relative(text)') IS NOT NULL \gexec
+
+-- Quarantaene veroeffentlichter Dateien (WI-0127 SYS-10 b3, Migration 0104): die App liest nur; anlegen und aufheben (restored_at)
+-- tut die Jobs-Rolle (Job media_quarantine, Nachzug nach media_settle); niemand loescht, die Zeilen sind der Verlauf. Der Binaerimport
+-- (migrate:media-files) zieht mit der Rolle seines Laufs nach; fehlt ihr das Recht, bleibt es ein Befund (quarantine_not_reconciled).
+SELECT 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON media_quarantine FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.media_quarantine') IS NOT NULL \gexec
+SELECT format('GRANT INSERT, UPDATE (restored_at) ON media_quarantine TO %I', r.rolname) FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.media_quarantine') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE media_quarantine_id_seq TO %I', r.rolname) FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.media_quarantine_id_seq') IS NOT NULL \gexec
+
+-- Zusammenfuehren bytegleicher Werke (WI-0068 D1, Migration 0121): anlegen (INSERT) und aufheben (UPDATE), nie loeschen - eine
+-- aufgehobene Zusammenfuehrung bleibt als Verlauf stehen, wie der Notaus. Die Spur der umgezogenen Zeilen (media_merge_move)
+-- gehoert zur Zusammenfuehrung und wird mit ihr angelegt; geloescht wird auch sie nie (ohne sie koennte "aufheben" nicht mehr
+-- wissen, welche Bindung vorher wem gehoerte).
+SELECT format('REVOKE DELETE, TRUNCATE ON %I FROM avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['media_merge', 'media_merge_move']) AS t
+ WHERE to_regclass('public.' || t) IS NOT NULL \gexec
+-- media_merge_move haelt nur fest, was geschehen ist: einmal geschrieben, nie geaendert.
+SELECT 'REVOKE UPDATE ON media_merge_move FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.media_merge_move') IS NOT NULL \gexec
+
+-- „Alle bytegleichen Duplikate zusammenfuehren“ (WI-0068, Betreiber 2026-10-17; Jobart media_merge_all, Migration 0151,
+-- apps/server/src/media-editor/merge-all.ts): Der Auftrag fuehrt je Gruppe mit der Logik von media.merge zusammen, als Jobs-Rolle
+-- (Claudio 2026-10-17: ein Lauf in der Anwendung braeche bei jedem Stage-Rollout ab). Er haengt Verwendungen um (UPDATE der
+-- Verwendungstafeln, der Herkunft der Galerie und von updated_at am Asset), legt die Zusammenfuehrung samt Spur an (INSERT) und
+-- schreibt Quittung und Fachprotokoll (INSERT). Loeschen darf er nichts (kein DELETE, kein TRUNCATE). Die Abgleiche am Ende reiht er
+-- ueber job_enqueue ein (SECURITY DEFINER, nur zugelassene Arten). Lesen gibt ihr das Schema. Fehlt die Jobs-Rolle, entfallen die
+-- Zeilen still.
+SELECT format('GRANT UPDATE ON %I TO %I', t, r.rolname)
+  FROM unnest(ARRAY['place_media', 'territory_media', 'adventure_media', 'citymap_media', 'media_gallery_item', 'media_type_image']) AS t,
+       pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.' || t) IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (origin, updated_at) ON media_gallery TO %I', r.rolname) FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.media_gallery') IS NOT NULL \gexec
+SELECT format('GRANT INSERT ON %I TO %I', t, r.rolname)
+  FROM unnest(ARRAY['media_merge', 'media_merge_move', 'media_operation', 'media_audit_event']) AS t, pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.' || t) IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE %I TO %I', s, r.rolname)
+  FROM unnest(ARRAY['media_merge_id_seq', 'media_merge_move_id_seq', 'media_audit_event_id_seq']) AS s, pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.' || s) IS NOT NULL \gexec
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO %I', p.oid::regprocedure, r.rolname)
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace, pg_roles r
+ WHERE n.nspname = 'public' AND p.proname = 'job_enqueue' AND r.rolname = 'avesmaps3d_${e}_jobs' \gexec
+
+-- Aufbewahrung der Reisebilder (WI-0272 S2, Migration 0284, Job photobox_aufbewahren): `public.photobox_aufbewahren(timestamptz)` laeuft mit
+-- den Rechten der Migrationsrolle (SECURITY DEFINER), loescht abgelaufene Einreichungen samt Assets und Eingang und gibt die Speicher-
+-- schluessel der Dateien zurueck, die der Job danach entfernt. Rufen darf sie nur die Jobs-Rolle: Die Default-Privilegien des Schemas public
+-- gaben sie der App (`sql_env`), und die App darf `media_ingest` nicht loeschen; zudem ist `p_jetzt` ein Parameter, mit einem Datum in der
+-- Zukunft loeschte jeder Aufruf alles. PUBLIC nahm die Migration das Recht. Fehlt die Funktion (0284 noch nicht angewandt) oder die
+-- Jobs-Rolle, entfallen die Zeilen still.
+SELECT 'REVOKE EXECUTE ON FUNCTION public.photobox_aufbewahren(timestamptz) FROM avesmaps3d_${e}_app'
+ WHERE to_regprocedure('public.photobox_aufbewahren(timestamptz)') IS NOT NULL \gexec
+SELECT format('GRANT EXECUTE ON FUNCTION public.photobox_aufbewahren(timestamptz) TO %I', r.rolname) FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regprocedure('public.photobox_aufbewahren(timestamptz)') IS NOT NULL \gexec
+
+-- „Gefaellt mir“ an Reisebildern (WI-0304, Migration 0337): die App LIEST die Zahl (Lesepfad der Karte) und schreibt sie nur ueber `public.photobox_gefaellt(uuid, integer)`
+-- (SECURITY DEFINER; die Default-Privilegien geben der App die Funktion, PUBLIC nahm die Migration das Recht). Das Default-Privileg der Migrationsrolle gaebe ihr sonst auf der
+-- Tafel INSERT, UPDATE und DELETE: Die Zahl liesse sich an der Funktion (nur freigegebene Bilder, +1/-1, nie unter 0) vorbei aendern. Wie bei `place_review`.
+-- Die Aufbewahrung loescht die Zeile mit ihrer Einreichung (ON DELETE CASCADE laeuft mit den Rechten des Eigentuemers). Fehlt die Tafel (0337 noch nicht angewandt), entfaellt die Zeile still.
+SELECT 'REVOKE INSERT, UPDATE, DELETE ON public.photobox_gefaellt FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.photobox_gefaellt') IS NOT NULL \gexec
+
+-- Aufbewahrung der Kartenvorschlaege (WI-0275 B2, Migration 0296, Job kartenvorschlag_aufbewahrung): `public.kartenvorschlag_aufbewahren(timestamptz)`
+-- laeuft wie die der Reisebilder mit den Rechten der Migrationsrolle (SECURITY DEFINER), loescht Vorschlaege samt Werk und gibt die Speicherschluessel
+-- zurueck. Rufen darf sie nur die Jobs-Rolle (die Default-Privilegien gaben sie der App; `p_jetzt` ist ein Parameter). PUBLIC nahm die Migration das Recht.
+SELECT 'REVOKE EXECUTE ON FUNCTION public.kartenvorschlag_aufbewahren(timestamptz) FROM avesmaps3d_${e}_app'
+ WHERE to_regprocedure('public.kartenvorschlag_aufbewahren(timestamptz)') IS NOT NULL \gexec
+SELECT format('GRANT EXECUTE ON FUNCTION public.kartenvorschlag_aufbewahren(timestamptz) TO %I', r.rolname) FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regprocedure('public.kartenvorschlag_aufbewahren(timestamptz)') IS NOT NULL \gexec

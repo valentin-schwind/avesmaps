@@ -1,0 +1,12 @@
+{
+    "name": "schnell",
+    "beschreibung": "Regressionslauf, unter etwa 5 Minuten: Blutzinnen, Nordwalser Höhen, Trollzacken; Vorschau 1x und 2x; 3 Prozesse, je ein warmer Lauf",
+    "vorgabe": { "rezept": { "fassung": 19 } },
+    "wiederholungen": 3,
+    "warm": 1,
+    "phasen": "erster",
+    "phasen_wiederholungen": 3,
+    "matrix": [
+        { "fixtures": ["blutzinnen", "nordwalser-hoehen", "trollzacken"], "stufe": "vorschau", "aufloesungen": [1, 2] }
+    ]
+}

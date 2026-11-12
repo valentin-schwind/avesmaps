@@ -1,0 +1,107 @@
+{
+    "name": "voll",
+    "beschreibung": "Vollständiges Profil, bewusst gestartet (rund 45 Minuten, davon allein das 4x des Ehernen Schwerts 8 Minuten): alle fünf Fixtures, Vorschau 1x/2x/4x, die Saat, und das lokale Endgelände der Blutzinnen (braucht den Schnappschuss, rechnet die ganze grobe Stufe, mehrere GB)",
+    "vorgabe": {
+        "rezept": {
+            "fassung": 19
+        }
+    },
+    "wiederholungen": 3,
+    "warm": 1,
+    "phasen": "erster",
+    "phasen_wiederholungen": 3,
+    "matrix": [
+        {
+            "fixtures": ["blutzinnen", "nordwalser-hoehen", "trollzacken", "grimmfrostoede-massiv", "ehernes-schwert"],
+            "stufe": "vorschau",
+            "aufloesungen": [1, 2]
+        },
+        {
+            "fixtures": ["blutzinnen", "nordwalser-hoehen", "trollzacken", "grimmfrostoede-massiv"],
+            "stufe": "saat"
+        }
+    ],
+    "faelle": [
+        {
+            "name": "blutzinnen-vorschau-4x",
+            "gebirge": {
+                "fixture": "blutzinnen"
+            },
+            "stufe": "vorschau",
+            "vorschau": {
+                "aufloesung": 4
+            },
+            "warm": 0,
+            "phasen_wiederholungen": 1
+        },
+        {
+            "name": "nordwalser-hoehen-vorschau-4x",
+            "gebirge": {
+                "fixture": "nordwalser-hoehen"
+            },
+            "stufe": "vorschau",
+            "vorschau": {
+                "aufloesung": 4
+            },
+            "warm": 0,
+            "phasen_wiederholungen": 1
+        },
+        {
+            "name": "trollzacken-vorschau-4x",
+            "gebirge": {
+                "fixture": "trollzacken"
+            },
+            "stufe": "vorschau",
+            "vorschau": {
+                "aufloesung": 4
+            },
+            "warm": 0,
+            "phasen": "aus"
+        },
+        {
+            "name": "grimmfrostoede-massiv-vorschau-4x",
+            "gebirge": {
+                "fixture": "grimmfrostoede-massiv"
+            },
+            "stufe": "vorschau",
+            "vorschau": {
+                "aufloesung": 4
+            },
+            "warm": 0,
+            "phasen": "aus"
+        },
+        {
+            "name": "ehernes-schwert-vorschau-4x",
+            "gebirge": {
+                "fixture": "ehernes-schwert"
+            },
+            "stufe": "vorschau",
+            "vorschau": {
+                "aufloesung": 4
+            },
+            "warm": 0,
+            "wiederholungen": 2,
+            "phasen": "aus"
+        },
+        {
+            "name": "ehernes-schwert-saat",
+            "gebirge": {
+                "fixture": "ehernes-schwert"
+            },
+            "stufe": "saat",
+            "warm": 0,
+            "wiederholungen": 2,
+            "phasen": "aus"
+        },
+        {
+            "name": "blutzinnen-endgelaende",
+            "gebirge": {
+                "fixture": "blutzinnen"
+            },
+            "stufe": "endgelaende-lokal",
+            "wiederholungen": 1,
+            "warm": 0,
+            "phasen": "aus"
+        }
+    ]
+}

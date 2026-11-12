@@ -1,0 +1,82 @@
+/*
+ * Der Kachelknopf der Hinweise: EINE Rezeptur für die Kacheln oben (`hinweise-kacheln.vue`) und die Knöpfe im Impressum (`hinweise-discord-knopf.vue`, `hinweise-block.vue`), scoped eingebunden.
+ * Der weiche Knopf (§12.3 gefasst), in Bedienhöhe; Hover mit 1-px-Hub, gedrückt ohne (§30.5).
+ */
+.kachel__knopf,
+.kachel__zeichen {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    box-sizing: border-box;
+    min-height: var(--avm-control-h);
+    border: 1px solid var(--color-button-soft-border);
+    border-radius: var(--radius-md);
+    background: var(--color-button-soft);
+    color: var(--color-button-soft-text);
+    cursor: pointer;
+    font: inherit;
+    font-size: var(--font-size-body);
+    line-height: var(--leading-tight);
+    text-decoration: none;
+    transition:
+        background-color 120ms ease,
+        box-shadow 120ms ease,
+        transform 120ms ease;
+}
+
+.kachel__knopf {
+    padding: 0 var(--space-10);
+}
+
+.kachel__zeichen {
+    width: var(--avm-control-h);
+    padding: 0;
+}
+
+.kachel__knopf:hover:not(:disabled),
+.kachel__zeichen:hover {
+    background: var(--color-button-soft-hover);
+    box-shadow: var(--shadow-button-hover);
+    transform: translateY(-1px);
+}
+
+.kachel__knopf:focus-visible,
+.kachel__zeichen:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring, 0 0 0 3px var(--color-focus)), var(--shadow-button-hover);
+}
+
+.kachel__knopf:active:not(:disabled),
+.kachel__zeichen:active {
+    background: var(--color-button-soft-active);
+    box-shadow: none;
+    transform: none;
+}
+
+/* Gesperrt wie der Eckknopf „Neuigkeiten“: die Sperrfarben, kein Schatten, kein Hub (§30.5). */
+.kachel__knopf:disabled {
+    border-color: var(--color-disabled-border);
+    background: var(--color-disabled-bg);
+    color: var(--color-disabled-text);
+    cursor: not-allowed;
+}
+
+.kachel__glyphe {
+    flex: none;
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+    fill: currentcolor;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .kachel__knopf,
+    .kachel__zeichen {
+        transition: none;
+    }
+
+    .kachel__knopf:hover:not(:disabled),
+    .kachel__zeichen:hover {
+        transform: none;
+    }
+}

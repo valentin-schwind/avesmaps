@@ -1,0 +1,728 @@
+{
+  "schema": 1,
+  "quelle": "https://legacy.avesmaps.de/api/app/changelog.php",
+  "gelesenAt": "2026-10-13T07:19:43Z",
+  "eintraege": [
+    {
+      "datum": "2026-10-10",
+      "titel": "Suche nach Art",
+      "text": "Die Suche findet Orte und Stätten jetzt auch über ihre Art. Wer „Magierakademie“, „Festung“ oder „Tempel“ eintippt, bekommt passende Treffer – und die Trefferzeile sagt dazu, um was für einen Ort es sich handelt.",
+      "rubrik": "karte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-10-09",
+      "titel": "Schnee und Eis",
+      "text": "Neu auf Avesmaps: Die Landschaftsansicht zeigt jetzt Gletscher, Flach- und Steilküsten sowie Schnee- und Eislandschaften. So erkennt ihr auf einen Blick, wo Aventurien vereist ist und wie sich seine Küsten unterscheiden. Schaut vorbei: https://avesmaps.de",
+      "rubrik": "community",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-10-06",
+      "titel": "Performanceprobleme",
+      "text": "Avesmaps ruckelt – was ist da los?\nGestern erreichten uns mehrere Anfragen und Beschwerden, dass Avesmaps langsam lädt und die generelle Performance schlecht sei. \nDies hatte zwei Gründe:\n1) Die Neuigkeiten von Avespfade haben viele neue User auf unsere Seite geführt. Gestern haben uns 1400 individuelle IPs (also einzelne Fans) besucht – ein neuer Rekord für uns! Das hat aber auch dazu geführt, dass die Bandbreite unserer Server an ihre Grenzen kam.\n2) Während wir im Hintergrund an der Karte basteln, hat unsere Hardware einiges zu arbeiten. Auch das belastet den Server und braucht Rechenpower.\nGestern kamen diese beiden Gründe – hohes Useraufkommen und eifrige Editoren – zusammen, besonders in den Abendstunden nach Feierabend. Das hat dazu geführt, dass unsere Website in die Knie ging.\nWir arbeiten stets daran, die Performance von Avesmaps zu verbessern. Im Gegensatz zu Avespfade bieten wir mehr und ausgefeiltere Features. Diese brauchen aber auch mehr Leistung hinter den Kulissen. Mit neuen Updates und dem geplanten Relaunch werden sich die Geschwindigkeit und Nutzerfreundlichkeit von Avesmaps verbessern. Dennoch kann es leider immer wieder dazu kommen, dass die Karte hängt und hakelt, besonders wenn daran gearbeitet wird. Wir bitten dies zu entschuldigen. \nAvesmaps ist ein fortlaufendes Projekt, das ständig verbessert und ausgebaut wird. Möchtest du mithelfen, den nächsten Meilenstein zu erreichen? Dann komm auf unseren Discord und melde dich als Editor! Den Link dazu findest du in unserem Profil.",
+      "rubrik": "community",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-10-05",
+      "titel": "Eine Ära geht zu Ende. Avespfade verabschiedet sich.",
+      "text": "Heute hat uns die Nachricht erreicht, dass die Betreiber von Avespfade.de beschlossen haben, ihre Website nach göttergefälligen zwölf Jahren in den wohlverdienten Ruhestand zu schicken. Das ganze Team von Avesmaps.de sagt danke für diese Zeit. Avespfade war eine unermessliche Hilfe für Spieler, Meisterinnen und Autor:innen – und ohne wäre Avesmaps nicht möglich gewesen. Es erfüllt uns daher mit großer Freude, dass der Staffelstab der Derografie an Avesmaps weitergegeben wird. Wir sind uns der großen Verantwortung bewusst, die damit einhergeht.\nIn diesem Zuge kündigen wir hiermit den baldigen Relaunch von Avesmaps an. Seid gespannt auf mehr Features, neue Grafik und verbesserte Performance. Aber: Um das zu erreichen, muss viel angepasst und vorbereitet werden. Dafür brauchen wir EURE Hilfe! Kommt auf unseren Discord und werdet Editoren, sodass Avesmaps der würdige Nachfolger werden kann, den Avespfade verdient.\nDen Link findet ihr in unserem Profil.",
+      "rubrik": "community",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-10-04",
+      "titel": "Gletscher, Küsten und Schneelandschaften auf der Karte",
+      "text": "Die Landschaftsansicht kennt fünf neue Geländearten: Gletscher, Flachküste und Steilküste sowie Schnee- und Eislandschaften. Damit lassen sich Eisregionen und Küstenformen im Norden und Süden Aventuriens genauer unterscheiden.",
+      "rubrik": "karte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-09-30",
+      "titel": "Einhundertelf Facebook-Follower!",
+      "text": "Einhundertelf Facebook-Follower – Bilbo Beutlin wäre stolz! Die Avesmaps-Community wächst und wir sagen danke! Ohne eure Unterstützung, Ideen und Verbesserungsvorschläge, eure vielen Rückmeldungen und ja, auch ohne eure Kritik wäre Avesmaps heute nicht dort, wo es ist. Und keine Sorge: Wir haben nicht vor, aufzuhören. Wir haben große (oder besser gesagt, hohe) Dinge geplant. Möchtest auch du dabei sein und uns unterstützen? Komm auf unseren Discord und werde Editor: https://discord.gg/BSHEEpn6UX",
+      "rubrik": "community",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-09-27",
+      "titel": "Von der Stadt direkt zu ihren Stätten",
+      "text": "In der Infobox einer Stadt trägt jede Stätte, die als eigener Punkt auf der Karte liegt – ein Tempel, ein Hafen, ein Stadtviertel –, jetzt ein ⊕. Ein Klick fliegt dorthin und öffnet gleich ihre Infobox. Stätten ohne eigenen Kartenpunkt nennt die Suche mit ihrer Stadt, etwa „Hafen in Gareth · nicht auf der Karte“.",
+      "rubrik": "karte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-09-26",
+      "titel": "Garetien und der Kosch auf der Karte",
+      "text": "Gemeinsam mit dem Garetien-Wiki (garetien.de) und dem Koschwiki haben wir die Karten der beiden Briefspiel-Projekte nach Avesmaps geholt. Über 3.000 Orte, Burgen, Tempel, Höfe, Seen, Bäche, Moore, Wälder und Berge im Osten des Mittelreichs sind neu auf der Karte, jedes von Hand geprüft. Jedes trägt einen Link zu seinem Artikel im Garetien-Wiki, wo ihr mehr darüber lesen könnt. Herzlichen Dank an Volker (VolkoV) und an alle, die dort seit Jahren schreiben.",
+      "rubrik": "inhalte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-09-23",
+      "titel": "Zoomen ohne Ruckeln",
+      "text": "In den Ansichten „Standard“ und „Landschaften“ friert die Karte beim Zoomen nicht mehr für Sekunden ein. Die Namen der Herrschaftsgebiete werden jetzt nur noch dort vorbereitet, wo sie auch zu sehen sind – in der Ansicht „Politisch“.",
+      "rubrik": "karte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-09-17",
+      "titel": "Jeder Weg lässt sich anklicken",
+      "text": "Ein Klick auf eine Straße, einen Fluss oder einen Pfad öffnet jetzt die Infobox mit allem, was zu diesem Weg bekannt ist – bisher ging das nur bei Wegen, zu denen es einen Wiki-Artikel gibt. Der gewählte Weg leuchtet dabei gelb auf: wahlweise nur das angeklickte Teilstück oder die ganze Straße von einem Ende zum anderen. Straßen und Bäche sind außerdem einen Hauch breiter gezeichnet und damit leichter zu treffen.",
+      "rubrik": "karte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-09-15",
+      "titel": "Route umkehren, löschen oder einen ganzen Weg übernehmen",
+      "text": "Neben „Ziel hinzufügen“ stehen zwei neue Knöpfe: Der eine dreht die Reihenfolge der Wegpunkte um, der andere leert die Route mit einem Klick. Die Infobox eines Wegs bietet außerdem „Weg als Route“ an – sie setzt die Orte entlang des Wegs der Reihe nach in den Routenplaner. Und Meldungen wie „Keine Route gefunden“ erscheinen jetzt als kleine Einblendung, statt die Seite mit einem Popup anzuhalten.",
+      "rubrik": "routenplaner",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-09-14",
+      "titel": "Gesperrte Wege werden umgangen",
+      "text": "Manche Wege sind nur zu bestimmten Jahreszeiten passierbar – etwa Pässe, die im Winter zugeschneit sind. Der Routenplaner beachtet das jetzt: Wer einen Reisebeginn angibt, bekommt eine Route, die gesperrte Wege umgeht, und der Reiseplan sagt, welcher Weg wann gesperrt ist und wie viel länger die Reise dadurch dauert. Ohne Reisebeginn wird nichts gesperrt, aber ein Hinweis bittet darum, das Datum zu prüfen.",
+      "rubrik": "routenplaner",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-09-14",
+      "titel": "Die Landschaftsebenen stehen im Kartenfächer",
+      "text": "Die Ebenen der Landschaften wählt man jetzt direkt im Kartenfächer: Über „Landschaften“ klappen Alle, Derographie, Vegetation, Topographie und Klimazonen heraus, jede mit eigenem Bild. Die gewählte Ebene zeigt sich danach auf der Kachel, und die zusätzliche Leiste oben auf der Karte entfällt.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-09-14",
+      "titel": "Die Karte lädt schneller",
+      "text": "Beim Öffnen der Karte wird jetzt rund ein Drittel weniger Programmcode geladen, weil die Werkzeuge der Redaktion nur noch dann mitkommen, wenn jemand wirklich bearbeitet. Außerdem werden Landschaftsnamen erst gezeichnet, wenn sie ins Bild kommen, und Routen mit mehreren Zwischenzielen werden in einem Zug berechnet.",
+      "rubrik": "karte",
+      "reihe": 2
+    },
+    {
+      "datum": "2026-09-10",
+      "titel": "Die Landschaften zeigen die ganze Karte",
+      "text": "Wer bisher in die Landschaftsansichten Derographie, Vegetation, Topographie oder Klimazonen wechselte, sah dort nur die Flächen selbst — Orte, Wege, Beschriftungen, Grenzen und Gewässer waren ausgeblendet. Jetzt sind sie in allen Landschaftsansichten von Anfang an eingeschaltet, sodass man jederzeit sieht, wo man sich gerade befindet. Wer davon etwas selbst abschaltet, behält diese Wahl beim Wechsel zwischen den Ebenen bei.",
+      "rubrik": "karte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-09-09",
+      "titel": "Das Etikett „offiziell“ stimmt jetzt",
+      "text": "Seit Anfang September trägt jedes Objekt aus einer inoffiziellen Quelle ein Etikett. Woran sich das entschied, war allerdings die Quellenlage — und die ist von Wegabschnitt zu Wegabschnitt verschieden gepflegt: Am Pergelbach stand deshalb die obere Hälfte des Flusses auf „inoffiziell“ und die untere auf „offiziell“. Jetzt entscheidet der zugewiesene Wiki-Artikel, und alle Abschnitte eines Weges teilen sich dessen Einstufung. Publikationsangaben zählen nicht mehr mit — sie werden weiterhin aufgelistet, machen aber keinen Kanon. Dazu verschwinden gut hundert Verweise ins Wiki, die nie jemand zugewiesen hatte, sondern die allein aus dem Namen geraten waren. Und in der Suche steht das Etikett nun auch an Wegen, Landschaften und Stadtkarten, nicht mehr nur an Orten.",
+      "rubrik": "inhalte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-09-07",
+      "titel": "Ein Gewässer, ein Blau",
+      "text": "Flüsse und Seen wurden bisher in zwei verschiedenen Blautönen gezeichnet, obwohl beides Wasser ist — an jeder Mündung sah man den Bruch. Jetzt tragen die Seeflächen denselben Ton wie die Flüsse. Der Anzeige-Haken, der bislang nur „Flüsse“ hieß, schaltet passend dazu beides gemeinsam und heißt jetzt „Flüsse und Seen“.",
+      "rubrik": "karte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-09-05",
+      "titel": "Der Routenplaner ist aufgeräumt",
+      "text": "Die Einstellungen des Routenplaners standen bisher als lose Felderreihen untereinander. Jetzt fassen beschriftete Rahmen zusammen, was zusammengehört — „Transportmittel\" und „Reiseoptionen\" —, und beide lassen sich zuklappen, wenn man den Platz für die Karte braucht. Dazu läuft durch die ganze Spalte endlich ein einheitlicher Abstand, die Auswahlfelder sind so groß wie ihre Beschriftungen, und am Telefon wachsen die Kästen nicht mehr über den Bildschirm hinaus.",
+      "rubrik": "routenplaner",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-09-05",
+      "titel": "„Was ist hier?\" findet wieder alles",
+      "text": "Ein Rechtsklick auf die Karte sagt, welche Herrschaftsgebiete an dieser Stelle liegen — und blieb in manchen Gegenden stumm, in der Umgebung von Al'Anfa etwa. Der Grund: fast jedes Gebiet trug intern noch die Umrisse seiner allerersten Grundform statt seiner heutigen Grenze, und danach wurde gesucht. Alle betroffenen Gebiete sind nachgezogen, und künftig rechnet jede Änderung diesen Umriss gleich mit.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-09-05",
+      "titel": "Besser lesbar im hellen Design",
+      "text": "Das Gold, mit dem Überschriften, Links und Aufschriften geschrieben sind, war im hellen Design zu blass — auf hellem Grund fiel es unter die gängigen Lesbarkeitsvorgaben. Es ist jetzt eine Spur erdiger und erreicht überall den geforderten Kontrast, bleibt aber erkennbar Gold. Wer die Karte tagsüber hell benutzt, liest spürbar leichter. Das dunkle Design bleibt, wie es war.",
+      "rubrik": "karte",
+      "reihe": 2
+    },
+    {
+      "datum": "2026-09-05",
+      "titel": "Die Hinweise erklären unsere Karten",
+      "text": "Das Fenster „Hinweise\" hat einen neuen Abschnitt „Die Karten auf Avesmaps\": woher das Kartenbild stammt, was die verschiedenen Ansichten zeigen und wie die Untergründe zusammenspielen. Außerdem trägt jeder Abschnitt jetzt eine Zeile, die verrät, was darin steckt — man muss nicht mehr alles aufklappen, um etwas zu finden —, zwei seit Wochen überholte Sätze sind berichtigt, und Adressen in den Neuigkeiten sind endlich anklickbar.",
+      "rubrik": "inhalte",
+      "reihe": 3
+    },
+    {
+      "datum": "2026-09-04",
+      "titel": "Avesmaps im Interview mit SteamTinkerer",
+      "text": "Valentin und Thomas haben sich dem SteamTinkerer Mirco im Interview gestellt. Sie geben Einblick in die Hintergründe und Entwicklung von Avesmaps.de.\n\nDie Aufnahme findet ihr auf der Website, im Podcast und dem YouTube Kanal vom SteamTinkerer: https://www.youtube.com/watch?v=gBJn-d_B3w4.\n\nAuch die Entwicklung geht weiter: Die Quellenangaben für unsere Einträge wurden verbessert, ganz besondere in Hinsicht auf das Briefspiel. Und natürlich gibt es mehr QoL-Updates.",
+      "rubrik": "community",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-09-02",
+      "titel": "Offiziell oder Fanmaterial? Die Karte sagt es jetzt",
+      "text": "Aventurien wird nicht nur von Ulisses beschrieben: Vieles auf dieser Karte stammt aus Briefspielen, Regionalwikis und der Arbeit einzelner Fans. Bisher stand beides gleichberechtigt nebeneinander, und wer eine Angabe nachschlagen wollte, konnte ihr nicht ansehen, ob sie im offiziellen Kanon steht oder nicht. Jetzt trägt jeder Ort, jeder Weg und jedes Herrschaftsgebiet aus einer inoffiziellen Quelle ein kleines Etikett — in der Infobox und im Suchtreffer. Dazu nennen die Quellenangaben endlich ihren Wirt im Klartext, also etwa „Wiki Aventurica“ statt eines Dateinamens, und Lizenz und Namensnennung stehen einen Klick entfernt hinter einem ⓘ bereit.",
+      "rubrik": "inhalte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-09-02",
+      "titel": "Die Suche sagt jetzt, wenn sie nichts findet",
+      "text": "Wer im Suchfenster etwas eintippte, das es auf der Karte nicht gibt, bekam bisher gar keine Antwort: Die Trefferliste blieb einfach leer, und „nicht gefunden“ war von „ich suche noch“ nicht zu unterscheiden. Jetzt steht es da. Zwei weitere Verbesserungen betreffen die Wege. Die Trefferliste nennt nun die Wegart, sodass nicht achtmal „Weg“ untereinander steht, sondern „Reichsstraße“, „Gebirgspass“ oder „Flussweg“ — und Wege, die von Hand benannt wurden und zu denen es keinen Wiki-Artikel gibt, sind überhaupt erst auffindbar geworden.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-09-01",
+      "titel": "Eingeschränkt befahrbare Wege stehen kursiv",
+      "text": "Viele Wege Aventuriens sind nicht das ganze Jahr über offen — ein Gebirgspass liegt im Winter unter Schnee —, und über manche kommt man zwar zu Fuß, aber nicht mit einer Kutsche. Auf der Karte war davon bisher nichts zu sehen. Jetzt steht der Name eines solchen Weges kursiv, und seine Infobox nennt unter „Einschränkungen“ im Klartext, was gilt: entweder das Zeitfenster, in dem er begehbar ist — etwa „Peraine 15 – Efferd 30“ —, oder die Reisemittel, mit denen man durchkommt — etwa „Nur zu Fuß.“ Betroffen sind derzeit 83 Wege in 150 Abschnitten, darunter die meisten Gebirgspässe. Fluss- und Seewege bleiben bewusst außen vor: Dort ist eine Einschränkung der Normalfall, und über fünfhundert Abschnitte kursiv zu setzen hätte die Aussage entwertet. Wo ein Weg in Abschnitten liegt, von denen einer noch keinem Wiki-Artikel zugeordnet ist, bleibt dieser Abschnitt aufrecht — das ist eine Lücke in den Daten und wird deshalb gezeigt statt überdeckt. Der Routenplaner rechnet die Zeitfenster noch nicht mit; er kann also weiterhin über einen Pass planen, der im Firun geschlossen ist. Die Anzeige sagt es einem jetzt wenigstens.",
+      "rubrik": "karte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-08-31",
+      "titel": "Landschaftsnamen weichen einander aus",
+      "text": "Lagen mehrere Namen an derselben Stelle – etwa eine Landschaft, ein Gebirge und ein Gipfel –, stapelten sie sich übereinander, und lesbar war nur der oberste. Ausweichen sollten sie schon bisher, aber nur auf neun festen Stellen mit höchstens zwölf Bildpunkten Spielraum; bei Namen, die zwei- bis dreihundert Bildpunkte breit sind, bewegte das nichts. Jetzt weicht ein Name auf einem Ring um seinen Platz aus und darf sich dabei deutlich weiter entfernen. Über den ganzen Bestand von rund 900 Namen verschwinden dadurch bei mittlerer Zoomstufe acht statt bisher 37 Namen, und die 29 Fälle, in denen zuletzt noch zwei Namen übereinanderlagen, gibt es nicht mehr. Wie weit ein Name ausweichen darf, lässt sich im Landschaften-Editor unter „Darstellung“ einstellen.",
+      "rubrik": "karte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-08-30",
+      "titel": "Ein Bach ist kein Fluss mehr",
+      "text": "Bäche lagen auf der Karte bisher als gewöhnliche Flusswege – genauso breit gezeichnet wie der Große Fluss, in der Infobox schlicht als „Fluss“ benannt und rechnerisch ebenso befahrbar. Jetzt ist der Bach ein eigenes Gewässer: halb so breit gezeichnet wie ein Fluss, mit eigener Farbe, eigenem Namen und eigenem Kopfbild in der Infobox. Befahren kann man ihn nicht – kein Boot, kein Flusssegler. Wer die Karte ansieht, erkennt damit auf einen Blick, welches Gewässer eine Reise trägt und welches nur ein Rinnsal ist.",
+      "rubrik": "karte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-08-30",
+      "titel": "Bäche werden durchwatet, nicht umgangen",
+      "text": "Seit Mitte August sperren Flüsse das offene Gelände: quer durchs Wasser führt keine Route, gequert wird nur dort, wo ein gezeichneter Weg quert. Das galt bis jetzt auch für jeden Bach – und ein Rinnsal von wenigen Schritten Breite schickte eine Geländereise auf einen weiten Bogen. Ein Bach ist jetzt kein Hindernis mehr, sondern eine Erschwernis: Die Querung kostet etwa so viel wie viereinhalb Meilen offenes Gelände. Eine Geländeetappe von 90 Meilen mit einem Bach darin wird dadurch rund drei Prozent teurer, statt weiträumig auszuweichen. Richtige Flüsse bleiben unverändert eine Wand.",
+      "rubrik": "routenplaner",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-08-28",
+      "titel": "Die Landschaftsansicht ist aufgeräumt",
+      "text": "Die Landschaften zeigen vier Ebenen übereinander, und in der Übersicht „Alle“ gerieten sie sich zuletzt gegenseitig ins Bild. Die Klimazonen legten sich als kartenbreite Streifen quer über alles, was die Übersicht eigentlich zeigen soll — in „Alle“ erscheinen sie jetzt nicht mehr; wer sie sehen will, wählt die Ebene ausdrücklich. Die derographischen Flächen decken die Karte lückenlos ab und halten sich dort nun ebenfalls zurück: Ihre Fläche zeigt sich erst, wenn man ihren Namen anklickt. Berggipfel und Vulkane waren in der Topographie seit Anfang August versehentlich ganz verschwunden, obwohl sie der Arbeitspunkt dieser Ebene sind — sie sind zurück und erscheinen jetzt einheitlich ab der vierten Zoomstufe. Und die weiße Umrandung der Flüsse fällt in dieser Ansicht weg: Sie ist ein Werkzeug der Redaktion und nicht Teil des Kartenbildes. Auf der gewohnten Karte bleibt sie.",
+      "rubrik": "karte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-08-28",
+      "titel": "Beschriftungen nennen ihre eigene Art",
+      "text": "Klickt man eine Beschriftung auf der Karte an, nennt die Infobox jetzt, was das Objekt wirklich ist. Bisher stand dort für jede Beschriftung ohne hinterlegten Wiki-Artikel schlicht „Region“ — das betraf 341 der 983 Beschriftungen, darunter Vulkane wie Ceälan. Jetzt steht da „Vulkan“, „Bucht“ oder „Wüste“, und auch das Kopfbild passt dazu. Die Suche hat davon mitprofitiert: Ihr fehlten acht Arten ganz, siebzig Beschriftungen hießen dort nur „Label“.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-08-27",
+      "titel": "Die Karte startet schneller — und der zweite Besuch fast sofort",
+      "text": "Wer avesmaps.de öffnete, wartete bisher rund zweieinhalb Sekunden, bis die Karte ihre Daten beisammen hatte — und beim nächsten Besuch noch einmal genauso lange, weil alles neu geladen wurde. Jetzt beginnt der Server schon zu arbeiten, während die Seite noch lädt, und die rund drei Megabyte Kartendaten bleiben anschließend im Browser liegen: Wer wiederkommt, fragt nur noch kurz nach, ob sich etwas geändert hat, und hat die Karte in einem Wimpernschlag vor sich. Nebenbei sind Schriften, Markenbild und die eingeklappten Großbilder deutlich leichter geworden. Und der Zoomschritt läuft jetzt gleichmäßig in einer halben Sekunde, statt viermal so oft neu zu zeichnen wie nötig.",
+      "rubrik": "karte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-08-26",
+      "titel": "Ansicht und Kartenuntergrund lassen sich jetzt kreuzen",
+      "text": "Das Ansichtsmenü in der Kartenecke hatte bisher sechs Einträge nebeneinander, und „Original“ war einer davon — obwohl es gar keine eigene Ansicht ist, sondern nur eine nackte Karte auf dem alten Kachelsatz. Jetzt ist das Menü zweistufig: Überfahren öffnet die fünf Ansichten, Verweilen auf einer fächert darüber ihre drei Untergründe auf. So lässt sich jede Ansicht mit jedem Untergrund verbinden — die politische Ebene über der modernen Karte, die Landschaften über der alten. Die Kacheln im Menü zeigen dabei die echte Kreuzung und nicht ein Beispielbild, und alte geteilte Links auf „Original“ landen weiterhin dort, wo sie sollen.",
+      "rubrik": "karte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-08-26",
+      "titel": "Flussfahrten werden wieder als Flussfahrten gerechnet",
+      "text": "Lag vor einem Anleger noch ein kurzes Stück Weg, verschmolz der Reiseplan die anschließende Flussfahrt mit diesem Wegstück zu einer einzigen Landetappe. Auf der Fahrt von Gareth nach Perricum machten drei Meilen Weg aus knapp 188 Meilen Flussreise einen Marsch: keine Flusspassage, acht Nächte im Gemeinschaftszimmer statt an Bord, und rund 28 Stunden zu viel auf der Uhr. Jetzt trennt der Plan die Etappen dort, wo das Reisemittel wechselt, und nennt den Übergang „Anlegestelle“. Außerdem gelten die in der Redaktion eingestellten Reisegeschwindigkeiten jetzt auch für die Karte, so dass Reiseplan und Routen-Schnittstelle wieder mit denselben Zahlen rechnen — und die gewählte Unterbringung reist im geteilten Link mit.",
+      "rubrik": "routenplaner",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-08-24",
+      "titel": "HdSA-Interview als Podcast",
+      "text": "Letzten Montag waren unsere Entwickler und Projektleiter Valentin und Thomas bei Hinter dem Auge zu Gast. Die geschnittene Aufnahme ist jetzt als auf der HdSA-Website, als Podcast sowie auf YouTube verfügbar.",
+      "rubrik": "community",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-08-24",
+      "titel": "Die Karte zeichnet beim Zoomen ruhiger — und am Telefon schärfer",
+      "text": "Bisher schnitten die Beschriftungen bei jedem Zoomschritt hart um: Gebiets-, Wege-, Fluss- und Ortsnamen verschwanden im einen Moment und standen im nächsten in neuer Größe da. Jetzt blenden das alte und das neue Schriftbild gleichzeitig ineinander über, und auch die Grenzlinien wechseln weich statt sprunghaft. Die Namen der Herrschaftsgebiete erscheinen dabei wieder ab Zoomstufe 4 statt erst ab 5 und springen nicht mehr zwischen zwei Stufen hin und her. Ortsmarkierungen wachsen beim Zoomen mit, statt in fester Größe stehenzubleiben, und Ortsnamen weichen wieder nach links aus, wenn rechts kein Platz ist. Auf Telefonen zeichnen Flächen, Grenzen und Beschriftungen außerdem wieder in voller Schärfe.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-08-23",
+      "titel": "Landschaftsnamen laufen jetzt auf der Form ihrer Fläche",
+      "text": "Der Name einer Landschaft stand bisher als gerade Zeile irgendwo in seinem Gebiet — bei schmalen oder geschwungenen Flächen passte er schlecht, ragte hinaus oder musste von Hand gedreht werden. Jetzt folgt er einer Kurve, die durch die Mitte der Fläche läuft: ein langgezogenes Tal bekommt eine langgezogene Beschriftung, ein Gebirgszug eine geschwungene. Der Name belegt dabei seinen Platz auf der Karte, andere Beschriftungen weichen ihm aus, und ein Klick darauf öffnet die Infobox zur Landschaft. Wo die Form es hergibt, ist die neue Beschriftung schon eingeschaltet; über die übrigen Flächen entscheidet die Redaktion.",
+      "rubrik": "karte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-08-23",
+      "titel": "Die Landschaften-Ansicht „Alle“ zeigt jetzt die ganze Karte",
+      "text": "Wer bei den Landschaften „Alle“ wählte, sah bisher fast nur die eingefärbten Flächen. Jetzt liegt die volle Karte darin: Orte, Straßen und Grenzen sind eingeblendet, die Kartenkacheln treten dafür zurück, und die Flüsse sind ebenfalls zu sehen — in „Alle“ wie in der Topographie. So lässt sich auf einen Blick erkennen, welche Landschaft zu welchem Ort und welcher Straße gehört.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-08-20",
+      "titel": "Die Suche findet jetzt auch, was nicht auf der Karte steht",
+      "text": "Bisher fand die Suche nur, was auf der Karte eingezeichnet ist. Vieles in Aventurien hat aber (noch) keinen Punkt und keine Fläche: Stätten außerhalb der Ortschaften, Wege und Landschaften ohne Geometrie, Herrschaftsgebiete, deren Grenze niemand gezogen hat, und Orte, die bislang nur als Artikel existieren. Diese Treffer stehen jetzt in einem eigenen Abschnitt „Nicht auf der Karte“ am Ende der Trefferliste — jeweils mit der Region, in der sie liegen, damit man sie einordnen kann.",
+      "rubrik": "karte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-08-19",
+      "titel": "Die Karte sagt jetzt, dass sie lädt",
+      "text": "Wer avesmaps.de öffnet, sah bisher eine halb fertige Karte und musste raten, ob noch etwas nachkommt. Jetzt legt sich beim Start ein heller Schleier über die Kacheln, und in der Mitte dreht sich eine Windrose mit dem Hinweis „Karte wird geladen …“. Sobald die Beschriftungen stehen und der Routenplaner bereit ist, verschwindet beides wieder, und die Panels an den Rändern fahren von aussen herein. Schieben und Zoomen geht die ganze Zeit weiter — der Schleier liegt nur davor, er hält nichts auf.",
+      "rubrik": "karte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-08-19",
+      "titel": "Spezies — wer in einer Landschaft heimisch ist",
+      "text": "Flora, Fauna und Waren standen schon in der Infobox — jetzt kommt eine vierte Zeile dazu: die Spezies, die an einem Ort oder in einer Landschaft heimisch sind. Wer wissen will, wo in Aventurien welche Wesen leben, findet sie ausserdem über die Suche.",
+      "rubrik": "inhalte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-08-18",
+      "titel": "8 statt 12 Stunden Reise durch Felder und Wiesen",
+      "text": "Mal die Füße hochlegen: Statt zwölf ist die Standartreisedauer nun acht Stunden, wie es auch in Wege des Entdeckers beschrieben ist. Vielen Dank an den aufmerksamen User Rondragos, der uns auf unserem Discord darauf aufmerksam gemacht hat!\nEs gibt nun eine neue Kategorie für Gebiete: Unter Kulturlandschaft verbindet sich alles, was von Peraines Segen beeinflusst ist: Felder, Weinberge, Äcker, Weiden usw.\nAußerdem wurde die UI für mobilen Geräten verbessert und unsere Infoboxen aufgeräumt.",
+      "rubrik": "community",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-08-17",
+      "titel": "Avesmaps heute im Live-Interview auf Youtube und Twitch",
+      "text": "Die Avesmaps-Entwickler Valentin und Thomas sind heute Abend um 20:30 Uhr bei Gernot und Adrian im Live-Interview. Per Chat könnt ihr dort kommentieren und fragen. https://www.youtube.com/live/Bs6_rQIffOY",
+      "rubrik": "community",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-08-16",
+      "titel": "Querfeldein reisen folgt jetzt der Landschaft",
+      "text": "Wer den Routenplaner abseits der Straße schickt, bekommt jetzt eine glaubhaftere Reise. Flüsse sind keine Einbildung mehr: durchwaten lässt sich keiner, gequert wird nur dort, wo ein gezeichneter Weg über ihn führt. Lange Strecken durchs Gelände kosten zusätzlich Zeit, denn ohne Weg wird man mit jeder Meile langsamer. Und eine Kutsche bleibt auf der Straße, statt über die Wiese zu fahren.\n\nAuch der Ausstieg stimmt jetzt: Die Route bleibt auf dem Wegenetz bis zu dem Punkt, der dem Ziel am nächsten liegt, und geht erst von dort ins Gelände — nicht mehr von der letzten Ortschaft aus. In der Etappenliste heißen diese Übergänge „Abgangspunkt“ und „Anschlusspunkt“. Von sich aus verlässt die Wegsuche die Straße nicht mehr.",
+      "rubrik": "routenplaner",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-08-16",
+      "titel": "Ein Reisetag dauert jetzt acht Stunden",
+      "text": "Bisher rechnete der Routenplaner an Land mit zwölf Wanderstunden am Tag. Die „Wege des Entdeckers“ sagen es siebenmal wörtlich anders: acht Stunden pro Tag, mit kleinen Rasten zwischendurch. Die Tagesstrecke bleibt dieselbe, aber Marschtempo und Rastzeiten stimmen jetzt mit dem Regelwerk überein. Auf Flüssen und Seen bleibt es bei zwölf Stunden, und das eine Schiff mit Nachtfahrt fährt weiter rund um die Uhr. Aufgefallen ist die Lücke einem aufmerksamen Leser, nicht uns.",
+      "rubrik": "routenplaner",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-08-16",
+      "titel": "Kulturlandschaften — was der Mensch bestellt hat",
+      "text": "Weizenfelder, Wingerte, Obsthaine, Terrassen: Für Gegenden, die bewirtschaftet werden, gibt es jetzt eine eigene Landschaftsart. Sie wird nach und nach auf der Karte auftauchen, und wer querfeldein durch sie reist, wird kaum langsamer — anders als im Wald oder im Dschungel. Die Idee kam aus der Community.",
+      "rubrik": "inhalte",
+      "reihe": 2
+    },
+    {
+      "datum": "2026-08-15",
+      "titel": "„Was ist hier?“ — die Karte gibt jetzt zu jeder Stelle Auskunft",
+      "text": "Ein Rechtsklick auf eine beliebige Stelle der Karte öffnet jetzt eine Auskunft im Infopanel: in welchem Herrschaftsgebiet der Punkt liegt — mit der ganzen Kette bis hinauf zum Reich und den Wappen dazu —, welche Landschaft, welcher Boden und welche Klimazone dort herrschen, und was die Gegend an Flora, Fauna und Waren hergibt.\n\nDarunter steht „In der Nähe“: die nächsten Ortschaften und Wege, jeweils mit Entfernung und einem Pfeil, der in ihre Richtung zeigt. Wer eine Stelle im Nirgendwo anklickt, weiß damit auf einen Blick, wo er gelandet ist und wohin es von dort weitergeht.\n\nDie frühere Kachel „Stelle markieren und teilen“ ist darin aufgegangen. Es gibt jetzt eine Markierung statt zweier — und die lässt sich mit der Maus einfach an eine andere Stelle ziehen.",
+      "rubrik": "karte",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-08-15",
+      "titel": "Akademien, Tempel und andere besondere Stätten",
+      "text": "Die Infobox eines Ortes nennt jetzt seine besonderen Bauwerke: Magierakademien, Tempel, Kriegerschulen und was sonst an bemerkenswerten Stätten dort steht. Bei einem Tempel steht auch dabei, welcher Gottheit er geweiht ist — die Suche nach „Rahja“ findet dadurch die Rahja-Tempel, ohne dass man ihre Namen kennen müsste.\n\nDazu kennt die Karte 18 weitere Ortsarten, von der Magierakademie über die Werft bis zur Furt. Aus der Datengrundlage sind knapp 200 Lehreinrichtungen dazugekommen, die bisher durch das Raster gefallen waren.",
+      "rubrik": "inhalte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-08-14",
+      "titel": "Thomas und Valentin bei Nandurion",
+      "text": "Unsere Projektgründer Valentin und Thomas stellen sich den Fragen von #Nandurion. Erfahrt jetzt mehr über die Hintergründe und Ziele von #Avesmaps dort im Interview. \nhttps://rezensionen.nandurion.de/2026/08/14/interview-mit-valentin-und-thomas-von-avesmaps/",
+      "rubrik": "community",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-08-12",
+      "titel": "Was zu sehen ist, stellt ihr jetzt an der Karte ein",
+      "text": "Die sechs Kartenansichten und die sechs Ortsklassen saßen bisher im Routenplaner — mitten zwischen Reiseziel und Transportmittel, obwohl sie mit dem Reisen nichts zu tun haben. Jetzt sitzen sie an der Karte selbst: unter dem Suchknopf zeigt eine Kachel die eingestellte Ansicht mit Bild und Namen und faltet auf Klick alle sechs auf. Darüber klappt ein neues Auge-Menü die Ortsklassen aus, von der Metropole bis zum einzelnen Gebäude.\n\nDer Routenplaner wird dadurch kürzer und handelt nur noch von der Reise. Geteilte Links behalten ihre Ansicht wie bisher.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-08-12",
+      "titel": "Die Landschaften erzählen mehr",
+      "text": "Ein Klick auf eine Landschaftsfläche öffnet jetzt ihr Infopanel. Bisher musste man den Namen treffen — die Fläche selbst, der weitaus größere Anfasser, leuchtete nur kurz auf.\n\nDazu gibt es mehr zu lesen: Ein Weg listet Waren, Fauna und Flora der Landschaften, durch die er führt, auch Herrschaftsgebiete nennen ihre Klimazone, und die Etappen einer Route zeigen alle vier Angaben statt nur einer Auswahl.",
+      "rubrik": "inhalte",
+      "reihe": 2
+    },
+    {
+      "datum": "2026-08-12",
+      "titel": "Lange Listen klappen jetzt auf",
+      "text": "Seit die Landschaften ihre Waren, ihre Flora und ihre Fauna mitbringen, sind manche Infoboxen lang geworden — und der Rest verschwand hinter einem \"+12\"-Fenster, das man erst öffnen musste, um überhaupt zu sehen, was dort steht.\n\nJetzt bleibt alles an Ort und Stelle: Ein Deckel fasst die Liste in einem Satz zusammen und klappt dort auf, wo sie steht. Ab zehn Einträgen ordnen sich die Namen zu Gruppen mit Buchstabenmarken, sodass man auch in einer langen Aufzählung schnell findet, was man sucht.",
+      "rubrik": "karte",
+      "reihe": 3
+    },
+    {
+      "datum": "2026-08-12",
+      "titel": "Die Karte zeigt nur noch, was ihr sehen wollt",
+      "text": "Im Auge-Menü lassen sich jetzt auch Wege, Beschriftungen, Grenzen und Flüsse einzeln abschalten. Wer allein die Landschaften betrachten oder eine Route ohne Namensgewirr zeigen möchte, räumt die Karte mit vier Häkchen frei.\n\nDas Menü legt sich dabei über die Karte, statt sie beiseitezuschieben, und Schalter, die eine Ansicht ohnehin sperrt, sind ausgegraut statt wirkungslos.",
+      "rubrik": "karte",
+      "reihe": 4
+    },
+    {
+      "datum": "2026-08-11",
+      "titel": "Avesmaps ist jetzt auf Social Media",
+      "text": "Wir sind ab sofort auf Facebook, Instagram und Mastodon zu finden. Dort steht künftig, was auf der Karte dazukommt — neue Wege, neue Orte, neue Ebenen —, damit ihr es nicht selbst suchen müsst.\n\nAn der Karte ändert das nichts. Ein Konto braucht ihr nirgends, und wer uns nicht folgt, verpasst nichts: alles Wichtige steht weiterhin hier im Verlauf.\n\nZu finden sind wir als @avesmaps auf Instagram, als facebook.com/avesmaps und als @Avesmaps@rollenspiel.social.",
+      "rubrik": "community",
+      "reihe": 0
+    },
+    {
+      "datum": "2026-08-11",
+      "titel": "Die Karte am Telefon",
+      "text": "Am Telefon war Avesmaps eng: Panels endeten vor dem Bildrand, die Suche versteckte sich hinter der Kartenbedienung, und beim Tippen in ein Feld zoomte das Gerät jedes Mal ins Bild.\n\nJetzt laufen Routenplaner und Infobox über die volle Breite und Höhe, und sie schließen einander aus, statt sich zu überlagern. Die Suche klappt aus der Lupe in der Kartenecke auf, alle Knöpfe sind fürs Fingermaß gebaut, und über der Karte schwebt nichts mehr, was den Blick verstellt.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-08-09",
+      "titel": "Die Neuigkeiten haben einen eigenen Knopf",
+      "text": "Was sich auf der Karte zuletzt getan hat, lag bisher drei Klicks tief im Fenster „Hinweise“. Jetzt steht unten rechts in der Kartenecke ein eigener Knopf „Neuigkeiten“ neben „Hinweise“ — und das Fenster, das er öffnet, heißt seither auch so. Ist der Platz knapp, weil das Infopanel offen ist, stapeln sich die beiden Knöpfe übereinander, statt sich zu überdecken.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-08-07",
+      "titel": "Aus Abenteuern wird Literatur",
+      "text": "Der Katalog kennt jetzt nicht nur Abenteuer, sondern auch Romane, Kurzgeschichten, Spielhilfen und Regionalspielhilfen — fast 2.000 Werke. Und er unterscheidet, ob ein Werk an einem Ort beginnt, dort spielt oder die Gegend nur beschreibt. Eine Regionalspielhilfe steht deshalb offen da, statt hinter einem Spoiler-Schleier zu verschwinden, der nichts zu verbergen hatte.",
+      "rubrik": "inhalte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-08-06",
+      "titel": "Die Hinweise sind übersichtlich geworden",
+      "text": "Das Fenster „Hinweise“ war eine lange Rolle. Jetzt klappen seine acht Abschnitte zu und sind zugeklappt sein Inhaltsverzeichnis. Neu darin: „Technik“ erzählt mit einer Zeichnung, wie die stilisierte Karte entsteht. Impressum und Datenschutzerklärung gibt es außerdem als eigene Seite, die auch ohne JavaScript lesbar ist.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-08-05",
+      "titel": "Die Karte per Tastatur",
+      "text": "Suche, Reiseziel, die sechs Ansichten, die Ortsklassen und die Route liegen jetzt auf Tasten. Die Pfeiltasten oder W A S D schieben die Karte, mit Shift geht es schneller. Welche Taste was tut, steht in den Hinweisen unter „Bedienhilfen“.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-08-05",
+      "titel": "Namen gehen sich aus dem Weg",
+      "text": "Weg- und Flussnamen weichen jetzt den Ortsnamen aus, statt sich mit ihnen zu überlagern. Und ein Name, der nur noch in eine enge Flusskurve passen würde, wird lieber gar nicht gezeichnet.",
+      "rubrik": "karte",
+      "reihe": 2
+    },
+    {
+      "datum": "2026-08-05",
+      "titel": "Schneller beim ersten Laden",
+      "text": "Die Karte wird jetzt komprimiert ausgeliefert. Für einen ersten Besuch sind das mehrere Megabyte weniger — spürbar vor allem auf dem Handy und bei langsamer Verbindung.",
+      "rubrik": "karte",
+      "reihe": 3
+    },
+    {
+      "datum": "2026-08-04",
+      "titel": "Die Landschaften stehen jedem offen",
+      "text": "Die Landschaften-Ebene war bisher den Redakteuren vorbehalten. Jetzt wählt jeder Besucher selbst, welche er sehen will — Vegetation, Topographie, Derographie oder Klima —, oder schaut sich alle zusammen an. Ein Klick auf einen Namen hebt seine Fläche hervor, und jeder Zonenname trägt die Farbe seiner Zone.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-08-03",
+      "titel": "Ein Kalender für die Reise",
+      "text": "Der Routenplaner fragt jetzt, wann ihr aufbrecht — Tag und aventurischer Monat. Jede Etappe nennt ihr Datum, der Plan nennt Abreise und Ankunft. Und die Jahreszeit rechnet mit: im Firun ist der Boden schwerer als im Efferd, manche Pässe sind im Winter gar nicht begehbar.",
+      "rubrik": "routenplaner",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-08-03",
+      "titel": "Klimazonen",
+      "text": "Von den Ewigen Eisfeldern bis in die Tropen liegen jetzt acht Klimazonen über der Karte. Orte, Landschaften und Wege sagen in ihrer Infobox, in welcher sie liegen.",
+      "rubrik": "karte",
+      "reihe": 2
+    },
+    {
+      "datum": "2026-08-03",
+      "titel": "Was die Reise kostet",
+      "text": "Unter den Etappen steht, was unterwegs zusammenkommt — je nachdem, wie viele reisen und ob sie im Freien schlafen, auf dem Strohsack oder im eigenen Zimmer.",
+      "rubrik": "routenplaner",
+      "reihe": 3
+    },
+    {
+      "datum": "2026-08-02",
+      "titel": "Die Suche findet mehr",
+      "text": "Mehrere Wörter dürfen jetzt in verschiedene Felder treffen — „schänke imdal\" findet die Schänke in Imdal. Neu durchsucht werden außerdem die Kartensammlung, die Abenteuer und die Vorkommen: ein Treffer springt dorthin, wo das Abenteuer beginnt oder wo die Pflanze wächst.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-08-01",
+      "titel": "Hierher reisen",
+      "text": "Ein Rechtsklick auf irgendeinen Punkt der Karte — auch mitten im Nirgendwo — und der Planer legt eine Route bis genau dorthin. Das letzte Stück geht querfeldein, sucht sich seinen Weg ums Wasser herum und lässt die Kutsche stehen, wo keine Kutsche fährt.",
+      "rubrik": "routenplaner",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-07-30",
+      "titel": "Berge kosten Zeit",
+      "text": "Für jeden Weg ist hinterlegt, wie viel er steigt und wie viel er fällt. Eine Etappe über einen Gebirgspass dauert jetzt länger als dieselbe Strecke im Flachland — und der Plan sagt euch, warum.",
+      "rubrik": "routenplaner",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-07-29",
+      "titel": "Wodurch die Reise führt",
+      "text": "Jede Etappe nennt die Landschaften, durch die sie läuft — Wald, Steppe, Wüste, Moor. Die Namen sind angeklickt und führen auf die Karte.",
+      "rubrik": "routenplaner",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-07-26",
+      "titel": "Die Landschaften",
+      "text": "Eine neue Ebene, in drei Schichten: was wächst (Wald, Steppe, Wüste), wie das Land geformt ist (Gebirge, Hügel, Küste) und wie es großräumig heißt (Inseln, Kontinente). Gezeichnet wird sie im Editor mit Pinsel, Radierer und exakten Ecken — und die Berge tragen ihre Höhe in Schritt.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-07-21",
+      "titel": "Natur und Waren",
+      "text": "Was wächst hier, was lebt hier, was wird hier gehandelt? Regionen und Orte zeigen ihre Pflanzen, Tiere und Handelswaren — zusammengetragen aus Wiki Aventurica.",
+      "rubrik": "inhalte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-07-16",
+      "titel": "Die Kartensammlung",
+      "text": "Stadtpläne, Regionalkarten, Schlachtpläne: zu vielen Orten gibt es Karten, und Avesmaps sagt euch, wo ihr sie findet. Mit Vorschaubild, Maßstab, Verlag — und einem Spoiler-Schleier über allem, was eine Spielrunde verderben könnte.",
+      "rubrik": "inhalte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-07-13",
+      "titel": "Bilder zu den Orten",
+      "text": "Städte und Regionen bekommen ein Kopfbild und eine kleine Galerie. Wir zeigen nur, was gemeinfrei oder eigens erzeugt ist — Scans aus Publikationen und fremde Fanart bleiben draußen.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-07-12",
+      "titel": "Abenteuer",
+      "text": "Welche DSA-Abenteuer spielen in diesem Ort? Die Infobox zeigt sie mit Cover, Edition und Verlagslink. Wer sich nichts verraten lassen will, lässt den Spoiler-Schalter zu — und wer mag, sieht die Questroute eines Abenteuers auf der Karte.",
+      "rubrik": "inhalte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-07-11",
+      "titel": "Ein neues Gesicht",
+      "text": "Alle Fenster, Panels und Dialoge sprechen ab jetzt dieselbe Sprache: warme Brauntöne, Pergament, Wappengold — und kein Blau mehr. Dazu ein Umschalter zwischen hell und dunkel, oben rechts.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-07-10",
+      "titel": "Das Infopanel",
+      "text": "Statt kleiner Popups, die sich gegenseitig verdecken, klappt rechts eine Seitenleiste auf. Sie hat Platz für Wappen, Bild, Beschreibung, Quellen — und merkt sich, wo ihr auf eurer Route gerade seid.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-07-08",
+      "titel": "Woher wir das wissen",
+      "text": "Jede Angabe darf ihre Quelle nennen — Wiki-Artikel, Publikation mit Seitenzahl, oder eine eigene. Die Publikationen zieht Avesmaps automatisch aus dem Wiki und verlinkt sie, wo es sie zu kaufen gibt.",
+      "rubrik": "inhalte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-07-06",
+      "titel": "Ein Bot auf dem Discord",
+      "text": "Fehler, Ideen und Fragen lassen sich mit /bug direkt im Discord melden. Der Bot legt daraus einen nummerierten Fall an, und wir arbeiten ihn ab.",
+      "rubrik": "community",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-07-05",
+      "titel": "Flüsse haben eine Richtung",
+      "text": "Flussabwärts kommt ihr schneller voran als flussaufwärts. Avesmaps kennt für jeden Fluss seine Fließrichtung und rechnet sie in die Reisezeit ein — der Plan sagt bei jeder Etappe, welche der beiden es ist.",
+      "rubrik": "routenplaner",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-07-05",
+      "titel": "Reisestunden statt Rastzeiten",
+      "text": "Ihr sagt, wie viele Stunden am Tag ihr unterwegs seid — den Rest rechnet der Planer. Entfernungen stehen jetzt in Meilen, wie es sich für Aventurien gehört.",
+      "rubrik": "routenplaner",
+      "reihe": 2
+    },
+    {
+      "datum": "2026-07-01",
+      "titel": "Weiche Übergänge",
+      "text": "Ortsmarken und Beschriftungen blenden beim Zoomen ein und aus, statt zu springen. Oben läuft ein schmaler Ladebalken, solange die Karte noch nachlädt.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-06-29",
+      "titel": "Schreibt uns",
+      "text": "Ein Kontaktformular direkt in den Hinweisen. Die Hinweise selbst sind in Themengruppen sortiert — Projekt, Lizenzen, Datenquellen, Technik, Datenschutz — und nennen offen, woher unsere Daten kommen.",
+      "rubrik": "community",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-06-14",
+      "titel": "Avesmaps auf Englisch",
+      "text": "Die Oberfläche gibt es auf Englisch. Deutsch bleibt die Sprache des Hauses; Aventurien und seine Namen werden nicht übersetzt.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-06-12",
+      "titel": "Umstrittene Gebiete",
+      "text": "Wo zwei Reiche dasselbe Land beanspruchen, liegt eine Schraffur — und die Infobox nennt beide Parteien.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-06-10",
+      "titel": "Magiersicht",
+      "text": "Im Kraftlinien-Modus verblasst die Karte ins Graue, Straßen und Grenzen treten zurück — und nur die Ley-Knoten leuchten noch.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-06-09",
+      "titel": "Namen an den Grenzen",
+      "text": "Herrschaftsgebiete schreiben ihren Namen an der eigenen Grenze entlang, und zwei Nachbarn stellen sich gegenüber. Alle Beschriftungen sind nun in die Landschaft eingebettet statt daraufgelegt.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-06-08",
+      "titel": "Neue Ortsmarken",
+      "text": "Von der Metropole bis zum Dorf eine einheitliche Formenfamilie mit Goldakzent, Stätten als Raute. Sie wachsen und schrumpfen sauber mit dem Zoom — und die Karte läuft dabei spürbar flüssiger.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-06-07",
+      "titel": "Bewertungen und Kurzlinks",
+      "text": "Orte lassen sich mit Sternen bewerten und kurz kommentieren. Und jede Route, jede Ansicht wird zu einem kurzen Link statt zu einer endlosen Adresszeile — teilbar in einer Zeile Chat.",
+      "rubrik": "community",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-06-06",
+      "titel": "Wappen, Regionen, Flüsse und Straßen aus dem Wiki",
+      "text": "Der Abgleich mit Wiki Aventurica erfasst jetzt auch Landschaften, Flüsse, Straßen, Bauwerke und Wappen. Herrschaftsgebiete und Orte tragen ihr Wappen — nur, wenn dessen Lizenz das zulässt.",
+      "rubrik": "inhalte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-06-04",
+      "titel": "Die politische Ansicht geht live",
+      "text": "Zum ersten Mal für alle sichtbar: Reiche, Grafschaften und Baronien auf der Karte. Die Maus hebt ein Gebiet hervor, ein Klick öffnet seine Infobox, ein Doppelklick zoomt hinein.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-06-02",
+      "titel": "Die Karte lädt schneller",
+      "text": "Die Kartendaten kommen komprimiert und werden im Browser behalten — wer wiederkommt, wartet nicht noch einmal.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-05-29",
+      "titel": "Reiche zeichnen ihre eigenen Grenzen",
+      "text": "Wer alle Baronien eines Reichs kennt, kennt auch dessen Außengrenze — Avesmaps rechnet sie sich jetzt selbst aus. Beim Hineinzoomen wandert die Füllung die Hierarchie hinunter: erst das Reich, dann die Grafschaft, dann die Baronie.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-05-25",
+      "titel": "Wegfindung auch auf dem Server",
+      "text": "Routen werden nicht mehr nur im Browser gerechnet. Damit hat Avesmaps eine offene Schnittstelle, über die auch andere Werkzeuge Strecken abfragen können.",
+      "rubrik": "routenplaner",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-05-19",
+      "titel": "Abgleich mit Wiki Aventurica",
+      "text": "Ein Werkzeug liest Wiki Aventurica und schlägt vor, was auf der Karte fehlt oder abweicht. Übernommen wird nichts automatisch — jeder Vorschlag geht durch eine Prüfung von Hand.",
+      "rubrik": "inhalte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-05-15",
+      "titel": "Herrschaftsgebiete",
+      "text": "Der Anfang der politischen Ebene: Reiche, Grafschaften und Baronien mit ihrer Hierarchie — und mit ihrem Zeitraum, gemessen in Jahren nach Bosparans Fall.",
+      "rubrik": "inhalte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-05-14",
+      "titel": "Kompass und Maßstab",
+      "text": "Die Karte bekommt ihren Zierrat: ein Kompass in der Ecke und ein Maßstabsband, beide mitwachsend mit dem Zoom.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-05-13",
+      "titel": "Die Suche",
+      "text": "Ein Suchfeld, das Orte, Wege und Regionen findet und direkt hinspringt.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-05-09",
+      "titel": "Die Kraftlinien",
+      "text": "Das Nodix-Netz zieht als eigene Ebene über Aventurien: leuchtende Linien zwischen den Kraftknoten, die leise wabern.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-05-08",
+      "titel": "Wege bekommen Kurven und Namen",
+      "text": "Straßen und Flüsse werden weich gezeichnet statt eckig, und ihr Name läuft an der Linie entlang.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-05-07",
+      "titel": "Eine eigene Kartenoptik",
+      "text": "Statt einer gescannten Vorlage entsteht ein eigener Kachelsatz: gezeichnete Landschaft, eigene Farben, eigene Beschriftungen — die Karte, die ihr heute seht.",
+      "rubrik": "karte",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-05-06",
+      "titel": "Die Karte wird bearbeitbar",
+      "text": "Ein geschützter Editorbereich: Orte anlegen und verschieben, Kreuzungen setzen, Wege zeichnen, Beschriftungen platzieren. Ab hier wächst Aventurien nicht mehr durch Dateien, sondern durch Menschen.",
+      "rubrik": "community",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-04-24",
+      "titel": "Ihr könnt uns Orte melden",
+      "text": "Wer einen fehlenden oder falsch gesetzten Ort findet, meldet ihn direkt auf der Karte. Wir schauen ihn uns an, bevor er erscheint.",
+      "rubrik": "community",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-04-23",
+      "titel": "Zu Fuß, zu Pferd, zu Schiff",
+      "text": "Für jede Etappe lässt sich das Reisemittel wählen — und jeder Ort bekommt ein Fenster mit Beschreibung und einem Link ins Wiki Aventurica.",
+      "rubrik": "routenplaner",
+      "reihe": 1
+    },
+    {
+      "datum": "2026-04-22",
+      "titel": "Avesmaps geht online",
+      "text": "Die erste Fassung: eine Karte von Aventurien im Browser und ein Planer, der zwischen zwei Orten den Weg sucht. Klein, statisch, aber die Idee stand.",
+      "rubrik": "karte",
+      "reihe": 1
+    }
+  ]
+}

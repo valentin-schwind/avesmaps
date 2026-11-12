@@ -1,0 +1,29 @@
+-- Rechte an den Funktionen der Abgleiche über den Korridor (WI-0127 SYS-14b, Migration 0098; WI-0141, Migration 0120;
+-- WI-0154, Migration 0129; WI-0163, Migration 0133). psql-Datei mit \gexec.
+--
+-- Vorlage fuer Claudios `avesmaps3d-db-grants` (`grants_sql_tmpl` in ops/runtime/runtime-foundation.sh): `${e}` ist die Umgebung
+-- (staging, production), wie dort. Das Rechtewerkzeug gibt der App-Rolle EXECUTE auf jede Funktion der Migrationsrolle; diese Datei
+-- nimmt es ihr fuer die sieben Verben wieder weg und gibt es allein der Jobs-Rolle, mit der Claudios Korridor-Befehl als root meldet
+-- (`avesmaps3d-corridor-jobs sync-claim|sync-phase|sync-finish|sync-discard`, dazu `job_sync_kategorie` fuer den Zug je Kategorie).
+-- PUBLIC verliert EXECUTE schon in der Migration. Wie die Zeilen fuer job_insert/job_event_add gehoert sie hinter JEDE Migration.
+--
+-- `job_sync_claim_id` (WI-0163, Migration 0133) uebernimmt GENAU den Auftrag, den der Dirigent der gemeinsamen Warteschlange meint
+-- (Claudios Wrapper `avesmaps3d-auftrag <env> <job-id> <art>` fuer die Korridor-Arten), `benachrichtigung_einreihen` (ebenfalls 0133)
+-- reiht eine Meldung „Neu auf der Stage/Production“ als Auftrag ein, statt sie direkt einzutragen. Beide gehoeren wie die anderen
+-- Verben allein der Jobs-Rolle.
+--
+-- 🔴 `job_chain_cancel_waiting` (0129) steht in der dritten Anweisung: Es bricht die wartenden Nachfolger eines Auftrags ab und
+-- wird NUR von den `job_sync_*` gerufen (SECURITY DEFINER, also unter der Migrationsrolle). Niemand bekommt es direkt — weder die
+-- App-Rolle, die es sonst vom Rechtewerkzeug hätte, noch die Jobs-Rolle.
+--
+-- Fehlt eine Funktion (0098, 0120, 0129 oder 0133 noch nicht angewandt) oder die Jobs-Rolle (ops/jobs/jobs-setup.sh), entfaellt die Zeile
+-- still. Geprueft in apps/server/test/abgleiche-korridor.test.ts (Wegwerf-Cluster wie der VPS: erst grants_sql_tmpl, dann diese Datei).
+
+SELECT format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC, avesmaps3d_${e}_app', p.oid::regprocedure) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'public' AND p.proname IN ('job_sync_claim', 'job_sync_claim_id', 'job_sync_kategorie', 'job_sync_phase', 'job_sync_finish', 'job_sync_discard', 'benachrichtigung_einreihen') \gexec
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO %I', p.oid::regprocedure, r.rolname) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace, pg_roles r
+ WHERE n.nspname = 'public' AND p.proname IN ('job_sync_claim', 'job_sync_claim_id', 'job_sync_kategorie', 'job_sync_phase', 'job_sync_finish', 'job_sync_discard', 'benachrichtigung_einreihen') AND r.rolname = 'avesmaps3d_${e}_jobs' \gexec
+SELECT format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC, avesmaps3d_${e}_app', p.oid::regprocedure) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'public' AND p.proname = 'job_chain_cancel_waiting' \gexec
+SELECT format('REVOKE EXECUTE ON FUNCTION %s FROM %I', p.oid::regprocedure, r.rolname) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace, pg_roles r
+ WHERE n.nspname = 'public' AND p.proname = 'job_chain_cancel_waiting' AND r.rolname = 'avesmaps3d_${e}_jobs' \gexec

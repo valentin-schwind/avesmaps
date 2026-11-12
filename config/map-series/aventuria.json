@@ -1,0 +1,121 @@
+{
+    "$comment": "Kartenserien des Map Domains aventuria (Kapitel 5.3 bis 5.5). Die Quelldateien selbst liegen außerhalb des Repositories unter C:\\avesmaps3d-data\\map-sources; hier steht nur, welche Serien es gibt, wie sie ausgeliefert werden und woher sie rechtlich stammen. Autor, Herkunft, Ableitung, Lizenz und Attribution müssen gefüllt sein, bevor eine Serie veröffentlicht werden darf.",
+    "schemaVersion": 1,
+    "mapDomain": "aventuria",
+    "defaultSeries": "modern",
+    "license": {
+        "name": "Lizenzvereinbarung zum Ulisses-Kartenpaket",
+        "uri": "https://de.wiki-aventurica.de/wiki/Kartenpaket/Lizenz",
+        "terms": "Vervielfältigung, Verbreitung und ausdrücklich auch Bearbeitung sind erlaubt, solange die Nutzung nicht-kommerziell bleibt und die Bearbeitung als Fanprojekt gekennzeichnet ist. Unterlizenzen sind ausgeschlossen, die Rechte erlöschen bei einem Verstoß. Bei jeder Verbreitung muss eine Kopie der Lizenz oder ihre vollständige Internetadresse beiliegen.",
+        "en": {
+            "name": "Licence agreement for the Ulisses Kartenpaket",
+            "terms": "Reproduction, distribution and expressly also modification are permitted, as long as the use stays non-commercial and the modification is marked as a fan project. Sublicences are excluded, and the rights end upon any violation. Every distribution must carry a copy of the licence or its full internet address."
+        }
+    },
+    "series": [
+        {
+            "id": "original",
+            "label": "Original",
+            "description": "Ina-Kramer-Karte ohne Beschriftungen",
+            "variant": "no-labels",
+            "labelsInImage": false,
+            "sourcePixels": 32768,
+            "tileSize": 512,
+            "maxNativeZoom": 6,
+            "status": "IMPORTED",
+            "author": "Ina Kramer",
+            "origin": "Offizielle Aventurienkarte von Ulisses Spiele, für Fans über den Aventurischen Atlas bereitgestellt. Die Originalkarten liegen in 8192 Pixeln vor.",
+            "derivation": "Dieselbe Karte wie „Old“, nur ohne die eingebrannte Beschriftung: Sie wurde entfernt, danach wurde das Bild per KI-Konvertierung auf 32768 Pixel hochskaliert. Geometrisch deckungsgleich mit den anderen Serien.",
+            "derivationStatus": "DOCUMENTED",
+            "sourceCreated": "unknown",
+            "permission": {
+                "statement": "Die Verwendung für Avesmaps ist projektspezifisch genehmigt. Angabe des Betreibers vom 2026-09-20.",
+                "grantedBy": "nicht dokumentiert",
+                "grantedAt": "nicht dokumentiert",
+                "form": "nicht dokumentiert",
+                "evidenceRef": ""
+            },
+            "visibility": "PUBLIC",
+            "attribution": "Kartenmaterial © Ulisses Spiele · Originalkarte: Ina Kramer · Bearbeitung: Avesmaps (DSA-Fanprojekt)",
+            "en": {
+                "origin": "Official Aventurien map by Ulisses Spiele, made available to fans through the Aventurischer Atlas. The original maps are available at 8,192 pixels.",
+                "derivation": "The same map as “Old”, only without the baked-in lettering: it was removed, then the image was upscaled to 32,768 pixels by AI conversion. Geometrically congruent with the other series.",
+                "permission": "Use for Avesmaps is approved on a project-specific basis. Operator's statement of 2026-09-20.",
+                "attribution": "Map material © Ulisses Spiele · Original map: Ina Kramer · Editing: Avesmaps (DSA fan project)"
+            }
+        },
+        {
+            "id": "old",
+            "label": "Old",
+            "description": "bisheriger Avesmaps-Stil, Ortsnamen sind Teil des Bildes",
+            "variant": "labels-in-image",
+            "labelsInImage": true,
+            "sourcePixels": 32768,
+            "tileSize": 512,
+            "maxNativeZoom": 6,
+            "status": "IMPORTED",
+            "author": "Ina Kramer",
+            "origin": "Offizielle Aventurienkarte von Ulisses Spiele, für Fans über den Aventurischen Atlas bereitgestellt. Die Originalkarten liegen in 8192 Pixeln vor.",
+            "derivation": "Die Karte, wie Ina Kramer sie gezeichnet hat: Die Beschriftung ist Teil des Bildes, sie steckt im Raster. Angabe des Betreibers vom 2026-10-12.",
+            "derivationStatus": "DOCUMENTED",
+            "sourceCreated": "unknown",
+            "permission": {
+                "statement": "Die Verwendung für Avesmaps ist projektspezifisch genehmigt. Angabe des Betreibers vom 2026-09-20.",
+                "grantedBy": "nicht dokumentiert",
+                "grantedAt": "nicht dokumentiert",
+                "form": "nicht dokumentiert",
+                "evidenceRef": ""
+            },
+            "visibility": "PUBLIC",
+            "attribution": "Kartenmaterial © Ulisses Spiele · Originalkarte: Ina Kramer · Bearbeitung: Avesmaps (DSA-Fanprojekt)",
+            "en": {
+                "origin": "Official Aventurien map by Ulisses Spiele, made available to fans through the Aventurischer Atlas. The original maps are available at 8,192 pixels.",
+                "derivation": "The map as Ina Kramer drew it: the lettering is part of the image, baked into the raster. Operator's statement of 2026-10-12.",
+                "permission": "Use for Avesmaps is approved on a project-specific basis. Operator's statement of 2026-09-20.",
+                "attribution": "Map material © Ulisses Spiele · Original map: Ina Kramer · Editing: Avesmaps (DSA fan project)"
+            }
+        },
+        {
+            "id": "modern",
+            "label": "Modern",
+            "description": "Avesmaps-generierter Stil, Wasser und Land zusammengeführt",
+            "variant": "no-labels",
+            "labelsInImage": false,
+            "sourcePixels": 32768,
+            "tileSize": 512,
+            "maxNativeZoom": 6,
+            "status": "IMPORTED",
+            "author": "Ina Kramer (Ursprungskarte), Avesmaps (Bearbeitung)",
+            "origin": "Offizielle Aventurienkarte von Ulisses Spiele, für Fans über den Aventurischen Atlas bereitgestellt. Die Originalkarten liegen in 8192 Pixeln vor.",
+            "derivation": "In acht Schritten mit generativer KI aus der Ina-Kramer-Karte entstanden: Die Originalkarte wurde in Kacheln zu 1024 Pixeln zerlegt, Qwen nahm jeder Kachel die Beschriftung, ChatGPT Image zeichnete sie als gemalte Geländekarte neu und größer, und ein Dense Warp legte jede Kachel punktgenau auf die Geometrie des Originals zurück — Küsten, Flüsse, Wege und Grenzen liegen deshalb dort, wo sie vorher lagen, und es kam nichts hinzu, was nicht schon da war. Land- und Wasserflächen wurden getrennt aufbereitet und wieder vereint, das Ergebnis in Photoshop von Hand nachbearbeitet und zuletzt in Kacheln geschnitten (32768 × 32768 Pixel); die Karte zoomt in den Stufen 0 bis 8.",
+            "derivationStatus": "DOCUMENTED",
+            "sourceCreated": "unknown",
+            "permission": {
+                "statement": "Die Verwendung für Avesmaps ist projektspezifisch genehmigt. Angabe des Betreibers vom 2026-09-20.",
+                "grantedBy": "nicht dokumentiert",
+                "grantedAt": "nicht dokumentiert",
+                "form": "nicht dokumentiert",
+                "evidenceRef": ""
+            },
+            "visibility": "PUBLIC",
+            "attribution": "Kartenmaterial © Ulisses Spiele · Originalkarte: Ina Kramer · Bearbeitung: Avesmaps (DSA-Fanprojekt)",
+            "en": {
+                "origin": "Official Aventurien map by Ulisses Spiele, made available to fans through the Aventurischer Atlas. The original maps are available at 8,192 pixels.",
+                "derivation": "Produced in eight steps with generative AI from the Ina Kramer map: the original was cut into 1,024-pixel tiles, Qwen stripped the lettering from each tile, ChatGPT Image redrew it larger as a painted terrain map, and a dense warp put every tile back precisely onto the geometry of the original — coastlines, rivers, roads and borders therefore lie where they lay before, and nothing was added that was not already there. Land and water surfaces were prepared separately and merged again, the result was finished by hand in Photoshop and finally cut into the tiles of the six zoom levels (32,768 × 32,768 pixels).",
+                "permission": "Use for Avesmaps is approved on a project-specific basis. Operator's statement of 2026-09-20.",
+                "attribution": "Map material © Ulisses Spiele · Original map: Ina Kramer · Editing: Avesmaps (DSA fan project)"
+            }
+        }
+    ],
+    "notes": [
+        "labelsInImage = true bedeutet: die Vektor-Labelebene muss für diese Serie stumm bleiben, sonst steht jeder Name doppelt auf der Karte.",
+        "maxNativeZoom ergibt sich aus 32768 Quellpixeln bei 512er Kacheln (2^6 = 64 Kacheln). Darüber skaliert der Renderer hoch, wie die Legacy-Karte es auch tat.",
+        "Die Kachelpyramide ist Derived Data und wird aus der Quelle reproduziert (Kapitel 9.63), nicht migriert.",
+        "Alle drei Serien gehen auf dieselbe offizielle Karte zurück und stehen deshalb unter derselben Lizenz; sie unterscheiden sich nur in der Bearbeitung.",
+        "derivationStatus UNDOCUMENTED heißt: es ist festgestellt, dass die Entstehung dieser Datei nicht belegbar ist - nicht, dass noch niemand nachgesehen hat. Nichts hineinschreiben, was nicht belegt ist. Bei old stand das bis zum 2026-10-12; seither ist die Entstehung durch die Angabe des Betreibers belegt (\"old ist einfach die ina-kramer-karte und original die dieselbe ohne schrift aufgebrannt\"), und die Kette heißt: old ist Ina Kramers Zeichnung mit der Beschriftung im Raster, original dieselbe Karte ohne sie, modern die daraus neu gemalte Fassung.",
+        "Die Genehmigung ist von ihrem Nachweis getrennt: permission.statement hält die Angabe des Betreibers fest, die übrigen Felder halten fest, dass erteilende Stelle, Zeitpunkt, Form und externer Nachweis nicht dokumentiert sind. Aus dem fehlenden Nachweis folgt nicht, dass keine Genehmigung besteht; aus der Angabe folgt nicht, dass sie belegt ist.",
+        "Die öffentliche Auslieferung von old, die am 2026-09-20 getrennt zu entscheiden war, hat der Betreiber am 2026-11-10 entschieden: Besucher sehen old unter „Nur Karte“. Die Herkunft ist seit 2026-10-12 durch seine Angabe belegt.",
+        "visibility PUBLIC bei old (Betreiber 2026-11-10: „unter dem Reiter \"Nur Karte\" die Karte \"Old\" auch für Frontendnutzer freischalten“): old ist dieselbe Karte wie original, aber seine Ortsnamen stecken im Raster. Unter unseren Vektorlabels stünde jeder Name doppelt. Deshalb sehen Besucher eine Serie mit labelsInImage nur in der Ansicht „Nur Karte“, die keine Namen von uns zeichnet (nurUnterNurKarte in @avesmaps3d/shared); Editoren sehen sie in jeder Ansicht. Es geht um doppelte Labels, nicht um Geheimhaltung. Vorher (2026-09-21) war old nur für Editoren.",
+        "Das Ausblenden im Umschalter ist keine Zugriffskontrolle: die Kacheln bleiben unter /tiles/raster/old/ abrufbar, und das ist so gewollt, weil Editoren sie brauchen. Wer den Abruf einschränken will, muss den Kachelpfad autorisieren, nicht den Menüeintrag entfernen."
+    ]
+}

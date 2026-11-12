@@ -1,0 +1,13 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        // Die Tests liegen neben `src/`, und gebaut wird aus ihnen nichts: Vitest entfernt die
+        // Typen nur, geprüft werden sie hier.
+        // `rootDir` ist die Wurzel, weil `travel-borders-legacy.test.ts` Legacys Lader unter `scripts/dev/` nutzt.
+        "composite": false,
+        "rootDir": "../..",
+        "noEmit": true,
+        "types": ["node"]
+    },
+    "include": ["test/**/*.ts"]
+}

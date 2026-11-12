@@ -1,0 +1,51 @@
+{
+    "schema_version": 1,
+    "updated_at": "2026-10-10T03:33:12Z",
+    "last_run": {
+        "started_at": "2026-10-10T03:30:01Z",
+        "finished_at": "2026-10-10T03:33:12Z",
+        "result": "ok",
+        "error_code": null,
+        "trigger": "timer"
+    },
+    "last_success_at": "2026-10-10T03:33:12Z",
+    "parts": [
+        {
+            "kind": "db",
+            "bytes": 48213504,
+            "sha256": "9f2c4be01d77a1c3e5f6a7b8c9d0e1f2a3b4c5d6e7f8091a2b3c4d5e6f708192",
+            "encrypted": true,
+            "offsite": "dropbox",
+            "offsite_verified_at": "2026-10-10T03:33:10Z"
+        },
+        {
+            "kind": "roles",
+            "bytes": 4096,
+            "sha256": "1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809",
+            "encrypted": true,
+            "offsite": "dropbox",
+            "offsite_verified_at": "2026-10-10T03:33:11Z"
+        },
+        {
+            "kind": "config",
+            "bytes": 1832960,
+            "sha256": "c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00",
+            "encrypted": true,
+            "offsite": null,
+            "offsite_verified_at": null
+        }
+    ],
+    "offsite_configured": true,
+    "last_restore_drill": {
+        "at": "2026-10-10T11:05:00Z",
+        "result": "ok",
+        "detail": "Orte, Wege, Personen, Migration gleich"
+    },
+    "next_run_at": "2026-10-11T01:30:00Z",
+    "retention": { "local": 3, "daily": 7, "weekly": 4, "monthly": 6 },
+    "last_request": {
+        "operation_id": "5d1c6a50-2b8e-4f0a-9d77-1e2f3a4b5c6d",
+        "at": "2026-10-10T14:02:00Z",
+        "result": "zu_frueh"
+    }
+}

@@ -1,0 +1,46 @@
+{
+    "format": "avesmaps-referenzrezept",
+    "version": 1,
+    "id": "rumpfgebirge-us-smokies",
+    "quelle": {
+        "art": "cog-fenster",
+        "urls": [
+            "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n36w084/USGS_13_n36w084.tif"
+        ],
+        "rand_zellen": 8
+    },
+    "ziel": {
+        "crs": "EPSG:26917",
+        "fenster": [252000.0, 3923250.0, 312000.0, 3971250.0]
+    },
+    "nodata": {
+        "quelle": null,
+        "mindestanteil_gueltig": 0.5
+    },
+    "stufen": [
+        {
+            "name": "30m",
+            "zellgroesse_m": 30,
+            "verfahren": "warp-mittel"
+        },
+        {
+            "name": "187_5m",
+            "zellgroesse_m": 187.5,
+            "verfahren": "warp-mittel"
+        },
+        {
+            "name": "375m",
+            "zellgroesse_m": 375,
+            "verfahren": "block-mittel",
+            "aus": "187_5m",
+            "faktor": 2
+        },
+        {
+            "name": "750m",
+            "zellgroesse_m": 750,
+            "verfahren": "block-mittel",
+            "aus": "187_5m",
+            "faktor": 4
+        }
+    ]
+}

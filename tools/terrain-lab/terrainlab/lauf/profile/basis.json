@@ -1,0 +1,51 @@
+{
+    "name": "basis",
+    "beschreibung": "Basismessung WI-0250 Phase B: Blutzinnen und Trollzacken, Vorschau 1x, 2x, 4x; je 3 frische Prozesse (kalt), bei 1x und 2x je ein warmer Lauf, Phasenproben im ersten Prozess",
+    "vorgabe": { "rezept": { "fassung": 19 } },
+    "wiederholungen": 3,
+    "warm": 1,
+    "phasen": "erster",
+    "phasen_wiederholungen": 3,
+    "faelle": [
+        {
+            "name": "blutzinnen-vorschau-1x",
+            "gebirge": { "fixture": "blutzinnen" },
+            "stufe": "vorschau",
+            "vorschau": { "aufloesung": 1 }
+        },
+        {
+            "name": "blutzinnen-vorschau-2x",
+            "gebirge": { "fixture": "blutzinnen" },
+            "stufe": "vorschau",
+            "vorschau": { "aufloesung": 2 }
+        },
+        {
+            "name": "blutzinnen-vorschau-4x",
+            "gebirge": { "fixture": "blutzinnen" },
+            "stufe": "vorschau",
+            "vorschau": { "aufloesung": 4 },
+            "warm": 0,
+            "phasen_wiederholungen": 1
+        },
+        {
+            "name": "trollzacken-vorschau-1x",
+            "gebirge": { "fixture": "trollzacken" },
+            "stufe": "vorschau",
+            "vorschau": { "aufloesung": 1 }
+        },
+        {
+            "name": "trollzacken-vorschau-2x",
+            "gebirge": { "fixture": "trollzacken" },
+            "stufe": "vorschau",
+            "vorschau": { "aufloesung": 2 }
+        },
+        {
+            "name": "trollzacken-vorschau-4x",
+            "gebirge": { "fixture": "trollzacken" },
+            "stufe": "vorschau",
+            "vorschau": { "aufloesung": 4 },
+            "warm": 0,
+            "phasen": "aus"
+        }
+    ]
+}

@@ -1,0 +1,26 @@
+{
+    "name": "@avesmaps3d/shared",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "sideEffects": false,
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        },
+        "./gebirge": {
+            "types": "./dist/gebirge/browser.d.ts",
+            "default": "./dist/gebirge/browser.js"
+        }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "scripts": {
+        "build": "tsc --build",
+        "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json"
+    },
+    "dependencies": {
+        "@sinclair/typebox": "^0.34.52"
+    }
+}

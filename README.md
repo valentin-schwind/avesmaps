@@ -1,195 +1,79 @@
-# Avesmaps
+# Avesmaps3D
 
-Avesmaps is an open, non-commercial route planner for Aventurien from the
-roleplaying game "Das Schwarze Auge". The application displays a tile-based
-map, locations, paths and optional region boundaries, and computes travel
-routes directly in the browser.
+Avesmaps3D ist die Neuentwicklung von [Avesmaps](https://avesmaps.de/), der Karte und dem Routenplaner für Aventurien, die Welt von
+Das Schwarze Auge. Die Karte lässt sich drehen und neigen, rechnet Reisen über das Wegenetz und zeigt Orte, Herrschaftsgebiete, Landschaften
+und Sprachen. Ein nicht-kommerzielles Fanprojekt von Valentin Schwind und Thomas Braun, ohne Verbindung zu Ulisses Spiele.
 
-![Beispielansicht](img/example.png)
+*English: Avesmaps3D is the rewrite of Avesmaps, a 3D map and route planner for Aventuria, the world of The Dark Eye. A non-commercial fan
+project. The code is MIT-licensed; the map data and all DSA material are not (see [`LEGAL.md`](LEGAL.md)). Comments and documentation are in
+German.*
 
-The live version runs at [https://legacy.avesmaps.de/](https://legacy.avesmaps.de/).
+## Über diesen Zweig
 
-## What the project can do
+- Dieser Zweig ist eine **Ausgabe** aus dem Arbeitsrepository von Avesmaps3D. Jeder Commit heißt „Avesmaps3D, Stand `<sha>`“ und zeigt den
+  Quelltext, der zu diesem Stand auf [avesmaps.de](https://avesmaps.de/) läuft. Der Diff zwischen zwei Ausgaben zeigt, was sich geändert
+  hat; einzelne Entwicklungscommits gehen nicht mit.
+- Der bisherige Stand von Avesmaps (Leaflet, PHP) liegt unverändert im Zweig `master`.
+- Beiträge sind willkommen, laufen aber anders als gewohnt: siehe [`CONTRIBUTING.md`](CONTRIBUTING.md). Sicherheitslücken bitte nicht als
+  Issue, sondern wie in [`SECURITY.md`](SECURITY.md) beschrieben.
+- Einige Verweise im Quelltext zeigen auf Arbeitsunterlagen (`project-control/`, `docs/planning/`, Work Items wie `WI-0303`), die privat
+  bleiben. Sie erklären, woher eine Entscheidung kommt; für das Verständnis des Codes sind sie nicht nötig.
 
-- display locations, paths and boundaries on a locally hosted map
-- show a political map with the boundaries of the Reiche
-- compute routes between multiple waypoints
-- distinguish between the shortest and the fastest route
-- include land, river and sea paths with different means of transport
-- optionally minimize transfers with a penalty weighting
-- share routes and views via short links, and link map objects directly by wiki page name
+## Aufbau
 
-## How the routes are computed
-
-Route computation is based on the **Dijkstra algorithm**. For this, the code builds a weighted graph from the GeoJSON paths:
-
-- locations are used as nodes
-- paths between two locations are used as edges
-- each edge receives weights for distance and travel time
-- optionally an additional transfer penalty is taken into account when the means of transport changes
-
-To speed this up, the implementation uses a **PriorityQueue based on a min-heap**. As a result, the currently cheapest candidates are always processed first. Depending on the setting, the algorithm optimizes for distance or for travel time.
-
-## Technical structure
-
-The application is intentionally kept simple:
-
-- `index.html` hand-includes the frontend scripts; the map, data-processing and routing logic lives in the modular `js/` files (vanilla JavaScript, no bundler/build step)
-- `tiles/` contains the map tiles
-- `api/` contains the PHP 8 + MySQL backend (search, Herrschaftsgebiete, the routing API, reviews, location reports and the editor), an example configuration and SQL schemas
-- `css/`, `js/` and `fonts/` contain all required assets locally in the repository
-
-The map and route logic itself stays entirely in the browser:
-
-- no external tile server
-- no CDN integration
-- no build step
-
-The static map and the client-side route computation run without a backend. Beyond that, the live site (avesmaps.de) uses a PHP 8 + MySQL backend under `api/` for search, Herrschaftsgebiete, the server-side routing API, reviews and the editor.
-
-## Local usage
-
-Since the application loads GeoJSON via XMLHttpRequest, it should not be opened directly via `file://`. Instead, a small local web server should be used.
-
-Example with Python in the project directory:
-
-```bash
-python -m http.server 8000
+```text
+apps/server         Fastify-Server (TypeScript, ESM), Jobs, Migrationen (PostgreSQL 18, PostGIS 3.6)
+apps/web            Oberfläche: Vue 3, Vite, MapLibre GL JS
+packages/shared     gemeinsame Verträge (TypeBox), von Server und Oberfläche genutzt
+config              Konfiguration, Rechtstexte, Versionsnotizen
+scripts, tools      Bau-, Prüf- und Datenwerkzeuge
+docs/schnittstellen Schnittstellen für Außenstehende
 ```
 
-After that, the application is reachable at [http://localhost:8000](http://localhost:8000).
+## Lokal starten
 
-Note: This startup via Python is suitable for static UI/asset tests.
-Full SQL data and routing tests additionally require configured
-read-only API endpoints (`MAP_FEATURES_API_URL`, `MAP_SEARCH_API_URL`,
-`POLITICAL_TERRITORIES_API_URL`), for example at
-[https://legacy.avesmaps.de/](https://legacy.avesmaps.de/) or via an explicit
-`window.AVESMAPS_*` override.
+Voraussetzungen: Node.js 24 oder neuer, PostgreSQL 18 mit PostGIS 3.6. Entwickelt wird auf Windows mit PowerShell, der Server läuft auf Linux;
+beides funktioniert.
 
-When a local frontend tests against a public API, the API must allow CORS
-for the exact local origin (for example
-`http://localhost:8000`).
-
-If the location report form is also to be tested locally, a PHP-capable server makes sense, for example:
-
-```bash
-php -S localhost:8000
+```powershell
+npm install
+Copy-Item .env.example .env   # danach DATABASE_URL und TEST_DATABASE_URL anpassen
+npm run db:migrate
+npm run dev:server            # http://127.0.0.1:3000/health
+npm run dev:web               # http://127.0.0.1:5173
 ```
 
-Then the static files and `api/report-location.php` can run directly via the same host.
-For local PHP/API tests, a valid `api/config.local.php` or the
-matching `AVESMAPS_DB_*` and `AVESMAPS_ALLOWED_ORIGINS` environment variables
-are required.
+Prüfen wie vor jedem Beitrag:
 
-## Deployment
-
-For the map alone, it is enough to place the complete project folder on any static web server. No build step is necessary.
-
-If the location report form should be active, the API needs a PHP-capable server and a SQL database. Two typical variants:
-
-- host the entire project on a PHP web server, so that `api/report-location.php` is reachable relatively
-- host the frontend statically and set `window.AVESMAPS_LOCATION_REPORT_ENDPOINT` to an absolute API URL
-
-Important: GitHub Pages cannot execute the PHP part itself. Without a separate API, the report form therefore stays disabled there.
-
-## URL sharing of the route planner
-
-The planner state (waypoints, route type, display options, transport paths, means of transport, rest times, minimize-transfers, lodging, travel start) is no longer mirrored into the browser's address bar. To share a configured route or view, use the share button in the route overview: it creates a short link (`?s=<code>`) that restores the full state when opened.
-
-Deep links (see below) and `?place=` links keep the address bar exactly as opened. Old links carrying the previous planner query parameters remain supported — all parameters are still read and applied when the page loads.
-
-## Deep links to map objects (wiki page names)
-
-Every map object that is linked to a [Wiki Aventurica](https://de.wiki-aventurica.de/) article can be opened directly via URL. The parameter name mirrors the wiki infobox type, the value is the wiki page name (spaces as underscores, umlauts may be URL-encoded or written as-is):
-
-| Parameter | Object type | Example |
-|---|---|---|
-| `?siedlung=` | settlement | `https://legacy.avesmaps.de/?siedlung=Gareth` |
-| `?staat=` | political territory | `https://legacy.avesmaps.de/?staat=Fürstentum_Kosch` |
-| `?region=` | landscape/region | `https://legacy.avesmaps.de/?region=Nordmarken` |
-| `?strasse=` | road | `https://legacy.avesmaps.de/?strasse=Reichsstraße_1` |
-| `?fluss=` | river | `https://legacy.avesmaps.de/?fluss=Letta` |
-
-Behavior:
-
-- the map opens, zooms to the object and highlights it — roads and rivers are highlighted **as a whole**, across all of their segments
-- the URL stays exactly as opened (no rewrite to planner parameters), so the link remains stable for sharing
-- use one parameter per link
-- resolution matches the wiki page name against the `wiki_url` stored with each object; if no stored link matches, a name search is used as fallback
-
-Wiki Aventurica embeds these links in its infobox templates via `{{PAGENAMEE}}`, so every settlement, territory, region, road and river article links straight to its place on the map.
-
-### How the community can help (linking TODO)
-
-The map ↔ wiki linking lives from complete data — roughly a third of all path segments are linked so far. Things anyone can help with:
-
-- **Report unlinked roads and rivers:** if a deep link (`?strasse=…`, `?fluss=…`) misses or only highlights part of a way, the object is probably not (fully) linked yet — report it and it gets assigned.
-- **Maintain the `Verlauf` field in Wiki Aventurica articles:** the map derives a way's course from the stations linked there (`[[Ortsname]]` in reading order). Completing or correcting a course in the wiki directly improves the automatic assignment on the map.
-- **Report missing places:** if a wiki course names a settlement that does not exist on the map yet, it cannot be used as a routing station — such places are worth reporting (or adding via the map's report form).
-- **Try the deep links** from wiki infoboxes and in the community — every miss is a useful data point.
-
-Reports are welcome via the report form on the map (Hinweise dialog), the Discord community, or GitHub issues.
-
-## Location reports via PHP and SQL
-
-The file `api/report-location.php` accepts new location reports as JSON and stores them in the table `location_reports`.
-
-### One-time setup
-
-1. Run the matching SQL schema from `api/schema.mysql.sql` or `api/schema.pgsql.sql`.
-2. Copy `config/api.config.example.php` to `api/config.local.php`.
-3. Enter the database access and allowed frontend origins there.
-4. Serve the `api/` folder on a PHP-capable server.
-
-Alternatively, the API can be configured via environment variables:
-
-- `AVESMAPS_DB_DRIVER`
-- `AVESMAPS_DB_HOST`
-- `AVESMAPS_DB_PORT`
-- `AVESMAPS_DB_NAME`
-- `AVESMAPS_DB_CHARSET`
-- `AVESMAPS_DB_USER`
-- `AVESMAPS_DB_PASSWORD`
-- `AVESMAPS_ALLOWED_ORIGINS`
-
-If the frontend and the API do not run on the same origin, the frontend page must set the endpoint explicitly, for example:
-
-```html
-<script>
-	window.AVESMAPS_LOCATION_REPORT_ENDPOINT = "https://example.org/avesmaps/api/report-location.php";
-</script>
+```powershell
+npm run format:check
+npm run lint
+npm run typecheck
+npm test
 ```
 
-## Notes on data maintenance
+Die Tests mit Datenbank laufen gegen `TEST_DATABASE_URL` und leeren sie zwischen den Fällen; ohne die Variable werden sie übersprungen.
 
-- The map source is currently anchored in the repository's map and data workflows.
-- Changes to the map data basis must always be considered together with the matching import or generation step.
-- The updated state can then be served directly via the static web server.
+### Grenzen beim Nachbauen
 
-## License
+- **Die Kartendaten sind nicht dabei.** Orte, Wege, Gebiete, Kacheln und Gelände liegen in der Datenbank und in Datenordnern des Betriebs,
+  nicht in diesem Zweig, und dürfen hier auch nicht verbreitet werden (siehe [`LEGAL.md`](LEGAL.md)). Ein eigener Aufbau startet mit einer
+  leeren Karte.
+- Kacheln, Höhenmodell, Medien, WikiSync, Discord und die Anmeldung brauchen weitere Dienste und Zugänge, die nur im Betrieb eingerichtet sind.
+- Einige Tests prüfen Arbeitsunterlagen, die nicht in diesem Zweig liegen, und schlagen hier fehl.
 
-The **source code** of Avesmaps is MIT-licensed — see [`LICENSE`](LICENSE).
+## Schnittstellen
 
-The MIT license covers only the software written for this project. It does not
-cover the map tiles, the map and geo data, DSA-related texts, coats of arms,
-images or trademarks. What exactly is covered and what is not is listed in
-[`LEGAL.md`](LEGAL.md).
+- Entwickler-API v1 (ohne Schlüssel, für jede Herkunft offen: Orte, Suche, Reisen): [`docs/schnittstellen/entwickler-api.md`](docs/schnittstellen/entwickler-api.md),
+  maschinenlesbar unter `https://avesmaps.de/api/v1/openapi.json`
+- Karten-API v1 (mit Schlüssel, für Kartenpakete): [`docs/schnittstellen/karten-api.md`](docs/schnittstellen/karten-api.md)
+- Alle übrigen Routen unter `/api/` sind intern und können sich mit jeder Ausgabe ändern.
 
-## Legal and sources
+## Lizenz und Rechte
 
-Avesmaps is a fan project and uses DSA-related material in
-accordance with the Ulisses fan guidelines.
+- Der selbst geschriebene Programmcode steht unter der MIT-Lizenz: [`LICENSE`](LICENSE).
+- Was davon erfasst ist und was ausdrücklich nicht (Kartendaten, DSA-Namen und -Texte, Bilder, Marken): [`LEGAL.md`](LEGAL.md).
+- Quellen, Fanrichtlinien und Marken: [`NOTICE.md`](NOTICE.md).
 
-Important points for this repository:
-
-- MIT only for the project's own source code, never for the
-  DSA-related content ([`LEGAL.md`](LEGAL.md))
-- no blanket open-source license for DSA-related map, image and
-  data assets
-- fan-project logo instead of official product logos
-- no redistribution of the used material under Creative Commons or
-  comparable third-party licenses
-- no official affiliation with Ulisses Spiele
-
-Details, sources and notes on the rights situation are in
-[`NOTICE.md`](NOTICE.md).
+Artwork © Ulisses Spiele. DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA, RIESLAND und THE DARK EYE sind eingetragene Marken
+der Ulisses Spiele GmbH, Waldems.

@@ -1,0 +1,337 @@
+{
+    "schema": 1,
+    "titel": "Konto auflösen und Datenschutz (0083), Namen mit „anzeigen = aus“ (0084), Geländejobs als Code (0085), Wege-Vorschau",
+    "von": "028ec13019d6dbb82d34952714de9fc47ccc15da",
+    "bis": "4fc6962cac63ab1043566d682c3d788afdebeb6f",
+    "datum": "2026-10-10T00:06:22+02:00",
+    "pakete": {
+        "WI-0060": "Häfen ohne Wasser-Zugang benennen (Grund „Hafen ohne Wasser“, Prüfhaken für den Editor)",
+        "WI-0068": "Media Asset Management im Editor",
+        "WI-0119": "Zentrale Systemsteuerung – Betreiberreview, Mockup und Bauplan nach Auth",
+        "WI-0124": "Verbindliche Arbeitsanweisung für den Betreiber-Chat mit Claudio"
+    },
+    "commits": [
+        {
+            "sha": "4fc6962cac63ab1043566d682c3d788afdebeb6f",
+            "datum": "2026-10-10T00:06:22+02:00",
+            "wer": "Claudia",
+            "betreff": "test(terrain): WI-0125 - der Job display_heights ist ein zulässiger Aufrufer der Anzeigehöhen (Isolationstest)",
+            "doku": false
+        },
+        {
+            "sha": "3d7f3a163f073b91b14a53cdc942b251dacea9b0",
+            "datum": "2026-10-10T00:03:22+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: Statusköpfe von AUTH-0001 und JOBS-0001 auf den tatsächlichen Stand (deep-audit F-01)",
+            "doku": true
+        },
+        {
+            "sha": "690341862781c24b7c1fda1833737f62a96080f3",
+            "datum": "2026-10-10T00:02:44+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): current.md wird kompakte Übersicht, Chronik und Entscheidungstafel wörtlich ausgelagert; WI-0119 Mockup abgenommen (F1–F3)",
+            "doku": true
+        },
+        {
+            "sha": "20abc088af36661007c20c26a2a2bb78a2bee6fd",
+            "datum": "2026-10-10T00:02:37+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(audit): codebasierter Deep-Audit-Auftakt mit verifizierten Befunden und offenen Gates",
+            "doku": true
+        },
+        {
+            "sha": "952fb20b918a4f344ae3b26af899d412df51b0dc",
+            "datum": "2026-10-09T23:55:39+02:00",
+            "wer": "Claudia",
+            "betreff": "WI-0119: P1 Mockup Fassung 2 (Systemzustand, Notaus als Liste, Backups und Export getrennt); Blatt review/wi-0119-mockup/blatt.png",
+            "doku": true
+        },
+        {
+            "sha": "bb3680b11bac6982631fd732b720c8375cd70e5c",
+            "datum": "2026-10-09T23:54:58+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: Status WI-0125 auf MERGED, Escape-Analysen zu 0084 und zur Wege-Vorschau (global-review §7.3, §9.2)",
+            "doku": true
+        },
+        {
+            "sha": "0256207ae8b700d245274c6f2f135437a8f1eff7",
+            "datum": "2026-10-09T23:52:23+02:00",
+            "wer": "Valentin",
+            "betreff": "AUTH-0001: MAM-Capabilities aus Betreiberentscheid ergänzen",
+            "doku": true
+        },
+        {
+            "sha": "7f9c6f4be4aa0adfb354170e62d2fc1c1f9ca98a",
+            "datum": "2026-10-09T23:52:21+02:00",
+            "wer": "Valentin",
+            "betreff": "current: WI-0068 Betreiberentscheidungen festhalten",
+            "doku": true
+        },
+        {
+            "sha": "8e87a01ad8dda83d857e526f3c1bc268464aa81c",
+            "datum": "2026-10-09T23:52:03+02:00",
+            "wer": "Valentin",
+            "betreff": "WI-0068: Betreiberentscheid zu Rechten Export B und modalem MAM",
+            "doku": true
+        },
+        {
+            "sha": "1f8ae7b6b952879b798b989d9050e0236e6caf12",
+            "datum": "2026-10-09T23:49:33+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(review): globaler Zwischenstands- und Hardening-Review 2026-10-09",
+            "doku": true
+        },
+        {
+            "sha": "1bab2a291f66fc4e860699edd0b98310f8900273",
+            "datum": "2026-10-09T23:47:25+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0068): P0 Preflight - Gate offen mit Lücken, Zählungen, Capabilities, P1/P2 geschärft (Migration 0086)",
+            "doku": true
+        },
+        {
+            "sha": "760d13985d099c31432ca8eddbbf642aa7bfec8b",
+            "datum": "2026-10-09T23:46:27+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(map): WI-0090 Nachtrag - die Wege-Vorschau setzt Feature-State statt Filter, die Strichelung läuft nicht mehr hinterher",
+            "doku": false
+        },
+        {
+            "sha": "b051691f6f97f899a0c8fb9d128d06d6446c50a2",
+            "datum": "2026-10-09T23:36:27+02:00",
+            "wer": "Claudia",
+            "betreff": "WI-0119: P1 Mockup 2026-10-09, Blatt review/wi-0119-mockup/blatt.png (Entwurf, wartet auf Sichtabnahme)",
+            "doku": true
+        },
+        {
+            "sha": "5d2339297d6485afec9f6a6bb9234934134213a4",
+            "datum": "2026-10-09T23:30:04+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): nächste freie Nummern WI-0126 und Migration 0087 (0085 WI-0125, 0086 vorgemerkt für WI-0068)",
+            "doku": true
+        },
+        {
+            "sha": "8687ce08184cac4c6f5b0ace60a64f7194e84790",
+            "datum": "2026-10-09T23:22:54+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(terrain): WI-0125 Runde 3 - lokal veröffentlichen, Routing tauscht Kacheln, voller Lauf als Wahrheit",
+            "doku": false
+        },
+        {
+            "sha": "93a5a9b7ac0aeab6dd039d920c2f589f8fdc0bfc",
+            "datum": "2026-10-09T23:21:09+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0119): Betreiberentscheid Bilder-Schalter je Art und nach Rechten (Notaus), PhotoBox später",
+            "doku": true
+        },
+        {
+            "sha": "ad57a814768f6d6b4c49a82a04b91a2cb873e931",
+            "datum": "2026-10-09T23:11:01+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(tiles): WI-0105 Nachtrag - Beschriftungen mit „Regionname anzeigen = aus“ nicht zeichnen (Migration 0084)",
+            "doku": false
+        },
+        {
+            "sha": "d900586e6cc77d744879077dbfb4bbb85c8da9ee",
+            "datum": "2026-10-09T23:07:35+02:00",
+            "wer": "Claudio",
+            "betreff": "WI-0119: Antwort Runtime-Seite (11 Fragen); STATUS_PAGE=on fuer Stage (E8), Grant redact_person_events (0083) in grants_sql_tmpl",
+            "doku": false
+        },
+        {
+            "sha": "8d112444b06c76e1cfb2f6add343058fa15ea107",
+            "datum": "2026-10-09T22:58:42+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): Stage-Release 629ecbec - Datenschutztext und Konto auflösen an Claudio",
+            "doku": true
+        },
+        {
+            "sha": "573593da0cde601fed702b7438fed26131e9948c",
+            "datum": "2026-10-09T22:58:33+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0119): Legacys Schalter, Ideen für Inhaltsschalter und Export (P1-Vorarbeit zu E1, E7)",
+            "doku": true
+        },
+        {
+            "sha": "1d718a1dbde7005cc6ee7f781a26c3ae9417b08f",
+            "datum": "2026-10-09T22:57:54+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(terrain): Prototyp D - Erosionsverlust wahlweise regional zurückverteilen (WI-0067 G7, standardmäßig AUS)",
+            "doku": false
+        },
+        {
+            "sha": "629ecbeceb2ddefc6048a9b208c636322eefd4dd",
+            "datum": "2026-10-09T22:37:43+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: WI-0120 - Absatz „Konto auflösen“ nach Bauschritt B abgenommen",
+            "doku": true
+        },
+        {
+            "sha": "ff73dddef9cd4bbc1391b5900291094e08edde3a",
+            "datum": "2026-10-09T22:36:36+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): Auth - Grant-Zeile für 0083 an Claudio",
+            "doku": true
+        },
+        {
+            "sha": "ed5763001e58530c4606988eabb97678b24fbf8e",
+            "datum": "2026-10-09T22:31:57+02:00",
+            "wer": "Claudio",
+            "betreff": "WI-0060: Haefen ohne Wasser-Zugang als Befund im Zugprotokoll (I9), Pin erneuert; PNG-Revisionen auf Stage gemessen (keine); Handover-Status nachgezogen",
+            "doku": false
+        },
+        {
+            "sha": "2587d53412768d73a126ee063b563c24c5d3aebe",
+            "datum": "2026-10-09T22:24:18+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: WI-0119 - Entscheidungen E1–E8 des Betreibers, E8 an Claudio",
+            "doku": true
+        },
+        {
+            "sha": "9ede71c6bae129248b2734270a0aa0407a3019bb",
+            "datum": "2026-10-09T22:22:28+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(auth): Schwärzen im Protokoll beim Auflösen (WI-0120 A15, Bauschritt B)",
+            "doku": false
+        },
+        {
+            "sha": "984ad00b10155c80caa2a5ec442e40c3039f9f56",
+            "datum": "2026-10-09T22:16:45+02:00",
+            "wer": "Claudio",
+            "betreff": "WI-0124 Betreiber-Kanal hinterlegt (nach WI-0119 Systemsteuerung); naechste freie WI-0125",
+            "doku": true
+        },
+        {
+            "sha": "d73a4a3ae5c2ff2c80c3808ad90dc7e17cbec5d1",
+            "datum": "2026-10-09T22:05:53+02:00",
+            "wer": "Claudio",
+            "betreff": "Betreiber-Kanal: karteninhalt geht direkt an Claudia (Betreiber)",
+            "doku": true
+        },
+        {
+            "sha": "adcace0d9d8648f716c8a909eb54051c958d8b3b",
+            "datum": "2026-10-09T22:05:09+02:00",
+            "wer": "Claudio",
+            "betreff": "Betreiber-Kanal: Nachtrag 2 - Karteninhalte, Nutzerfragen, Prioritaet, Abnahme durch Betreiber",
+            "doku": true
+        },
+        {
+            "sha": "9b9953551a0eb351c29fb9adec19283bf7759d75",
+            "datum": "2026-10-09T22:01:00+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): WI-0119 - Runtime-Fragen an Claudio vor der Betreibervorlage",
+            "doku": true
+        },
+        {
+            "sha": "d6e36a97119247981e4e9d60b6a42ef594f005e3",
+            "datum": "2026-10-09T22:00:55+02:00",
+            "wer": "Claudio",
+            "betreff": "Betreiber-Kanal: Nachtrag Klassifizierung durch Betreiber, Status, Routine",
+            "doku": true
+        },
+        {
+            "sha": "0084292c5b62b1babb87179296d90f84632029ac",
+            "datum": "2026-10-09T21:59:39+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(terrain): WI-0124 Runde 2 - terrain_local rechnet den Fußabdruck und legt einen Kandidaten ab",
+            "doku": false
+        },
+        {
+            "sha": "18fc4302a198bafe67f22cebc9540da4fa0b6c5e",
+            "datum": "2026-10-09T21:58:22+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(wi-0119): P0 Systemsteuerung, Inventur, Legacy-Vergleich, Widersprüche und Vorlage E1–E8",
+            "doku": true
+        },
+        {
+            "sha": "21fef5b0d098a2dcdcc0909273e2d964cb118fc5",
+            "datum": "2026-10-09T21:54:57+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): Gegenprobe der Stage-Tür lesend bestätigt",
+            "doku": true
+        },
+        {
+            "sha": "67728c8f48b5089de7376ca422e7e840f676f4db",
+            "datum": "2026-10-09T21:54:57+02:00",
+            "wer": "Claudio",
+            "betreff": "Handover Betreiber-Kanal Claudio: Entscheidung, Kategorien-Entwurf, Planungsauftrag an Claudia",
+            "doku": true
+        },
+        {
+            "sha": "1247d5d9d1008265484e35af9b459b20aa833939",
+            "datum": "2026-10-09T21:47:37+02:00",
+            "wer": "Claudia",
+            "betreff": "chore(terrain): WI-0124 - Migration heißt 0084 (0083 ist für WI-0120 reserviert)",
+            "doku": false
+        },
+        {
+            "sha": "b43d6dd6f68cb2b8bdec833225e1a6686ffbb9d7",
+            "datum": "2026-10-09T21:40:24+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(hinweise): Datenschutz mit Anmeldung, Konten und Auflösen (WI-0120 A12)",
+            "doku": false
+        },
+        {
+            "sha": "b93f2ae95501c00c8769dfa8eed4ae9b2c8d0c12",
+            "datum": "2026-10-09T21:40:14+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(auth): Konto auflösen über die Kommandozeile (WI-0120 A15)",
+            "doku": false
+        },
+        {
+            "sha": "32f057481cd6bb38199d5ae6e2cf8448a8a39703",
+            "datum": "2026-10-09T21:33:51+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(terrain): WI-0124 Runde 1 - Revision je Geländekachel, Manifest im Zeiger, Karte lädt je Kachel",
+            "doku": false
+        },
+        {
+            "sha": "26c8eb6f91d92e1f41b8a3da9249eff230a9ff4e",
+            "datum": "2026-10-09T21:20:45+02:00",
+            "wer": "Claudio",
+            "betreff": "Stage-Rollout 028ec13 mit Anmeldetuer gruen (PASS=168), Basic Auth weg; Bericht an Claudia; Abschlusszeile Anmeldetuer",
+            "doku": false
+        },
+        {
+            "sha": "5a78a83e084d7c11904eb7a4d5fa3c6ded07beba",
+            "datum": "2026-10-09T21:16:10+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(auth): Discord-Daten bleiben wie gebaut (Betreiber: „ok, discord so lassen“)",
+            "doku": true
+        },
+        {
+            "sha": "d4e4ee8e52659fbd05a95270a25d8c255c761f38",
+            "datum": "2026-10-09T21:14:28+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): Tür - Anmeldefenster wie jetzt, keine eigene Seite, kein ziel (Betreiber)",
+            "doku": true
+        },
+        {
+            "sha": "2cc2d2d1fa14d6151adb7b6846ddea982af6b962",
+            "datum": "2026-10-09T21:03:30+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): Stage-Tür - Claudios Proben bleiben in der Besucheransicht offen",
+            "doku": true
+        },
+        {
+            "sha": "959a845b1266d6736d1cf737e5d2205785061a06",
+            "datum": "2026-10-09T21:02:39+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Stage-Tür, R0 und Entscheidungen D6=B mit Prototyp D",
+            "doku": true
+        },
+        {
+            "sha": "047bd0ced0c509964eec1e96b907d9a9d8adac54",
+            "datum": "2026-10-09T19:41:02+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: R0 - Reichweite einer lokalen Geländeänderung gemessen (JOBS-0001 Etappe 2)",
+            "doku": true
+        },
+        {
+            "sha": "70e0831b6b6d5beebfad26c7b9457e600e4c79b4",
+            "datum": "2026-10-09T19:22:30+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): Stage-Release 028ec130 - App-Seite der Tür und alles seit 1ec3160e an Claudio",
+            "doku": true
+        }
+    ]
+}

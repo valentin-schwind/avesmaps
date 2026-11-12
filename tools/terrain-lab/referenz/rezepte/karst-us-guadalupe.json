@@ -1,0 +1,49 @@
+{
+    "format": "avesmaps-referenzrezept",
+    "version": 1,
+    "id": "karst-us-guadalupe",
+    "quelle": {
+        "art": "cog-fenster",
+        "urls": [
+            "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n32w106/USGS_13_n32w106.tif",
+            "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n32w105/USGS_13_n32w105.tif",
+            "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n33w106/USGS_13_n33w106.tif",
+            "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n33w105/USGS_13_n33w105.tif"
+        ],
+        "rand_zellen": 8
+    },
+    "ziel": {
+        "crs": "EPSG:26913",
+        "fenster": [493500.0, 3516000.0, 553500.0, 3564000.0]
+    },
+    "nodata": {
+        "quelle": null,
+        "mindestanteil_gueltig": 0.5
+    },
+    "stufen": [
+        {
+            "name": "30m",
+            "zellgroesse_m": 30,
+            "verfahren": "warp-mittel"
+        },
+        {
+            "name": "187_5m",
+            "zellgroesse_m": 187.5,
+            "verfahren": "warp-mittel"
+        },
+        {
+            "name": "375m",
+            "zellgroesse_m": 375,
+            "verfahren": "block-mittel",
+            "aus": "187_5m",
+            "faktor": 2
+        },
+        {
+            "name": "750m",
+            "zellgroesse_m": 750,
+            "verfahren": "block-mittel",
+            "aus": "187_5m",
+            "faktor": 4
+        }
+    ]
+}

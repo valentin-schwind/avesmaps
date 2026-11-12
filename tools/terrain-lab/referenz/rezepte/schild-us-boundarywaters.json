@@ -1,0 +1,49 @@
+{
+    "format": "avesmaps-referenzrezept",
+    "version": 1,
+    "id": "schild-us-boundarywaters",
+    "quelle": {
+        "art": "cog-fenster",
+        "urls": [
+            "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n48w093/USGS_13_n48w093.tif",
+            "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n48w092/USGS_13_n48w092.tif",
+            "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n49w093/USGS_13_n49w093.tif",
+            "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n49w092/USGS_13_n49w092.tif"
+        ],
+        "rand_zellen": 8
+    },
+    "ziel": {
+        "crs": "EPSG:26915",
+        "fenster": [570750.0, 5276250.0, 630750.0, 5324250.0]
+    },
+    "nodata": {
+        "quelle": null,
+        "mindestanteil_gueltig": 0.5
+    },
+    "stufen": [
+        {
+            "name": "30m",
+            "zellgroesse_m": 30,
+            "verfahren": "warp-mittel"
+        },
+        {
+            "name": "187_5m",
+            "zellgroesse_m": 187.5,
+            "verfahren": "warp-mittel"
+        },
+        {
+            "name": "375m",
+            "zellgroesse_m": 375,
+            "verfahren": "block-mittel",
+            "aus": "187_5m",
+            "faktor": 2
+        },
+        {
+            "name": "750m",
+            "zellgroesse_m": 750,
+            "verfahren": "block-mittel",
+            "aus": "187_5m",
+            "faktor": 4
+        }
+    ]
+}

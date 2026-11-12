@@ -1,0 +1,592 @@
+-- Rechte am Betriebszustand im Schema public (WI-0127 SYS-2, Migration 0087, SYS-0001 §5.1 „Grants“). psql-Datei mit \gexec.
+--
+-- Vorlage fuer Claudios `avesmaps3d-db-grants` (`grants_sql_tmpl` in ops/runtime/runtime-foundation.sh): `${e}` ist die Umgebung
+-- (staging, production), wie dort. In public gibt die Default-Privilegie der Migrationsrolle der App-Rolle JEDE neue Tabelle mit
+-- SELECT, INSERT, UPDATE, DELETE (`sql_env` im selben Skript), der Jobs-Rolle SELECT (fuer die Zulassung unter Sperre, SYS-4), der
+-- Kachelrolle nichts. Diese Datei vergibt nichts; sie nimmt der App weg, was sie an `system_state` nicht darf. Wie
+-- `media-grants.psql` gehoert sie hinter JEDE Migration.
+--
+-- 🔴 Die App (und mit ihr die Kommandozeile `avesmaps3d-auth <env>`, die mit der App-`.env` laeuft) liest die eine Zeile und schaltet
+-- sie um, legt aber nie eine an und loescht sie nie: Die Zeile legt allein die Migration an. Fehlt sie, gilt der Zustand als
+-- „unbekannt“, und kein Schreibweg laeuft (fail-closed, SYS-0001 §3.2).
+--
+-- Fehlt die Tabelle (0087 noch nicht angewandt), entfaellt die Zeile still. Geprueft in apps/server/test/system-state-grants.test.ts
+-- (Wegwerf-Cluster wie der VPS: erst grants_sql_tmpl, dann diese Datei); der Teil fuer SYS-8 in systemzustand-grants.test.ts.
+
+-- Der Schemastand (Systemzustand, Betreiber 2026-10-14): Die App LIEST, welche Migration eingespielt ist, und stellt es neben
+-- das, was das laufende Release mitbringt. Das beantwortet die Frage, an der eine ganze Nacht verging: ob ein Feature fehlt
+-- oder nur `migrate` nicht lief.
+-- 🔴 Schreiben darf dort nur die Migrationsrolle. Die Default-Privilegie in public gibt der App sonst auch INSERT, UPDATE und
+--    DELETE auf diese Tafel - sie koennte sich selbst einen falschen Stand eintragen. SELECT bleibt.
+SELECT 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON schema_migration FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.schema_migration') IS NOT NULL \gexec
+
+SELECT 'REVOKE INSERT, DELETE, TRUNCATE ON system_state FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.system_state') IS NOT NULL \gexec
+
+-- Systemzustand (WI-0127 SYS-8, Migration 0101): Die App schreibt alle 5 min eine Stichprobe und loescht, was aelter als 25 h ist; sie
+-- aendert nie eine. Fehlt die Tabelle, entfaellt die Zeile still.
+SELECT 'REVOKE UPDATE, TRUNCATE ON system_sample FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.system_sample') IS NOT NULL \gexec
+-- Verlauf ueber Tage (WI-0141, Migration 0125): Die App verdichtet volle Stunden aus `system_sample` nach `system_hour`
+-- und loescht dort, was aelter als 90 Tage ist. Sie schreibt dieselbe Stunde erneut (ON CONFLICT DO UPDATE), darum bleibt
+-- UPDATE hier stehen; TRUNCATE nicht. Fehlt die Tafel, entfaellt die Zeile still.
+SELECT 'REVOKE TRUNCATE ON system_hour FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.system_hour') IS NOT NULL \gexec
+-- `connection_counts()` gehoert der Rolle `avesmaps3d_stats` (NOLOGIN, `pg_read_all_stats`; legt Claudio in runtime-foundation.sh an).
+-- Die Uebertragung steht HIER, hinter jeder Migration (Claudio 2026-10-10: sonst nimmt sie ein spaeteres Schreiben wieder weg). EXECUTE
+-- hat nur die App-Rolle (PUBLIC verliert es in der Migration); die Kachel- und die Jobs-Rolle bekommen es ausdruecklich nicht. Fehlt die
+-- Funktion oder die Rolle, entfaellt die Zeile still, und die Funktion antwortet NULL („unbekannt“).
+SELECT 'ALTER FUNCTION public.connection_counts() OWNER TO avesmaps3d_stats'
+ WHERE to_regprocedure('public.connection_counts()') IS NOT NULL
+   AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'avesmaps3d_stats') \gexec
+SELECT 'REVOKE ALL ON FUNCTION public.connection_counts() FROM PUBLIC'
+ WHERE to_regprocedure('public.connection_counts()') IS NOT NULL \gexec
+SELECT format('GRANT EXECUTE ON FUNCTION public.connection_counts() TO %I', 'avesmaps3d_${e}_app')
+ WHERE to_regprocedure('public.connection_counts()') IS NOT NULL \gexec
+
+-- Inhaltsschalter (WI-0127 SYS-10, Migration 0102): Die App legt eine Zeile an und schaltet sie um, loescht nie (Einschalten setzt
+-- `enabled` zurueck). Fehlt die Tabelle, entfaellt die Zeile still.
+SELECT 'REVOKE DELETE, TRUNCATE ON content_switch FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.content_switch') IS NOT NULL \gexec
+
+-- Wegfindung (WI-0153, Migration 0132): Die App legt eine Abweichung an, aendert sie und LOESCHT sie beim Zuruecksetzen
+-- (anders als bei `content_switch`: es gibt keinen Zustand „steht auf der Vorgabe“, es gibt nur keine Zeile). TRUNCATE nicht —
+-- alle Abweichungen auf einen Schlag wegzuwerfen ist kein Weg der Anwendung. Die Revision schreibt allein der Trigger
+-- (SECURITY DEFINER, laeuft als Besitzerin); die App liest sie nur. Fehlt eine Tafel, entfaellt ihre Zeile still.
+SELECT 'REVOKE TRUNCATE ON routing_setting FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.routing_setting') IS NOT NULL \gexec
+-- 🪤 Seit 0135 schreibt die App in `routing_setting_state`: die Freigabe (wer, wann, welcher Auftrag). UPDATE bleibt
+-- deshalb; anlegen und loeschen darf sie die eine Zeile weiterhin nicht, und die Revision hebt allein der Trigger.
+SELECT 'REVOKE INSERT, DELETE, TRUNCATE ON routing_setting_state FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.routing_setting_state') IS NOT NULL \gexec
+-- 🔴 UPDATE ausdruecklich GEBEN, nicht nur nicht nehmen: Auf der Stage hatte ein frueherer Lauf es schon entzogen, und ohne UPDATE
+-- scheitert auch das `SELECT … FOR UPDATE` der Route (PostgreSQL verlangt dafuer UPDATE). Claudio 2026-10-15.
+SELECT 'GRANT UPDATE ON routing_setting_state TO avesmaps3d_${e}_app'
+ WHERE to_regclass('public.routing_setting_state') IS NOT NULL \gexec
+-- Freigegebene Werte (0135): Die App schreibt sie beim Druck auf den Knopf neu (loeschen und einfuegen in einer
+-- Transaktion); TRUNCATE ist auch hier kein Weg der Anwendung.
+SELECT 'REVOKE TRUNCATE ON routing_setting_applied FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.routing_setting_applied') IS NOT NULL \gexec
+
+-- Karteneinstellungen (WI-0166, Migration 0134): dieselbe Form wie die Wegfindung. Die App legt eine Abweichung an, aendert sie
+-- und LOESCHT sie beim Zuruecksetzen; TRUNCATE nicht. Die Revision schreibt allein der Trigger. Fehlt eine Tafel, entfaellt
+-- ihre Zeile still.
+SELECT 'REVOKE TRUNCATE ON map_setting FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.map_setting') IS NOT NULL \gexec
+-- 🔴 UPDATE bleibt der App (Claudio 2026-10-15, Production: „permission denied for table map_setting_state“ beim Speichern): Die Route
+-- sperrt die Revisionszeile mit `SELECT … FOR UPDATE`, und das verlangt in PostgreSQL das UPDATE-Recht. Dieselbe Loesung wie bei
+-- `routing_setting_state`; anlegen und loeschen darf die App die eine Zeile weiterhin nicht, die Revision hebt der Trigger.
+SELECT 'REVOKE INSERT, DELETE, TRUNCATE ON map_setting_state FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.map_setting_state') IS NOT NULL \gexec
+SELECT 'GRANT UPDATE ON map_setting_state TO avesmaps3d_${e}_app'
+ WHERE to_regclass('public.map_setting_state') IS NOT NULL \gexec
+
+-- Kartenserien (WI-0220, Migration 0167): dieselbe Form wie die Karteneinstellungen. Die App legt eine Zeile an, aendert sie
+-- (Abweichung, Papierkorb, Vorgabe) und LOESCHT sie, wenn eine Serie ganz auf die Vorgabe zurueckgeht; TRUNCATE nicht. Die
+-- Revision schreibt allein der Trigger; UPDATE an der Zustandszeile bleibt der App wie bei `map_setting_state`, anlegen und
+-- loeschen nicht. Fehlt eine Tafel, entfaellt ihre Zeile still.
+SELECT 'REVOKE TRUNCATE ON map_series FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.map_series') IS NOT NULL \gexec
+SELECT 'REVOKE INSERT, DELETE, TRUNCATE ON map_series_state FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.map_series_state') IS NOT NULL \gexec
+SELECT 'GRANT UPDATE ON map_series_state TO avesmaps3d_${e}_app'
+ WHERE to_regclass('public.map_series_state') IS NOT NULL \gexec
+-- Der Auftrag `map_series_tile` (WI-0220 Schnitt 3, Migration 0170) traegt nach dem Zerlegen Kante und hoechste Stufe ein, sonst
+-- nichts: eine Zeile mit nur diesen zwei Spalten anlegen (Vorgabe-Serie ohne Zeile) oder sie aendern. Lesen darf die Jobs-Rolle
+-- ohnehin alles (runtime-foundation.sh). Fehlt die Rolle (ops/jobs/jobs-setup.sh), entfaellt die Zeile still.
+SELECT format('GRANT INSERT (series_id, source_pixels, max_native_zoom), UPDATE (source_pixels, max_native_zoom) ON map_series TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.map_series') IS NOT NULL \gexec
+-- Der Papierkorb nach seiner Frist (WI-0220 Schnitt 4, map-series/papierkorb.ts, Pflege der Warteschlange): Die Zeile einer neuen Serie,
+-- die laenger als die Frist im Papierkorb liegt, faellt weg. Nur DELETE dazu; die Revision hebt der Trigger (SECURITY DEFINER).
+SELECT format('GRANT DELETE ON map_series TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.map_series') IS NOT NULL \gexec
+
+-- Zoombaender (WI-0221, Migration 0168): dieselbe Form wie die Karteneinstellungen. Die App legt eine Abweichung an, aendert sie und
+-- LOESCHT sie beim Zuruecksetzen; TRUNCATE nicht. Die Revision hebt allein der Trigger; die Zustandszeile legt die App weder an noch
+-- loescht sie sie. Fehlt eine Tafel, entfaellt ihre Zeile still.
+SELECT 'REVOKE TRUNCATE ON zoom_band_setting FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.zoom_band_setting') IS NOT NULL \gexec
+SELECT 'REVOKE INSERT, DELETE, TRUNCATE ON zoom_band_state FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.zoom_band_state') IS NOT NULL \gexec
+SELECT 'GRANT UPDATE ON zoom_band_state TO avesmaps3d_${e}_app'
+ WHERE to_regclass('public.zoom_band_state') IS NOT NULL \gexec
+
+-- Wetter (WI-0288 Stufe 2, Migration 0326). Presets und Icons: Die App legt sie beim ersten Aendern an (alle auf einmal) und aendert sie.
+-- Ein Icon wird weich entfernt (`entfernt_at`), eine leere Tafel hiesse wieder „Vorgaben“. Ein ANGELEGTES Preset (Betreiber 2026-11-08) wird
+-- hart geloescht; dass nie eines der 14 festen faellt, prueft der Schreibweg (`entfernePreset`, 409 `vorgabe_bleibt`): Wuerde die Tafel doch
+-- leer, galten wieder die Vorgaben im Code. Die Stage hatte DELETE entzogen; das GRANT gibt es ausdruecklich zurueck, ein Weglassen
+-- taete es nicht. TRUNCATE nie. Das Wettermodell wie die Wegfindung: anlegen, aendern, beim Zuruecksetzen LOESCHEN, TRUNCATE nie. Die
+-- Revision des Modells hebt allein der Trigger, der Schreibweg sperrt mit einer Beratungssperre: Die App liest die Zustandszeile nur.
+-- Fehlt eine Tafel, entfaellt ihre Zeile still.
+SELECT 'REVOKE TRUNCATE ON weather_preset FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.weather_preset') IS NOT NULL \gexec
+SELECT 'GRANT DELETE ON weather_preset TO avesmaps3d_${e}_app'
+ WHERE to_regclass('public.weather_preset') IS NOT NULL \gexec
+SELECT 'REVOKE DELETE, TRUNCATE ON weather_symbol FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.weather_symbol') IS NOT NULL \gexec
+SELECT 'REVOKE TRUNCATE ON weather_model_setting FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.weather_model_setting') IS NOT NULL \gexec
+SELECT 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON weather_model_state FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.weather_model_state') IS NOT NULL \gexec
+
+-- Kanon-Tafeln (WI-0253 B-2, Migration 0223): dieselbe Form wie die Zoombaender. Die App legt eine Abweichung an (Namensraum oder Objektart),
+-- aendert sie und LOESCHT sie beim Zuruecksetzen; TRUNCATE nicht. Die Revision hebt allein der Trigger; die Zustandszeile legt die App
+-- weder an noch loescht sie sie. Einen Schreibweg gibt es noch nicht (Rechte-Gate WI-0253 6.2 offen): die Rechte folgen der Tafel, nicht
+-- einer Route. Fehlt eine Tafel, entfaellt ihre Zeile still.
+SELECT 'REVOKE TRUNCATE ON wiki_namespace_setting FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wiki_namespace_setting') IS NOT NULL \gexec
+SELECT 'REVOKE TRUNCATE ON canon_object_label_setting FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.canon_object_label_setting') IS NOT NULL \gexec
+SELECT 'REVOKE INSERT, DELETE, TRUNCATE ON canon_table_state FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.canon_table_state') IS NOT NULL \gexec
+SELECT 'GRANT UPDATE ON canon_table_state TO avesmaps3d_${e}_app'
+ WHERE to_regclass('public.canon_table_state') IS NOT NULL \gexec
+
+-- Die Laeufe des WikiSync-Abgleichs (WI-0253 C, Migration 0224): Die App LIEST den Bericht (`GET /api/admin/wikisync/bericht`) und schreibt nie; den Lauf
+-- rechnet und schreibt allein der Auftrag `wiki_vorschau` als Jobs-Rolle. Sie legt Lauf und Zeilen an, schliesst den Lauf ab und raeumt aeltere Laeufe
+-- ab (DELETE auf dem Lauf; die Zeilen fallen mit ihm, ueber den Fremdschluessel mit ON DELETE CASCADE). Keine Fachtafel: Der Lauf schreibt in keine.
+-- Fehlt eine Tafel oder die Jobs-Rolle (ops/jobs/jobs-setup.sh), entfaellt die Zeile still.
+SELECT 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON wikisync_lauf, wikisync_lauf_zeile FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_lauf') IS NOT NULL AND to_regclass('public.wikisync_lauf_zeile') IS NOT NULL \gexec
+SELECT format('GRANT INSERT, UPDATE, DELETE ON wikisync_lauf TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wikisync_lauf') IS NOT NULL \gexec
+SELECT format('REVOKE ALL ON SEQUENCE %s FROM avesmaps3d_${e}_app', s)
+  FROM unnest(ARRAY['wikisync_lauf_id_seq', 'wikisync_lauf_zeile_id_seq']) AS s
+ WHERE to_regclass('public.' || s) IS NOT NULL \gexec
+SELECT format('GRANT INSERT ON wikisync_lauf_zeile TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wikisync_lauf_zeile') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE wikisync_lauf_id_seq, wikisync_lauf_zeile_id_seq TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wikisync_lauf_id_seq') IS NOT NULL
+   AND to_regclass('public.wikisync_lauf_zeile_id_seq') IS NOT NULL \gexec
+
+-- Der Wiki-Teil eines WikiSync-Laufs (WI-0253 C-2, Migration 0226): Die App LIEST den Stand (`GET /api/admin/wikisync/wiki-teil`) und schreibt nie; Kopf, Bereiche, Cursor und gelesene Werte
+-- schreibt und raeumt allein der Auftrag `wiki_kategorien` als Jobs-Rolle. Am Ende eines Bereichs haengt er dessen Planzeilen an die Vorschau (`wikisync_lauf_zeile`: INSERT hat sie
+-- schon, dazu DELETE fuer die Zeilen eines frueheren Wiki-Teils derselben Vorschau) und ergaenzt deren Zahlen (`wikisync_lauf`: UPDATE hat sie schon). Seinen Nachfolger reiht er ueber
+-- `job_enqueue` ein (die Vorlage `media-grants.psql` gibt der Jobs-Rolle das EXECUTE). Fehlt eine Tafel oder die Jobs-Rolle (ops/jobs/jobs-setup.sh), entfaellt die Zeile still.
+SELECT 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON wikisync_wiki_teil, wikisync_wiki_teil_bereich, wikisync_abfrage_stand, wikisync_abfrage_wert FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_wiki_teil') IS NOT NULL AND to_regclass('public.wikisync_wiki_teil_bereich') IS NOT NULL
+   AND to_regclass('public.wikisync_abfrage_stand') IS NOT NULL AND to_regclass('public.wikisync_abfrage_wert') IS NOT NULL \gexec
+SELECT format('GRANT INSERT, UPDATE, DELETE ON %I TO %I', t, r.rolname)
+  FROM unnest(ARRAY['wikisync_wiki_teil', 'wikisync_wiki_teil_bereich', 'wikisync_abfrage_stand', 'wikisync_abfrage_wert']) AS t, pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.' || t) IS NOT NULL \gexec
+SELECT 'REVOKE ALL ON SEQUENCE wikisync_wiki_teil_id_seq FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_wiki_teil_id_seq') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE wikisync_wiki_teil_id_seq TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wikisync_wiki_teil_id_seq') IS NOT NULL \gexec
+SELECT format('GRANT DELETE ON wikisync_lauf_zeile TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wikisync_lauf_zeile') IS NOT NULL \gexec
+
+-- Der Vergleich eines einzelnen Wiki-Artikels (WI-0253 D-2, Migration 0236): Die App LIEST ihn (`GET /api/admin/wikisync/artikel`) und schreibt nie; anlegen, abschliessen, aufraeumen und die
+-- letzten zwanzig behalten tut allein der Auftrag `wiki_artikel` als Jobs-Rolle. Fehlt die Tafel oder die Jobs-Rolle (ops/jobs/jobs-setup.sh), entfaellt die Zeile still.
+SELECT 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON wikisync_artikel FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_artikel') IS NOT NULL \gexec
+SELECT format('GRANT INSERT, UPDATE, DELETE ON wikisync_artikel TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wikisync_artikel') IS NOT NULL \gexec
+SELECT 'REVOKE ALL ON SEQUENCE wikisync_artikel_id_seq FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_artikel_id_seq') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE wikisync_artikel_id_seq TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wikisync_artikel_id_seq') IS NOT NULL \gexec
+
+-- Der Stand des Syncs je Objekt (WI-0253, Wiki-Box, Migration 0238): Die App LIEST ihn (`GET /api/editor/wiki-box/:art/:id`) und schreibt nie; Zeit, Ergebnis und Ausloeser des letzten Syncs
+-- (und den letzten Fehlschlag mit dem Ende der Pause) schreiben allein die Auftraege als Jobs-Rolle: `wiki_artikel` mit Objekt (der Sync am Objekt) und `wiki_uebernehmen` (der Lauf einer Uebernahme,
+-- Ausloeser `automatisch`). Anlegen und Ueberschreiben (INSERT ... ON CONFLICT DO UPDATE), nie Loeschen. Fehlt die Tafel oder die Jobs-Rolle (ops/jobs/jobs-setup.sh), entfaellt die Zeile still.
+SELECT 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON wikisync_objekt FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_objekt') IS NOT NULL \gexec
+SELECT format('GRANT INSERT, UPDATE ON wikisync_objekt TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wikisync_objekt') IS NOT NULL \gexec
+
+-- Der Bereichsschalter des WikiSync (WI-0253 D-1, Migration 0225): dieselbe Form wie die Zoombaender. Die App (die Route, Recht `switch_wikisync_area`, nur der Betreiber mit
+-- Passkey) legt eine Zeile an (der Bereich gehoert dem WikiSync) und LOESCHT sie (zurueck an den Legacy-Zug); TRUNCATE nicht. Die Revision hebt allein der Trigger; die
+-- Zustandszeile legt die App weder an noch loescht sie sie, ihr UPDATE bleibt (die Zeilensperre braucht es). Die Jobs-Rolle liest ihn (Vorschau, Uebernahme) mit dem SELECT
+-- der Default-Privilegie. Fehlt eine Tafel, entfaellt ihre Zeile still.
+SELECT 'REVOKE TRUNCATE ON wikisync_bereich_setting FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_bereich_setting') IS NOT NULL \gexec
+SELECT 'REVOKE INSERT, DELETE, TRUNCATE ON wikisync_bereich_state FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_bereich_state') IS NOT NULL \gexec
+SELECT 'GRANT UPDATE ON wikisync_bereich_state TO avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_bereich_state') IS NOT NULL \gexec
+
+-- Das Protokoll der Uebernahme und der Ruecknahme (WI-0253 D-1, Migration 0225): Die App LIEST es (der Stand der Verwaltung) und schreibt nie; die Zeilen legt und schliesst
+-- allein der Auftrag `wiki_uebernehmen` beziehungsweise `wiki_zuruecknehmen` als Jobs-Rolle. Geloescht wird nie (die Befunde fallen nur mit ihrer Uebernahme, die bleibt).
+SELECT 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON wikisync_uebernahme, wikisync_uebernahme_befund FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_uebernahme') IS NOT NULL AND to_regclass('public.wikisync_uebernahme_befund') IS NOT NULL \gexec
+SELECT format('GRANT INSERT, UPDATE ON wikisync_uebernahme TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wikisync_uebernahme') IS NOT NULL \gexec
+SELECT format('GRANT INSERT ON wikisync_uebernahme_befund TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wikisync_uebernahme_befund') IS NOT NULL \gexec
+SELECT format('REVOKE ALL ON SEQUENCE %s FROM avesmaps3d_${e}_app', s)
+  FROM unnest(ARRAY['wikisync_uebernahme_id_seq', 'wikisync_uebernahme_befund_id_seq']) AS s
+ WHERE to_regclass('public.' || s) IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE wikisync_uebernahme_id_seq, wikisync_uebernahme_befund_id_seq TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wikisync_uebernahme_id_seq') IS NOT NULL
+   AND to_regclass('public.wikisync_uebernahme_befund_id_seq') IS NOT NULL \gexec
+
+-- Die Uebernahme schreibt die Karte (WI-0253 D-1): Der Auftrag `wiki_uebernehmen` / `wiki_zuruecknehmen` ist ein Produktprozess einer berechtigten Person (Recht `run_wikisync_areas`,
+-- `undo_wikisync_run`, Passkey), kein Agent, und schreibt als Jobs-Rolle GENAU, was der Editor der Kraftlinien auch schreibt, und nicht mehr: am Abschnitt nur Name und
+-- Beschreibung (die Revision zaehlt der Trigger, `revision` steht fuer die Beruehrung ohne Spalte dabei), am Wiki-Stand der Kraftlinie nur dessen Textspalten, die Operation an
+-- der Karte samt Fachprotokoll (anhaengen) und das Ereignis `map.changed` (`map_event_add`, SECURITY DEFINER). Den Vermerk je Feld (`field_origin`) liest sie nur. Eine
+-- Zuordnung (Adresse, Zustand, Schnappschuss-Zeiger) aendert sie nie; die Zeilensperre (FOR UPDATE) braucht in PostgreSQL das UPDATE-Recht an mindestens einer Spalte. Mit jedem
+-- weiteren Bereich, den eine spaetere Scheibe anschliesst, kommen seine Spalten hier dazu. Fehlt die Jobs-Rolle (ops/jobs/jobs-setup.sh) oder eine Tafel, entfaellt die Zeile still.
+SELECT format('GRANT UPDATE (name, description, revision) ON powerline TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.powerline') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (name, staerke, affinitaet, laenge, regionen, verlauf, description, updated_at) ON wiki_powerline_snapshot TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_powerline_snapshot') IS NOT NULL \gexec
+-- Die Uebernahme der uebrigen Bereiche (WI-0253 D-2): Orte, Wege, Gebiete und Landschaften. Wie bei den Kraftlinien schreibt die Jobs-Rolle GENAU, was der Editor der Art auch schreibt, und nicht mehr:
+--   Orte:        am Ort Name und Ortsgroesse (`subtype`), an den Einzelheiten die drei Felder mit ihrer Herkunft und den Zustand (still legen/beleben), am Wiki-Stand die Textspalten samt Marke `geraten`.
+--   Wege:        am Abschnitt den Namen, am Wiki-Stand die Textspalten.
+--   Gebiete:     am Gebiet nur die Revision (`revision = revision`, sie zaehlt der Trigger), an den Einzelheiten die Felder des Abgleichs samt Zustand, die Vermerke je Feld (einfuegen/loeschen), am Wiki-Stand
+--                die Textspalten und die Marken `unbekannt` (einfuegen/loeschen).
+--   Landschaften: an der Region den Namen, an den Beschriftungen, die dem Namen folgen, deren Text, am Wiki-Stand die Textspalten und die Nachbarn (Zeilen je Richtung).
+-- Eine Zuordnung (Adresse, Zustand, Schnappschuss-Zeiger), die Herkunft von Name und Ortsgroesse (`field_origin`) und alles andere aendert sie nie; die Zeilensperre (FOR UPDATE, FOR NO KEY UPDATE) braucht
+-- in PostgreSQL das UPDATE-Recht an mindestens einer Spalte. Fehlt die Jobs-Rolle (ops/jobs/jobs-setup.sh) oder eine Tafel, entfaellt die Zeile still.
+-- Jede Aenderung an `place` und `map_label` prueft deren CHECK `*_inside_domain` neu (`map_domain_contains`, SECURITY DEFINER seit Migration 0014): Die Jobs-Rolle braucht dafuer EXECUTE auf diese eine Funktion.
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO %I', p.oid::regprocedure, r.rolname)
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace, pg_roles r
+ WHERE n.nspname = 'public' AND p.proname = 'map_domain_contains' AND r.rolname = 'avesmaps3d_${e}_jobs' \gexec
+SELECT format('GRANT UPDATE (name, subtype, revision) ON place TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.place') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (einwohner, lage, oberhaupt, einwohner_origin, lage_origin, oberhaupt_origin, is_active, retired_at, retired_origin, updated_at) ON place_detail TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.place_detail') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (wiki_name, einwohner, oberhaupt, region_text, staat_text, handelszone, verkehrswege, bevoelkerung, tempel, description, settlement_class, settlement_class_guessed, building_type, updated_at) ON wiki_settlement_snapshot TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_settlement_snapshot') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (name, revision) ON path TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.path') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (name, kind, art, lage, laenge, verlauf, description, updated_at) ON wiki_path_snapshot TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_path_snapshot') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (revision) ON territory TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.territory') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (continent, founded_text, dissolved_text, form_of_government, capital_name, seat_name, ruler, language, currency, population, founder, trade_goods, geographic, blazon, affiliation_raw, state, is_active, retired_at, retired_origin, updated_at) ON territory_detail TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.territory_detail') IS NOT NULL \gexec
+SELECT format('GRANT INSERT, DELETE ON territory_detail_field_origin TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.territory_detail_field_origin') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (continent, founded_text, dissolved_text, form_of_government, capital_name, seat_name, ruler, language, currency, population, founder, trade_goods, geographic, blazon, affiliation_raw, updated_at) ON wiki_territory_snapshot TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_territory_snapshot') IS NOT NULL \gexec
+SELECT format('GRANT INSERT, DELETE ON wiki_territory_snapshot_unknown TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_territory_snapshot_unknown') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (name, revision) ON region TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.region') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (name, revision) ON map_label TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.map_label') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (name, art, region_parent, affiliation_staat, einwohner, sprache, vegetation, verkehrswege, description, continent, height_schritt, updated_at) ON wiki_region_snapshot TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_region_snapshot') IS NOT NULL \gexec
+-- Die Wiki-Eintraege ohne Flaeche (WI-0284, Migration 0319): Der WikiSync legt die Zeilen selbst an und still; die App liest nur.
+SELECT format('GRANT INSERT (wiki_key, wiki_url, name, art, region_parent, affiliation_staat, einwohner, sprache, vegetation, verkehrswege, description, source_system) ON wiki_region_snapshot TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_region_snapshot') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (wiki_url, is_active, retired_at, retired_origin) ON wiki_region_snapshot TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_region_snapshot') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE wiki_region_snapshot_id_seq TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_region_snapshot_id_seq') IS NOT NULL \gexec
+SELECT format('GRANT INSERT, DELETE ON wiki_region_snapshot_neighbor TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_region_snapshot_neighbor') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE wiki_region_snapshot_neighbor_id_seq TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_region_snapshot_neighbor_id_seq') IS NOT NULL \gexec
+-- Die Orts- und Bauwerk-Artikel ohne Ort (WI-0295, Migration 0330): Der WikiSync legt die Zeilen der Registry (`source_system = 'wikisync'`), ihre genannten Orte und ihren Wiki-Stand selbst an, schreibt ihre
+-- Felder und legt sie still; die App liest nur. Die Zeilensperre (FOR NO KEY UPDATE) braucht das UPDATE-Recht an mindestens einer Spalte; die Revision zaehlt der Trigger (`revision = revision` ist die Beruehrung).
+SELECT format('GRANT INSERT (wiki_key, title, wiki_url, settlement_class, building_type, is_ruined, continent, lage, standort, source_system) ON wiki_settlement_registry TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_settlement_registry') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (wiki_url, settlement_class, building_type, is_ruined, lage, standort, is_active, retired_at, retired_origin, revision, updated_at) ON wiki_settlement_registry TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_settlement_registry') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE wiki_settlement_registry_id_seq TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_settlement_registry_id_seq') IS NOT NULL \gexec
+SELECT format('GRANT INSERT, DELETE ON wiki_settlement_registry_named_place TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_settlement_registry_named_place') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE wiki_settlement_registry_named_place_id_seq TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_settlement_registry_named_place_id_seq') IS NOT NULL \gexec
+SELECT format('GRANT INSERT (wiki_key, wiki_url, wiki_title, wiki_name, settlement_class, settlement_class_guessed, building_type, is_ruined, einwohner, oberhaupt, region_text, staat_text, handelszone, verkehrswege, bevoelkerung, tempel, description, synced_at, source_system) ON wiki_settlement_snapshot TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_settlement_snapshot') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (wiki_url, wiki_title, is_ruined, synced_at, is_active, retired_at, retired_origin) ON wiki_settlement_snapshot TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_settlement_snapshot') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE wiki_settlement_snapshot_id_seq TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_settlement_snapshot_id_seq') IS NOT NULL \gexec
+-- Die Hoehe der Gipfel (WI-0253 §21, Migration 0244; Vali 2026-10-27): Die Hoehe eines Gipfels folgt dem Wiki, solange keine Hand sie gesetzt hat. Die Jobs-Rolle schreibt am Gipfel (`terrain_peak`) GENAU diese
+-- eine Spalte (`height_schritt`; das UPDATE-Recht braucht auch das `FOR NO KEY UPDATE`, mit dem sie die Gipfel sperrt wie der Editor) – nie Name, Art, Lage, Anzeige, Zustand oder die Revision (sie zaehlt der
+-- Trigger) –, den Wiki-Wert hinter der Hoehe im Wiki-Stand (oben, `wiki_region_snapshot.height_schritt`) und stoesst das Gelaende im Umkreis ueber die Schreibnaht an: Die Operation ruft
+-- `terrain_local_enqueue` (SECURITY DEFINER, wie der Editor). Den Vermerk der Hoehe (`field_origin`) liest sie nur, die Zuordnung (`terrain_peak_wiki_assignment`) aendert sie nie.
+SELECT format('GRANT UPDATE (height_schritt) ON terrain_peak TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.terrain_peak') IS NOT NULL \gexec
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO %I', p.oid::regprocedure, r.rolname)
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace, pg_roles r
+ WHERE n.nspname = 'public' AND p.proname = 'terrain_local_enqueue' AND r.rolname = 'avesmaps3d_${e}_jobs' \gexec
+-- Die Uebernahme der Literatur (WI-0253, Scheibe Literatur): am Werk (`adventure`) GENAU die Felder, die Legacys Literatur-Abgleich aus der Infobox setzt, und die Revision
+-- (`revision = revision` fuer die Beruehrung ohne Spalte; sie zaehlt der Trigger), dazu den Vermerk "wiki" je Feld (`adventure_field_origin`, nur EINFUEGEN: ein vorhandener
+-- Vermerk, auch `manual`, bleibt). Zuordnung (`wiki_url`, `wiki_key`), Herkunft (`source_system`), Links und Cover aendert sie nie; geloescht wird nichts (die Ortsliste: unten).
+SELECT format('GRANT UPDATE (title, product_type, edition, genre, complexity_gm, complexity_pl, authors, series, fshop_code, revision) ON adventure TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.adventure') IS NOT NULL \gexec
+SELECT format('GRANT INSERT ON adventure_field_origin TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.adventure_field_origin') IS NOT NULL \gexec
+-- Die Ortsliste der Literatur (WI-0253, Scheibe Ortslisten, Migration 0241): Zeilen des Wikis anlegen (`legacy_origin = 'wiki'`, `source_system = 'wikisync'`), an Ort und Stelle
+-- Name und Rolle aendern, still legen (`retired_origin = 'wikisync'`) und wiederbeleben, dazu das Ziel eines neuen Orts. Das UPDATE-Recht braucht auch das `FOR UPDATE`,
+-- mit dem die Uebernahme die Zeilen eines Werks sperrt. Nie loeschen; Werk, Schluessel (`name_key`, `sort_order`, `dup_ordinal`) einer bestehenden Zeile und
+-- `target_origin` aendert sie nie.
+SELECT format('GRANT INSERT, UPDATE (raw_name, role, state, is_active, retired_at, retired_origin, legacy_origin, target_state, resolved_by, place_id, territory_id, region_id, terrain_peak_id, path_id, updated_at) ON adventure_place TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.adventure_place') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE adventure_place_id_seq TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.adventure_place_id_seq') IS NOT NULL \gexec
+-- Die Quellen (WI-0253, Scheibe Quellen, Migrationen 0242 und 0243): Der WikiSync gleicht die Publikationen eines Artikels mit den Verknuepfungen seines Traegers ab und legt neue an, legt
+-- Verknuepfungen still, die er nicht mehr nennt, und legt eine Katalogquelle an, die der Katalog nicht hat (Work Item 0253 §21).
+--   Katalogquelle (`feature_source`): anlegen (Schluessel, Adresse, Titel, Art, offiziell, Lizenz und Namensnennung des Korpus, Herkunft `wikisync`), den Titel aendern, die Revision beruehren
+--     (`revision = revision`, die Zaehlung macht der Trigger) und still legen / beleben (der Code tut es nur bei einer Quelle, die der WikiSync selbst anlegte). Nie die Adresse, den Schluessel oder die Art
+--     einer bestehenden Quelle aendern, nie loeschen.
+--   Verknuepfungen (`place_source`, `path_source`, `territory_source`, `region_source`, `terrain_peak_source`): anlegen (Traeger, Quelle, Art, Seiten, Notiz, Herkunft `wiki_publication`, Position,
+--     Zustand), Art, Seiten und Notiz aendern, still legen (`retired_origin = 'wikisync'`) und beleben. Nie loeschen, nie die Traeger-/Quellen-Zuordnung einer bestehenden Verknuepfung aendern.
+--   Das UPDATE-Recht braucht auch das `FOR UPDATE`, mit dem sie die Quelle sperrt (dieselbe Sperre wie der Editor der Quellen).
+--   Kanon der Traeger (`<traeger>_canon`): Die Folge einer neuen oder stillen Verknuepfung ist das Etikett der Traeger (`inhalte/kanon-folgen.ts`, dieselbe Rechnung wie im Editor der Quellen): Zeilen anlegen,
+--     aendern und, wo Rang 1 bis 3 nichts mehr sagen, loeschen (abgeleiteter Zwischenspeicher, kein Fachwert; der Legacy-Zug schreibt ihn bei jedem Zug neu). Das ist das EINZIGE DELETE dieser Rolle an Fachtafeln.
+SELECT format('GRANT INSERT (source_key, identity_state, url, title, source_type, is_official, license_statement, license_key, attribution, corpus_key, source_system) ON feature_source TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.feature_source') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (title, revision, is_active, retired_at, retired_origin) ON feature_source TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.feature_source') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE feature_source_id_seq TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.feature_source_id_seq') IS NOT NULL \gexec
+SELECT format('GRANT INSERT (%I, source_id, reference_kind, pages, note, legacy_origin, position, state, source_system, is_active) ON %I TO %I', t.fk, t.name, r.rolname)
+  FROM pg_roles r,
+       (VALUES ('place_source', 'place_id'), ('path_source', 'path_id'), ('territory_source', 'territory_id'), ('region_source', 'region_id'),
+               ('terrain_peak_source', 'terrain_peak_id')) AS t(name, fk)
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.' || t.name) IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (reference_kind, pages, note, state, is_active, retired_at, retired_origin, updated_at) ON %I TO %I', t.name, r.rolname)
+  FROM pg_roles r, unnest(ARRAY['place_source', 'path_source', 'territory_source', 'region_source', 'terrain_peak_source']) AS t(name)
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.' || t.name) IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE %I TO %I', t.name || '_id_seq', r.rolname)
+  FROM pg_roles r, unnest(ARRAY['place_source', 'path_source', 'territory_source', 'region_source', 'terrain_peak_source']) AS t(name)
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.' || t.name || '_id_seq') IS NOT NULL \gexec
+SELECT format('GRANT INSERT (%I, canon, designator_type, designator_count, designator_label, derived_from, source_revision, source_system, imported_at) ON %I TO %I', t.fk, t.name, r.rolname)
+  FROM pg_roles r,
+       (VALUES ('place_canon', 'place_id'), ('path_canon', 'path_id'), ('territory_canon', 'territory_id'), ('region_canon', 'region_id'),
+               ('terrain_peak_canon', 'terrain_peak_id')) AS t(name, fk)
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.' || t.name) IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (canon, designator_type, designator_count, designator_label, derived_from, source_revision, source_system, imported_at, updated_at) ON %I TO %I', t.name, r.rolname)
+  FROM pg_roles r, unnest(ARRAY['place_canon', 'path_canon', 'territory_canon', 'region_canon', 'terrain_peak_canon']) AS t(name)
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.' || t.name) IS NOT NULL \gexec
+SELECT format('GRANT DELETE ON %I TO %I', t.name, r.rolname)
+  FROM pg_roles r, unnest(ARRAY['place_canon', 'path_canon', 'territory_canon', 'region_canon', 'terrain_peak_canon']) AS t(name)
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.' || t.name) IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE %I TO %I', t.name || '_id_seq', r.rolname)
+  FROM pg_roles r, unnest(ARRAY['place_canon', 'path_canon', 'territory_canon', 'region_canon', 'terrain_peak_canon']) AS t(name)
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.' || t.name || '_id_seq') IS NOT NULL \gexec
+-- Die Vorkommen (WI-0253 §23, Migration 0247): Waren, Fauna, Flora und Spezies (`lore_entry`) folgen dem Wiki nach Vermerk, ihre Ortszeilen (`lore_place`) bekommen eine Rolle.
+--   Eintrag (`lore_entry`): GENAU die sieben Felder des Abgleichs (die sechs der Infobox und die Kurzbeschreibung, Migration 0252, WI-0260) und die Revision (`revision = revision` fuer die Beruehrung ohne Spalte; die Zaehlung macht der Trigger, ein offener Entwurf im Fenster
+--     „Inhalte bearbeiten“ bekommt 409); das UPDATE-Recht braucht auch das `FOR UPDATE`, mit dem die Uebernahme den Eintrag sperrt wie der Editor. Nie die Art, die Adresse, den Schluessel, den Zustand oder
+--     `source_system`: Ein Eintrag der Redaktion fasst der WikiSync nicht an. Den Vermerk je Feld (`lore_entry_field_origin`) setzt sie nur EINFUEGEND auf `wiki`, ein vorhandener (auch `manual`) bleibt.
+--   Ortszeilen: anlegen (Herkunft `wiki`, `source_system = 'wikisync'`), die Rolle, den Zustand (still legen mit `retired_origin = 'wikisync'`, beleben), den Anzeigetitel und die abgeleiteten Treffer
+--     (`key_class`, `target_state`, `target_count`) aendern. Nie Eintrag, Schluessel, Beziehung, Stelle, `target_origin` oder `source_system` einer bestehenden Zeile; nie loeschen.
+--   Treffer (`lore_place_target`): Zeilen anlegen und LOESCHEN – abgeleiteter Zwischenspeicher, den auch der Legacy-Zug und der Editor bei jeder Aenderung loeschen und neu schreiben (kein Fachwert).
+--   Wiki-Stand (`wiki_lore_snapshot`): anlegen und die Wiki-Werte, Rohtexte und die Marke `unbekannt` schreiben; die App liest ihn nur (siehe unten).
+SELECT format('GRANT UPDATE (name, gruppe, typ, lebensraum, synonyme, continent, kurzbeschreibung, revision) ON lore_entry TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.lore_entry') IS NOT NULL \gexec
+SELECT format('GRANT INSERT ON lore_entry_field_origin TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.lore_entry_field_origin') IS NOT NULL \gexec
+SELECT format('GRANT INSERT ON lore_place TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.lore_place') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (role, place_title, key_class, target_state, target_count, state, is_active, retired_at, retired_origin, updated_at) ON lore_place TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.lore_place') IS NOT NULL \gexec
+SELECT format('GRANT INSERT, DELETE ON lore_place_target TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.lore_place_target') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE lore_place_id_seq, lore_place_target_id_seq TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.lore_place_id_seq') IS NOT NULL AND to_regclass('public.lore_place_target_id_seq') IS NOT NULL \gexec
+SELECT 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON wiki_lore_snapshot FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wiki_lore_snapshot') IS NOT NULL \gexec
+SELECT format('REVOKE ALL ON SEQUENCE %s FROM avesmaps3d_${e}_app', s)
+  FROM unnest(ARRAY['wiki_lore_snapshot_id_seq']) AS s
+ WHERE to_regclass('public.' || s) IS NOT NULL \gexec
+SELECT format('GRANT INSERT ON wiki_lore_snapshot TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_lore_snapshot') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (name, gruppe, typ, lebensraum, synonyme, continent, kurzbeschreibung, verbreitung_roh, herkunft_roh, regionen_roh, vorkommen_roh, liste, unbekannt, updated_at) ON wiki_lore_snapshot TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_lore_snapshot') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE wiki_lore_snapshot_id_seq TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_lore_snapshot_id_seq') IS NOT NULL \gexec
+SELECT format('GRANT INSERT ON map_operation, map_audit_event TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.map_operation') IS NOT NULL AND to_regclass('public.map_audit_event') IS NOT NULL \gexec
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO %I', p.oid::regprocedure, r.rolname)
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace, pg_roles r
+ WHERE n.nspname = 'public' AND p.proname = 'map_event_add' AND r.rolname = 'avesmaps3d_${e}_jobs' \gexec
+
+-- Die Sprachen (WI-0261 S3, Migration 0255): der Wiki-Stand je aventurischem Sprachartikel (`wiki_sprache_artikel`), artikelzentriert. Die Jobs-Rolle legt eine Zeile an
+-- (ein neuer Artikel), schreibt Titel, Felder, Rohtexte, Navigationsleisten und die Marke `unbekannt`, legt still und belebt (`is_active`, `retired_at`, `retired_origin = 'wikisync'`)
+-- und beruehrt die Revision (`revision = revision`; die Zaehlung macht der Trigger); das UPDATE-Recht braucht auch das `FOR UPDATE`, mit dem die Uebernahme die Zeilen sperrt. Nie den
+-- Schluessel (die Identitaet), nie loeschen. Die App LIEST nur. Die Zuordnung zu den Sprachen (`sprache_wiki`) schreibt der WikiSync nie (O6; map-grants.psql).
+-- 🪤 Eine neue Tafel braucht auf Stage und Production einen Rechte-Lauf (Claudio). Fehlt die Tafel oder die Jobs-Rolle (ops/jobs/jobs-setup.sh), entfaellt die Zeile still.
+SELECT 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON wiki_sprache_artikel FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wiki_sprache_artikel') IS NOT NULL \gexec
+SELECT format('REVOKE ALL ON SEQUENCE %s FROM avesmaps3d_${e}_app', s)
+  FROM unnest(ARRAY['wiki_sprache_artikel_id_seq']) AS s
+ WHERE to_regclass('public.' || s) IS NOT NULL \gexec
+SELECT format('GRANT INSERT (schluessel, titel, name, sprachfamilie, vorstufen, schrift, sprecheranzahl, offizielle_sprache, weitere_verbreitung, kurzbeschreibung, vorstufen_roh, schrift_roh, offizielle_sprache_roh, weitere_verbreitung_roh, navigation, unbekannt) ON wiki_sprache_artikel TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_sprache_artikel') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (titel, name, sprachfamilie, vorstufen, schrift, sprecheranzahl, offizielle_sprache, weitere_verbreitung, kurzbeschreibung, vorstufen_roh, schrift_roh, offizielle_sprache_roh, weitere_verbreitung_roh, navigation, unbekannt, is_active, retired_at, retired_origin, revision, updated_at) ON wiki_sprache_artikel TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_sprache_artikel') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE wiki_sprache_artikel_id_seq TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_sprache_artikel_id_seq') IS NOT NULL \gexec
+
+-- Die Landmarken (WI-0271 L7, Migration 0290): der Wiki-Stand je Landmarken-Artikel ohne Landmarke auf der Karte (`wiki_landmarke_artikel`), artikelzentriert wie die Sprachen.
+-- Die Jobs-Rolle legt eine Zeile an, schreibt Titel, Felder und die Marke `unbekannt`, legt still und belebt und beruehrt die Revision; das UPDATE-Recht braucht auch das `FOR UPDATE`
+-- der Uebernahme. Nie den Schluessel, nie `unterdrueckt`, nie loeschen. Die App liest und schreibt allein `unterdrueckt` („nicht auf die Karte“, ueber die Schreibnaht mit Ruecknahme).
+-- 🪤 Eine neue Tafel braucht auf Stage und Production einen Rechte-Lauf (Claudio). Fehlt die Tafel oder die Jobs-Rolle, entfaellt die Zeile still.
+SELECT 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON wiki_landmarke_artikel FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wiki_landmarke_artikel') IS NOT NULL \gexec
+SELECT 'GRANT UPDATE (unterdrueckt, updated_at) ON wiki_landmarke_artikel TO avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wiki_landmarke_artikel') IS NOT NULL \gexec
+SELECT format('REVOKE ALL ON SEQUENCE %s FROM avesmaps3d_${e}_app', s)
+  FROM unnest(ARRAY['wiki_landmarke_artikel_id_seq']) AS s
+ WHERE to_regclass('public.' || s) IS NOT NULL \gexec
+SELECT format('GRANT INSERT (schluessel, titel, name, art, wiki_art, region, hoehe_schritt, kurzbeschreibung, unbekannt) ON wiki_landmarke_artikel TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_landmarke_artikel') IS NOT NULL \gexec
+SELECT format('GRANT UPDATE (titel, name, art, wiki_art, region, hoehe_schritt, kurzbeschreibung, unbekannt, is_active, retired_at, retired_origin, revision, updated_at) ON wiki_landmarke_artikel TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_landmarke_artikel') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE wiki_landmarke_artikel_id_seq TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wiki_landmarke_artikel_id_seq') IS NOT NULL \gexec
+
+-- Die Treffer der Sprachen (WI-0261 S4, Migration 0256): abgeleiteter Zwischenspeicher. Der Auftrag `sprache_treffer` (Jobs-Rolle) loescht je Lauf die Treffer
+-- seines Umfangs und legt sie neu an: INSERT und DELETE – bewusste Ausnahme von „nie DELETE“ wie `lore_place_target` (kein Fachwert, kein UPDATE, nie TRUNCATE).
+-- Die App LIEST nur (Zeile „Sprachen“ der Infoboxen, Zahlen der Sprache). Eingereiht wird ueber `sprache_treffer_sammeln` (SECURITY DEFINER): Die App hat
+-- EXECUTE von selbst (Rechtewerkzeug), die Jobs-Rolle hier, weil eine Uebernahme des WikiSync als Operation an der Karte einreiht (`editor/map-operation.ts`).
+-- Fehlt die Tafel, die Funktion oder die Jobs-Rolle (ops/jobs/jobs-setup.sh), entfaellt die Zeile still.
+SELECT 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON sprache_treffer FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.sprache_treffer') IS NOT NULL \gexec
+SELECT format('GRANT INSERT, DELETE ON sprache_treffer TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.sprache_treffer') IS NOT NULL \gexec
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO %I', p.oid::regprocedure, r.rolname)
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace, pg_roles r
+ WHERE n.nspname = 'public' AND p.proname = 'sprache_treffer_sammeln' AND r.rolname = 'avesmaps3d_${e}_jobs' \gexec
+
+-- Die Mischgebiete der Sprachen (WI-0261 S5a, Migration 0257): abgeleiteter Zwischenspeicher wie die Treffer. Derselbe Auftrag `sprache_treffer` (Jobs-Rolle)
+-- loescht die Paare der Sprachen seines Umfangs und legt sie neu an: INSERT und DELETE, kein UPDATE, nie TRUNCATE. Die App LIEST nur; die Karte liest die
+-- Kachelsicht `sprache_misch_render` ueber die Kachelrolle. Keine Sequenz. Fehlt die Tafel oder die Jobs-Rolle, entfaellt die Zeile still.
+SELECT 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON sprache_misch FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.sprache_misch') IS NOT NULL \gexec
+SELECT format('GRANT INSERT, DELETE ON sprache_misch TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.sprache_misch') IS NOT NULL \gexec
+
+-- Die Regelvorschläge der Vorkommen und die Begriffstafel (WI-0253 §24, Migration 0248):
+--   Protokoll der Ableitung (`wikisync_regel_lauf`, `wikisync_regel_vorschlag`, `wikisync_regel_wort`): Die App LIEST (`GET …/regeln`, `GET …/begriffe`) und schreibt nie; den Lauf rechnet und schreibt allein
+--     der Auftrag `wiki_vorschau` als Jobs-Rolle (INSERT; aufgeräumt wird über den Fremdschlüssel des Laufs, `ON DELETE CASCADE`). Keine Fachtafel: Die Ableitung schreibt in keine.
+--   Begriffstafel (`wikisync_begriff_setting`): wie die Kanon-Tafeln (0223): Die App legt eine Abweichung an, ändert sie und LÖSCHT sie beim Zurücksetzen (ein Zustand „steht auf dem Startwert“ gibt es nicht, nur keine
+--     Zeile); TRUNCATE nicht. Die Revision (`wikisync_begriff_state`) hebt allein der Trigger; die Zustandszeile legt die App weder an noch löscht sie sie, die Zeilensperre (`FOR UPDATE`) braucht das UPDATE-Recht.
+--   Übernahmen (`wikisync_regel_uebernahme`, `…_zeile`): Die App legt sie an (nur die Übernahme der ausgewählten Vorschläge, `POST …/regeln/uebernehmen`) und trägt die Rücknahme nach (nur diese drei Spalten); nie löschen.
+-- Fehlt eine Tafel oder die Jobs-Rolle (ops/jobs/jobs-setup.sh), entfällt die Zeile still.
+SELECT 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON wikisync_regel_lauf, wikisync_regel_vorschlag, wikisync_regel_wort FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_regel_lauf') IS NOT NULL AND to_regclass('public.wikisync_regel_vorschlag') IS NOT NULL AND to_regclass('public.wikisync_regel_wort') IS NOT NULL \gexec
+SELECT format('GRANT INSERT ON %I TO %I', t, r.rolname)
+  FROM unnest(ARRAY['wikisync_regel_lauf', 'wikisync_regel_vorschlag', 'wikisync_regel_wort']) AS t, pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.' || t) IS NOT NULL \gexec
+SELECT 'REVOKE ALL ON SEQUENCE wikisync_regel_vorschlag_id_seq FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_regel_vorschlag_id_seq') IS NOT NULL \gexec
+SELECT format('GRANT USAGE ON SEQUENCE wikisync_regel_vorschlag_id_seq TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wikisync_regel_vorschlag_id_seq') IS NOT NULL \gexec
+SELECT 'REVOKE TRUNCATE ON wikisync_begriff_setting FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_begriff_setting') IS NOT NULL \gexec
+SELECT 'REVOKE INSERT, DELETE, TRUNCATE ON wikisync_begriff_state FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_begriff_state') IS NOT NULL \gexec
+SELECT 'GRANT UPDATE ON wikisync_begriff_state TO avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_begriff_state') IS NOT NULL \gexec
+SELECT 'REVOKE UPDATE, DELETE, TRUNCATE ON wikisync_regel_uebernahme, wikisync_regel_uebernahme_zeile FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_regel_uebernahme') IS NOT NULL AND to_regclass('public.wikisync_regel_uebernahme_zeile') IS NOT NULL \gexec
+SELECT 'GRANT UPDATE (zurueckgenommen_am, zurueckgenommen_von, zurueckgenommen_label) ON wikisync_regel_uebernahme TO avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_regel_uebernahme') IS NOT NULL \gexec
+
+-- Die Zitate des Wikis je Quelle und Objekt (WI-0254 §12, Migration 0251, `wikisync_quelle_zitat`): Die App LIEST sie (Quellen-Klappbox der Editoren: „Im Wiki: …“, Kreis) und schreibt nie; den Lauf rechnet und
+-- schreibt allein der Auftrag `wiki_vorschau` als Jobs-Rolle (INSERT, in der Transaktion des Laufs; aufgeräumt wird über den Fremdschlüssel des Laufs, `ON DELETE CASCADE`). Keine Fachtafel: Der Lauf schreibt in keine,
+-- und kein UPDATE, kein DELETE für die Jobs-Rolle. Die Tafel hat keine Sequenz. 🪤 Eine neue Tafel braucht auf Stage und Production einen Rechte-Lauf (Claudio); bis dahin prüft der Lauf das Recht
+-- (`has_table_privilege`) und legt die Zitate nicht ab. Fehlt die Tafel oder die Jobs-Rolle (ops/jobs/jobs-setup.sh), entfällt die Zeile still.
+SELECT 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON wikisync_quelle_zitat FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.wikisync_quelle_zitat') IS NOT NULL \gexec
+SELECT format('GRANT INSERT ON wikisync_quelle_zitat TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname = 'avesmaps3d_${e}_jobs' AND to_regclass('public.wikisync_quelle_zitat') IS NOT NULL \gexec
+
+-- Benachrichtigungen (WI-0136 N2, Migration 0107): Die App liest die eigenen Zeilen und setzt „gelesen“ und die Antwort; anlegen nur über
+-- `benachrichtige()` (heute nur aus den Auslösern des Kanals), löschen nur über die Aufbewahrung (Jobs-Rolle) und die Kontoauflösung (App).
+-- Fehlt die Tabelle oder eine Funktion, entfällt die Zeile still.
+SELECT 'REVOKE INSERT, DELETE, TRUNCATE ON benachrichtigung FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.benachrichtigung') IS NOT NULL \gexec
+SELECT format('GRANT EXECUTE ON FUNCTION public.redact_person_benachrichtigung(uuid) TO %I', 'avesmaps3d_${e}_app')
+ WHERE to_regprocedure('public.redact_person_benachrichtigung(uuid)') IS NOT NULL \gexec
+SELECT format('GRANT EXECUTE ON FUNCTION public.benachrichtigung_purge_expired() TO %I', 'avesmaps3d_${e}_jobs')
+ WHERE to_regprocedure('public.benachrichtigung_purge_expired()') IS NOT NULL
+   AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'avesmaps3d_${e}_jobs') \gexec
+
+-- Neue Stände melden (Migration 0118, Claudio 2026-10-13): Claudios Korridor ruft `benachrichtige()` mit der Jobs-Rolle, wie bei
+-- `job_sync_*` — nach einem grünen automatischen Stage-Rollout (`stage_neu`) und nach einer Production-Freigabe (`production_neu`).
+-- 🔴 PUBLIC hat die Funktion schon in 0107 nicht; die App-Rolle behält sie (die Auslöser des Kanals laufen in ihrem Namen).
+-- Fehlt die Funktion oder die Rolle, entfällt die Zeile still.
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO %I', p.oid::regprocedure, 'avesmaps3d_${e}_jobs')
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'public' AND p.proname = 'benachrichtige'
+   AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'avesmaps3d_${e}_jobs') \gexec
+
+-- Karten herunterladen (WI-0280, Migration 0313): Zugänge und Abrufe werden angelegt und geändert, nie gelöscht. Fehlt die Tafel, entfällt die Zeile still.
+-- Die Zugänge stehen seit 0324 in `avesmaps_auth.karten_zugang` (Rechte in auth-grants.psql); die alte Tafel in `public` behält ihre Rechte nur für das
+-- vorige Release im Überlapp und fällt mit ihr in einem späteren Release.
+SELECT 'REVOKE DELETE, TRUNCATE ON karten_zugang FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.karten_zugang') IS NOT NULL \gexec
+
+SELECT 'REVOKE DELETE, TRUNCATE ON karten_abruf FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.karten_abruf') IS NOT NULL \gexec

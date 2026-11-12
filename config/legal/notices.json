@@ -1,0 +1,2000 @@
+{
+    "$comment": "Rechtliche Hinweise, die Avesmaps3D anzeigen muss (Kapitel 5.5): das Dokument der Hinweise auf Deutsch (maßgeblich; die übrigen Sprachen in config/legal/hinweise/), Impressum, Adresse der Fan-Richtlinien und Schriftlizenzen. Jede Fassung und jede Änderung nimmt der Betreiber ab.",
+    "schemaVersion": 1,
+    "project": {
+        "name": "Avesmaps3D",
+        "fanGuidelinesUri": "https://ulisses-spiele.de/fan-richtlinie/"
+    },
+    "imprint": {
+        "operator": "Entwicklung, Gestaltung, Programmierung und Betrieb erfolgen durch Valentin Schwind (c/o Nobelstr. 10, D-70569 Stuttgart); bei der Programmierung wird Claude Code eingesetzt. Verantwortlich für die redaktionelle Pflege der Karteninhalte ist Thomas Braun.",
+        "$comment": "Die Adresse steht in zwei Teilen, damit im ausgelieferten Bündel kein vollständiger Mailtext mit @ zu finden ist; der Browser setzt sie zusammen (Legacys `legal-mail.js` verfolgt dieselbe Absicht).",
+        "mailUser": "info",
+        "mailDomain": "avesmaps.de",
+        "discordUri": "https://discord.gg/BSHEEpn6UX"
+    },
+    "fonts": [
+        {
+            "name": "Faculty Glyphic",
+            "license": "SIL Open Font License 1.1",
+            "copyright": "Copyright 2024 The Faculty Glyphic Project Authors",
+            "uri": "https://github.com/google/fonts/tree/main/ofl/facultyglyphic"
+        }
+    ],
+    "hinweise": {
+        "abschnitte": [
+            {
+                "id": "bedienung",
+                "titel": "Bedienung",
+                "hinweis": "Tastenbefehle, Gesten und Bedienhilfen",
+                "bloecke": []
+            },
+            {
+                "id": "haeufige-fragen",
+                "titel": "Häufige Fragen",
+                "hinweis": "Kurze Antworten auf das, was am häufigsten gefragt wird",
+                "bloecke": [
+                    {
+                        "art": "lead",
+                        "text": "Die kurzen Antworten auf das, was am häufigsten gefragt wird. Die Verweise führen zur ausführlichen Stelle."
+                    },
+                    {
+                        "art": "frage",
+                        "id": "kostet-avesmaps-etwas",
+                        "frage": "Kostet Avesmaps etwas?",
+                        "antwort": "**Nein.** Avesmaps [kostet nichts](#was-es-kostet), **zeigt keine Werbung** und **verkauft keine Daten**."
+                    },
+                    {
+                        "art": "frage",
+                        "id": "ist-avesmaps-eine-offizielle-dsa-quelle",
+                        "frage": "Ist Avesmaps eine offizielle DSA-Quelle?",
+                        "antwort": "**Nein.** Avesmaps ist ein Fanprojekt und steht in keiner offiziellen Verbindung zu Ulisses Spiele. [Verbindlich](#was-avesmaps-nicht-ist) bleibt das veröffentlichte Material von Ulisses Spiele."
+                    },
+                    {
+                        "art": "frage",
+                        "id": "braucht-man-ein-konto",
+                        "frage": "Braucht man ein Konto?",
+                        "antwort": "**Nein.** Karte und Routenplaner, Meldungen, Bewertungen, Kartenvorschläge und Reisebilder gehen ohne Konto. Ein [Konto](#konten) bekommt nur, wer zur Mitarbeit eingeladen wird."
+                    },
+                    {
+                        "art": "frage",
+                        "id": "warum-haben-orte-unterschiedliche-farben",
+                        "frage": "Warum haben Orte unterschiedliche Farben?",
+                        "antwort": "Die Farbe der Ortsmarke zeigt, ob ein Ort aus offiziellen Publikationen stammt oder eine [inoffizielle Ergänzung](#offizielle-und-inoffizielle-inhalte) ist, etwa aus dem aventurischen Briefspiel."
+                    },
+                    {
+                        "art": "frage",
+                        "id": "lassen-sich-inoffizielle-inhalte-ausblenden",
+                        "frage": "Lassen sich inoffizielle Inhalte ausblenden?",
+                        "antwort": "**Derzeit nicht vollständig:** Straßen und Wege lassen sich [nicht immer eindeutig zuordnen](#offizielle-und-inoffizielle-inhalte) und würden teilweise ins Leere führen."
+                    },
+                    {
+                        "art": "frage",
+                        "id": "gibt-es-eine-zeitleiste-oder-fruehere-politische-karten",
+                        "frage": "Gibt es eine Zeitleiste oder frühere politische Karten?",
+                        "antwort": "**Nein.** Dafür fehlen uns die Kapazitäten: personell, zeitlich, technisch. Schon der Stand der Ansicht „Politisch“ (**1047 BF**) ist nur durch intensivste Recherche zustande gekommen; zu anderen Jahren gibt es keine vollständige bzw. zuverlässige Datengrundlage. Geplant ist aber eine Sektion mit Chronik-Themen, die lokal und zeitlich begrenzte Entwicklungen wiedergibt. Ihre Entwicklung ist allerdings aufwendig und schwierig."
+                    },
+                    {
+                        "art": "frage",
+                        "id": "wie-genau-sind-reisezeiten-und-entfernungen",
+                        "frage": "Wie genau sind Reisezeiten und Entfernungen?",
+                        "antwort": "Sie sind eine [Orientierungshilfe](#grenzen-der-karte). Sie beruhen auf den verfügbaren Kartendaten und den Modellen der aventurischen Reiseregeln, die nicht immer widerspruchsfrei sind; Wetter, Gelände und Wegzustand lassen sich nicht immer vollständig berücksichtigen."
+                    },
+                    {
+                        "art": "frage",
+                        "id": "wie-laesst-sich-ein-fehler-oder-ein-fehlender-ort-melden",
+                        "frage": "Wie lässt sich ein Fehler oder ein fehlender Ort melden?",
+                        "antwort": "Über „Hier etwas melden“ oder „Änderungen vorschlagen“ auf der Karte, [auch ohne Konto](#meldungen-zur-karte), oder mit /bug und /idee auf dem Discord-Server. Weitere Wege stehen unter [Mitmachen](#mitmachen)."
+                    },
+                    {
+                        "art": "frage",
+                        "id": "wie-kommt-ein-eigenes-bild-oder-eine-karte-auf-avesmaps",
+                        "frage": "Wie kommt ein eigenes Bild oder eine Karte auf Avesmaps?",
+                        "antwort": "Eigene Bilder gehen als [Reisebild](#reisebilder) ein, Karten über [„Karte vorschlagen“](#kartenvorschlaege). Die Redaktion prüft jede Einreichung, bevor sie erscheint."
+                    },
+                    {
+                        "art": "frage",
+                        "id": "duerfen-karten-oder-daten-weiterverwendet-werden",
+                        "frage": "Dürfen Karten oder Daten weiterverwendet werden?",
+                        "antwort": "**Nicht automatisch:** [Inhalte unterschiedlicher Herkunft](#was-fuer-welche-inhalte-gilt) unterliegen eigenen Bedingungen. Der Programmcode steht unter der MIT-Lizenz, DSA-Material unter keiner freien Lizenz. Im Zweifel hilft eine Anfrage an die im Impressum genannte Adresse."
+                    },
+                    {
+                        "art": "frage",
+                        "id": "wird-ki-eingesetzt",
+                        "frage": "Wird KI eingesetzt?",
+                        "antwort": "**Ja.** [KI-Agenten](#einsatz-von-kuenstlicher-intelligenz) unterstützen die technische Entwicklung, und ein Teil der Bilder sowie die Karte „Modern“ sind mit generativer KI entstanden. Was veröffentlicht oder an den Kartendaten geändert wird, entscheidet der Betreiber."
+                    },
+                    {
+                        "art": "frage",
+                        "id": "speichert-avesmaps-daten-ueber-besuche",
+                        "frage": "Speichert Avesmaps Daten über Besuche?",
+                        "antwort": "Besuche zählt Avesmaps nur [anonym und in Summen](#anonyme-besucherstatistik), ohne Cookies und ohne Wiedererkennung. Der Webserver führt **rund 14 Tage** technische [Logdaten](#server-logdaten) mit IP-Adresse."
+                    },
+                    {
+                        "art": "frage",
+                        "id": "wie-lassen-sich-eigene-angaben-loeschen",
+                        "frage": "Wie lassen sich eigene Angaben löschen?",
+                        "antwort": "Eine [Anfrage](#rechte-der-betroffenen) an die im Impressum genannte Adresse genügt. Bewertungen lassen sich über „Melden“ mit dem Grund „Persönliche Daten“ beanstanden, Reisebilder über den persönlichen Link offline nehmen."
+                    },
+                    {
+                        "art": "frage",
+                        "id": "wie-bleibt-man-auf-dem-laufenden",
+                        "frage": "Wie bleibt man auf dem Laufenden?",
+                        "antwort": "Über die Neuigkeiten oben in diesem Fenster und über die Kanäle bei Discord, Instagram, Facebook und Mastodon."
+                    }
+                ]
+            },
+            {
+                "id": "projekt-und-mitmachen",
+                "titel": "Projekt und Mitmachen",
+                "hinweis": "Was Avesmaps ist, wie die Karte entsteht und wie man mitmacht",
+                "bloecke": [
+                    {
+                        "art": "lead",
+                        "text": "Offenes, unabhängiges, nicht-kommerzielles Fanprojekt zu [Das Schwarze Auge](https://de.wikipedia.org/wiki/Das_Schwarze_Auge) von [Valentin Schwind](https://www.valentin-schwind.de) und Thomas Braun. Das Projekt steht in keiner offiziellen Verbindung zu [Ulisses Spiele](https://de.wikipedia.org/wiki/Ulisses_Spiele)."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "die-karte",
+                        "text": "Die Karte"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Avesmaps zeigt [Aventurien](https://de.wiki-aventurica.de/wiki/Aventurien) im Browser: Orte und Stätten, Herrschaftsgebiete, Landschaften und Gewässer, dazu das Wegenetz, das sie verbindet. Die Karte lässt sich drehen und neigen, und was dabei in 3D zu sehen ist, ist ein gerechnetes [Höhenmodell](https://de.wikipedia.org/wiki/Digitales_H%C3%B6henmodell) und kein gemaltes Relief. Der Routenplaner sucht zwischen zwei Orten den Weg und nennt Strecke und Reisezeit zu Fuß, zu Pferd, zu Schiff und in der Luft."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "wie-die-karte-entsteht",
+                        "text": "Wie die Karte entsteht"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Hinter jedem Ort, jedem Weg und jeder Fläche steht eine redaktionelle Entscheidung. Redakteure tragen die Quellenlage zusammen, setzen Orte, zeichnen Wege und Gebiete und schreiben einen Teil der Kurzbeschreibungen; vieles davon wird gegen [Wiki Aventurica](https://de.wiki-aventurica.de/) und veröffentlichtes Material geprüft. Die Karte ist deshalb nie fertig, und sie wächst nicht durch Dateien, sondern durch Menschen. Woher die Daten im Einzelnen kommen, steht unter [„Inhalte und Datenquellen“](#inhalte-und-datenquellen)."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "mitmachen",
+                        "text": "Mitmachen"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Avesmaps lebt von der Unterstützung seiner Community. Beiträge sind auf mehreren Wegen möglich:"
+                    },
+                    {
+                        "art": "liste",
+                        "punkte": [
+                            "Fehler, fehlende Orte, Informationen und Quellen: über die Meldefunktionen auf der Karte, über Discord und die übrigen Kanäle oben in diesem Fenster.",
+                            "Eigene Bilder und Illustrationen: als Reisebild, wenn das Werk selbst gemacht ist (siehe [„Reisebilder“](#reisebilder)).",
+                            "Karten: als Vorschlag für die Kartensammlung, wenn sie ein eigenes Werk sind oder der Urheber es erlaubt hat.",
+                            "Arbeit an der Karte: mit einem Konto mit abgestuften Rechten; was dabei gespeichert wird, steht im Abschnitt [Datenschutz](#datenschutz)."
+                        ]
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Besonders möchten wir Künstlerinnen und Künstler ermutigen, ihre Werke auf Avesmaps zu präsentieren und die Welt Aventuriens mitzugestalten. Unser Ziel ist eine offene Plattform, die durch das Wissen, die Kreativität und das Engagement ihrer Community immer besser wird."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "was-avesmaps-nicht-ist",
+                        "text": "Was Avesmaps nicht ist"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Avesmaps ist **keine offizielle Veröffentlichung und keine kanonische Quelle**. Wo die Quellen schweigen oder sich widersprechen, trifft die Redaktion eine Entscheidung; welche Quelle hinter einem einzelnen Objekt steht, zeigt sein Infopanel. Verbindlich bleibt das veröffentlichte Material von Ulisses Spiele, nicht diese Karte. Avesmaps ist eine Orientierungshilfe und kein verbindlicher Atlas des offiziellen Aventuriens; welche Inhalte eine Spielrunde übernimmt, entscheidet sie selbst."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "was-es-kostet",
+                        "text": "Was es kostet"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "**Avesmaps kostet nichts**, **zeigt keine Werbung** und **verkauft keine Daten**. Server, Betrieb und Entwicklung trägt der Betreiber privat; die Arbeit an Karte und Software geschieht in der Freizeit."
+                    }
+                ]
+            },
+            {
+                "id": "inhalte-und-datenquellen",
+                "titel": "Inhalte und Datenquellen",
+                "hinweis": "Woher Orte, Wege und Gebiete kommen, was offiziell ist und wie abgeglichen wird",
+                "bloecke": [
+                    {
+                        "art": "lead",
+                        "text": "Die Karte verbindet frühere Fanarbeit, [Wiki Aventurica](https://de.wiki-aventurica.de/), Karten aus dem [Briefspiel](https://de.wikipedia.org/wiki/Briefspiel) und eigene redaktionelle Arbeit. Hier steht, was woher kommt und wie es abgeglichen wird."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "offizielle-und-inoffizielle-inhalte",
+                        "text": "Offizielle und inoffizielle Inhalte"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Avesmaps enthält neben Orten aus offiziellen Publikationen auch Ergänzungen aus dem aventurischen Briefspiel. Diese sind nicht Teil des offiziellen DSA-Kanons, bereichern die Spielwelt aber durch ihre langjährige Entwicklung und umfangreiche Dokumentation. Wir möchten diese Inhalte bewusst zugänglich machen, ohne sie mit offiziellen Setzungen gleichzusetzen. Die Karte zeigt den Unterschied an der Farbe der Ortsmarke."
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Ein vollständiges Ausblenden inoffizieller Inhalte ist derzeit nicht möglich, da insbesondere Straßen und Wege nicht immer eindeutig zugeordnet werden können und teilweise ins Leere führen würden. Auch die vorhandenen Wege sind nicht zwangsläufig durch offizielle Quellen belegt."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "avespfade",
+                        "text": "Avespfade"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Von 2014 bis 2026 war [Avespfade](https://avespfade.de/) der Routenplaner für Aventurien. Oliver Hackstein und Florian Mazur haben ihn am 13. Februar 2014 vorgestellt, nach einem halben Jahr Arbeit: Reisen zu Fuß, zu Pferd, über Fluss und See, mit Wegpunkten, Alternativrouten und Gebieten, um die die Route einen Bogen macht. Vorher gab es so etwas nicht."
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Avesmaps basiert auf dieser Arbeit. Ein Teil der Orte, Kreuzungen und Wege, mit denen diese Karte heute Reisen rechnet, stammt aus Avespfade. Ohne das Wegenetz, das dort über zwölf Jahre gewachsen ist, hätte Avesmaps ganz anders angefangen."
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Im Oktober 2026 haben Oliver Hackstein und Florian Mazur Avespfade in den Ruhestand geschickt und von dort auf Avesmaps verwiesen. Dafür und für zwölf Jahre Avespfade: Danke."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "orts-wege-und-routendaten",
+                        "text": "Orts-, Wege- und Routendaten"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Orts-, Kreuzungs-, Wege- und Routendaten wurden aus öffentlich zugänglichen Fan- und Referenzquellen teilweise abgeleitet, redaktionell überarbeitet, ergänzt und technisch aufbereitet. Teile der Ausgangsdaten gehen nach bisheriger Quellenlage auf avespfade.de zurück; dort wurden einzelne Ortspositionen nach eigenen Angaben an das [DereGlobus-Projekt](https://www.dereglobus.org/) angelehnt."
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Landschaftsflächen und Klimazonen entstehen dagegen überwiegend hier und sind eine redaktionelle Auslegung der Quellenlage, keine Übernahme aus einer Vorlage. Die Einträge zu Natur und Waren folgen zu großen Teilen Wiki Aventurica (siehe [„Datenabgleich“](#datenabgleich))."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "datenabgleich",
+                        "text": "Datenabgleich"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Ein Teil der Inhalte, besonders Herrschaftsgebiete, Orte und Regionen, wird regelmäßig mit [Wiki Aventurica](https://de.wiki-aventurica.de/) abgeglichen. Ein Redakteur startet den Abgleich. Der Lauf übernimmt eindeutige Änderungen selbständig, Eigenes und Mehrdeutiges bleibt unberührt, jeder Lauf lässt sich zurücknehmen."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "datenabgleich-kurzbeschreibungen",
+                                "begriff": "Kurzbeschreibungen",
+                                "werte": [
+                                    "Auch viele Kurzbeschreibungen im Infopanel stammen von dort, und der zugehörige Artikel ist jeweils verlinkt."
+                                ]
+                            },
+                            {
+                                "id": "datenabgleich-rechte-an-den-texten",
+                                "begriff": "Rechte an den Texten",
+                                "werte": [
+                                    "Die Rechte an diesen Texten bleiben bei ihren Autoren; sie stehen unter [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/deed.de) und bleiben es auch in bearbeiteter Form. Als Namensnennung dient der Verweis auf den Artikel und die dort geführte Autorenliste. Zitate und Inhalte von Ulisses sind von dieser Lizenz ausgenommen und werden nicht übernommen."
+                                ]
+                            },
+                            {
+                                "id": "datenabgleich-dateien",
+                                "begriff": "Dateien",
+                                "werte": [
+                                    "Dateien aus Wiki Aventurica, etwa Wappen, tragen davon abweichend jeweils eine eigene Lizenz."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h3",
+                        "id": "kartendaten-aus-garetien-und-dem-kosch",
+                        "text": "Kartendaten aus Garetien und dem Kosch"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Ein Teil der Gewässer, Wege, Wälder, Berge, Ortschaften und Herrschaftsgebiete im Raum Garetien, Greifenfurt, Perricum und Kosch stammt aus den Karten von Volker Strunk (VolkoV), veröffentlicht auf [garetien.de](https://www.garetien.de/) und [koschwiki.de](https://www.koschwiki.de/)."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "kartendaten-aus-garetien-und-dem-kosch-genehmigung",
+                                "begriff": "Genehmigung",
+                                "werte": [
+                                    "Die Übernahme erfolgt mit ausdrücklicher Genehmigung des Freundeskreises des phantastischen Briefspiels e. V. vom 12.08.2026 und geschieht redaktionell geprüft, nicht automatisch."
+                                ]
+                            },
+                            {
+                                "id": "kartendaten-aus-garetien-und-dem-kosch-lizenz-und-nennung",
+                                "begriff": "Lizenz und Nennung",
+                                "werte": [
+                                    "Diese Inhalte stehen unter [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/deed.de) und bleiben es auch in bearbeiteter Form; als Namensnennung dient „VolkoV / garetien.de“ beziehungsweise „VolkoV / koschwiki.de“ an der jeweiligen Quelle im Infopanel, zusammen mit dem Verweis auf den zugehörigen Artikel."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h3",
+                        "id": "quelle-je-objekt",
+                        "text": "Quelle je Objekt"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Welche Quelle hinter einem einzelnen Ort, Gebiet oder Weg steht, zeigt das Infopanel bei diesem Objekt, soweit sie erfasst ist, zusammen mit Lizenz und Namensnennung."
+                    }
+                ]
+            },
+            {
+                "id": "karten-auf-avesmaps",
+                "titel": "Karten auf Avesmaps",
+                "hinweis": "Die Originalkarte von Ina Kramer, was daraus wurde und unter welcher Lizenz",
+                "bloecke": [
+                    {
+                        "art": "lead",
+                        "text": "Alle drei Kartenserien gehen auf dieselbe offizielle Karte zurück und stehen deshalb unter derselben Lizenz; sie unterscheiden sich nur in der Bearbeitung."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "die-originalkarte",
+                        "text": "Die Originalkarte"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Offizielle Aventurienkarte von Ulisses Spiele, für Fans über den Aventurischen Atlas bereitgestellt. Die Originalkarten liegen in 8192 Pixeln vor."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "die-kartenserien",
+                        "text": "Die Kartenserien"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Die Karte lässt sich in drei Serien anzeigen:"
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "die-kartenserien-old",
+                                "begriff": "Old",
+                                "werte": [
+                                    "Die Karte, wie die Grafikerin [Ina Kramer](https://de.wikipedia.org/wiki/Ina_Kramer) sie einst vor sich hatte. Die veröffentlichten Scans der Karte enthielten Beschriftungen, die mithilfe [künstlicher Intelligenz](https://de.wikipedia.org/wiki/K%C3%BCnstliche_Intelligenz) entfernt wurden. Angabe des Betreibers vom 12.10.2026."
+                                ]
+                            },
+                            {
+                                "id": "die-kartenserien-original",
+                                "begriff": "Original",
+                                "werte": [
+                                    "Dieselbe Karte wie „Old“, nur ohne die eingebrannte Beschriftung: Sie wurde entfernt, danach wurde das Bild per KI-Konvertierung auf 32 768 Pixel hochskaliert. Geometrisch deckungsgleich mit den anderen Serien."
+                                ]
+                            },
+                            {
+                                "id": "die-kartenserien-modern",
+                                "begriff": "Modern",
+                                "werte": [
+                                    "In acht Schritten mit [generativer KI](https://de.wikipedia.org/wiki/Generative_k%C3%BCnstliche_Intelligenz) aus der Ina-Kramer-Karte entstanden: Die Originalkarte wurde in Kacheln zu 1024 Pixeln zerlegt, [Qwen](https://de.wikipedia.org/wiki/Qwen) nahm jeder Kachel die Beschriftung, [ChatGPT](https://de.wikipedia.org/wiki/ChatGPT) Image zeichnete sie als gemalte Geländekarte neu und größer, und ein Dense Warp legte jede Kachel punktgenau auf die Geometrie des Originals zurück – Küsten, Flüsse, Wege und Grenzen liegen deshalb dort, wo sie vorher lagen, und es kam nichts hinzu, was nicht schon da war.",
+                                    "Land- und Wasserflächen wurden getrennt aufbereitet und wieder vereint, das Ergebnis in [Photoshop](https://de.wikipedia.org/wiki/Adobe_Photoshop) von Hand nachbearbeitet und zuletzt in Kacheln geschnitten (32 768 × 32 768 Pixel); die Karte zoomt in den Stufen 0 bis 8."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h3",
+                        "id": "lizenz-und-genehmigung",
+                        "text": "Lizenz und Genehmigung"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Für das Kartenmaterial gilt die [Lizenzvereinbarung zum Ulisses-Kartenpaket](https://de.wiki-aventurica.de/wiki/Kartenpaket/Lizenz). Vervielfältigung, Verbreitung und ausdrücklich auch Bearbeitung sind erlaubt, solange die Nutzung nicht-kommerziell bleibt und die Bearbeitung als Fanprojekt gekennzeichnet ist. Unterlizenzen sind ausgeschlossen, die Rechte erlöschen bei einem Verstoß. Bei jeder Verbreitung muss eine Kopie der Lizenz oder ihre vollständige Internetadresse beiliegen."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "lizenz-und-genehmigung-genehmigung",
+                                "begriff": "Genehmigung",
+                                "werte": [
+                                    "Die Verwendung für Avesmaps ist projektspezifisch genehmigt. Angabe des Betreibers vom 20.09.2026. Erteilende Stelle, Zeitpunkt und Form dieser Genehmigung sind nicht dokumentiert. Daraus folgt nicht, dass keine Genehmigung besteht – nur, dass sie hier nicht nachweisbar ist."
+                                ]
+                            },
+                            {
+                                "id": "lizenz-und-genehmigung-nennung",
+                                "begriff": "Nennung",
+                                "werte": [
+                                    "Kartenmaterial © Ulisses Spiele · Originalkarte: Ina Kramer · Bearbeitung: Avesmaps (DSA-Fanprojekt)"
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "kasten",
+                        "titel": "Bis auf Widerruf",
+                        "absaetze": [
+                            "Die Erlaubnis zur Verwendung von Bildmaterial erfolgt laut Ulisses nur bis auf Widerruf."
+                        ]
+                    }
+                ]
+            },
+            {
+                "id": "urheberrecht-marken-und-bildrechte",
+                "titel": "Urheberrecht, Marken und Bildrechte",
+                "hinweis": "Was für welche Inhalte gilt: Fanrichtlinien, Wappen, Bilder, Cover und Marken",
+                "bloecke": [
+                    {
+                        "art": "lead",
+                        "text": "Avesmaps verwendet Inhalte unterschiedlicher Herkunft, für die jeweils eigene Nutzungsbedingungen gelten können. Eine freie Weiterverwendung sämtlicher Inhalte ist daher nicht automatisch gestattet. Wer Daten, Karten oder andere Bestandteile von Avesmaps für eigene Projekte verwenden möchte, beachtet die jeweiligen Lizenzen und spricht uns im Zweifelsfall an."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "was-fuer-welche-inhalte-gilt",
+                        "text": "Was für welche Inhalte gilt"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Vier Gruppen sind zu unterscheiden:"
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "was-fuer-welche-inhalte-gilt-dsa-inhalte",
+                                "begriff": "DSA-Inhalte",
+                                "werte": [
+                                    "Die Rechte an Das Schwarze Auge, Aventurien sowie den verwendeten Marken, Karten, Texten und Illustrationen verbleiben bei den jeweiligen Rechteinhabern. Einzelheiten stehen unter [„Keine freie Lizenz für DSA-Material“](#keine-freie-lizenz-fuer-dsa-material)."
+                                ]
+                            },
+                            {
+                                "id": "was-fuer-welche-inhalte-gilt-kartenpaket",
+                                "begriff": "Kartenpaket",
+                                "werte": ["Es gilt die Lizenz unter [„Karten auf Avesmaps“](#karten-auf-avesmaps)."]
+                            },
+                            {
+                                "id": "was-fuer-welche-inhalte-gilt-drittmaterial",
+                                "begriff": "Drittmaterial",
+                                "werte": [
+                                    "Texte aus [Wiki Aventurica](https://de.wiki-aventurica.de/) stehen unter CC BY-SA 3.0, Inhalte aus Garetien und dem Kosch unter CC BY-NC-SA 3.0 (siehe [„Inhalte und Datenquellen“](#inhalte-und-datenquellen)); für Wappen, Bilder und Cover gilt, was unten steht."
+                                ]
+                            },
+                            {
+                                "id": "was-fuer-welche-inhalte-gilt-programmcode",
+                                "begriff": "Programmcode",
+                                "werte": [
+                                    "Er steht unter der [MIT-Lizenz](https://de.wikipedia.org/wiki/MIT-Lizenz) (siehe [„Technik und künstliche Intelligenz“](#technik-und-kuenstliche-intelligenz))."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Wir respektieren die Arbeit der ursprünglichen Schöpferinnen und Schöpfer und bemühen uns um eine transparente Kennzeichnung der verwendeten Quellen und Urheber."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "fanrichtlinien-und-fanprojekt-kennzeichnung",
+                        "text": "Fanrichtlinien und Fanprojekt-Kennzeichnung"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Avesmaps kennzeichnet sich als Fanprojekt. Die Verwendung des DSA-FANPROJEKT-Logos und der rechtlichen Hinweise erfolgt im Sinne der von Ulisses veröffentlichten [Fanrichtlinien](https://ulisses-spiele.de/fan-richtlinie/). Die Erlaubnis zur Nutzung bestimmter Materialien kann von den Rechteinhabern widerrufen oder im Einzelfall untersagt werden. Bei einem Hinweis durch Rechteinhaber werden betroffene Inhalte geprüft und, soweit erforderlich, entfernt oder angepasst."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "keine-freie-lizenz-fuer-dsa-material",
+                        "text": "Keine freie Lizenz für DSA-Material"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "DSA-bezogenes Karten-, Bild-, Marken-, Namens- und Hintergrundmaterial wird auf Avesmaps nicht unter [Creative Commons](https://de.wikipedia.org/wiki/Creative_Commons), Open Data, Open Source oder einer vergleichbaren freien Lizenz veröffentlicht. Das gilt besonders für Inhalte, die auf offiziellen Publikationen, Karten, Namen, Begriffen, Marken oder sonstigem geschütztem Material von Ulisses oder anderen Rechteinhabern beruhen. Eine Weiterverwendung ist nur im Rahmen der jeweils einschlägigen Rechte zulässig."
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Davon unberührt bleiben zwei Dinge: der für Avesmaps selbst geschriebene Programmcode, der [quelloffen](https://de.wikipedia.org/wiki/Open_Source) unter der MIT-Lizenz steht, und übernommene Texte aus Wiki Aventurica, die unter der Lizenz ihrer Autoren stehen."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "wappen-bilder-und-cover",
+                        "text": "Wappen, Bilder und Cover"
+                    },
+                    {
+                        "art": "h4",
+                        "id": "wappen",
+                        "text": "Wappen"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Die in der Karte angezeigten Wappen der Herrschaftsgebiete stammen aus Wiki Aventurica oder sind eigens erzeugte KI-Bilder. Jedes Medium trägt in Avesmaps eine eigene Rechtegrundlage und einen Freigabestand; öffentlich gezeigt wird, was als gemeinfrei, [CC0](https://creativecommons.org/publicdomain/zero/1.0/deed.de), eigene Arbeit oder eigens erzeugtes KI-Bild erfasst ist, dazu, was die Redaktion per Regel oder einzeln freigegeben hat. Wappen mit unbekanntem oder einschränkendem Rechtestand bleiben ohne eine solche Freigabe ausgeblendet. Die Rechte verbleiben bei den jeweiligen Urhebern und Rechteinhabern; die Darstellung auf Avesmaps begründet keine eigenen Rechte daran. Auf Hinweis von Rechteinhabern werden betroffene Wappen geprüft und, soweit erforderlich, entfernt oder angepasst."
+                    },
+                    {
+                        "art": "h4",
+                        "id": "bilder",
+                        "text": "Bilder"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Regionen, Siedlungen und andere Orte können zusätzlich ein Bild tragen. Es soll einen wiedererkennbaren Eindruck vom Ort geben und nicht die Arbeit von Künstlerinnen und Künstlern oder von Ulisses ersetzen. Eingebunden wird ausschließlich, wofür nach Prüfung eine ausreichende Berechtigung besteht, in aller Regel gemeinfreies Material und eigens für Avesmaps erzeugte KI-Bilder. Nicht verwendet werden Scans oder Fotos von Ulisses-Artworks sowie Fanart anderer Künstlerinnen und Künstler ohne deren ausdrückliche Erlaubnis. Auf Hinweis von Rechteinhabern werden betroffene Bilder geprüft und, soweit erforderlich, entfernt oder angepasst."
+                    },
+                    {
+                        "art": "h4",
+                        "id": "cover",
+                        "text": "Cover"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Die bei Literatureinträgen angezeigten Cover von DSA-Publikationen werden mit Genehmigung von Ulisses verwendet. Das Cover verweist, soweit im Shop verfügbar, auf die jeweilige Publikation bei Ulisses oder im F-Shop; andernfalls führt der Verweis auf den zugehörigen Artikel in Wiki Aventurica oder auf die Deutsche Nationalbibliothek."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "marken-und-disclaimer",
+                        "text": "Marken und Disclaimer"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Artwork © Ulisses Spiele. DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA, RIESLAND und THE DARK EYE sind eingetragene Marken der Ulisses Spiele GmbH, Waldems. Die Verwendung der Grafiken erfolgt unter den von Ulisses Spiele erlaubten Richtlinien. Eine Verwendung über diese Richtlinien hinaus darf nur nach vorheriger schriftlicher Genehmigung der Ulisses Medien und Spiel Distribution GmbH erfolgen."
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA und RIESLAND sind Marken der Significant Fantasy Medienrechte GbR."
+                    }
+                ]
+            },
+            {
+                "id": "technik-und-kuenstliche-intelligenz",
+                "titel": "Technik und künstliche Intelligenz",
+                "hinweis": "Die Bausteine, der Quellcode, wie die Route rechnet und wo KI eingesetzt wird",
+                "bloecke": [
+                    {
+                        "art": "lead",
+                        "text": "Avesmaps besteht aus freier Software, eigenem Programmcode und einer Entwicklung, die zum großen Teil von KI-Agenten geleistet wird."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "software-und-lizenzen",
+                        "text": "Software und Lizenzen"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Avesmaps baut auf diesen Bausteinen auf:"
+                    },
+                    {
+                        "art": "tafel",
+                        "kopf": ["Bereich", "Baustein", "Lizenz"],
+                        "schluesselSpalten": 2,
+                        "zeilen": [
+                            {
+                                "id": "software-und-lizenzen-karte-im-browser-maplibre-gl-js",
+                                "zellen": [
+                                    "Karte im Browser",
+                                    "[MapLibre GL JS](https://maplibre.org/)",
+                                    "BSD-3-Clause"
+                                ]
+                            },
+                            {
+                                "id": "software-und-lizenzen-oberflaeche-vue",
+                                "zellen": ["Oberfläche", "[Vue](https://vuejs.org/)", "MIT"]
+                            },
+                            {
+                                "id": "software-und-lizenzen-server-fastify",
+                                "zellen": ["Server", "[Fastify](https://fastify.dev/)", "MIT"]
+                            },
+                            {
+                                "id": "software-und-lizenzen-server-typebox",
+                                "zellen": ["Server", "[TypeBox](https://github.com/sinclairzx81/typebox)", "MIT"]
+                            },
+                            {
+                                "id": "software-und-lizenzen-server-postgres-js",
+                                "zellen": ["Server", "[postgres.js](https://github.com/porsager/postgres)", "Unlicense"]
+                            },
+                            {
+                                "id": "software-und-lizenzen-bildverarbeitung-sharp-mit-libvips",
+                                "zellen": [
+                                    "Bildverarbeitung",
+                                    "[sharp](https://sharp.pixelplumbing.com/), mit [libvips](https://www.libvips.org/)",
+                                    "Apache-2.0, libvips LGPL-3.0"
+                                ]
+                            },
+                            {
+                                "id": "software-und-lizenzen-daten-postgresql",
+                                "zellen": ["Daten", "[PostgreSQL](https://www.postgresql.org/)", "PostgreSQL License"]
+                            },
+                            {
+                                "id": "software-und-lizenzen-daten-postgis",
+                                "zellen": ["Daten", "[PostGIS](https://postgis.net/)", "GPL-2.0 oder neuer"]
+                            },
+                            {
+                                "id": "software-und-lizenzen-vektorkacheln-martin",
+                                "zellen": [
+                                    "Vektorkacheln",
+                                    "[Martin](https://martin.maplibre.org/)",
+                                    "MIT oder Apache-2.0"
+                                ]
+                            },
+                            {
+                                "id": "software-und-lizenzen-hausschrift-faculty-glyphic",
+                                "zellen": [
+                                    "Hausschrift",
+                                    "[Faculty Glyphic](https://github.com/google/fonts/tree/main/ofl/facultyglyphic)",
+                                    "SIL Open Font License 1.1"
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Faculty Glyphic: Copyright 2024 The Faculty Glyphic Project Authors. Die Hausschrift wird vom eigenen Server ausgeliefert und nicht aus einem fremden Netz geladen."
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Diese Bausteine betreffen die technische Darstellung und Bedienung der Karte und begründen keine Rechte an DSA-bezogenem Karten-, Namens-, Marken- oder Hintergrundmaterial."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "quellcode",
+                        "text": "Quellcode"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Der für Avesmaps geschriebene Programmcode ist quelloffen und steht auf [GitHub](https://github.com/valentin-schwind/avesmaps) unter der MIT-Lizenz. Diese Lizenz gilt ausschließlich für den Programmcode. Sie erfasst weder die Kartenkacheln noch die Orts-, Wege-, Gebiets- und Geometriedaten, noch DSA-bezogene Texte, Wappen, Bilder oder Marken. Für diese Inhalte gelten unverändert die Rechte der jeweiligen Quellen und die Ulisses-Fanrichtlinien."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "wegfindung",
+                        "text": "Wegfindung"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Die Wegfindung rechnet auf dem Server. Über das Wegenetz, dessen Knoten Orte und Kreuzungen und dessen Kanten die Wege mit Länge und Reisezeit je Transportmittel sind, läuft der [Dijkstra-Algorithmus](https://de.wikipedia.org/wiki/Dijkstra-Algorithmus)."
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Wo kein Weg liegt, etwa bei einem Ziel abseits des Netzes, sucht zusätzlich ein [A*-Algorithmus](https://de.wikipedia.org/wiki/A*-Algorithmus) über ein Geländeraster: Jeder Schritt wird nach Landschaft und Höhenunterschied bepreist, Wald, Sumpf und Gebirge bremsen, Steigungen kosten Zeit, und Meer, Seen und Flüsse sind nur dort passierbar, wo ein gezeichneter Weg quert. Die gefundene Geländestrecke hängt danach als einzelne Kante am Wegenetz. Schiffe fahren von Hafen zu Hafen über einen abgeleiteten Seegraphen, nicht über gezeichnete Wege."
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Fliegende Reisemittel rechnen über ein eigenes Feld mit Flughöhe und Gelände."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "einsatz-von-kuenstlicher-intelligenz",
+                        "text": "Einsatz von künstlicher Intelligenz"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Wir schätzen und respektieren die Arbeit von Künstlerinnen und Künstlern und möchten Avesmaps langfristig auch als Plattform etablieren, auf der ihre Werke präsentiert und gewürdigt werden können. Gleichzeitig ist Avesmaps ein Projekt mit begrenzten personellen und finanziellen Ressourcen. Ohne den Einsatz Künstlicher Intelligenz wäre die Entwicklung in diesem Umfang derzeit kaum möglich."
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Dabei unterscheiden wir ausdrücklich zwischen generativer KI zur Erstellung künstlerischer Inhalte und KI-gestützten Programmieragenten, die uns bei der technischen Entwicklung unterstützen. Beide Einsatzbereiche sind aus unserer Sicht unterschiedlich zu bewerten. Insbesondere bei Illustrationen verstehen wir KI nicht als grundsätzlichen Ersatz für menschliche Kreativität, sondern als pragmatische Lösung unter den gegenwärtigen Rahmenbedingungen. Unser Ziel bleibt es, menschliche Kunst stärker einzubinden und interessierten Künstlerinnen und Künstlern eine Möglichkeit zu bieten, Aventurien mitzugestalten."
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Wo KI konkret eingesetzt wird, steht an der jeweiligen Stelle: bei der Karte „Modern“, bei Wappen und Bildern, bei den Reisebildern und im Datenschutz unter [„KI-Werkzeug“](#ki-werkzeug)."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "claudia-und-claudio",
+                        "text": "Claudia und Claudio"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Avesmaps wird überwiegend von zwei KI-Agenten gebaut, die auf Claude von [Anthropic](https://de.wikipedia.org/wiki/Anthropic) laufen; zeitweise arbeitet auch Codex mit."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "claudia-und-claudio-claudia",
+                                "begriff": "Claudia",
+                                "werte": [
+                                    "Claudia arbeitet auf dem Entwicklungsrechner: Architektur, Programmcode, Datenmodell, Tests und die Werkzeuge, mit denen Karten- und Reisedaten aufbereitet werden."
+                                ]
+                            },
+                            {
+                                "id": "claudia-und-claudio-claudio",
+                                "begriff": "Claudio",
+                                "werte": [
+                                    "Claudio arbeitet auf dem Server: neue Fassungen einspielen, Datenbank, Kacheldienst, Sicherungen, Überwachung und die Ursachensuche, wenn etwas klemmt."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Beide arbeiten nicht frei: Was veröffentlicht oder an den Kartendaten geändert wird, entscheidet der Betreiber. Eine Änderung an der Karte braucht seine ausdrückliche Freigabe, und jeder Schreibzugriff wird protokolliert. Die Texte dieser Seite entwirft teils Claudia, abgenommen werden sie vom Betreiber; die Auslegung der Quellen und alles Redaktionelle bleiben bei Menschen."
+                    },
+                    {
+                        "art": "bild",
+                        "src": "/img/claudia-claudio.webp",
+                        "alt": "Claudia und Claudio, die beiden KI-Agenten von Avesmaps, über einer Karte",
+                        "breite": 520,
+                        "hoehe": 520
+                    }
+                ]
+            },
+            {
+                "id": "reisebilder",
+                "titel": "Reisebilder",
+                "hinweis": "Bedingungen für eigene Bilder: Urheberschaft, Nutzung, Prüfung, persönlicher Link",
+                "bloecke": [
+                    {
+                        "art": "lead",
+                        "text": "Für eigene Bilder gelten diese Bedingungen. Was dabei gespeichert wird, steht im [Datenschutz](#datenschutz-bei-reisebildern)."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "bedingungen",
+                        "text": "Bedingungen"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Für jedes eingereichte Bild gilt:"
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "bedingungen-eigenes-werk",
+                                "begriff": "Eigenes Werk",
+                                "werte": [
+                                    "Eingereicht wird nur ein selbst gemachtes Bild: gemalt oder gezeichnet, fotografiert, mit KI erzeugt oder in Avesmaps aufgenommen. Werke anderer, auch offizielle DSA-Illustrationen und Scans aus Büchern, sind ausgeschlossen."
+                                ]
+                            },
+                            {
+                                "id": "bedingungen-personen-und-alter",
+                                "begriff": "Personen und Alter",
+                                "werte": [
+                                    "Erkennbare Personen werden nur mit deren Einverständnis gezeigt. Die einreichende Person ist mindestens 16 Jahre alt."
+                                ]
+                            },
+                            {
+                                "id": "bedingungen-pruefung",
+                                "begriff": "Prüfung",
+                                "werte": [
+                                    "Die Redaktion prüft jedes Bild vor der Veröffentlichung. Sie darf Stelle, Ort, Bezug und Beschreibung korrigieren, das Bild nicht. **Einen Anspruch auf Veröffentlichung gibt es nicht**. KI-Bilder kennzeichnen wir als KI-Bild."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h3",
+                        "id": "nutzung",
+                        "text": "Nutzung"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Die einreichende Person wählt, wie Avesmaps das Bild nutzen darf:"
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "nutzung-nur-fuer-avesmaps-vorgabe",
+                                "begriff": "Nur für Avesmaps (Vorgabe)",
+                                "werte": [
+                                    "Avesmaps darf das Bild auf der Karte, in der Bildleiste, in der Infobox und entlang von Routen zeigen und dafür verkleinern und zuschneiden, mit dem angegebenen Namen oder als „anonym“. Alle anderen Rechte bleiben bei der einreichenden Person. Die Erlaubnis endet, wenn das Bild offline genommen wird."
+                                ]
+                            },
+                            {
+                                "id": "nutzung-cc-by-4-0",
+                                "begriff": "[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de)",
+                                "werte": [
+                                    "Jede Person darf das Bild unter Nennung weiterverwenden, auch kommerziell. **Das lässt sich nicht zurücknehmen**: Wird es offline genommen, verschwindet es aus Avesmaps, die Lizenz für andere bleibt. Sie umfasst nur den eigenen Beitrag; Rechte Dritter, etwa von Ulisses an DSA-Inhalten, bleiben unberührt."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Eine Avesmaps-Aufnahme gibt es nur „Nur für Avesmaps“, weil die Karte darin nicht der einreichenden Person gehört."
+                    },
+                    {
+                        "art": "kasten",
+                        "titel": "Persönlicher Link",
+                        "absaetze": [
+                            "Wer den persönlichen Link kennt, kann das Bild ändern oder offline nehmen. Er sollte gut aufbewahrt werden; wir können ihn nicht wiederherstellen."
+                        ]
+                    }
+                ]
+            },
+            {
+                "id": "grenzen-der-karte-und-haftung",
+                "titel": "Grenzen der Karte und Haftung",
+                "hinweis": "Wie genau die Karte ist und wofür das Projekt geradesteht",
+                "bloecke": [
+                    {
+                        "art": "h3",
+                        "id": "grenzen-der-karte",
+                        "text": "Grenzen der Karte"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Avesmaps ist ein stetig wachsendes Fanprojekt und erhebt keinen Anspruch auf Vollständigkeit, Fehlerfreiheit, Kanonizität oder offizielle Verbindlichkeit. Trotz umfangreicher Quellenarbeit können Orte, Wege und andere Informationen fehlen, ungenau sein oder unterschiedlichen Zeitständen Aventuriens entstammen."
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Insbesondere die berechneten Reisezeiten und Entfernungen sind **als Orientierungshilfe** zu verstehen. Sie basieren auf den verfügbaren Kartendaten und den Modellen der aventurischen Reiseregeln („Wege des Entdeckers“, S. 160–162; „Geographia Aventurica“, S. 123, 129 und 131), die nicht immer widerspruchsfrei sind. Wetter, Gelände, Wegzustand und andere Einflüsse lassen sich nicht immer vollständig berücksichtigen. Avesmaps soll die Reiseplanung erleichtern, nicht die Entscheidungen der Spielleitung oder die offiziellen Regelwerke ersetzen."
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Für Spieler, die Kanonizität und eine Anbindung an Foundry wünschen, empfehlen wir [DSA Unbound](https://dasschwarzeauge.de/unbound) und den [Aventurischen Atlas für Foundry VTT](https://foundryvtt.com/packages/dsa5-atlas)."
+                    },
+                    {
+                        "art": "h3",
+                        "id": "haftungsausschluss",
+                        "text": "Haftungsausschluss"
+                    },
+                    {
+                        "art": "h4",
+                        "id": "haftung-fuer-inhalte",
+                        "text": "Haftung für Inhalte"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Die Inhalte dieser Website werden mit größtmöglicher Sorgfalt erstellt. Für Richtigkeit, Vollständigkeit und Aktualität wird jedoch keine Gewähr übernommen. Soweit gesetzlich zulässig, wird **keine Haftung** für Schäden übernommen, die aus der Nutzung oder Nichtnutzung der bereitgestellten Informationen entstehen. Für eigene Inhalte ist der Betreiber nach den allgemeinen Gesetzen verantwortlich, jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen."
+                    },
+                    {
+                        "art": "h4",
+                        "id": "haftung-fuer-verweise",
+                        "text": "Haftung für Verweise"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Diese Website enthält Verweise auf externe Websites Dritter, auf deren Inhalte der Betreiber keinen Einfluss hat. Für diese fremden Inhalte ist stets der jeweilige Anbieter oder Betreiber der verlinkten Seiten verantwortlich. Zum Zeitpunkt der Verlinkung waren keine Rechtsverstöße erkennbar. Eine ständige inhaltliche Kontrolle der verlinkten Seiten ist ohne konkrete Anhaltspunkte nicht zumutbar; bei Bekanntwerden von Rechtsverstößen werden solche Verweise umgehend entfernt."
+                    },
+                    {
+                        "art": "h4",
+                        "id": "verfuegbarkeit-und-nutzung",
+                        "text": "Verfügbarkeit und Nutzung"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Es besteht kein Anspruch auf eine ständige, ununterbrochene oder fehlerfreie Verfügbarkeit der Website. Karte, Suche und Routenplaner dienen der spielerischen und privaten Nutzung im fiktiven Aventurien und geben keine Gewähr für reale Anwendbarkeit, Wegführung oder Entfernungen. Die Nutzung erfolgt auf eigene Verantwortung."
+                    }
+                ]
+            },
+            {
+                "id": "datenschutz",
+                "titel": "Datenschutz",
+                "hinweis": "Was gespeichert wird, wer es sieht, wie lange es bleibt und welche Rechte gelten",
+                "bloecke": [
+                    {
+                        "art": "lead",
+                        "text": "Verantwortlich ist der im Impressum genannte Betreiber. Es gibt keine Werbung, keine externen Werbe- oder Tracking-Netzwerke und keine nutzerbezogenen Profile."
+                    },
+                    {
+                        "art": "sprungliste",
+                        "wort": "In diesem Abschnitt:",
+                        "ziele": [
+                            {
+                                "text": "Betrieb der Seite",
+                                "ziel": "#betrieb-der-seite"
+                            },
+                            {
+                                "text": "Funktionen ohne Konto",
+                                "ziel": "#funktionen-ohne-konto"
+                            },
+                            {
+                                "text": "Mitarbeit mit Konto",
+                                "ziel": "#mitarbeit-mit-konto"
+                            },
+                            {
+                                "text": "Externe Dienste",
+                                "ziel": "#externe-dienste"
+                            },
+                            {
+                                "text": "Fristen und Sicherungen",
+                                "ziel": "#fristen-und-sicherungen"
+                            },
+                            {
+                                "text": "Rechte der Betroffenen",
+                                "ziel": "#rechte-der-betroffenen"
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h3",
+                        "id": "betrieb-der-seite",
+                        "text": "Betrieb der Seite"
+                    },
+                    {
+                        "art": "h4",
+                        "id": "server-logdaten",
+                        "text": "Server-Logdaten"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Avesmaps läuft auf einem eigenen Server bei [STRATO](https://de.wikipedia.org/wiki/Strato_AG)."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "server-logdaten-was-wird-verarbeitet",
+                                "begriff": "Was wird verarbeitet?",
+                                "werte": [
+                                    "Beim Abruf der Website verarbeitet der Server technische Logdaten, darunter [IP-Adresse](https://de.wikipedia.org/wiki/IP-Adresse), Zeitpunkt, abgerufene Ressource sowie Browser- und Gerätetyp, zur technischen Bereitstellung, Stabilität und Sicherheit."
+                                ]
+                            },
+                            {
+                                "id": "server-logdaten-wie-lange",
+                                "begriff": "Wie lange?",
+                                "werte": [
+                                    "Die Logdateien des Webservers und das Systemprotokoll werden nach **rund 14 Tagen** gelöscht."
+                                ]
+                            },
+                            {
+                                "id": "server-logdaten-anwendung",
+                                "begriff": "Anwendung",
+                                "werte": [
+                                    "Die Anwendung selbst schreibt nur eine gekürzte IP-Adresse in das Systemprotokoll: [IPv4](https://de.wikipedia.org/wiki/IPv4) ohne das letzte Byte, [IPv6](https://de.wikipedia.org/wiki/IPv6) auf die ersten 48 Bit."
+                                ]
+                            },
+                            {
+                                "id": "server-logdaten-schutzdienst",
+                                "begriff": "Schutzdienst",
+                                "werte": [
+                                    "Sperrt der Schutzdienst eine IP-Adresse nach wiederholten fehlgeschlagenen Anmeldungen am Server ([SSH](https://de.wikipedia.org/wiki/Secure_Shell)), bleibt sie ebenfalls **rund 14 Tage** in dessen eigenem Protokoll."
+                                ]
+                            },
+                            {
+                                "id": "server-logdaten-zusammenfuehrung",
+                                "begriff": "Zusammenführung",
+                                "werte": ["Diese Logdaten werden nicht mit anderen Datenquellen zusammengeführt."]
+                            },
+                            {
+                                "id": "server-logdaten-rechtsgrundlage",
+                                "begriff": "Rechtsgrundlage",
+                                "werte": [
+                                    "Das berechtigte Interesse am sicheren Betrieb (Art. 6 Abs. 1 lit. f [DSGVO](https://de.wikipedia.org/wiki/Datenschutz-Grundverordnung))."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h4",
+                        "id": "cookies-und-browser-speicher",
+                        "text": "Cookies und Browser-Speicher"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Wer Avesmaps ohne Anmeldung nutzt, bekommt keine [Cookies](https://de.wikipedia.org/wiki/HTTP-Cookie), außer beim Verbinden einer Meldung mit Discord (siehe unten)."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "cookies-und-browser-speicher-sitzungs-cookie",
+                                "begriff": "Sitzungs-Cookie",
+                                "werte": [
+                                    "Wer sich anmeldet, bekommt ein technisch notwendiges Sitzungs-Cookie (__Host-avesmaps-session). Es enthält nur eine zufällige Kennung, ist für Skripte der Seite unlesbar und gilt nur für diese Adresse. Es bleibt auch nach dem Schließen des Browsers erhalten, bis die Sitzung endet: mit der Abmeldung, wenn sie im Konto oder von der Verwaltung beendet wird, oder wenn das Konto gesperrt oder aufgelöst wird; eine feste Laufzeit hat sie nicht, nur der Notzugang endet nach **60 Minuten**. Der Browser bewahrt das Cookie höchstens **400 Tage** auf und bekommt es bei jedem Besuch neu."
+                                ]
+                            },
+                            {
+                                "id": "cookies-und-browser-speicher-anmelde-umweg",
+                                "begriff": "Anmelde-Umweg",
+                                "werte": [
+                                    "Bei der Anmeldung über Discord und beim Verbinden einer Meldung mit Discord setzt Avesmaps für höchstens **zehn Minuten** ein zweites, ebenso notwendiges Cookie, das den Rückweg von Discord an denselben Browser bindet."
+                                ]
+                            },
+                            {
+                                "id": "cookies-und-browser-speicher-browser-speicher",
+                                "begriff": "Browser-Speicher",
+                                "werte": [
+                                    "Im Browser des jeweiligen Geräts bleiben außerdem:",
+                                    [
+                                        "Einstellungen, etwa Sprache, Farbschema, Tastaturbedienung und Schalter der Karte",
+                                        "der Lesestand der Neuigkeiten",
+                                        "welche Bewertungen dieser Browser mochte",
+                                        "auf Wunsch die Links eigener Reisebilder",
+                                        "bei der Mitarbeit ungespeicherte Entwürfe der Bearbeitung und die Trennung Neu/Archiv der Glocke",
+                                        "für die Dauer des Anmelde-Umwegs der Kartenausschnitt (höchstens **15 Minuten**, nur in diesem Tab), ebenso der Schlüssel der eigenen Meldung, wenn eine Meldung mit Discord verbunden wird"
+                                    ],
+                                    "**Das alles geht nicht von selbst an den Server.**"
+                                ]
+                            },
+                            {
+                                "id": "cookies-und-browser-speicher-rechtsgrundlage",
+                                "begriff": "Rechtsgrundlage",
+                                "werte": [
+                                    "Für Sitzungs-Cookie und Anmelde-Umweg gilt § 25 Abs. 2 Nr. 2 [TDDDG](https://de.wikipedia.org/wiki/Telekommunikation-Digitale-Dienste-Datenschutz-Gesetz); eine Einwilligung ist dafür nicht nötig."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h4",
+                        "id": "anonyme-besucherstatistik",
+                        "text": "Anonyme Besucherstatistik"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Avesmaps zählt Besuche anonym und in Summen."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "anonyme-besucherstatistik-was-gezaehlt-wird",
+                                "begriff": "Was gezählt wird",
+                                "werte": [
+                                    [
+                                        "Seitenaufrufe und Verweildauer",
+                                        "Herkunft als Land und, innerhalb Deutschlands, als Bundesland",
+                                        "Gerätetyp, Betriebssystem, Browser, Browsersprache und Fensterklasse",
+                                        "die eingestellte Sprache der Seite und ihr Farbschema (hell oder dunkel)",
+                                        "Fähigkeiten des Geräts (3D, Touch, weniger Bewegung, dunkles Farbschema)",
+                                        "woher der Aufruf kam (direkt, intern oder die Domain der Verweisseite)",
+                                        "was auf der Karte benutzt wird"
+                                    ]
+                                ]
+                            },
+                            {
+                                "id": "anonyme-besucherstatistik-wetter",
+                                "begriff": "Experimentelles Wetter",
+                                "werte": [
+                                    "Wer das experimentelle Wetter benutzt, dessen Browser meldet anonym und in Summen, welche Wetterschalter ein- oder ausgeschaltet werden, und grobe Leistungswerte in Klassen (Bildrate und Bildzeit, Wolkenauflösung, Dauer des ersten Starts, Art eines Fehlers sowie die Familie der Grafikkarte wie „NVIDIA“ oder „Adreno“ und ob es ein Rechner oder ein Telefon ist), ohne Bezug zur Person."
+                                ]
+                            },
+                            {
+                                "id": "anonyme-besucherstatistik-ip-adressen",
+                                "begriff": "IP-Adressen",
+                                "werte": [
+                                    "IP-Adressen werden dabei gelesen, aber von der Statistik nie gespeichert; sie dienen nur dem Nachschlagen des Landes und einer Tageskennung, die um Mitternacht (UTC) verfällt und sich danach keinem Gerät mehr zuordnen lässt."
+                                ]
+                            },
+                            {
+                                "id": "anonyme-besucherstatistik-was-es-nicht-gibt",
+                                "begriff": "Was es nicht gibt",
+                                "werte": [
+                                    "Es entsteht keine Tabelle einzelner Besuche, es gibt keine Wiedererkennung über Tage hinweg, keine Cookies, keinen Speicher im Browser und keinen externen Analysedienst."
+                                ]
+                            },
+                            {
+                                "id": "anonyme-besucherstatistik-angemeldete-personen",
+                                "begriff": "Angemeldete Personen",
+                                "werte": [
+                                    "Angemeldete Personen zählen als eigene Gruppe und erscheinen in keiner Besucherzahl."
+                                ]
+                            },
+                            {
+                                "id": "anonyme-besucherstatistik-rechtsgrundlage",
+                                "begriff": "Rechtsgrundlage",
+                                "werte": [
+                                    "Das berechtigte Interesse am fehlerfreien und sicheren Betrieb (Art. 6 Abs. 1 lit. f DSGVO)."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h4",
+                        "id": "fehlerdiagnose",
+                        "text": "Fehlerdiagnose"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Gerät die Seite in einen Fehler, etwa beim Start, in der Karte oder in der 3D-Grafik, sendet der Browser eine kurze technische Diagnose, damit wir den Fehler finden und beheben können."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "fehlerdiagnose-was-gesendet-wird",
+                                "begriff": "Was gesendet wird",
+                                "werte": [
+                                    [
+                                        "Art und Name des Fehlers",
+                                        "eine bereinigte Meldung ohne Adressen, Kennungen, Zahlen und Eingaben",
+                                        "bis zu fünf Stellen im Programmcode von Avesmaps",
+                                        "die Programmfassung und die Browserfamilie",
+                                        "welche Grafik der Browser bietet ([WebGL](https://de.wikipedia.org/wiki/WebGL) 2, WebGL 1 oder keine)"
+                                    ]
+                                ]
+                            },
+                            {
+                                "id": "fehlerdiagnose-was-nicht-dabei-ist",
+                                "begriff": "Was nicht dabei ist",
+                                "werte": [
+                                    "Die Diagnose enthält keine IP-Adresse, keine Tageskennung, keine Uhrzeit und keinen Kartenausschnitt und lässt sich keinem Besuch zuordnen; gleiche Diagnosen eines Tages werden zusammengezählt."
+                                ]
+                            },
+                            {
+                                "id": "fehlerdiagnose-wann-wird-es-geloescht",
+                                "begriff": "Wann wird es gelöscht?",
+                                "werte": [
+                                    "Sie wird nach **14 Tagen** gelöscht, in Sicherungskopien liegt sie bis zu **sechs Monate**; die Zahl der Fehler je Art und Tag bleibt als Summe."
+                                ]
+                            },
+                            {
+                                "id": "fehlerdiagnose-rechtsgrundlage",
+                                "begriff": "Rechtsgrundlage",
+                                "werte": [
+                                    "Das berechtigte Interesse am fehlerfreien und sicheren Betrieb (Art. 6 Abs. 1 lit. f DSGVO)."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h4",
+                        "id": "missbrauchsschutz",
+                        "text": "Missbrauchsschutz"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Gegen Missbrauch und Flut zählt die Anwendung bei Meldungen, Bewertungen, Kartenvorschlägen und Reisebildern im Arbeitsspeicher, wie viele Eingaben von einer [gehashten](https://de.wikipedia.org/wiki/Hashfunktion) Adresse kommen; **gespeichert wird das nicht**. Bei geteilten Links zählt sie im Arbeitsspeicher je IP-Adresse mit, wie viele Links ausgehen; **gespeichert wird die IP-Adresse dabei nicht**."
+                    },
+                    {
+                        "art": "kasten",
+                        "titel": "Server-Logdaten bleiben davon unberührt",
+                        "absaetze": ["Der Webserver protokolliert auch diese Aufrufe, mit voller IP-Adresse."]
+                    },
+                    {
+                        "art": "h3",
+                        "id": "funktionen-ohne-konto",
+                        "text": "Funktionen ohne Konto"
+                    },
+                    {
+                        "art": "h4",
+                        "id": "meldungen-zur-karte",
+                        "text": "Meldungen zur Karte"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Über „Hier etwas melden“ und „Änderungen vorschlagen“ kann jede Person auf der Karte etwas melden, auch ohne Konto."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "meldungen-zur-karte-was-wird-gespeichert",
+                                "begriff": "Was wird gespeichert?",
+                                "werte": [
+                                    "Gespeichert werden die Beschreibung, die freiwillige Quelle, worauf sich die Meldung bezieht (ein Kartenobjekt oder eine Stelle, auf Wunsch mit vorgeschlagener neuer Lage) und, wenn angegeben, Name oder Pseudonym. **Eine Mailadresse wird nicht abgefragt**. IP-Adresse, [Browserkennung](https://de.wikipedia.org/wiki/User_Agent) und Seitenadresse werden nicht gespeichert.",
+                                    "Die Antwort steht auf einer privaten Statusseite. Den Link dazu bekommt nur die meldende Person; Avesmaps speichert nur einen Prüfwert seines Schlüssels. Dort lässt sich die Meldung auch zurückziehen.",
+                                    "Freiwillig lässt sich eine Meldung mit Discord verbinden. Dann speichert Avesmaps dazu Discord-Kennung und Anzeigenamen, damit /offen im Avesmaps-Discord die eigenen Meldungen zeigt. Die Verbindung lässt sich auf der Statusseite jederzeit lösen."
+                                ]
+                            },
+                            {
+                                "id": "meldungen-zur-karte-wer-sieht-es",
+                                "begriff": "Wer sieht es?",
+                                "werte": [
+                                    "Meldungen lesen die Personen, die in der Redaktion Meldungen bearbeiten, samt angegebenem Namen und, bei einer verbundenen Meldung, dem Discord-Anzeigenamen. Die Betreiber bearbeiten Meldungen auch mit einem KI-Werkzeug (Claude von Anthropic, siehe [„KI-Werkzeug“](#ki-werkzeug)), das dann Text und Namen sieht. Meldung und Name erscheinen **nie öffentlich**, auch nicht in Kartendaten, Beschreibungen oder Neuigkeiten."
+                                ]
+                            },
+                            {
+                                "id": "meldungen-zur-karte-wann-wird-es-geloescht",
+                                "begriff": "Wann wird es gelöscht?",
+                                "werte": [
+                                    "Solange eine Meldung offen ist, bleiben die Angaben gespeichert. Name, Discord-Angaben und Statuslink werden **90 Tage** nach dem Abschluss gelöscht. Text und Sachinhalt bleiben im Archiv; steht darin ein Name, bleibt er, bis jemand die Löschung verlangt. Was im Papierkorb liegt, etwa Spam, wird nach **30 Tagen** ganz gelöscht. **Auf Anfrage löschen wir** Angaben und Texte der meldenden Person **sofort**, der Sachinhalt bleibt."
+                                ]
+                            },
+                            {
+                                "id": "meldungen-zur-karte-rechtsgrundlage",
+                                "begriff": "Rechtsgrundlage",
+                                "werte": [
+                                    "Das berechtigte Interesse, die Karte richtig zu halten und Meldungen zu beantworten (Art. 6 Abs. 1 lit. f DSGVO)."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h4",
+                        "id": "kontakt-und-mail",
+                        "text": "Kontakt und Mail"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Anfragen erreichen die Redaktion über das Kontaktformular oder per Mail."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "kontakt-und-mail-was-wird-gespeichert",
+                                "begriff": "Was wird gespeichert?",
+                                "werte": [
+                                    "Über das Kontaktformular gehen Nachricht, Thema und, wenn angegeben, Name und Mailadresse an die Redaktion. Ohne Adresse steht die Antwort nur auf der privaten Statusseite; mit Adresse kommt sie auch per Mail.",
+                                    "Mails an {mail} holt Avesmaps aus dem Postfach ab. Gespeichert werden Absender, Betreff, Text, bereinigtes HTML, Anhänge und die Originalmail. Bilder werden neu kodiert und verlieren dabei ihre Metadaten. Ausführbare Dateien, Archive und Dokumente mit Makros werden nicht übernommen, nur ihr Name und ihre Größe."
+                                ]
+                            },
+                            {
+                                "id": "kontakt-und-mail-wer-sieht-es",
+                                "begriff": "Wer sieht es?",
+                                "werte": [
+                                    "Anfragen und Mails samt Absender lesen nur die Betreiber und Personen mit der Aufgabe „Diplomat“. Die Betreiber bearbeiten sie auch mit einem KI-Werkzeug (Claude von Anthropic, siehe [„KI-Werkzeug“](#ki-werkzeug)), das dann Text und Absender sieht. Sie sind **nie öffentlich**. Wird aus einer Anfrage eine Meldung zur Karte, bleiben Name und Adresse bei der Anfrage."
+                                ]
+                            },
+                            {
+                                "id": "kontakt-und-mail-wann-wird-es-geloescht",
+                                "begriff": "Wann wird es gelöscht?",
+                                "werte": [
+                                    "Solange eine Anfrage offen ist, bleiben die Angaben gespeichert. Name, Adresse, Absender, Originalmail und Statuslink werden **90 Tage** nach dem Abschluss gelöscht. Text, Betreff, bereinigtes HTML, Anhänge mit ihren Dateinamen und die technischen Kennungen der Mail bleiben im Archiv; steht darin ein Name oder eine Signatur, bleibt sie, bis jemand die Löschung verlangt. Was im Papierkorb liegt, etwa Spam, wird nach **30 Tagen** ganz gelöscht. **Auf Anfrage löschen wir** Angaben, Texte und Anhänge der Person **sofort**. Schreibt die Redaktion von sich aus eine neue Mail, hält das Verwaltungsprotokoll einen gekürzten Prüfwert der Empfängeradresse fest, ohne Frist."
+                                ]
+                            },
+                            {
+                                "id": "kontakt-und-mail-rechtsgrundlage",
+                                "begriff": "Rechtsgrundlage",
+                                "werte": [
+                                    "Das berechtigte Interesse, Anfragen zu beantworten (Art. 6 Abs. 1 lit. f DSGVO)."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h4",
+                        "id": "bewertungen",
+                        "text": "Bewertungen"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Zu einem Ort lässt sich ohne Konto eine Bewertung schreiben: ein bis fünf Sterne, freiwillig ein kurzer Text, ein frei gewählter Name und ein aventurisches Datum."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "bewertungen-was-wird-gespeichert",
+                                "begriff": "Was wird gespeichert?",
+                                "werte": [
+                                    "All das steht öffentlich im Infopanel des Orts. Ein echter Name ist nicht nötig; ohne Namen erscheint „Anonym“. Dazu kommt der Zeitpunkt des Eingangs. **IP-Adresse, Browserkennung und Seitenadresse werden nicht gespeichert**.",
+                                    "Bewertungen aus der früheren Fassung von Avesmaps wurden mit Sternen, Name, Text und Datum übernommen, ohne IP-Adresse oder Browserdaten.",
+                                    "„Gefällt mir“ ist nur eine Zahl: Der Server weiß nicht, wer es war. Dass ein Browser eine Bewertung schon mochte, merkt er sich selbst, für höchstens 500 Bewertungen."
+                                ]
+                            },
+                            {
+                                "id": "bewertungen-wer-sieht-es",
+                                "begriff": "Wer sieht es?",
+                                "werte": [
+                                    "Öffentlich, siehe oben. Neue Bewertungen erscheinen **sofort**, die Redaktion sieht sie danach durch. Enthält eine Bewertung eine Adresse oder ein Wort von einer Spamliste, bleibt sie zurückgehalten, bis die Redaktion sie freigibt."
+                                ]
+                            },
+                            {
+                                "id": "bewertungen-wann-wird-es-geloescht",
+                                "begriff": "Wann wird es gelöscht?",
+                                "werte": [
+                                    "Eine Bewertung bleibt, solange sie sichtbar ist. Betrifft sie eine Person, lässt sie sich über „Melden“ mit dem Grund „Persönliche Daten“ beanstanden; die Redaktion verbirgt sie und löscht Name, Text und Datum. Es bleiben die Sterne, die dann nicht mehr angezeigt werden. Verborgene und zurückgehaltene Bewertungen bleiben, bis die Redaktion ihren Inhalt löscht oder sie freigibt."
+                                ]
+                            },
+                            {
+                                "id": "bewertungen-rechtsgrundlage",
+                                "begriff": "Rechtsgrundlage",
+                                "werte": [
+                                    "Das berechtigte Interesse, Einschätzungen zu Orten auf der Karte zu zeigen (Art. 6 Abs. 1 lit. f DSGVO)."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h4",
+                        "id": "kartenvorschlaege",
+                        "text": "Kartenvorschläge"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Über „Karte vorschlagen“ lässt sich ohne Konto eine Karte für die Kartensammlung vorschlagen, als Link oder als eigene Datei (JPEG, PNG, WebP oder PDF)."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "kartenvorschlaege-was-wird-gespeichert",
+                                "begriff": "Was wird gespeichert?",
+                                "werte": [
+                                    "Gespeichert werden Titel, Link oder Datei, die freiwilligen Angaben zur Karte, eine Notiz an die Redaktion, die gewählte Nutzung, die Fassung der Bedingungen und, wenn angegeben, ein Name. **Eine Mailadresse wird nicht abgefragt**. **IP-Adresse und Browserkennung werden nicht gespeichert**.",
+                                    "Bei Bildern entfernt Avesmaps [EXIF](https://de.wikipedia.org/wiki/Exchangeable_Image_File_Format), [XMP](https://de.wikipedia.org/wiki/Extensible_Metadata_Platform), [IPTC](https://de.wikipedia.org/wiki/IPTC-IIM-Standard) und Kommentare schon beim Eingang. Ein PDF behält seine Metadaten, bis das Original gelöscht ist.",
+                                    "Den Stand zeigt eine Statusseite. Den Link dazu bekommt nur die einreichende Person; Avesmaps speichert nur einen Prüfwert seines Schlüssels. Dort steht auch der Grund einer Ablehnung, und der Vorschlag lässt sich zurückziehen."
+                                ]
+                            },
+                            {
+                                "id": "kartenvorschlaege-wer-sieht-es",
+                                "begriff": "Wer sieht es?",
+                                "werte": [
+                                    "Bis zur Entscheidung sieht den Vorschlag nur die Redaktion. Wird er angenommen, erscheint die Karte mit Titel und Angaben in der Kartensammlung. Notiz, Vorschaulink und der Name der einreichenden Person werden nicht übernommen; genannt wird der angegebene Zeichner oder Verlag. Die Datei wird erst öffentlich, wenn ihre Rechte es zulassen."
+                                ]
+                            },
+                            {
+                                "id": "kartenvorschlaege-wann-wird-es-geloescht",
+                                "begriff": "Wann wird es gelöscht?",
+                                "werte": [
+                                    "Ein Vorschlag, dessen Datei nie ankam oder nicht verarbeitet werden konnte, wird nach **7 Tagen** gelöscht, ein abgelehnter oder zurückgezogener nach **30 Tagen**, jeweils samt Datei und Name. Bei einem angenommenen Vorschlag werden Name und Notiz **90 Tage** nach der Entscheidung gelöscht. Ein Vorschlag, über den noch nicht entschieden ist, bleibt bis zur Entscheidung gespeichert.",
+                                    "Die hochgeladene Datei einer angenommenen Karte wird **rund eine Woche** nach der Annahme gelöscht. Es bleibt eine daraus gerechnete Fassung in voller Auflösung, bei einem PDF nur die erste Seite. In Sicherungen kann die Datei länger liegen (siehe [„Sicherungen“](#sicherungen))."
+                                ]
+                            },
+                            {
+                                "id": "kartenvorschlaege-rechtsgrundlage",
+                                "begriff": "Rechtsgrundlage",
+                                "werte": [
+                                    "Das berechtigte Interesse, die Kartensammlung zu pflegen (Art. 6 Abs. 1 lit. f DSGVO). Für die Nutzung der Datei gelten die Bedingungen, denen die Person beim Hochladen zustimmt."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h4",
+                        "id": "datenschutz-bei-reisebildern",
+                        "text": "Datenschutz bei Reisebildern"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Reisebilder lassen sich ohne Konto einreichen; die Bedingungen stehen unter [„Reisebilder“](#reisebilder)."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "datenschutz-bei-reisebildern-was-wird-gespeichert",
+                                "begriff": "Was wird gespeichert?",
+                                "werte": [
+                                    "Wir speichern das Bild und die Angaben (Stelle, Beschreibung, Entstehung, Nutzung, Blickrichtung, freiwilliger Name), den Zeitpunkt, die Fassung dieser Bedingungen und eine Prüfsumme des persönlichen Links. **Kein Konto, keine E-Mail, kein Cookie.**",
+                                    "Auf Wunsch merkt sich der Browser die persönlichen Links eigener Reisebilder auf diesem Gerät. An Avesmaps gehen sie nur zum Abruf des Stands, wie beim Öffnen des Links. Unter ‚Meine Reisebilder‘ lassen sie sich einzeln vergessen.",
+                                    "Metadaten in der Datei (Ort, Zeit, Gerät, Name) entfernen wir schon beim Eingang, auch aus dem Original. Das Original bleibt, solange das Bild bei uns liegt. Den Dateinamen speichern wir nicht. Zur IP-Adresse siehe [„Missbrauchsschutz“](#missbrauchsschutz)."
+                                ]
+                            },
+                            {
+                                "id": "datenschutz-bei-reisebildern-wer-sieht-es",
+                                "begriff": "Wer sieht es?",
+                                "werte": [
+                                    "Der Name zur Nennung bleibt sichtbar, solange das Bild öffentlich ist. Veröffentlichte Bilder lassen sich über „Melden“ beanstanden."
+                                ]
+                            },
+                            {
+                                "id": "datenschutz-bei-reisebildern-wann-wird-es-geloescht",
+                                "begriff": "Wann wird es gelöscht?",
+                                "werte": [
+                                    "Abgelehnte, zurückgezogene und offline genommene Einreichungen löschen wir nach **30 Tagen** samt Angaben, die Bilddateien offline genommener Einreichungen schon beim nächsten täglichen Lauf; unentschiedene verfallen nach **60 Tagen** und werden **30 Tage** danach gelöscht. Danach führt der Link ins Leere.",
+                                    "Offline nehmen wirkt **sofort**: Das Bild ist aus Avesmaps entfernt, die Dateien löscht der nächste tägliche Lauf. Kopien, die andere schon gemacht haben, können wir nicht zurückholen."
+                                ]
+                            },
+                            {
+                                "id": "datenschutz-bei-reisebildern-rechtsgrundlage",
+                                "begriff": "Rechtsgrundlage",
+                                "werte": ["Die Einreichung nach den Bedingungen (Art. 6 Abs. 1 lit. b DSGVO)."]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h4",
+                        "id": "geteilte-links",
+                        "text": "Geteilte Links"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Karte und Reiseplanung lassen sich als Kurzlink teilen."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "geteilte-links-was-wird-gespeichert",
+                                "begriff": "Was wird gespeichert?",
+                                "werte": [
+                                    "Ein geteilter Link speichert nur den Kartenzustand, den er wiederherstellt, also Karte, Ansicht, Ebene, Anzeigeschalter und Reiseplanung. Angaben zur Person enthält er nicht."
+                                ]
+                            },
+                            {
+                                "id": "geteilte-links-wer-sieht-es",
+                                "begriff": "Wer sieht es?",
+                                "werte": ["Wer den Link kennt."]
+                            },
+                            {
+                                "id": "geteilte-links-wann-wird-es-geloescht",
+                                "begriff": "Wann wird es gelöscht?",
+                                "werte": ["Geteilte Links bleiben erhalten."]
+                            },
+                            {
+                                "id": "geteilte-links-rechtsgrundlage",
+                                "begriff": "Rechtsgrundlage",
+                                "werte": [
+                                    "Das berechtigte Interesse, Karten und Reisen teilen zu können (Art. 6 Abs. 1 lit. f DSGVO)."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h3",
+                        "id": "mitarbeit-mit-konto",
+                        "text": "Mitarbeit mit Konto"
+                    },
+                    {
+                        "art": "h4",
+                        "id": "konten",
+                        "text": "Konten"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "**Ein Konto bekommt nur, wer eingeladen wird**; die öffentliche Karte braucht keines."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "konten-kontodaten",
+                                "begriff": "Kontodaten",
+                                "werte": [
+                                    "Zu einem Konto speichert Avesmaps den Anzeigenamen, die Rolle, ob das Konto aktiv oder gesperrt ist, wann es angelegt wurde und wann die letzte Anmeldung war. Je nach gewähltem Anmeldeweg kommen weitere Angaben hinzu."
+                                ]
+                            },
+                            {
+                                "id": "konten-benutzername-und-passwort",
+                                "begriff": "Benutzername und Passwort",
+                                "werte": [
+                                    "Für die Anmeldung mit Benutzername und Passwort speichert Avesmaps den Benutzernamen und einen Prüfwert des Passworts ([Argon2id](https://de.wikipedia.org/wiki/Argon2)). **Das Passwort selbst wird nie gespeichert**."
+                                ]
+                            },
+                            {
+                                "id": "konten-discord",
+                                "begriff": "Discord",
+                                "werte": [
+                                    "Für die Anmeldung mit Discord speichert Avesmaps die Discord-Kennung, den Discord-Benutzernamen und den Anzeigenamen. Avesmaps fragt bei Discord nur die Grundangaben des Kontos ab (Berechtigung identify), weder E-Mail-Adresse noch Server, Freundesliste oder Nachrichten, und übernimmt davon nur diese drei. Bei der Anmeldung leitet die Seite zu Discord weiter (für Personen in der EU Discord Netherlands BV; Daten gehen auch an [Discord Inc.](https://de.wikipedia.org/wiki/Discord) in die USA); dabei gilt die [Datenschutzerklärung von Discord](https://discord.com/privacy). Die Anmeldung mit Benutzername und Passwort geht auch ohne Discord."
+                                ]
+                            },
+                            {
+                                "id": "konten-passkey",
+                                "begriff": "Passkey",
+                                "werte": [
+                                    "Für einen [Passkey](https://de.wikipedia.org/wiki/Passkey) speichert Avesmaps seinen öffentlichen Schlüssel, seine Kennung, eine selbst gewählte Bezeichnung und ob er zwischen Geräten abgeglichen wird, dazu seinen Zähler, die Übertragungswege, den Gerätetyp und wann er angelegt und zuletzt benutzt wurde. Fingerabdruck, Gesichtsbild oder Geräte-PIN verlassen das Gerät nie."
+                                ]
+                            },
+                            {
+                                "id": "konten-verantwortlich-fuer",
+                                "begriff": "Verantwortlich für",
+                                "werte": [
+                                    "Freiwillig kann zu einem Konto eine kurze Angabe „Verantwortlich für“ stehen (eine Zeile, höchstens 120 Zeichen), die die Person selbst einträgt oder ein Betreiber setzt. Sie ist in der Verwaltung der Konten und in der Editorenliste sichtbar; das Protokoll vermerkt nur, dass sie geändert wurde, nicht ihren Inhalt."
+                                ]
+                            },
+                            {
+                                "id": "konten-wortform",
+                                "begriff": "Wortform",
+                                "werte": [
+                                    "Ebenso freiwillig wählt die Person die Wortform ihrer Rollen (maskulin, feminin oder neutral)."
+                                ]
+                            },
+                            {
+                                "id": "konten-sonderrolle",
+                                "begriff": "Sonderrolle",
+                                "werte": [
+                                    "Zu einer Sonderrolle (etwa „Diplomat“) speichert Avesmaps die Rolle, gegebenenfalls die Region, die Begründung und wer sie wann vergeben oder entzogen hat."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h4",
+                        "id": "sitzungen-und-protokoll",
+                        "text": "Sitzungen und Protokoll"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Avesmaps führt Sitzungen und Protokolle, damit Anmeldungen sicher bleiben und Änderungen nachvollziehbar sind."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "sitzungen-und-protokoll-sitzungen",
+                                "begriff": "Sitzungen",
+                                "werte": [
+                                    "Zu jeder Sitzung speichert Avesmaps, wann sie begann und zuletzt genutzt wurde, den Anmeldeweg, eine grobe Gerätebezeichnung (etwa „Firefox · Windows“, nie die vollständige Browserkennung) und eine gekürzte IP-Adresse (IPv4 ohne das letzte Byte, IPv6 auf die ersten 48 Bit). So kann jede Person ihre eigenen Sitzungen im Konto erkennen und beenden."
+                                ]
+                            },
+                            {
+                                "id": "sitzungen-und-protokoll-protokoll",
+                                "begriff": "Protokoll",
+                                "werte": [
+                                    "Ein Protokoll hält fest, wer sich wann angemeldet hat, welche Anmeldungen scheiterten und welche Verwaltungshandlungen stattfanden (Einladungen, Rollen, Sperren, Links). Es enthält nie Passwörter, Cookie-Werte, Einladungs- oder Rücksetzlinks. Gegen das Durchprobieren von Passwörtern merkt sich Avesmaps zu jedem eingegebenen Benutzernamen einen Prüfwert und die Zahl der Fehlversuche, auch wenn es den Namen nicht gibt; nach **30 Tagen** Ruhe fällt der Eintrag weg."
+                                ]
+                            },
+                            {
+                                "id": "sitzungen-und-protokoll-fristen",
+                                "begriff": "Fristen",
+                                "werte": [
+                                    "Anmeldungen und Fehlversuche im Protokoll werden nach **90 Tagen** gelöscht, die gekürzte IP-Adresse nach **14 Tagen** geleert. Abgelaufene Sitzungen, abgelaufene Rücksetz- und Einrichtungslinks und Anmeldeumwege werden **30 Tage** nach ihrem Ende gelöscht. Verwaltungshandlungen bleiben, weil sie erklären, wer eine Rolle vergeben oder ein Konto gesperrt hat; ebenso Änderungen am eigenen Zugang (Passwort, Passkey, Discord-Verknüpfung, beendete Sitzungen). Kontodaten bleiben, solange das Konto besteht."
+                                ]
+                            },
+                            {
+                                "id": "sitzungen-und-protokoll-editorenliste",
+                                "begriff": "Editorenliste",
+                                "werte": [
+                                    "Wer den Editor öffnen darf, sieht die Editorenliste: Name, Rolle, Sonderrollen und Verantwortung der anderen Personen mit Zugang, ob sie online sind und wann sie zuletzt da waren, ihr Gerät, an wie vielen der letzten dreißig Tage sie aktiv waren, woran sie gerade arbeiten und was sie zuletzt geändert haben."
+                                ]
+                            },
+                            {
+                                "id": "sitzungen-und-protokoll-redaktionsprotokoll-und-betreiber-kanal",
+                                "begriff": "Redaktionsprotokoll und Betreiber-Kanal",
+                                "werte": [
+                                    "Wer die Karte oder die Bilder bearbeitet, erscheint im Redaktionsprotokoll: zu jedem Vorgang stehen die Person, der Zeitpunkt und was sich geändert hat. Dieses Protokoll bleibt, weil es erklärt, wer eine Änderung gemacht hat. Wird ein Konto aufgelöst, werden die Begründungen der Person darin geschwärzt und die Dateinamen ihrer Hochladungen entfernt; der Karteninhalt bleibt, ihr Name erscheint danach als Platzhalter. Meldungen und Bilder aus dem Betreiber-Kanal werden **90 Tage** nach ihrer Abnahme gelöscht, es bleiben Kurztitel, Nachweise und Fix-Bericht."
+                                ]
+                            },
+                            {
+                                "id": "sitzungen-und-protokoll-rechtsgrundlage",
+                                "begriff": "Rechtsgrundlage",
+                                "werte": [
+                                    "Für das Konto Art. 6 Abs. 1 lit. b DSGVO (die Mitarbeit, um die die Person mit der Annahme der Einladung gebeten hat), für Protokoll, Drossel und gekürzte IP-Adresse das berechtigte Interesse am sicheren Betrieb (Art. 6 Abs. 1 lit. f DSGVO)."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h4",
+                        "id": "benachrichtigungen",
+                        "text": "Benachrichtigungen"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Angemeldete Personen bekommen in der Leiste Benachrichtigungen, etwa zu neuen Meldungen oder zu Vorgängen, an denen sie beteiligt sind."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "benachrichtigungen-was-wird-gespeichert",
+                                "begriff": "Was wird gespeichert?",
+                                "werte": [
+                                    "Eine Benachrichtigung gehört zum Konto und enthält Art, Absender, Zeitpunkt und eine Nummer oder einen Kurztitel, nie den Text oder den Namen aus einer Meldung. Wer ohne Anmeldung die Karte nutzt, hat keine Glocke."
+                                ]
+                            },
+                            {
+                                "id": "benachrichtigungen-gelesen-und-neu",
+                                "begriff": "Gelesen und Neu",
+                                "werte": [
+                                    "Ob eine Benachrichtigung gelesen oder beantwortet ist, speichert der Server mit ihr. Wie weit die Liste auf diesem Gerät als „Neu“ gilt, merkt sich zusätzlich nur der Browser; das geht nicht an den Server."
+                                ]
+                            },
+                            {
+                                "id": "benachrichtigungen-abfrage",
+                                "begriff": "Abfrage",
+                                "werte": [
+                                    "Solange der Tab sichtbar ist, fragt die Seite einmal je Minute nach neuen Einträgen."
+                                ]
+                            },
+                            {
+                                "id": "benachrichtigungen-wann-wird-es-geloescht",
+                                "begriff": "Wann wird es gelöscht?",
+                                "werte": [
+                                    "Benachrichtigungen werden **90 Tage** nach dem Lesen oder Beantworten gelöscht, in jedem Fall nach **180 Tagen**, und mit der Auflösung des Kontos **sofort**."
+                                ]
+                            },
+                            {
+                                "id": "benachrichtigungen-rechtsgrundlage",
+                                "begriff": "Rechtsgrundlage",
+                                "werte": [
+                                    "Wie beim Konto Art. 6 Abs. 1 lit. b DSGVO (die Mitarbeit, um die die Person mit der Annahme der Einladung gebeten hat)."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h4",
+                        "id": "konto-aufloesen",
+                        "text": "Konto auflösen"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Auf Antrag wird ein Konto aufgelöst. Den Antrag nimmt der im Impressum genannte Betreiber entgegen."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "konto-aufloesen-was-geloescht-wird",
+                                "begriff": "Was gelöscht wird",
+                                "werte": [
+                                    "Gelöscht werden dann Benutzername und Passwort-Prüfwert, die Verknüpfung mit Discord samt der Angaben von Discord, die Sitzungen, die Angabe „Verantwortlich für“, die Wortform der Rollen sowie Schlüssel und Bezeichnungen der Passkeys; offene Links an die Person verfallen **sofort**, Zugang, Sonderrechte und Sonderrollen werden entzogen, und der Anzeigename wird durch einen neutralen Platzhalter ersetzt."
+                                ]
+                            },
+                            {
+                                "id": "konto-aufloesen-was-im-protokoll-bleibt",
+                                "begriff": "Was im Protokoll bleibt",
+                                "werte": [
+                                    "Verwaltungshandlungen bleiben im Protokoll stehen und nennen die Person mit dem Platzhalter, weil sie erklären, wer eine Rolle vergeben oder ein Konto gesperrt hat."
+                                ]
+                            },
+                            {
+                                "id": "konto-aufloesen-was-geschwaerzt-wird",
+                                "begriff": "Was geschwärzt wird",
+                                "werte": [
+                                    "In den Einträgen über die Person wird dabei geschwärzt, was sie beschreibt: frühere Anzeigenamen, der Discord-Name, Bezeichnungen der Passkeys, die Notiz zu ihrer Einladung, Gründe einer Sperre, eines Sonderrechts oder einer Sonderrolle und ein zugeordneter Legacy-Name samt Begründung; in ihren eigenen Einträgen außerdem Gerätebezeichnung und gekürzte IP-Adresse."
+                                ]
+                            },
+                            {
+                                "id": "konto-aufloesen-anmeldungen",
+                                "begriff": "Anmeldungen",
+                                "werte": ["Anmeldungen im Protokoll werden nach den genannten Fristen gelöscht."]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h3",
+                        "id": "externe-dienste",
+                        "text": "Externe Dienste"
+                    },
+                    {
+                        "art": "h4",
+                        "id": "discord-befehle",
+                        "text": "Discord-Befehle"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Auf unserem Discord-Server nimmt der Avesmaps-Bot Meldungen entgegen."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "discord-befehle-was-wird-gespeichert",
+                                "begriff": "Was wird gespeichert?",
+                                "werte": [
+                                    "Wer /bug, /idee oder /frage nutzt, schickt den Inhalt des Formulars an Avesmaps. Gespeichert werden dieser Text, der Anzeigename, den Discord nennt (Spitzname auf dem Server, sonst globaler Name oder Benutzername), und die Discord-Kennung. Die Kennung bleibt intern: Sie ordnet der Person ihre Meldungen zu und hilft gegen Missbrauch."
+                                ]
+                            },
+                            {
+                                "id": "discord-befehle-was-wird-oeffentlich",
+                                "begriff": "Was wird öffentlich?",
+                                "werte": [
+                                    "/bug und /idee erscheinen danach öffentlich in #bugs oder im Ideenkanal, mit Nummer, Titel, ein bis zwei Sätzen aus dem Text und einem Dank, der die Person erwähnt. /frage wird nicht gepostet. Der tägliche Bericht auf Discord nennt offene Meldungen mit Titel und kurzem Stand und, sobald eine Meldung gesichtet ist, den Namen der meldenden Person. Das gilt auch für Meldungen aus dem Betreiber-Kanal."
+                                ]
+                            },
+                            {
+                                "id": "discord-befehle-eigene-meldungen",
+                                "begriff": "Eigene Meldungen",
+                                "werte": [
+                                    "/offen zeigt nur der fragenden Person die offenen Meldungen aus Discord und ihre eigenen von der Website; dafür fragt der Bot mit ihrer Kennung bei Avesmaps nach. /erledigt schließt eine eigene Meldung; Betreiber schließen damit jede."
+                                ]
+                            },
+                            {
+                                "id": "discord-befehle-wer-sieht-es",
+                                "begriff": "Wer sieht es?",
+                                "werte": [
+                                    "Meldungen lesen die Betreiber. Gesichtete Meldungen bearbeiten sie auch mit dem KI-Werkzeug (siehe [„KI-Werkzeug“](#ki-werkzeug)), das dann Text und Anzeigenamen sieht."
+                                ]
+                            },
+                            {
+                                "id": "discord-befehle-wann-wird-es-geloescht",
+                                "begriff": "Wann wird es gelöscht?",
+                                "werte": [
+                                    "Solange eine Meldung offen ist, bleiben die Angaben gespeichert. **90 Tage** nach dem Abschluss werden Text, Anzeigename und Kennung gelöscht; es bleiben Kurztitel, Nachweise und der Bericht zur Behebung. Was schon in Discord steht, bleibt dort, bis es gelöscht wird; auf Anfrage entfernen wir unsere Posts."
+                                ]
+                            },
+                            {
+                                "id": "discord-befehle-usa-und-rechtsgrundlage",
+                                "begriff": "USA und Rechtsgrundlage",
+                                "werte": [
+                                    "Was auf Discord geschieht, verarbeitet auch Discord selbst. Für Personen in der EU ist Discord Netherlands BV verantwortlich; Daten gehen auch an Discord Inc. in die USA, laut Discord abgesichert durch Standardvertragsklauseln und das EU-U.S. [Data Privacy Framework](https://de.wikipedia.org/wiki/EU-US_Data_Privacy_Framework). Es gilt die [Datenschutzerklärung von Discord](https://discord.com/privacy). Rechtsgrundlage ist das berechtigte Interesse, Fehler zu beheben und Ideen offen zu besprechen (Art. 6 Abs. 1 lit. f DSGVO); **Widerspruch ist jederzeit möglich**."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h4",
+                        "id": "ki-werkzeug",
+                        "text": "KI-Werkzeug"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Die Betreiber bearbeiten Meldungen, Anfragen und Mails auch mit einem KI-Werkzeug (Claude von Anthropic), das dann den Text und Namen oder Absender sieht; aus Discord gilt das für gesichtete Meldungen."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "ki-werkzeug-taeglicher-bericht",
+                                "begriff": "Täglicher Bericht",
+                                "werte": [
+                                    "Den täglichen Bericht auf Discord formuliert Claude Sonnet; dafür gehen einmal täglich Titel und Text noch nicht gesichteter Meldungen mit, ohne Namen und Kennung."
+                                ]
+                            },
+                            {
+                                "id": "ki-werkzeug-abonnement-und-bedingungen",
+                                "begriff": "Abonnement und Bedingungen",
+                                "werte": [
+                                    "Beides läuft über ein Abonnement bei Anthropic; es gelten die [Nutzungsbedingungen](https://www.anthropic.com/legal/consumer-terms) und die [Datenschutzerklärung](https://www.anthropic.com/legal/privacy) von Anthropic. Anbieter ist Anthropic Ireland, Limited; Daten können in die USA gehen, laut Anthropic abgesichert durch Standardvertragsklauseln. Die Nutzung der Eingaben zum Training der KI-Modelle ist in den Konten von Avesmaps abgeschaltet."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h4",
+                        "id": "mailpostfach",
+                        "text": "Mailpostfach"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Das Postfach liegt bei STRATO, über das auch Antworten verschickt werden. STRATO verarbeitet die Mails für uns als Auftragsverarbeiter. Avesmaps liest eingehende Mails nur und löscht nichts: Mails und Kopien bleiben, bis die Betreiber sie entfernen."
+                    },
+                    {
+                        "art": "h4",
+                        "id": "social-media",
+                        "text": "Social Media"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Die Redaktion veröffentlicht Beiträge in den Neuigkeiten von Avesmaps und auf ihren Kanälen bei [Mastodon](https://joinmastodon.org), Facebook, Instagram und Discord."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "social-media-personenbezug",
+                                "begriff": "Personenbezug",
+                                "werte": [
+                                    "Personenbezug entsteht dabei nur, wenn ein Beitrag eine Person nennt oder zeigt."
+                                ]
+                            },
+                            {
+                                "id": "social-media-wohin-es-geht",
+                                "begriff": "Wohin es geht",
+                                "werte": [
+                                    "Mit dem Senden gehen Text und Bild an den jeweiligen Dienst: rollenspiel.social (Mastodon), Meta Platforms Ireland (Facebook, Instagram) und Discord Inc. (USA). Dort gelten deren Datenschutzerklärungen."
+                                ]
+                            },
+                            {
+                                "id": "social-media-wer-dahintersteht",
+                                "begriff": "Wer dahintersteht",
+                                "werte": [
+                                    "Wer einen Beitrag verfasst oder freigibt, steht nur im internen Verlauf und erscheint nicht öffentlich."
+                                ]
+                            },
+                            {
+                                "id": "social-media-was-die-seite-laedt",
+                                "begriff": "Was die Seite lädt",
+                                "werte": [
+                                    "Avesmaps lädt nichts von diesen Diensten. Die Knöpfe zu unseren Kanälen sind gewöhnliche Links; erst wer ihnen folgt, ist dort, und dann gilt dort deren Datenschutz."
+                                ]
+                            },
+                            {
+                                "id": "social-media-wann-wird-es-geloescht",
+                                "begriff": "Wann wird es gelöscht?",
+                                "werte": [
+                                    "Offene Beiträge im Papierkorb werden nach **30 Tagen** gelöscht. Veröffentlichte Beiträge bleiben im internen Verlauf. Zurückgenommen verschwinden sie aus den Neuigkeiten und bei Mastodon, Facebook und Discord; bei Instagram entfernt sie die Redaktion von Hand. Wer in einem Beitrag genannt oder gezeigt ist und das nicht möchte, kann sich an die im Impressum genannte Adresse wenden."
+                                ]
+                            },
+                            {
+                                "id": "social-media-rechtsgrundlage",
+                                "begriff": "Rechtsgrundlage",
+                                "werte": [
+                                    "Das berechtigte Interesse, über das Projekt zu informieren (Art. 6 Abs. 1 lit. f DSGVO)."
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h3",
+                        "id": "fristen-und-sicherungen",
+                        "text": "Fristen und Sicherungen"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Überblick; Einzelheiten und Ausnahmen stehen bei der jeweiligen Funktion."
+                    },
+                    {
+                        "art": "tafel",
+                        "kopf": ["Was", "Frist", "Was bleibt oder abweicht"],
+                        "schluesselSpalten": 1,
+                        "zeilen": [
+                            {
+                                "id": "fristen-und-sicherungen-webserver-und-systemprotokoll-sperrprotokoll",
+                                "zellen": ["Webserver- und Systemprotokoll, Sperrprotokoll", "**rund 14 Tage**", ""]
+                            },
+                            {
+                                "id": "fristen-und-sicherungen-fehlerdiagnose",
+                                "zellen": [
+                                    "Fehlerdiagnose",
+                                    "**14 Tage**",
+                                    "die Zahl der Fehler je Art und Tag bleibt als Summe"
+                                ]
+                            },
+                            {
+                                "id": "fristen-und-sicherungen-anmeldungen-und-fehlversuche",
+                                "zellen": [
+                                    "Anmeldungen und Fehlversuche",
+                                    "**90 Tage**",
+                                    "gekürzte IP-Adresse schon nach **14 Tagen** geleert"
+                                ]
+                            },
+                            {
+                                "id": "fristen-und-sicherungen-abgelaufene-sitzungen-links-anmeldeumwege",
+                                "zellen": [
+                                    "Abgelaufene Sitzungen, Links, Anmeldeumwege",
+                                    "**30 Tage** nach dem Ende",
+                                    ""
+                                ]
+                            },
+                            {
+                                "id": "fristen-und-sicherungen-drossel-der-anmeldung",
+                                "zellen": ["Drossel der Anmeldung", "**30 Tage** Ruhe", ""]
+                            },
+                            {
+                                "id": "fristen-und-sicherungen-verwaltungshandlungen-aenderungen-am-zugang-redaktionsprotokoll",
+                                "zellen": [
+                                    "Verwaltungshandlungen, Änderungen am Zugang, Redaktionsprotokoll",
+                                    "bleiben",
+                                    "bei der Kontoauflösung geschwärzt"
+                                ]
+                            },
+                            {
+                                "id": "fristen-und-sicherungen-betreiber-kanal",
+                                "zellen": [
+                                    "Betreiber-Kanal",
+                                    "**90 Tage** nach der Abnahme",
+                                    "Kurztitel, Nachweise und Fix-Bericht bleiben"
+                                ]
+                            },
+                            {
+                                "id": "fristen-und-sicherungen-benachrichtigungen",
+                                "zellen": [
+                                    "Benachrichtigungen",
+                                    "**90 Tage** nach Lesen oder Antwort, spätestens **180 Tage**",
+                                    "**sofort** bei der Kontoauflösung"
+                                ]
+                            },
+                            {
+                                "id": "fristen-und-sicherungen-meldungen",
+                                "zellen": [
+                                    "Meldungen",
+                                    "Name, Discord-Angaben, Statuslink: **90 Tage** nach dem Abschluss",
+                                    "offen: bleiben; Text und Sachinhalt bleiben im Archiv"
+                                ]
+                            },
+                            {
+                                "id": "fristen-und-sicherungen-kontakt-und-mail",
+                                "zellen": [
+                                    "Kontakt und Mail",
+                                    "Name, Adresse, Absender, Originalmail, Statuslink: **90 Tage** nach dem Abschluss",
+                                    "offen: bleiben; Text, Betreff, HTML, Anhänge und Kennungen bleiben im Archiv"
+                                ]
+                            },
+                            {
+                                "id": "fristen-und-sicherungen-discord-befehle",
+                                "zellen": [
+                                    "Discord-Befehle",
+                                    "Text, Anzeigename, Kennung: **90 Tage** nach dem Abschluss",
+                                    "offen: bleiben; Kurztitel, Nachweise und Bericht bleiben"
+                                ]
+                            },
+                            {
+                                "id": "fristen-und-sicherungen-papierkorb-meldungen-anfragen-social-media",
+                                "zellen": ["Papierkorb (Meldungen, Anfragen, Social Media)", "**30 Tage**", ""]
+                            },
+                            {
+                                "id": "fristen-und-sicherungen-bewertungen",
+                                "zellen": [
+                                    "Bewertungen",
+                                    "bleiben, solange sie sichtbar sind",
+                                    "beanstandet: Name, Text und Datum fallen weg, die Sterne bleiben"
+                                ]
+                            },
+                            {
+                                "id": "fristen-und-sicherungen-kartenvorschlaege",
+                                "zellen": [
+                                    "Kartenvorschläge",
+                                    "Datei nie angekommen oder nicht verarbeitet: **7 Tage**; abgelehnt oder zurückgezogen: **30 Tage**",
+                                    "offen: bis zur Entscheidung; angenommen: Datei **rund eine Woche**, Name und Notiz **90 Tage**"
+                                ]
+                            },
+                            {
+                                "id": "fristen-und-sicherungen-reisebilder",
+                                "zellen": [
+                                    "Reisebilder",
+                                    "abgelehnt, zurückgezogen, offline: **30 Tage**",
+                                    "unentschieden: verfallen nach **60 Tagen**, **30 Tage** danach gelöscht"
+                                ]
+                            },
+                            {
+                                "id": "fristen-und-sicherungen-sicherungen",
+                                "zellen": [
+                                    "Sicherungen",
+                                    "bis zu **sechs Monate**",
+                                    "Medien und Mails können länger liegen"
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "h4",
+                        "id": "sicherungen",
+                        "text": "Sicherungen"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Avesmaps sichert täglich seine Datenbanken und seine Konfiguration; dazu kommen, wenn sie sich ändern, die Originale der Medien samt Rechtebelegen und die abgelegten Mails."
+                    },
+                    {
+                        "art": "fakten",
+                        "zeilen": [
+                            {
+                                "id": "sicherungen-was-darin-steht",
+                                "begriff": "Was darin steht",
+                                "werte": [
+                                    "Die Sicherungen enthalten damit auch Konten, Meldungen, Anfragen, Bewertungen und Protokolle."
+                                ]
+                            },
+                            {
+                                "id": "sicherungen-wo-es-liegt",
+                                "begriff": "Wo es liegt",
+                                "werte": [
+                                    "Die Dateien werden verschlüsselt, bevor sie den Server verlassen, und liegen auf dem Server und außer Haus bei einem Speicherdienst. Der Dienst bekommt nur die verschlüsselten Dateien und eine Übersicht ohne Personendaten."
+                                ]
+                            },
+                            {
+                                "id": "sicherungen-schluessel",
+                                "begriff": "Schlüssel",
+                                "werte": [
+                                    "Den Schlüssel hält der Betreiber; ein zweiter Schlüssel für die regelmäßige Wiederherstellungsprobe liegt auf dem Server."
+                                ]
+                            },
+                            {
+                                "id": "sicherungen-wie-lange",
+                                "begriff": "Wie lange",
+                                "werte": [
+                                    "Außer Haus bleiben die sieben jüngsten Sicherungen und dazu je eine von **vier Wochen** und von sechs Monaten. Was in Avesmaps gelöscht wurde, kann deshalb bis zu **sechs Monate** in einer Sicherung liegen."
+                                ]
+                            },
+                            {
+                                "id": "sicherungen-wozu",
+                                "begriff": "Wozu",
+                                "werte": [
+                                    "Eine Sicherung wird nur gelesen, um Daten nach einem Ausfall wiederherzustellen oder um das zu proben."
+                                ]
+                            },
+                            {
+                                "id": "sicherungen-kopie-fuer-die-entwicklung",
+                                "begriff": "Kopie für die Entwicklung",
+                                "werte": [
+                                    "Für die Entwicklung holt der Betreiber zeitweise eine Kopie der Kartendaten und Mediendateien auf seinen Rechner. Konten, Meldungen, Anfragen und Protokolle sind nicht dabei, Namen sind verdeckt; die Originaldateien der Medien kommen aber mit."
+                                ]
+                            },
+                            {
+                                "id": "sicherungen-rechtsgrundlage",
+                                "begriff": "Rechtsgrundlage",
+                                "werte": ["Das berechtigte Interesse am sicheren Betrieb (Art. 6 Abs. 1 lit. f DSGVO)."]
+                            }
+                        ]
+                    },
+                    {
+                        "art": "kasten",
+                        "titel": "Gelöschtes kann in Sicherungen länger liegen",
+                        "absaetze": [
+                            "Medien und Mails liegen dort in den zwei jüngsten Fassungen und werden nur ersetzt, wenn sich etwas ändert; eine gelöschte Datei kann darin deshalb auch länger als **sechs Monate** liegen."
+                        ]
+                    },
+                    {
+                        "art": "h3",
+                        "id": "rechte-der-betroffenen",
+                        "text": "Rechte der Betroffenen"
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Im Rahmen der DSGVO bestehen diese Rechte:"
+                    },
+                    {
+                        "art": "liste",
+                        "punkte": [
+                            "Auskunft",
+                            "Berichtigung",
+                            "Löschung",
+                            "Einschränkung der Verarbeitung",
+                            "Datenübertragbarkeit",
+                            "Widerspruch",
+                            "Beschwerde bei einer Datenschutz-Aufsichtsbehörde"
+                        ]
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "Anfragen zum Datenschutz gehen an die im Impressum angegebene Adresse."
+                    }
+                ]
+            },
+            {
+                "id": "kontakt-und-impressum",
+                "titel": "Kontakt und Impressum",
+                "hinweis": "Anschrift nach § 5 DDG und wie das Projekt erreichbar ist",
+                "bloecke": [
+                    {
+                        "art": "absatz",
+                        "text": "Entwicklung, Gestaltung, Programmierung und Betrieb erfolgen durch [Valentin Schwind](https://www.valentin-schwind.de) (c/o Nobelstr. 10, D-70569 Stuttgart); bei der Programmierung wird [Claude Code](https://www.anthropic.com/claude-code) eingesetzt. Verantwortlich für die redaktionelle Pflege der Karteninhalte ist Thomas Braun."
+                    },
+                    {
+                        "art": "absatz",
+                        "text": "E-Mail: [{mail}](mailto:{mail})"
+                    },
+                    {
+                        "art": "kontaktknoepfe"
+                    }
+                ]
+            }
+        ],
+        "schluss": "Diese Hinweise können bei technischen, rechtlichen oder inhaltlichen Änderungen des Projekts angepasst werden."
+    }
+}

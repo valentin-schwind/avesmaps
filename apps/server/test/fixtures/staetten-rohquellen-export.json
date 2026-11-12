@@ -1,0 +1,286 @@
+{
+    "ok": true,
+    "map_revision": 812,
+    "aliase_stempel": "ra-654bb4fdbe200950",
+    "quellen_stand": "sq-ca53476ce84c6339",
+    "kopf": {
+        "punkte": {
+            "ok": true,
+            "zeilen": 4
+        },
+        "gespeicherte": {
+            "ok": true,
+            "zeilen": 5
+        },
+        "wege": {
+            "ok": true,
+            "zeilen": 2,
+            "linkziele": 3,
+            "linkziele_ohne_schluessel": 0
+        },
+        "sitze": {
+            "ok": true,
+            "zeilen": 5,
+            "organisationen": 3,
+            "linkziele": 6,
+            "linkziele_ohne_schluessel": 0,
+            "neuester_abgleich": "2026-10-02 16:42:00.000"
+        },
+        "stadtteile": {
+            "ok": true,
+            "zeilen": 3,
+            "linkziele": 3,
+            "linkziele_ohne_schluessel": 1,
+            "neuester_abgleich": "2026-10-02 16:47:00.000"
+        }
+    },
+    "punkte": [
+        {
+            "public_id": "22222222-2222-4222-8222-000000000011",
+            "name": "Burg Eichstein",
+            "ortsklasse": "gebaeude",
+            "art": "Burg",
+            "wiki_url": "https://de.wiki-aventurica.de/wiki/Burg_Eichstein",
+            "wiki_key": "wiki:burg-eichstein",
+            "aktiv": true,
+            "von_der_karte": false,
+            "innerorts_ort": "22222222-2222-4222-8222-000000000004",
+            "innerorts_herkunft": "manual"
+        },
+        {
+            "public_id": "22222222-2222-4222-8222-000000000012",
+            "name": "Gut Weyring",
+            "ortsklasse": "gebaeude",
+            "art": "Gutshof",
+            "wiki_url": "https://de.wiki-aventurica.de/wiki/Gut_Weyring",
+            "wiki_key": "wiki:gut-weyring",
+            "aktiv": false,
+            "von_der_karte": true,
+            "innerorts_ort": "22222222-2222-4222-8222-000000000001",
+            "innerorts_herkunft": "wiki"
+        },
+        {
+            "public_id": "22222222-2222-4222-8222-000000000013",
+            "name": "Nordquartier",
+            "ortsklasse": "stadtviertel",
+            "art": null,
+            "wiki_url": null,
+            "wiki_key": null,
+            "aktiv": true,
+            "von_der_karte": false,
+            "innerorts_ort": null,
+            "innerorts_herkunft": "manual"
+        },
+        {
+            "public_id": "22222222-2222-4222-8222-000000000015",
+            "name": "Kaiserpalast",
+            "ortsklasse": "gebaeude",
+            "art": null,
+            "wiki_url": null,
+            "wiki_key": null,
+            "aktiv": true,
+            "von_der_karte": false,
+            "innerorts_ort": "22222222-2222-4222-8222-000000000001",
+            "innerorts_herkunft": null
+        }
+    ],
+    "gespeicherte": [
+        {
+            "public_id": "33333333-3333-4333-8333-000000000021",
+            "name": "Phex-Tempel Selindes Hort",
+            "art": "Tempel",
+            "ort_public_id": "22222222-2222-4222-8222-000000000005",
+            "wiki_url": "https://www.garetien.de/index.php/Garetien:Phex-Tempel_Selindes_Hort",
+            "wiki_key": null,
+            "quelle": "garetien"
+        },
+        {
+            "public_id": "33333333-3333-4333-8333-000000000022",
+            "name": "Kloster Rabenmund",
+            "art": "Kloster",
+            "ort_public_id": "22222222-2222-4222-8222-000000000005",
+            "wiki_url": "https://de.wiki-aventurica.de/wiki/Kloster_Rabenmund",
+            "wiki_key": "wiki:kloster-rabenmund",
+            "quelle": "garetien"
+        },
+        {
+            "public_id": "33333333-3333-4333-8333-000000000024",
+            "name": "Tempel der Zwölfe",
+            "art": "Tempel",
+            "ort_public_id": "22222222-2222-4222-8222-000000000001",
+            "wiki_url": null,
+            "wiki_key": null,
+            "quelle": "garetien"
+        },
+        {
+            "public_id": "33333333-3333-4333-8333-000000000025",
+            "name": "Tempel der Zwölfe",
+            "art": null,
+            "ort_public_id": "22222222-2222-4222-8222-000000000002",
+            "wiki_url": null,
+            "wiki_key": null,
+            "quelle": "garetien"
+        },
+        {
+            "public_id": "33333333-3333-4333-8333-000000000026",
+            "name": "Rondratempel zu Angbar",
+            "art": "Tempel",
+            "ort_public_id": "22222222-2222-4222-8222-000000000002",
+            "wiki_url": "https://www.koschwiki.de/wiki/Rondratempel_zu_Angbar",
+            "wiki_key": null,
+            "quelle": "koschwiki"
+        }
+    ],
+    "wege": [
+        {
+            "weg_key": "wiki:reichsstrasse-1",
+            "titel": "Reichsstraße 1",
+            "name": "Reichsstraße 1",
+            "art": "Reichsstraße",
+            "wiki_url": "https://de.wiki-aventurica.de/wiki/Reichsstra%C3%9Fe_1",
+            "wiki_key": "wiki:reichsstrasse-1",
+            "lage_roh": "[[Garetien]], [[Darpatien|Darpatische Lande]]",
+            "lage_links": [
+                {
+                    "ziel": "Garetien",
+                    "ziel_key": "wiki:garetien"
+                },
+                {
+                    "ziel": "Darpatien",
+                    "ziel_key": "wiki:darpatien"
+                }
+            ]
+        },
+        {
+            "weg_key": "wiki:webergasse",
+            "titel": "Webergasse",
+            "name": "Webergasse",
+            "art": "Gasse",
+            "wiki_url": "https://de.wiki-aventurica.de/wiki/Webergasse",
+            "wiki_key": "wiki:webergasse",
+            "lage_roh": "[[Khunchom]]",
+            "lage_links": [
+                {
+                    "ziel": "Khunchom",
+                    "ziel_key": "wiki:khunchom"
+                }
+            ]
+        }
+    ],
+    "sitze": [
+        {
+            "organisation": "Garderegiment Rabenmund",
+            "organisation_art": "Provinzherrliches Garderegiment<br><small>(Leibregiment)<",
+            "rolle": "hauptsitz",
+            "reihenfolge": 0,
+            "ort_roh": "[[Havena (Siedlung)|Havena]]",
+            "ort_links": [
+                {
+                    "ziel": "Havena (Siedlung)",
+                    "ziel_key": "wiki:havena"
+                }
+            ],
+            "wiki_url": "https://de.wiki-aventurica.de/wiki/Garderegiment_Rabenmund",
+            "wiki_key": "wiki:garderegiment-rabenmund"
+        },
+        {
+            "organisation": "Handelshaus Ongswin",
+            "organisation_art": null,
+            "rolle": "zweigsitz",
+            "reihenfolge": 0,
+            "ort_roh": "[[Gareth]]",
+            "ort_links": [
+                {
+                    "ziel": "Gareth",
+                    "ziel_key": "wiki:gareth"
+                }
+            ],
+            "wiki_url": "https://de.wiki-aventurica.de/wiki/Handelshaus_Ongswin",
+            "wiki_key": "wiki:handelshaus-ongswin"
+        },
+        {
+            "organisation": "Nordlandbank",
+            "organisation_art": "Bankhaus",
+            "rolle": "hauptsitz",
+            "reihenfolge": 0,
+            "ort_roh": "[[Festum]]",
+            "ort_links": [
+                {
+                    "ziel": "Festum",
+                    "ziel_key": "wiki:festum"
+                }
+            ],
+            "wiki_url": "https://de.wiki-aventurica.de/wiki/Nordlandbank",
+            "wiki_key": "wiki:nordlandbank"
+        },
+        {
+            "organisation": "Nordlandbank",
+            "organisation_art": "Bankhaus",
+            "rolle": "zweigsitz",
+            "reihenfolge": 1,
+            "ort_roh": "zwischen [[Smamid]] und [[Ehristar]]",
+            "ort_links": [
+                {
+                    "ziel": "Smamid",
+                    "ziel_key": "wiki:smamid"
+                },
+                {
+                    "ziel": "Ehristar",
+                    "ziel_key": "wiki:ehristar"
+                }
+            ],
+            "wiki_url": "https://de.wiki-aventurica.de/wiki/Nordlandbank",
+            "wiki_key": "wiki:nordlandbank"
+        },
+        {
+            "organisation": "Nordlandbank",
+            "organisation_art": "Bankhaus",
+            "rolle": "zweigsitz",
+            "reihenfolge": 2,
+            "ort_roh": "[[Gareth]]",
+            "ort_links": [
+                {
+                    "ziel": "Gareth",
+                    "ziel_key": "wiki:gareth"
+                }
+            ],
+            "wiki_url": "https://de.wiki-aventurica.de/wiki/Nordlandbank",
+            "wiki_key": "wiki:nordlandbank"
+        }
+    ],
+    "stadtteile": [
+        {
+            "titel": "Hafen (Festum)",
+            "standort": "[[Festum]]",
+            "standort_links": [
+                {
+                    "ziel": "Festum",
+                    "ziel_key": "wiki:festum"
+                }
+            ],
+            "wiki_url": "https://de.wiki-aventurica.de/wiki/Hafen_%28Festum%29"
+        },
+        {
+            "titel": "Unterstadt",
+            "standort": "[[_]]",
+            "standort_links": [
+                {
+                    "ziel": "_",
+                    "ziel_key": null
+                }
+            ],
+            "wiki_url": "https://de.wiki-aventurica.de/wiki/Unterstadt"
+        },
+        {
+            "titel": "Yol-Fessar",
+            "standort": "[[Fasar]]",
+            "standort_links": [
+                {
+                    "ziel": "Fasar",
+                    "ziel_key": "wiki:fasar"
+                }
+            ],
+            "wiki_url": "https://de.wiki-aventurica.de/wiki/Yol-Fessar"
+        }
+    ]
+}

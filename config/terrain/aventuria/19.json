@@ -1,0 +1,950 @@
+{
+    "version": 19,
+    "mountainMorphology": {
+        "seedSmoothing": 1,
+        "foothills": {
+            "reach": 24,
+            "smoothing": 8,
+            "hillTransition": 4,
+            "hillAsymmetry": 0.4,
+            "capAtMountain": 0.1,
+            "macroRetention": 0.85,
+            "erosionFocus": 2,
+            "material": {
+                "upliftWeight": 1.5,
+                "erodibility": 2.5,
+                "diffusivity": 2,
+                "runoff": 1.75,
+                "channelBias": 0
+            }
+        },
+        "fragments": {
+            "spacing": 6,
+            "attempts": 8,
+            "relativeHeight": 0.45,
+            "lengthMinimum": 3,
+            "lengthMaximum": 9,
+            "radiusMinimum": 0.8,
+            "radiusMaximum": 2.2,
+            "massifFraction": 0.35,
+            "interruption": 0.22,
+            "warp": 0.45,
+            "inward": 2
+        },
+        "andock": {
+            "streifen": 6,
+            "naht": 4
+        },
+        "rueckennetz": {
+            "einbettung": 2,
+            "materialRand": 1.5,
+            "kernErosion": 0.25,
+            "kernDiffusion": 0.3,
+            "hebungFolgt": 1,
+            "sattelAbtrag": 0.5
+        },
+        "interior": {
+            "fragments": {
+                "spacing": 1.2,
+                "attempts": 8,
+                "relativeHeight": 0.45,
+                "lengthMinimum": 1,
+                "lengthMaximum": 2.5,
+                "radiusMinimum": 0.6,
+                "radiusMaximum": 1.2,
+                "massifFraction": 0.6,
+                "interruption": 0.22,
+                "warp": 0.45,
+                "inward": 0.5
+            },
+            "inward": 1,
+            "iterations": 12,
+            "streamPowerK": 0.08,
+            "diffusion": 0.004375,
+            "maximumGrade": 0.7,
+            "relaxationSteps": 60,
+            "halo": 8,
+            "alpine": {
+                "from": 1500,
+                "to": 3000,
+                "crest": 1,
+                "diffusion": 0,
+                "maximumGrade": 1.2,
+                "summit": {
+                    "grade": {
+                        "minimum": 0.6,
+                        "maximum": 0.8
+                    },
+                    "profile": {
+                        "minimum": 1.15,
+                        "maximum": 1.45
+                    },
+                    "outline": {
+                        "minimum": 0.15,
+                        "maximum": 0.4
+                    },
+                    "ridges": {
+                        "minimum": 5,
+                        "maximum": 9
+                    },
+                    "relief": {
+                        "minimum": 0.1,
+                        "maximum": 0.2
+                    },
+                    "detail": {
+                        "minimum": 1.5,
+                        "maximum": 2.5
+                    },
+                    "restoreFull": {
+                        "minimum": 0.4,
+                        "maximum": 0.6
+                    },
+                    "restoreNone": {
+                        "minimum": 0.85,
+                        "maximum": 1
+                    },
+                    "dominance": 0.1
+                },
+                "volcano": {
+                    "grade": {
+                        "minimum": 0.5,
+                        "maximum": 0.7
+                    },
+                    "plateau": {
+                        "minimum": 0.3,
+                        "maximum": 0.5
+                    }
+                }
+            }
+        }
+    },
+    "riverValley": {
+        "flankGrade": 0.1,
+        "mountainShare": 1
+    },
+    "generator": {
+        "size": 4096,
+        "seed": 67001,
+        "fine": {
+            "size": 8192,
+            "tiles": 8,
+            "halo": 64,
+            "blend": 32,
+            "detail": {
+                "amplitude": 80,
+                "wavelength": 0.75,
+                "octaves": 3,
+                "persistence": 0.5,
+                "relief": 0.6
+            },
+            "erosion": {
+                "iterations": 3,
+                "streamPowerK": 0.05,
+                "exponent": 0.5,
+                "diffusion": 0.04,
+                "fill": 0.01,
+                "maximumChange": 150
+            }
+        },
+        "continentalHeight": 300,
+        "continentalRadius": 100,
+        "materialBlur": 5,
+        "iterations": 20,
+        "timeStep": 1,
+        "streamPowerK": 0.08,
+        "streamPowerM": 0.5,
+        "diffusion": 0.005,
+        "drainageBurn": 5000,
+        "drainageStep": 0.05,
+        "detail": {
+            "amplitude": 220,
+            "wavelength": 4,
+            "octaves": 3,
+            "persistence": 0.65,
+            "coastFade": 8
+        },
+        "lakes": {
+            "bedQuantile": 0.05,
+            "mouthReach": 2,
+            "inletDepth": 100,
+            "randBreite": 1.5
+        },
+        "uplift": {
+            "kind": "regional",
+            "radius": 16,
+            "saturation": 10
+        }
+    },
+    "topographie": {
+        "gebirge": {
+            "upliftWeight": 20,
+            "erodibility": 0.08,
+            "diffusivity": 1,
+            "runoff": 1,
+            "channelBias": 0,
+            "influence": {
+                "outward": 12,
+                "inward": 4
+            }
+        },
+        "hochebene": {
+            "landform": {
+                "kind": "plateau",
+                "minimum": 50,
+                "maximum": 900,
+                "wavelength": 24
+            },
+            "upliftWeight": 1,
+            "erodibility": 0.4,
+            "diffusivity": 2,
+            "runoff": 0.8,
+            "channelBias": 0,
+            "influence": {
+                "outward": 8,
+                "inward": 4
+            }
+        },
+        "huegelland": {
+            "landform": {
+                "kind": "hills",
+                "minimum": 80,
+                "maximum": 320,
+                "wavelength": 0.9,
+                "hills": {
+                    "attempts": 3,
+                    "radiusAtMinimum": 0.5,
+                    "heightExponent": 1.5,
+                    "overlapPower": 4
+                }
+            },
+            "upliftWeight": 4,
+            "erodibility": 1,
+            "diffusivity": 0.7,
+            "runoff": 1,
+            "channelBias": 0,
+            "influence": {
+                "outward": 16,
+                "inward": 4
+            }
+        },
+        "tiefebene": {
+            "upliftWeight": 0.3,
+            "erodibility": 1,
+            "diffusivity": 3,
+            "runoff": 0.8,
+            "channelBias": 0
+        },
+        "tal": {
+            "upliftWeight": 0.5,
+            "erodibility": 1.5,
+            "diffusivity": 1.5,
+            "runoff": 1.2,
+            "channelBias": 2,
+            "influence": {
+                "outward": 0,
+                "inward": 3
+            }
+        },
+        "schlucht": {
+            "upliftWeight": 0.5,
+            "erodibility": 2,
+            "diffusivity": 0.3,
+            "runoff": 1.2,
+            "channelBias": 4,
+            "influence": {
+                "outward": 0,
+                "inward": 1
+            }
+        },
+        "wadi": {
+            "upliftWeight": 0.5,
+            "erodibility": 1.5,
+            "diffusivity": 0.8,
+            "runoff": 0.3,
+            "channelBias": 4,
+            "influence": {
+                "outward": 0,
+                "inward": 2
+            }
+        },
+        "flussdelta": {
+            "upliftWeight": 0.2,
+            "erodibility": 1.2,
+            "diffusivity": 4,
+            "runoff": 0.8,
+            "channelBias": 2
+        },
+        "kueste": {
+            "upliftWeight": 1,
+            "erodibility": 1,
+            "diffusivity": 1,
+            "runoff": 1,
+            "channelBias": 0
+        },
+        "insel": {
+            "upliftWeight": 1,
+            "erodibility": 1,
+            "diffusivity": 1,
+            "runoff": 1,
+            "channelBias": 0
+        }
+    },
+    "vegetation": {
+        "wald": {
+            "upliftWeight": 1,
+            "erodibility": 0.8,
+            "diffusivity": 1,
+            "runoff": 0.8,
+            "channelBias": 0
+        },
+        "urwald": {
+            "upliftWeight": 1,
+            "erodibility": 0.6,
+            "diffusivity": 1,
+            "runoff": 0.7,
+            "channelBias": 0
+        },
+        "dschungel": {
+            "upliftWeight": 1,
+            "erodibility": 0.6,
+            "diffusivity": 1,
+            "runoff": 0.7,
+            "channelBias": 0
+        },
+        "graslandschaft": {
+            "upliftWeight": 1,
+            "erodibility": 1,
+            "diffusivity": 1,
+            "runoff": 1,
+            "channelBias": 0
+        },
+        "kulturlandschaft": {
+            "upliftWeight": 1,
+            "erodibility": 1,
+            "diffusivity": 1,
+            "runoff": 1,
+            "channelBias": 0
+        },
+        "steppe": {
+            "upliftWeight": 1,
+            "erodibility": 1.2,
+            "diffusivity": 1.3,
+            "runoff": 0.7,
+            "channelBias": 0
+        },
+        "wueste": {
+            "upliftWeight": 1,
+            "erodibility": 1,
+            "diffusivity": 1,
+            "runoff": 0.15,
+            "channelBias": 0
+        },
+        "wuestenoase": {
+            "upliftWeight": 1,
+            "erodibility": 1,
+            "diffusivity": 2,
+            "runoff": 1.2,
+            "channelBias": 1
+        },
+        "tundra": {
+            "upliftWeight": 1,
+            "erodibility": 1,
+            "diffusivity": 1.5,
+            "runoff": 0.8,
+            "channelBias": 0
+        },
+        "suempfe_moore": {
+            "upliftWeight": 1,
+            "erodibility": 0.8,
+            "diffusivity": 4,
+            "runoff": 0.4,
+            "channelBias": 1
+        },
+        "auenlandschaft": {
+            "upliftWeight": 1,
+            "erodibility": 1.3,
+            "diffusivity": 3,
+            "runoff": 1.2,
+            "channelBias": 2
+        },
+        "flussland_flusstal": {
+            "upliftWeight": 1,
+            "erodibility": 1.5,
+            "diffusivity": 2,
+            "runoff": 1.3,
+            "channelBias": 2
+        }
+    },
+    "gebirgsPresets": {
+        "typen": {
+            "kammgebirge": {
+                "werte": {
+                    "hypsometrie": 0.45,
+                    "plateau": 0.9,
+                    "rauschen": 0.25,
+                    "einschnitt": 550,
+                    "erosion": 3,
+                    "talbreite": 1.6,
+                    "koernung": 14,
+                    "stufen": 3,
+                    "bergform": 2,
+                    "sattel": 0.95
+                },
+                "muster": "rauschen",
+                "rueckennetz": {
+                    "struktur": {
+                        "abstand": 6,
+                        "fuellung": 0.3,
+                        "straengeMax": 1,
+                        "wandern": 0.3,
+                        "welle": 14,
+                        "astAbstand": 2.5,
+                        "astLaenge": 0.6
+                    },
+                    "form": {
+                        "breite": 1.1,
+                        "schaerfe": 0.55,
+                        "talboden": 0.3,
+                        "rauschen": 0.12,
+                        "koernung": 4,
+                        "randBreite": 3,
+                        "erosion": 3,
+                        "erhalt": 0.5,
+                        "grat": 0.15,
+                        "gratBreite": 0.45,
+                        "kopf": 0.1,
+                        "kammMuster": 0,
+                        "kopfNeigung": 0.2,
+                        "durchhang": 0.12,
+                        "durchhangNeben": 0.16,
+                        "gelaendeErosion": 0.5
+                    },
+                    "band": {
+                        "ziel": 0.44,
+                        "min": 0.36,
+                        "max": 0.52,
+                        "quelle": "reif nach Strahler; V12 am Ende 0,44"
+                    },
+                    "gratMin": 0.15
+                }
+            },
+            "gratgebirge": {
+                "werte": {
+                    "hypsometrie": 0.35,
+                    "plateau": 1,
+                    "rauschen": 0.45,
+                    "einschnitt": 800,
+                    "erosion": 5,
+                    "talbreite": 0.9,
+                    "koernung": 8,
+                    "stufen": 5,
+                    "bergform": 2,
+                    "sattel": 0.88
+                },
+                "muster": "rauschen",
+                "rueckennetz": {
+                    "struktur": {
+                        "abstand": 5,
+                        "fuellung": 0.5,
+                        "straengeMax": 2,
+                        "wandern": 0.6,
+                        "welle": 9,
+                        "astAbstand": 1.8,
+                        "astLaenge": 0.85
+                    },
+                    "form": {
+                        "breite": 0.8,
+                        "schaerfe": 0.8,
+                        "talboden": 0.25,
+                        "rauschen": 0.14,
+                        "koernung": 3,
+                        "randBreite": 2.5,
+                        "erosion": 4,
+                        "erhalt": 0.5,
+                        "grat": 0.2,
+                        "gratBreite": 0.45,
+                        "kopf": 0.1,
+                        "kammMuster": 0,
+                        "kopfNeigung": 0.2,
+                        "durchhang": 0.18,
+                        "durchhangNeben": 0.24,
+                        "gelaendeErosion": 0.4
+                    },
+                    "band": {
+                        "ziel": 0.45,
+                        "min": 0.37,
+                        "max": 0.53,
+                        "quelle": "reif; V12 am Ende 0,45 (60 × 20 E)"
+                    },
+                    "gratMin": 0.2
+                }
+            },
+            "kettengebirge": {
+                "werte": {
+                    "hypsometrie": 0.4,
+                    "plateau": 1,
+                    "rauschen": 0.5,
+                    "einschnitt": 1100,
+                    "erosion": 5,
+                    "talbreite": 1.1,
+                    "koernung": 9,
+                    "stufen": 4,
+                    "bergform": 2.5,
+                    "sattel": 0.92
+                },
+                "muster": "rauschen",
+                "rueckennetz": {
+                    "struktur": {
+                        "abstand": 4,
+                        "fuellung": 0.5,
+                        "straengeMax": 5,
+                        "wandern": 0.5,
+                        "welle": 12,
+                        "astAbstand": 2.5,
+                        "astLaenge": 0.8
+                    },
+                    "form": {
+                        "breite": 1.2,
+                        "schaerfe": 0.5,
+                        "talboden": 0.2,
+                        "rauschen": 0.15,
+                        "koernung": 4,
+                        "randBreite": 1.5,
+                        "erosion": 4,
+                        "erhalt": 0.5,
+                        "grat": 0.18,
+                        "gratBreite": 0.45,
+                        "kopf": 0.1,
+                        "kammMuster": 0,
+                        "kopfNeigung": 0.2,
+                        "durchhang": 0.15,
+                        "durchhangNeben": 0.2,
+                        "gelaendeErosion": 0.5
+                    },
+                    "band": {
+                        "ziel": 0.5,
+                        "min": 0.42,
+                        "max": 0.58,
+                        "quelle": "Alpen rund 0,5 (Legacy, Copernicus-DEM); V12 am Ende 0,51"
+                    },
+                    "gratMin": 0.2
+                }
+            },
+            "kuppengebirge": {
+                "werte": {
+                    "hypsometrie": 0.33,
+                    "plateau": 1,
+                    "rauschen": 0.3,
+                    "einschnitt": 450,
+                    "erosion": 4,
+                    "talbreite": 1.6,
+                    "koernung": 9,
+                    "stufen": 4,
+                    "bergform": 3.5,
+                    "sattel": 0.55
+                },
+                "muster": "rauschen",
+                "rueckennetz": {
+                    "struktur": {
+                        "abstand": 3.5,
+                        "fuellung": 0.7,
+                        "straengeMax": 6,
+                        "wandern": 1,
+                        "welle": 5,
+                        "astAbstand": 0,
+                        "astLaenge": 0
+                    },
+                    "form": {
+                        "breite": 1.6,
+                        "schaerfe": 0.05,
+                        "talboden": 0.4,
+                        "rauschen": 0.2,
+                        "koernung": 3,
+                        "randBreite": 3,
+                        "erosion": 3,
+                        "erhalt": 0.35,
+                        "grat": 0.12,
+                        "gratBreite": 0.45,
+                        "kopf": 0.1,
+                        "kammMuster": 0,
+                        "kopfNeigung": 0.2,
+                        "durchhang": 0.05,
+                        "durchhangNeben": 0.07,
+                        "gelaendeErosion": 0.8
+                    },
+                    "band": {
+                        "ziel": 0.44,
+                        "min": 0.36,
+                        "max": 0.52,
+                        "quelle": "reif; V12 am Ende 0,44"
+                    },
+                    "gratMin": 0.1
+                }
+            },
+            "massengebirge": {
+                "werte": {
+                    "hypsometrie": 0.45,
+                    "plateau": 0.4,
+                    "rauschen": 0.7,
+                    "einschnitt": 500,
+                    "erosion": 3,
+                    "talbreite": 1.5,
+                    "koernung": 20,
+                    "stufen": 6,
+                    "bergform": 4,
+                    "sattel": 0.8
+                },
+                "muster": "zellen",
+                "rueckennetz": {
+                    "struktur": {
+                        "abstand": 3,
+                        "fuellung": 0.85,
+                        "straengeMax": 8,
+                        "wandern": 0.9,
+                        "welle": 6,
+                        "astAbstand": 2.5,
+                        "astLaenge": 0.5
+                    },
+                    "form": {
+                        "breite": 1.3,
+                        "schaerfe": 0.25,
+                        "talboden": 0.6,
+                        "rauschen": 0.15,
+                        "koernung": 3,
+                        "randBreite": 4,
+                        "erosion": 3,
+                        "erhalt": 0.4,
+                        "grat": 0.12,
+                        "gratBreite": 0.45,
+                        "kopf": 0.1,
+                        "kammMuster": 0,
+                        "kopfNeigung": 0.2,
+                        "durchhang": 0.08,
+                        "durchhangNeben": 0.1,
+                        "gelaendeErosion": 0.6
+                    },
+                    "band": {
+                        "ziel": 0.45,
+                        "min": 0.37,
+                        "max": 0.53,
+                        "quelle": "geschlossene Erhebung, reif; V12 am Ende 0,41, offen bis 0,46–0,51"
+                    },
+                    "gratMin": 0.08
+                }
+            },
+            "plateaugebirge": {
+                "werte": {
+                    "hypsometrie": 0.7,
+                    "plateau": 0.25,
+                    "rauschen": 0.15,
+                    "einschnitt": 500,
+                    "erosion": 1,
+                    "talbreite": 1.5,
+                    "koernung": 12,
+                    "stufen": 3,
+                    "bergform": 0.5,
+                    "sattel": 0.95
+                },
+                "muster": "rauschen",
+                "rueckennetz": {
+                    "struktur": {
+                        "abstand": 8,
+                        "fuellung": 0.3,
+                        "straengeMax": 1,
+                        "wandern": 0.2,
+                        "welle": 20,
+                        "astAbstand": 0,
+                        "astLaenge": 0
+                    },
+                    "form": {
+                        "breite": 2.5,
+                        "schaerfe": 0.1,
+                        "talboden": 0.85,
+                        "rauschen": 0.06,
+                        "koernung": 6,
+                        "randBreite": 1.5,
+                        "erosion": 1,
+                        "erhalt": 0.7,
+                        "grat": 0.15,
+                        "gratBreite": 0.45,
+                        "kopf": 0.1,
+                        "kammMuster": 0,
+                        "kopfNeigung": 0.2,
+                        "durchhang": 0.04,
+                        "durchhangNeben": 0.05,
+                        "gelaendeErosion": 0.7
+                    },
+                    "band": {
+                        "ziel": 0.64,
+                        "min": 0.58,
+                        "max": 0.72,
+                        "quelle": "jung nach Strahler (ab 0,6); V12 am Ende 0,66"
+                    },
+                    "gratMin": 0.05
+                }
+            },
+            "rumpfgebirge": {
+                "werte": {
+                    "hypsometrie": 0.3,
+                    "plateau": 0.85,
+                    "rauschen": 0.3,
+                    "einschnitt": 400,
+                    "erosion": 5,
+                    "talbreite": 2,
+                    "koernung": 16,
+                    "stufen": 5,
+                    "bergform": 2,
+                    "sattel": 0.8
+                },
+                "muster": "rauschen",
+                "rueckennetz": {
+                    "struktur": {
+                        "abstand": 4.5,
+                        "fuellung": 0.7,
+                        "straengeMax": 4,
+                        "wandern": 0.5,
+                        "welle": 12,
+                        "astAbstand": 4,
+                        "astLaenge": 0.5
+                    },
+                    "form": {
+                        "breite": 1.8,
+                        "schaerfe": 0.1,
+                        "talboden": 0.45,
+                        "rauschen": 0.1,
+                        "koernung": 5,
+                        "randBreite": 4,
+                        "erosion": 5,
+                        "erhalt": 0.3,
+                        "grat": 0.12,
+                        "gratBreite": 0.45,
+                        "kopf": 0.1,
+                        "kammMuster": 0,
+                        "kopfNeigung": 0.2,
+                        "durchhang": 0.05,
+                        "durchhangNeben": 0.06,
+                        "gelaendeErosion": 0.9
+                    },
+                    "band": {
+                        "ziel": 0.3,
+                        "min": 0.22,
+                        "max": 0.38,
+                        "quelle": "Altersstadium; Aventurien 0,23–0,28 (Legacy); V12 am Ende 0,32"
+                    },
+                    "gratMin": 0.08
+                }
+            },
+            "schild": {
+                "werte": {
+                    "hypsometrie": 0.7,
+                    "plateau": 0.15,
+                    "rauschen": 0.12,
+                    "einschnitt": 200,
+                    "erosion": 5,
+                    "talbreite": 3,
+                    "koernung": 20,
+                    "stufen": 2,
+                    "bergform": 0.3,
+                    "sattel": 0.95
+                },
+                "muster": "rauschen",
+                "rueckennetz": {
+                    "struktur": {
+                        "abstand": 10,
+                        "fuellung": 0,
+                        "straengeMax": 1,
+                        "wandern": 0,
+                        "welle": 20,
+                        "astAbstand": 0,
+                        "astLaenge": 0
+                    },
+                    "form": {
+                        "breite": 3,
+                        "schaerfe": 0,
+                        "talboden": 0.7,
+                        "rauschen": 0.08,
+                        "koernung": 8,
+                        "randBreite": 5,
+                        "erosion": 2,
+                        "erhalt": 0.3,
+                        "grat": 0.14,
+                        "gratBreite": 0.45,
+                        "kopf": 0.1,
+                        "kammMuster": 0,
+                        "kopfNeigung": 0.2,
+                        "durchhang": 0.03,
+                        "durchhangNeben": 0.04,
+                        "gelaendeErosion": 0.9
+                    },
+                    "band": {
+                        "ziel": 0.62,
+                        "min": 0.55,
+                        "max": 0.72,
+                        "quelle": "Tafel, fast alles auf einer Höhe; V12 am Ende 0,65"
+                    },
+                    "gratMin": 0.05
+                }
+            },
+            "inselberg": {
+                "werte": {
+                    "hypsometrie": 0.15,
+                    "plateau": 1,
+                    "rauschen": 0.2,
+                    "einschnitt": 550,
+                    "erosion": 5,
+                    "talbreite": 2.5,
+                    "koernung": 14,
+                    "stufen": 3,
+                    "bergform": 8,
+                    "sattel": 0.3
+                },
+                "muster": "rauschen",
+                "rueckennetz": {
+                    "struktur": {
+                        "abstand": 10,
+                        "fuellung": 0,
+                        "straengeMax": 1,
+                        "wandern": 0,
+                        "welle": 20,
+                        "astAbstand": 0,
+                        "astLaenge": 0
+                    },
+                    "form": {
+                        "breite": 1,
+                        "schaerfe": 0.3,
+                        "talboden": 0.05,
+                        "rauschen": 0.05,
+                        "koernung": 3,
+                        "randBreite": 1.5,
+                        "erosion": 3,
+                        "erhalt": 0.4,
+                        "grat": 0.1,
+                        "gratBreite": 0.45,
+                        "kopf": 0.1,
+                        "kammMuster": 0,
+                        "kopfNeigung": 0.2,
+                        "durchhang": 0.1,
+                        "durchhangNeben": 0.13,
+                        "gelaendeErosion": 0.6
+                    },
+                    "band": {
+                        "ziel": 0.2,
+                        "min": 0.12,
+                        "max": 0.3,
+                        "quelle": "Monadnock-Stadium (bis 0,3); V12 am Ende 0,19"
+                    },
+                    "gratMin": 0.25
+                }
+            },
+            "karst": {
+                "werte": {
+                    "hypsometrie": 0,
+                    "plateau": 0.85,
+                    "rauschen": 0.94,
+                    "einschnitt": 1925,
+                    "erosion": 4,
+                    "talbreite": 3.8,
+                    "koernung": 18,
+                    "stufen": 3,
+                    "bergform": 10.5,
+                    "sattel": 0.33
+                },
+                "muster": "rauschen",
+                "rueckennetz": {
+                    "struktur": {
+                        "abstand": 5,
+                        "fuellung": 0.6,
+                        "straengeMax": 3,
+                        "wandern": 0.7,
+                        "welle": 7,
+                        "astAbstand": 2,
+                        "astLaenge": 0.5
+                    },
+                    "form": {
+                        "breite": 1.4,
+                        "schaerfe": 0.7,
+                        "talboden": 0.65,
+                        "rauschen": 0.18,
+                        "koernung": 2.5,
+                        "randBreite": 2,
+                        "erosion": 1,
+                        "erhalt": 0.7,
+                        "grat": 0.12,
+                        "gratBreite": 0.45,
+                        "kopf": 0.1,
+                        "kammMuster": 0,
+                        "kopfNeigung": 0.2,
+                        "durchhang": 0.15,
+                        "durchhangNeben": 0.2,
+                        "gelaendeErosion": 0.5
+                    },
+                    "band": {
+                        "ziel": 0.42,
+                        "min": 0.34,
+                        "max": 0.5,
+                        "quelle": "reif; V12 (Rorwhed, abgenommen) am Ende 0,41"
+                    },
+                    "gratMin": 0.12
+                }
+            },
+            "bergland": {
+                "werte": {
+                    "hypsometrie": 0.18,
+                    "plateau": 0,
+                    "rauschen": 0.8,
+                    "einschnitt": 900,
+                    "erosion": 5,
+                    "talbreite": 0.8,
+                    "koernung": 18,
+                    "stufen": 7,
+                    "bergform": 3,
+                    "sattel": 0.6
+                },
+                "muster": "zellen",
+                "rueckennetz": {
+                    "struktur": {
+                        "abstand": 3.5,
+                        "fuellung": 0.8,
+                        "straengeMax": 7,
+                        "wandern": 0.9,
+                        "welle": 6,
+                        "astAbstand": 2,
+                        "astLaenge": 0.6
+                    },
+                    "form": {
+                        "breite": 1.2,
+                        "schaerfe": 0.2,
+                        "talboden": 0.35,
+                        "rauschen": 0.18,
+                        "koernung": 3,
+                        "randBreite": 3,
+                        "erosion": 4,
+                        "erhalt": 0.35,
+                        "grat": 0.1,
+                        "gratBreite": 0.45,
+                        "kopf": 0.1,
+                        "kammMuster": 0,
+                        "kopfNeigung": 0.2,
+                        "durchhang": 0.1,
+                        "durchhangNeben": 0.13,
+                        "gelaendeErosion": 0.7
+                    },
+                    "band": {
+                        "ziel": 0.42,
+                        "min": 0.34,
+                        "max": 0.5,
+                        "quelle": "ohne eigene Quelle: Mitte des reifen Stadiums (Betreiberentscheid 2026-10-18 zum Typ)"
+                    },
+                    "gratMin": 0.1
+                }
+            }
+        },
+        "hoehenstufen": {
+            "tiefland": 150,
+            "huegelland": 400,
+            "vorgebirge": 800,
+            "mittelgebirge": 1500,
+            "hochgebirge": 3200
+        }
+    }
+}

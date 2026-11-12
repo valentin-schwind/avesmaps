@@ -1,0 +1,220 @@
+{
+    "$comment": "Kartografie des Map Domain aventuria: Farben, Deckkräfte und Kanten der Landschaftsflächen und Klimabänder. Produktsemantik, rendererunabhängig. Größen und Zoombänder stehen NICHT hier, sondern in config/zoom-bands/ (Größe) beziehungsweise am Feature selbst (Sichtbarkeit). Wer hier eine Farbe ändert, ändert die Karte.",
+    "schemaVersion": 1,
+    "mapDomain": "aventuria",
+    "$layerComment": "Die Deckkraft gehört zur EBENE, nicht zur Art: sie regelt, wie stark die Lasur den Rastergrund überdeckt. Eine derographische Fläche ist ein halbes Herzogtum und deckt bei gleicher Deckkraft die Grundkarte zu, während ein Wald nur einen Flecken einfärbt. `order` ist die Zeichenreihenfolge von unten nach oben. `fillOpacityAlone` stellt eine Ebene in ihrer eigenen Ansicht kräftiger, in „Alle“ bleibt `fillOpacity`; heute trägt keine Ebene einen solchen Wert. Vegetation steht allein und in „Alle“ bei 0,6 (OPS-000072, Thomas: die Vegetationsarten seien im Frontend nicht mehr unterscheidbar; Betreiber 2026-10-30 nach dem Vergleich 0,26 / 0,6 / 1,0: „0,6 passt“ und „du kannst auch in \"alle\" 0,6 für die vegetation machen“). Davor 0,26 wie die anderen Ebenen (Betreiber 2026-10-19, „B“), davor allein 1 (2026-09-28, „soll wirklich sichtbar sein“). Derographische Flächen haben gestrichelte Kanten (Betreiber 2026-09-28). 🔴 Klima steht nur in seiner eigenen Ebene, „Alle“ zeigt es nicht (Betreiber 2026-10-05: „Wenn ich auf \"Alle\" klick, sollen keine klimazonen mehr angezeigt werden“; Legacy ebenso, ECOSYSTEM_SHOWALL_VERBORGEN): Es hat deshalb nur EINE Deckkraft, fillOpacity 0,5 („also 50% normal, 100% bei einem klick“, das gewählte Band deckend über Designkanon mapSelection.bandOpacity), und kein fillOpacityAlone. Seen stehen hier nicht mehr: Sie sind Wasser wie die Flüsse, deckend in der Wasserfarbe (aventuria-paths.json, Flussweg). Topographie und Vegetation haben eine kräftige Kante, 1,5 px deckend (OPS-000039, Probierseite „Topographie über dem Untergrund“, Thomas über den Betreiber 2026-10-19: „kräftige kante“). Der helle Saum darunter (`lineHalo`, je Seite 1,5 px zu 60 %) ist entfallen (WI-0266, Betreiber 2026-10-31: „ganz weg“): Er zeichnete dieselbe Form ein zweites Mal, gemessen in der Vegetation 744.000 von 2,74 Mio. Indizes je Bild. Die Küste der Meere behält ihre feine Linie.",
+    "layers": {
+        "klima": {
+            "order": 0,
+            "fillOpacity": 0.5,
+            "lineOpacity": 0.25
+        },
+        "topographie": {
+            "order": 1,
+            "fillOpacity": 0.3,
+            "lineOpacity": 1,
+            "lineWidth": 1.5
+        },
+        "vegetation": {
+            "order": 2,
+            "fillOpacity": 0.6,
+            "lineOpacity": 1,
+            "lineWidth": 1.5
+        },
+        "derographisch": {
+            "order": 3,
+            "fillOpacity": 0.12,
+            "lineOpacity": 0.8,
+            "lineWidth": 1.2,
+            "lineDash": [4, 3]
+        }
+    },
+    "$globalComment": "Was fuer alle Flaechen gleich gilt. `lineDarken` erzeugt die Kantenfarbe aus der Fuellfarbe, damit keine zweite Farbliste gepflegt werden muss. 🔧 `textColor`/`haloColor`/`haloWidth` sind VORLAEUFIG: sie gelten fuer jede Kartendomaene und gehoeren damit in den Designkanon (config/design-canon/avesmaps.json, Familie `landscape`). Sie stehen hier, solange die Beschriftungslayer noch nicht auf den Kanon umgestellt sind.",
+    "global": {
+        "lineWidth": 0.6,
+        "lineDarken": 0.35,
+        "textColor": "#4a3f2f",
+        "haloColor": "#f6f1e4",
+        "haloWidth": 1.4
+    },
+    "$typeComment": "Füllfarbe je Landschaftsart. Sie liegen als Lasur über dem Geländeraster, nicht auf Weiß - deshalb sind sie gesättigter gewählt, als sie auf weißem Grund aussehen würden. Die Ebene bestimmt die Deckkraft, die Art nur den Farbton. Bergtundra, Heideland, Ödland und Savanne sind neu in Avesmaps3D (WI-0301, Betreiber 2026-11-09: „als neue Vegetationszonen hinzufügen“; Legacys Katalog führt sie nicht). Ihre Töne sind Claudias Startwerte, vom Betreiber ohne Änderung abgenommen (2026-11-09: „Farben passen so“), jeder mindestens 0,05 OKLab von jeder anderen Vegetationsfarbe entfernt (der Bestand hält untereinander nur 0,011, Auenlandschaft und Wüstenoase): Bergtundra kühles Blaugrün, kälter als die Tundra, Heideland gedecktes Heidekrautviolett, Ödland fahles Graubraun, Savanne Goldocker wärmer als die Steppe.",
+    "types": {
+        "bergtundra": {
+            "layer": "vegetation",
+            "fill": "#6f9e98",
+            "labelColor": "#c4e6e0"
+        },
+        "auenlandschaft": {
+            "layer": "vegetation",
+            "fill": "#8bae75",
+            "labelColor": "#c2e8d0"
+        },
+        "dschungel": {
+            "layer": "vegetation",
+            "fill": "#4e7d3a",
+            "labelColor": "#a3dcae"
+        },
+        "flussland_flusstal": {
+            "layer": "vegetation",
+            "fill": "#7fa06a",
+            "labelColor": "#b5e0c4"
+        },
+        "graslandschaft": {
+            "layer": "vegetation",
+            "fill": "#b3b566",
+            "labelColor": "#cfe6a4"
+        },
+        "heideland": {
+            "layer": "vegetation",
+            "fill": "#9a7b8c",
+            "labelColor": "#e8cfe0"
+        },
+        "kulturlandschaft": {
+            "layer": "vegetation",
+            "fill": "#a8b06a",
+            "labelColor": "#d9d18d"
+        },
+        "oedland": {
+            "layer": "vegetation",
+            "fill": "#9e9484",
+            "labelColor": "#e2dccf"
+        },
+        "savanne": {
+            "layer": "vegetation",
+            "fill": "#d79f4f",
+            "labelColor": "#f4dca6"
+        },
+        "steppe": {
+            "layer": "vegetation",
+            "fill": "#c2b273",
+            "labelColor": "#e3e2a4"
+        },
+        "suempfe_moore": {
+            "layer": "vegetation",
+            "fill": "#6b7348",
+            "labelColor": "#9fccad"
+        },
+        "tundra": {
+            "layer": "vegetation",
+            "fill": "#9aa894",
+            "labelColor": "#dbe8e8"
+        },
+        "urwald": {
+            "layer": "vegetation",
+            "fill": "#3f6605",
+            "labelColor": "#afc19a"
+        },
+        "wald": {
+            "layer": "vegetation",
+            "fill": "#6f8f4a",
+            "labelColor": "#bfeec8"
+        },
+        "wueste": {
+            "layer": "vegetation",
+            "fill": "#dcc188",
+            "labelColor": "#ffe0a6"
+        },
+        "wuestenoase": {
+            "layer": "vegetation",
+            "fill": "#86ab72",
+            "labelColor": "#a9e8d5"
+        },
+        "flussdelta": {
+            "layer": "topographie",
+            "fill": "#96b8a8",
+            "labelColor": "#a8d5cc"
+        },
+        "gebirge": {
+            "layer": "topographie",
+            "fill": "#9a8b78",
+            "labelColor": "#e2ddd2",
+            "labelUppercase": true
+        },
+        "hochebene": {
+            "layer": "topographie",
+            "fill": "#b8ab8e",
+            "labelColor": "#c6d2c6"
+        },
+        "huegelland": {
+            "layer": "topographie",
+            "fill": "#b3a284",
+            "labelColor": "#e6d6b0"
+        },
+        "insel": {
+            "layer": "topographie",
+            "fill": "#c0b191",
+            "labelColor": "#ffffff",
+            "labelUppercase": true
+        },
+        "kueste": {
+            "layer": "topographie",
+            "fill": "#d6c9a8",
+            "labelColor": "#d2e9dd"
+        },
+        "meer": {
+            "layer": "topographie",
+            "fill": "#7fa8c4",
+            "labelColor": "#b9e7ff"
+        },
+        "see": {
+            "layer": "topographie",
+            "fill": "#8fb9d2",
+            "labelColor": "#b9e7ff"
+        },
+        "tal": {
+            "layer": "topographie",
+            "fill": "#a99a80",
+            "labelColor": "#c9d3b8"
+        },
+        "tiefebene": {
+            "layer": "topographie",
+            "fill": "#c6bb9d",
+            "labelColor": "#bfcfa6"
+        },
+        "wadi": {
+            "layer": "topographie",
+            "fill": "#c9b48c",
+            "labelColor": "#ddcfa4"
+        },
+        "inselgruppe": {
+            "layer": "derographisch",
+            "fill": "#b0a5bc",
+            "labelColor": "#ffffff",
+            "labelUppercase": true
+        },
+        "kontinent": {
+            "layer": "derographisch",
+            "fill": "#9b90a8",
+            "labelColor": "#ffffff",
+            "labelUppercase": true
+        },
+        "region": {
+            "layer": "derographisch",
+            "fill": "#a89bb5",
+            "labelColor": "#ffffff",
+            "labelUppercase": true
+        },
+        "sonstiges": {
+            "layer": "derographisch",
+            "fill": "#a8a29b"
+        }
+    },
+    "$climateComment": "Die acht Klimabänder sind keine Landschaftsart, aber dasselbe Darstellungsproblem. Der Verlauf geht von kalt nach warm, damit die Nord-Süd-Folge ohne Legende lesbar ist. Ihre Namen stehen in fester Größe im Ton ihres Bandes (WI-0012) und brauchen deshalb keine Größentafel. 🔴 Seit 2026-10-05 kräftig (Betreiber: „kannst du die farben intensivieren? ich dachte immer da ist transparent aber die sind wirklich so \"pastell\"“, gewählt: „C“): alle Zonen in derselben wahrgenommenen Helligkeit OKLCH L 0,78, Farbton (h) wie die Pastellrampe vom 2026-09-21 (WI-0008: polar #dbe9f2, subpolar #c5dbe8, boreal #b9d2c4, gemaessigt #c8d9a8, subtropen_winterfeucht #dfd79a, trockene_subtropen #e6c98f, subtropisch #e8b87e, tropisch #d9a978; L 0,77 bis 0,93), Buntheit (C) je Zone höher: 0,035 · 0,085 · 0,086 · 0,13 · 0,15 · 0,083 · 0,125 · 0,17. 🪤 Die Buntheit ist je Zone gesetzt, nicht ein Faktor: Polar und Subpolar haben fast denselben Farbton (236° und 234°), Subtropisch und Tropisch ebenso (71° und 67°). Die Pastellrampe trennte sie über die Helligkeit; bei gleicher Helligkeit trennt sie nur die Buntheit (Polar blass, Subpolar kräftig; Tropisch am Rand des Farbraums, Subtropisch darunter; Trockene Subtropen als blasser Sand zwischen Gold und Ocker wie in Legacy). Jedes Nachbarpaar unterscheidet sich mindestens so stark wie vorher (OKLab-Abstand ≥ 0,048, vorher ≥ 0,032; `climate-colours.test.ts`). Legacy (css/base/tokens.css) führt eine dunklere, ungleich helle Rampe (#cfe0eb bis #c65e2e, L 0,60 bis 0,90); die Pastellrampe war eine eigene Setzung (WI-0008), keine Übernahme.",
+    "climateZones": {
+        "polar": "#a3bbcb",
+        "subpolar": "#7fc1e6",
+        "boreal": "#85c9a6",
+        "gemaessigt": "#a7c563",
+        "subtropen_winterfeucht": "#ccba2e",
+        "trockene_subtropen": "#d0b379",
+        "subtropisch": "#e9a956",
+        "tropisch": "#ff9e0c"
+    },
+    "provenance": {
+        "baselineId": "legacy-2026-09-20",
+        "findings": ["MCS-007", "MCS-009"],
+        "legacyEvidence": "ecosystem-display.php, Snapshot 2026-09-21, sha256 a1dda6fea006762f9c7170da9491d541b6f50a754718bcaa0dfbe3bbcc1ee442.",
+        "note": "Legacy hält KEINE Farbkartografie: zwei Übersteuerungen für eine einzige Art (farbe.urwald #afc19a, flaeche.vegetation:urwald #3f6605) und sonst nichts - dort kommt die Farbe der Landschaften aus dem Rasterbild, die Flächen sind nur Lasur. Übernommen sind genau diese zwei Werte (Füll- und Namenston von urwald). Klima stand in „Alle“ bei 0.3 statt 0.18 (Betreiber 2026-09-30: „klima kannst du opaker machen“); seit 2026-10-05 zeigt „Alle“ kein Klima mehr. Alle übrigen Farben sind für Avesmaps3D gesetzt und eine Produktentscheidung, keine Migration. Die Deckkräfte je Ebene folgen Legacys Aufteilung (global.vegetation/topographie/klima je 0.5), sind aber niedriger: unser Geländeraster trägt mehr Zeichnung als Legacys Grundkarte."
+    },
+    "$labelComment": "Der NAME einer Flaeche traegt einen eigenen Ton, nicht den der Fuellung: er steht auf dem Gelaenderaster, nicht auf seiner eigenen Flaeche, und muesste sonst gegen den Untergrund antreten. Die Toene sind Legacys (Finding MCS-015), nachgemessen an der laufenden Karte. Eine Art OHNE Ton faellt auf die Vorgabe der Familie im Designkanon zurueck - `sonstiges` ist genau dieser Fall. `urwald` traegt Legacys Uebersteuerung `farbe.urwald` #afc19a (ecosystem-display.php; Betreiber 2026-09-30: „ja“). `labelUppercase` tragen genau fuenf Arten; die feineren Regionsuntertypen ausdruecklich NICHT."
+}

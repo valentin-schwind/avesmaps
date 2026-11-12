@@ -1,0 +1,610 @@
+{
+    "_hinweis": "Erwartungen schreibt scripts/dev/wiki-schluessel-orakel.php aus Legacys echten Funktionen (Mirror a7f2dac86); nie von Hand.",
+    "faelle": [
+        {
+            "id": "umlaut",
+            "wert": "Fürstentum Kosch",
+            "erwartet": {
+                "slug": "f-rstentum-kosch",
+                "titel": "Fürstentum Kosch",
+                "publikation": "f-rstentum-kosch",
+                "ort": "wiki:f-rstentum-kosch",
+                "weiterleitung": "f-rstentum-kosch"
+            }
+        },
+        {
+            "id": "eszett",
+            "wert": "Großer Fluss",
+            "erwartet": {
+                "slug": "grosser-fluss",
+                "titel": "Großer Fluss",
+                "publikation": "grosser-fluss",
+                "ort": "wiki:grosser-fluss",
+                "weiterleitung": "grosser-fluss"
+            }
+        },
+        {
+            "id": "eszett-gross",
+            "wert": "STRAẞE",
+            "erwartet": {
+                "slug": "strasse",
+                "titel": "STRAẞE",
+                "publikation": "strasse",
+                "ort": "wiki:strasse",
+                "weiterleitung": "strasse"
+            }
+        },
+        {
+            "id": "ligatur-ae",
+            "wert": "Hældingard",
+            "erwartet": {
+                "slug": "haeldingard",
+                "titel": "Hældingard",
+                "publikation": "haeldingard",
+                "ort": "wiki:haeldingard",
+                "weiterleitung": "haeldingard"
+            }
+        },
+        {
+            "id": "ligatur-oe",
+            "wert": "Œuvre",
+            "erwartet": {
+                "slug": "oeuvre",
+                "titel": "Œuvre",
+                "publikation": "oeuvre",
+                "ort": "wiki:oeuvre",
+                "weiterleitung": "oeuvre"
+            }
+        },
+        {
+            "id": "ligatur-fi",
+            "wert": "ﬁnstere Lande",
+            "erwartet": {
+                "slug": "finstere-lande",
+                "titel": "ﬁnstere Lande",
+                "publikation": "finstere-lande",
+                "ort": "wiki:finstere-lande",
+                "weiterleitung": "finstere-lande"
+            }
+        },
+        {
+            "id": "mark",
+            "wert": "Marktgrafschaft Greifenfurt",
+            "erwartet": {
+                "slug": "markgrafschaft-greifenfurt",
+                "titel": "Marktgrafschaft Greifenfurt",
+                "publikation": "markgrafschaft-greifenfurt",
+                "ort": "wiki:markgrafschaft-greifenfurt",
+                "weiterleitung": "markgrafschaft-greifenfurt"
+            }
+        },
+        {
+            "id": "mark-gross",
+            "wert": "MARKTGRAFSCHAFT Rabenmund",
+            "erwartet": {
+                "slug": "markgrafschaft-rabenmund",
+                "titel": "MARKTGRAFSCHAFT Rabenmund",
+                "publikation": "markgrafschaft-rabenmund",
+                "ort": "wiki:markgrafschaft-rabenmund",
+                "weiterleitung": "markgrafschaft-rabenmund"
+            }
+        },
+        {
+            "id": "unterstrich",
+            "wert": "Havena_(Siedlung)",
+            "erwartet": {
+                "slug": "havena-siedlung",
+                "titel": "Havena (Siedlung)",
+                "publikation": "havena-siedlung",
+                "ort": "wiki:havena-siedlung",
+                "weiterleitung": "havena-siedlung"
+            }
+        },
+        {
+            "id": "abschnitt",
+            "wert": "Gareth#Geschichte",
+            "erwartet": {
+                "slug": "gareth-geschichte",
+                "titel": "Gareth",
+                "publikation": "gareth",
+                "ort": "wiki:gareth-geschichte",
+                "weiterleitung": "gareth-geschichte"
+            }
+        },
+        {
+            "id": "klammer",
+            "wert": "Havena (Siedlung)",
+            "erwartet": {
+                "slug": "havena-siedlung",
+                "titel": "Havena (Siedlung)",
+                "publikation": "havena-siedlung",
+                "ort": "wiki:havena-siedlung",
+                "weiterleitung": "havena-siedlung"
+            }
+        },
+        {
+            "id": "praefix-dsk",
+            "wert": "DSK:Endlose Dunkelheit",
+            "erwartet": {
+                "slug": "dsk-endlose-dunkelheit",
+                "titel": "DSK:Endlose Dunkelheit",
+                "publikation": "dsk-endlose-dunkelheit",
+                "ort": "wiki:dsk-endlose-dunkelheit",
+                "weiterleitung": "dsk-endlose-dunkelheit"
+            }
+        },
+        {
+            "id": "praefix-inoff",
+            "wert": "Inoffiziell:Angbar",
+            "erwartet": {
+                "slug": "inoffiziell-angbar",
+                "titel": "Inoffiziell:Angbar",
+                "publikation": "inoffiziell-angbar",
+                "ort": "wiki:inoffiziell-angbar",
+                "weiterleitung": "inoffiziell-angbar"
+            }
+        },
+        {
+            "id": "doppelpunkt",
+            "wert": "Aventurien: Das Land",
+            "erwartet": {
+                "slug": "aventurien-das-land",
+                "titel": "Aventurien: Das Land",
+                "publikation": "aventurien-das-land",
+                "ort": "wiki:aventurien-das-land",
+                "weiterleitung": "aventurien-das-land"
+            }
+        },
+        {
+            "id": "apostroph",
+            "wert": "Ban'Shi",
+            "erwartet": {
+                "slug": "ban-shi",
+                "titel": "Ban'Shi",
+                "publikation": "ban-shi",
+                "ort": "wiki:ban-shi",
+                "weiterleitung": "ban-shi"
+            }
+        },
+        {
+            "id": "entitaet",
+            "wert": "Verräter &#38; Geächtete",
+            "erwartet": {
+                "slug": "verr-ter-38-ge-chtete",
+                "titel": "Verräter &",
+                "publikation": "verr-ter",
+                "ort": "wiki:verr-ter-38-ge-chtete",
+                "weiterleitung": "verr-ter-38-ge-chtete"
+            }
+        },
+        {
+            "id": "kaufmannsund",
+            "wert": "Dämonenmacht & Sternenkraft",
+            "erwartet": {
+                "slug": "d-monenmacht-sternenkraft",
+                "titel": "Dämonenmacht & Sternenkraft",
+                "publikation": "d-monenmacht-sternenkraft",
+                "ort": "wiki:d-monenmacht-sternenkraft",
+                "weiterleitung": "d-monenmacht-sternenkraft"
+            }
+        },
+        {
+            "id": "leer-rand",
+            "wert": "  Punin  ",
+            "erwartet": {
+                "slug": "punin",
+                "titel": "Punin",
+                "publikation": "punin",
+                "ort": "wiki:punin",
+                "weiterleitung": "punin"
+            }
+        },
+        {
+            "id": "nbsp-rand",
+            "wert": " Punin ",
+            "erwartet": {
+                "slug": "punin",
+                "titel": " Punin ",
+                "publikation": "punin",
+                "ort": "wiki:punin",
+                "weiterleitung": "punin"
+            }
+        },
+        {
+            "id": "nbsp-innen",
+            "wert": "Neu Gareth",
+            "erwartet": {
+                "slug": "neu-gareth",
+                "titel": "Neu Gareth",
+                "publikation": "neu-gareth",
+                "ort": "wiki:neu-gareth",
+                "weiterleitung": "neu-gareth"
+            }
+        },
+        {
+            "id": "tab",
+            "wert": "\tAlmada\t",
+            "erwartet": {
+                "slug": "almada",
+                "titel": "Almada",
+                "publikation": "almada",
+                "ort": "wiki:almada",
+                "weiterleitung": "almada"
+            }
+        },
+        {
+            "id": "nul",
+            "wert": "\u0000Bethana",
+            "erwartet": {
+                "slug": "bethana",
+                "titel": "Bethana",
+                "publikation": "bethana",
+                "ort": "wiki:bethana",
+                "weiterleitung": "bethana"
+            }
+        },
+        {
+            "id": "vt",
+            "wert": "\u000bKuslik",
+            "erwartet": {
+                "slug": "kuslik",
+                "titel": "Kuslik",
+                "publikation": "kuslik",
+                "ort": "wiki:kuslik",
+                "weiterleitung": "kuslik"
+            }
+        },
+        {
+            "id": "kelvin",
+            "wert": "Kelvin",
+            "erwartet": {
+                "slug": "kelvin",
+                "titel": "Kelvin",
+                "publikation": "kelvin",
+                "ort": "wiki:kelvin",
+                "weiterleitung": "kelvin"
+            }
+        },
+        {
+            "id": "i-punkt",
+            "wert": "İstanbul",
+            "erwartet": {
+                "slug": "i-stanbul",
+                "titel": "İstanbul",
+                "publikation": "i-stanbul",
+                "ort": "wiki:i-stanbul",
+                "weiterleitung": "i-stanbul"
+            }
+        },
+        {
+            "id": "griechisch",
+            "wert": "Σίγμα",
+            "erwartet": {
+                "slug": "",
+                "titel": "Σίγμα",
+                "publikation": "",
+                "ort": "",
+                "weiterleitung": ""
+            }
+        },
+        {
+            "id": "kyrillisch",
+            "wert": "Москва",
+            "erwartet": {
+                "slug": "",
+                "titel": "Москва",
+                "publikation": "",
+                "ort": "",
+                "weiterleitung": ""
+            }
+        },
+        {
+            "id": "emoji",
+            "wert": "Gareth 🐉 Stadt",
+            "erwartet": {
+                "slug": "gareth-stadt",
+                "titel": "Gareth 🐉 Stadt",
+                "publikation": "gareth-stadt",
+                "ort": "wiki:gareth-stadt",
+                "weiterleitung": "gareth-stadt"
+            }
+        },
+        {
+            "id": "ziffern",
+            "wert": "Reichsstraße 2",
+            "erwartet": {
+                "slug": "reichsstrasse-2",
+                "titel": "Reichsstraße 2",
+                "publikation": "reichsstrasse-2",
+                "ort": "wiki:reichsstrasse-2",
+                "weiterleitung": "reichsstrasse-2"
+            }
+        },
+        {
+            "id": "nur-sonder",
+            "wert": "!!!",
+            "erwartet": {
+                "slug": "",
+                "titel": "!!!",
+                "publikation": "",
+                "ort": "",
+                "weiterleitung": ""
+            }
+        },
+        {
+            "id": "leer",
+            "wert": "",
+            "erwartet": {
+                "slug": "",
+                "titel": "",
+                "publikation": "",
+                "ort": "",
+                "weiterleitung": ""
+            }
+        },
+        {
+            "id": "bindestrich",
+            "wert": "-Al-Anfa-",
+            "erwartet": {
+                "slug": "al-anfa",
+                "titel": "-Al-Anfa-",
+                "publikation": "al-anfa",
+                "ort": "wiki:al-anfa",
+                "weiterleitung": "al-anfa"
+            }
+        },
+        {
+            "id": "mehrere",
+            "wert": "Al'Anfa  ---  Stadt",
+            "erwartet": {
+                "slug": "al-anfa-stadt",
+                "titel": "Al'Anfa  ---  Stadt",
+                "publikation": "al-anfa-stadt",
+                "ort": "wiki:al-anfa-stadt",
+                "weiterleitung": "al-anfa-stadt"
+            }
+        },
+        {
+            "id": "akzent",
+            "wert": "Café Méridien",
+            "erwartet": {
+                "slug": "caf-m-ridien",
+                "titel": "Café Méridien",
+                "publikation": "caf-m-ridien",
+                "ort": "wiki:caf-m-ridien",
+                "weiterleitung": "caf-m-ridien"
+            }
+        },
+        {
+            "id": "ae-wort",
+            "wert": "Ähre",
+            "erwartet": {
+                "slug": "hre",
+                "titel": "Ähre",
+                "publikation": "hre",
+                "ort": "wiki:hre",
+                "weiterleitung": "hre"
+            }
+        },
+        {
+            "id": "oe-wort",
+            "wert": "Öde",
+            "erwartet": {
+                "slug": "de",
+                "titel": "Öde",
+                "publikation": "de",
+                "ort": "wiki:de",
+                "weiterleitung": "de"
+            }
+        },
+        {
+            "id": "ue-wort",
+            "wert": "Über",
+            "erwartet": {
+                "slug": "ber",
+                "titel": "Über",
+                "publikation": "ber",
+                "ort": "wiki:ber",
+                "weiterleitung": "ber"
+            }
+        },
+        {
+            "id": "schraeg",
+            "wert": "Gareth/Liste",
+            "erwartet": {
+                "slug": "gareth-liste",
+                "titel": "Gareth/Liste",
+                "publikation": "gareth-liste",
+                "ort": "wiki:gareth-liste",
+                "weiterleitung": "gareth-liste"
+            }
+        },
+        {
+            "id": "punkt",
+            "wert": "St. Ardo",
+            "erwartet": {
+                "slug": "st-ardo",
+                "titel": "St. Ardo",
+                "publikation": "st-ardo",
+                "ort": "wiki:st-ardo",
+                "weiterleitung": "st-ardo"
+            }
+        },
+        {
+            "id": "lang",
+            "wert": "Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel ",
+            "erwartet": {
+                "slug": "ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-",
+                "titel": "Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel Ein sehr langer Titel",
+                "publikation": "ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-",
+                "ort": "wiki:ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-",
+                "weiterleitung": "ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-sehr-langer-titel-ein-"
+            }
+        },
+        {
+            "id": "lang-umlaut",
+            "wert": "Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst ",
+            "erwartet": {
+                "slug": "f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-",
+                "titel": "Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst Fürst",
+                "publikation": "f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-",
+                "ort": "wiki:f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-",
+                "weiterleitung": "f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-f-rst-"
+            }
+        },
+        {
+            "id": "unterstrich-doppel",
+            "wert": "__Rand__",
+            "erwartet": {
+                "slug": "rand",
+                "titel": "Rand",
+                "publikation": "rand",
+                "ort": "wiki:rand",
+                "weiterleitung": "rand"
+            }
+        },
+        {
+            "id": "raute-anfang",
+            "wert": "#Nur Abschnitt",
+            "erwartet": {
+                "slug": "nur-abschnitt",
+                "titel": "",
+                "publikation": "",
+                "ort": "wiki:nur-abschnitt",
+                "weiterleitung": "nur-abschnitt"
+            }
+        },
+        {
+            "id": "zeilenende",
+            "wert": "Titel\n",
+            "erwartet": {
+                "slug": "titel",
+                "titel": "Titel",
+                "publikation": "titel",
+                "ort": "wiki:titel",
+                "weiterleitung": "titel"
+            }
+        },
+        {
+            "id": "gross-klein",
+            "wert": "GARETH",
+            "erwartet": {
+                "slug": "gareth",
+                "titel": "GARETH",
+                "publikation": "gareth",
+                "ort": "wiki:gareth",
+                "weiterleitung": "gareth"
+            }
+        },
+        {
+            "id": "fullwidth",
+            "wert": "ＡＢＣ",
+            "erwartet": {
+                "slug": "",
+                "titel": "ＡＢＣ",
+                "publikation": "",
+                "ort": "",
+                "weiterleitung": ""
+            }
+        },
+        {
+            "id": "kombiniert",
+            "wert": "é",
+            "erwartet": {
+                "slug": "e",
+                "titel": "é",
+                "publikation": "e",
+                "ort": "wiki:e",
+                "weiterleitung": "e"
+            }
+        },
+        {
+            "id": "dollar",
+            "wert": "Preis $5",
+            "erwartet": {
+                "slug": "preis-5",
+                "titel": "Preis $5",
+                "publikation": "preis-5",
+                "ort": "wiki:preis-5",
+                "weiterleitung": "preis-5"
+            }
+        },
+        {
+            "id": "unicode-strich",
+            "wert": "Nord–Süd",
+            "erwartet": {
+                "slug": "nord-s-d",
+                "titel": "Nord–Süd",
+                "publikation": "nord-s-d",
+                "ort": "wiki:nord-s-d",
+                "weiterleitung": "nord-s-d"
+            }
+        },
+        {
+            "id": "weiterleitung-unterstrich-und-abschnitt",
+            "wert": "Foo_Bar#Abschnitt",
+            "erwartet": {
+                "slug": "foo-bar-abschnitt",
+                "titel": "Foo Bar",
+                "publikation": "foo-bar",
+                "ort": "wiki:foo-bar-abschnitt",
+                "weiterleitung": "foo-bar-abschnitt"
+            }
+        },
+        {
+            "id": "weiterleitung-wiki-im-titel",
+            "wert": "Ärger/wiki/Test Seite",
+            "erwartet": {
+                "slug": "rger-wiki-test-seite",
+                "titel": "Ärger/wiki/Test Seite",
+                "publikation": "rger-wiki-test-seite",
+                "ort": "wiki:rger-wiki-test-seite",
+                "weiterleitung": "test-seite"
+            }
+        },
+        {
+            "id": "weiterleitung-fragezeichen-und-prozent",
+            "wert": "Was? 100% Aventurien",
+            "erwartet": {
+                "slug": "was-100-aventurien",
+                "titel": "Was? 100% Aventurien",
+                "publikation": "was-100-aventurien",
+                "ort": "wiki:was-100-aventurien",
+                "weiterleitung": "was-100-aventurien"
+            }
+        },
+        {
+            "id": "weiterleitung-nur-sonderzeichen",
+            "wert": "???",
+            "erwartet": {
+                "slug": "",
+                "titel": "???",
+                "publikation": "",
+                "ort": "",
+                "weiterleitung": ""
+            }
+        },
+        {
+            "id": "weiterleitung-schraegstrich",
+            "wert": "Archiv der Kräuter/Inhaltsverzeichnis",
+            "erwartet": {
+                "slug": "archiv-der-kr-uter-inhaltsverzeichnis",
+                "titel": "Archiv der Kräuter/Inhaltsverzeichnis",
+                "publikation": "archiv-der-kr-uter-inhaltsverzeichnis",
+                "ort": "wiki:archiv-der-kr-uter-inhaltsverzeichnis",
+                "weiterleitung": "archiv-der-kr-uter-inhaltsverzeichnis"
+            }
+        },
+        {
+            "id": "weiterleitung-geschuetztes-leerzeichen",
+            "wert": " Havena (Siedlung) ",
+            "erwartet": {
+                "slug": "havena-siedlung",
+                "titel": " Havena (Siedlung) ",
+                "publikation": "havena-siedlung",
+                "ort": "wiki:havena-siedlung",
+                "weiterleitung": "havena-siedlung"
+            }
+        }
+    ]
+}

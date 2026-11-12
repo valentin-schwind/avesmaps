@@ -1,0 +1,49 @@
+{
+    "format": "avesmaps-referenzrezept",
+    "version": 1,
+    "id": "karst-us-kentucky",
+    "quelle": {
+        "art": "cog-fenster",
+        "urls": [
+            "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n37w087/USGS_13_n37w087.tif",
+            "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n37w086/USGS_13_n37w086.tif",
+            "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n38w087/USGS_13_n38w087.tif",
+            "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n38w086/USGS_13_n38w086.tif"
+        ],
+        "rand_zellen": 8
+    },
+    "ziel": {
+        "crs": "EPSG:26916",
+        "fenster": [556500.0, 4084500.0, 616500.0, 4132500.0]
+    },
+    "nodata": {
+        "quelle": null,
+        "mindestanteil_gueltig": 0.5
+    },
+    "stufen": [
+        {
+            "name": "30m",
+            "zellgroesse_m": 30,
+            "verfahren": "warp-mittel"
+        },
+        {
+            "name": "187_5m",
+            "zellgroesse_m": 187.5,
+            "verfahren": "warp-mittel"
+        },
+        {
+            "name": "375m",
+            "zellgroesse_m": 375,
+            "verfahren": "block-mittel",
+            "aus": "187_5m",
+            "faktor": 2
+        },
+        {
+            "name": "750m",
+            "zellgroesse_m": 750,
+            "verfahren": "block-mittel",
+            "aus": "187_5m",
+            "faktor": 4
+        }
+    ]
+}

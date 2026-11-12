@@ -1,0 +1,12 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        // Node runs these sources directly, so relative imports name the .ts file;
+        // tsc rewrites them to .js on emit. Not set for apps/web, where .vue imports collide with it.
+        "allowImportingTsExtensions": true,
+        "rewriteRelativeImportExtensions": true,
+        "rootDir": "./src",
+        "outDir": "./dist"
+    },
+    "include": ["src/**/*.ts"]
+}

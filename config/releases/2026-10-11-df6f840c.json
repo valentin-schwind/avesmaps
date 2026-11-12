@@ -1,0 +1,389 @@
+{
+    "schema": 1,
+    "titel": "Routing ohne Kreuzungen, Zoomstufe 8 mit Anschlag 8,5, Prüfhaken, Systemsteuerung (Höhenmodell, Systemzustand, Abgleiche über den Korridor), Stätten über Kennungen, Migrationen 0098–0101",
+    "von": "557c6d112652e38b041669b002a47417a84598cd",
+    "bis": "df6f840c44cadd0980a94d420412fd26deb0cbe2",
+    "datum": "2026-10-11T01:01:49+02:00",
+    "pakete": {
+        "WI-0068": "Media Asset Management im Editor",
+        "WI-0127": "Systemsteuerung, Bau Stufe 1 (SYS-0, SYS-1, SYS-6) und Stufe 2 (SYS-2)",
+        "WI-0128": "Prüfauftrag Orts- und Stättenmodell",
+        "WI-0129": "Zoomstufe 8 freischalten und die Zoomstufe im Editor anzeigen",
+        "WI-0131": "Prüfhaken im Auge für Editoren, darunter „Flüsse bergaufwärts“",
+        "WI-0132": "Kreuzungen ablösen: Routing nur aus der Geometrie der Wege",
+        "WI-0134": "Stätten über Kennungen: Rohquellen-Export und strukturierte Wiki-Linkziele (F1 = B)"
+    },
+    "commits": [
+        {
+            "sha": "df6f840c44cadd0980a94d420412fd26deb0cbe2",
+            "datum": "2026-10-11T01:01:49+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Betreiberentscheide 2026-10-11 - Release mit neuem Router (A), Martins Kachelspeicher lokal aus (A), Namen an beiden Bandenden",
+            "doku": true
+        },
+        {
+            "sha": "db978930520b447ff28ed50ad74c58214cf00655",
+            "datum": "2026-10-11T01:01:32+02:00",
+            "wer": "Claudia",
+            "betreff": "chore(WI-0128 E13): Martin lokal ohne Kachelspeicher (--cache-size 0)",
+            "doku": false
+        },
+        {
+            "sha": "048a042151978e62108f3f9f6af017d4db982386",
+            "datum": "2026-10-11T01:00:21+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0134): Auswertung des ersten Zugs mit X4 (0028) - Sitze, Beziehungen, B3 = 3, V21/V22, Wege 603 statt 143",
+            "doku": true
+        },
+        {
+            "sha": "569b7545d10259ba10cb752910cbc12ae8eb42e5",
+            "datum": "2026-10-11T00:55:31+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): Analyse an Claudio - Stage in Wartung, trotzdem Anmeldeseite mit grauer Karte?",
+            "doku": true
+        },
+        {
+            "sha": "a39499f04eabd1d04f9942865b67cff45414e2a0",
+            "datum": "2026-10-11T00:46:13+02:00",
+            "wer": "Claudio",
+            "betreff": "Release 557c6d11 Phase 3: Rezept 18 auf Stage gerechnet (Fassung 18, clamped 0, unplaced 0, 7:10 min, RSS 1369 MB, 66 Fluesse)",
+            "doku": true
+        },
+        {
+            "sha": "bc8830ed8b4930e2c29ada2ec305ae54de96bb34",
+            "datum": "2026-10-11T00:45:56+02:00",
+            "wer": "Claudio",
+            "betreff": "Tageszug: Proben im eingeschraenkten Betrieb/Wartung auslassen statt rot (anonyme Proben bekaemen 503 restricted_mode)",
+            "doku": false
+        },
+        {
+            "sha": "9b63c3f592f21538ef612c31ea2d8f175e27bdda",
+            "datum": "2026-10-11T00:41:33+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0128 E13): Befund N7 gemessen - Martins Kachelspeicher liefert nach einer Änderung den alten Stand, ?r= hilft nicht",
+            "doku": true
+        },
+        {
+            "sha": "fbb7dfadc410e5b940a0c607565d6a6fc2ebe7e1",
+            "datum": "2026-10-11T00:40:12+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128 E10b): place.create - ein neuer Ort mit Lage als eigene Daten von Avesmaps3D",
+            "doku": false
+        },
+        {
+            "sha": "839c1cb54806e7395d127f3eb1598e7b8b6e89bb",
+            "datum": "2026-10-11T00:32:39+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128 E12): Ort verschieben - Modus auf der Karte, Einrasten, Strg trennt, eine Operation, Quittung",
+            "doku": false
+        },
+        {
+            "sha": "f0266c382f1e0e447838ed09e8fbcb2a7ac4dcd0",
+            "datum": "2026-10-11T00:26:17+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0134): X4 und X3-Ergaenzung in Legacy eingespielt (13d0183ab), live geprueft; Status X3 nachgetragen",
+            "doku": true
+        },
+        {
+            "sha": "6d2738caa86187021578d744f5e3bf41fa825683",
+            "datum": "2026-10-10T23:59:07+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0129): Anschlag 8,5 - Stufe 8 hält, wenn das Gelände den Zoom nachrechnet",
+            "doku": false
+        },
+        {
+            "sha": "b9dc98bb27beae4eaf9181952e7248b7670fce3c",
+            "datum": "2026-10-11T00:02:18+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128 E12): Serverteil des Verschiebens - Einrastziele und Nachbarpunkte der Wegenden",
+            "doku": false
+        },
+        {
+            "sha": "f5f75353b1f2567fc7653ab55dbb0d743854b841",
+            "datum": "2026-10-10T23:55:48+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Migration 0102 fuer WI-0127 SYS-10 reserviert",
+            "doku": true
+        },
+        {
+            "sha": "7b20e8b82e012e92f28832339448d8ed99183119",
+            "datum": "2026-10-10T23:51:55+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): WI-0127 SYS-8 gebaut, fertig fuer Stage; SYS-14c erledigt; 0101 belegt",
+            "doku": true
+        },
+        {
+            "sha": "d5899d650bc0deb06cd93e40fcee045188b14c11",
+            "datum": "2026-10-10T23:51:16+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0127 SYS-8): Systemzustand in der Systemsteuerung - Komponenten, Auslastung mit Verlauf, Datenbank, Platte (0101)",
+            "doku": false
+        },
+        {
+            "sha": "28fb49ec8a15de2e26fe8e322b5c5670e5084d98",
+            "datum": "2026-10-10T23:42:24+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0128 Korrektur): unabhängige Prüfung von WI-0134 vor dem Einspielen in Legacy",
+            "doku": true
+        },
+        {
+            "sha": "0f0e486e5e0456d92358ade4624394b976a663d7",
+            "datum": "2026-10-10T23:02:26+02:00",
+            "wer": "Claudio",
+            "betreff": "Fix: json_block liest den letzten vollstaendigen JSON-Block (migrate:regions schreibt seit 557c6d11 Text nach dem Bericht); Zug 22:44 hielt daran an",
+            "doku": false
+        },
+        {
+            "sha": "063c8c6e768a1998d5ae1e911d24cd21a8f6e48a",
+            "datum": "2026-10-10T23:00:08+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Migration 0101 fuer WI-0127 SYS-8 reserviert",
+            "doku": true
+        },
+        {
+            "sha": "8963eed651620841c4691ade456a3223ff004752",
+            "datum": "2026-10-10T22:57:05+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0127 SYS-14c): --auftrag in den neun Detailwerkzeugen fuer Claudios Korridor (I17, I18, I20-I25, I27)",
+            "doku": false
+        },
+        {
+            "sha": "4e3a078fc58e1367ca398dd61bbc50827294e068",
+            "datum": "2026-10-10T22:48:27+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): WI-0127 SYS-13 gebaut, fertig fuer Stage; 0100 belegt",
+            "doku": true
+        },
+        {
+            "sha": "c38899821042416623b993888a8b037f696ab031",
+            "datum": "2026-10-10T22:45:44+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0127 SYS-13): Hoehenmodell in der Systemsteuerung - Fassung je Umgebung, Waehlen/Zurueck/Abnehmen, Entwuerfe mit Messung (0100)",
+            "doku": false
+        },
+        {
+            "sha": "858e0d42c29309f45eb045ef82128041163629a6",
+            "datum": "2026-10-10T22:43:31+02:00",
+            "wer": "Claudio",
+            "betreff": "SYS-14b Abgleiche auf Stage: --auftrag im Import, corridor-import apply-auftrag, corridor-jobs sync-claim/phase/finish (Jobs-Rolle, Zugang als PG-Umgebung), Abholer mit Sperrfenster und Drossel, daily-pull --auftrag; Tests 513/156/11; nicht aktiv. Befund: Detail-CLIs ohne --auftrag",
+            "doku": false
+        },
+        {
+            "sha": "7a8cae8b5ed7cd70b36d27ecf62b4cd2e56f1f3d",
+            "datum": "2026-10-10T22:43:04+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0132 N): Prüfhaken nach Entscheidung B - Treffpunkte im Ortskasten und Wege ohne Kante nur als Zahl",
+            "doku": false
+        },
+        {
+            "sha": "92d1695d8f215b0185a62335c143cb0265fa68eb",
+            "datum": "2026-10-10T22:23:51+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0132 N): Release N fortgeschrieben (§10.1 bis §10.8), Handover an Claudio, Stand",
+            "doku": true
+        },
+        {
+            "sha": "856f7da82a075ba8d01629840f3f5ed3644f95f2",
+            "datum": "2026-10-10T22:23:25+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0132 N): Routing ohne Kreuzungen - Topologie aus Orten und Wegen, Import ohne crossing, Prüfhaken „Wege treffen sich nicht“",
+            "doku": false
+        },
+        {
+            "sha": "eb1d6e33f8975e3a117521d55f09cc6ad33a43bd",
+            "datum": "2026-10-10T22:26:05+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0131): Prüfhaken folgen der echten Sitzung und nennen eine Absage am Haken",
+            "doku": false
+        },
+        {
+            "sha": "5bad9f7025a8ab0ed8f1c31a8132d81f3f928fe0",
+            "datum": "2026-10-10T22:15:59+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0134): Stätten über Kennungen - Migration 0099, I27 mit X4, I28 mit Linkzielen, V21/V22",
+            "doku": false
+        },
+        {
+            "sha": "52f0304bf14ddefd827b597415cd1f328d8106b8",
+            "datum": "2026-10-10T21:36:11+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0134): Legacy-Anfrage X4 Rohquellen der Stätten und X3 mit Linkzielen der Standortkette",
+            "doku": true
+        },
+        {
+            "sha": "d9d70eac223d685cbc8ce34f7ff5822608c55395",
+            "datum": "2026-10-10T21:53:05+02:00",
+            "wer": "Claudio",
+            "betreff": "Runbook Notzugang auf Kontenverwaltung/Systemsteuerung umgestellt; Sicherung jetzt eingerichtet (Handovers DONE)",
+            "doku": true
+        },
+        {
+            "sha": "9a0d4c70234c6d641d5fbebddc76e6ef725d50d0",
+            "datum": "2026-10-10T21:21:32+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128 E11): Eigenschaften und Overrides - Formular wie im Gesamtmockup, Speicherleiste, Konflikt „Jemand war schneller“",
+            "doku": false
+        },
+        {
+            "sha": "e8bab6b3004f91f0ebfb0b7eeca983bdb3aa28dd",
+            "datum": "2026-10-10T21:14:48+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0127 SYS-13): Betreiberentscheid Fragen 1-5 im Bauplan (SYS-0001 9c.12), Migration 0100 reserviert",
+            "doku": true
+        },
+        {
+            "sha": "c20fd784e1aa58eb321d91e9e52e9d33666169d1",
+            "datum": "2026-10-10T21:13:17+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0129): R2 lokal abgenommen - „Stufe 8 passt“",
+            "doku": true
+        },
+        {
+            "sha": "3a42d73776e4699a5adea41288922b72fb9f2896",
+            "datum": "2026-10-10T21:12:52+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Entscheide SYS-13 nach Empfehlung (2 = A plus), Medien aus Legacy auf Stage aus, Stufe 8 abgenommen",
+            "doku": true
+        },
+        {
+            "sha": "fdf0ab9e9efd5f09804b5f5b42cc5690db47e8ab",
+            "datum": "2026-10-10T21:04:38+02:00",
+            "wer": "Claudio",
+            "betreff": "Release 557c6d11: Phase 2 gruen; Phase 3 verschoben (Legacy ecosystem-display.php antwortet nicht)",
+            "doku": true
+        },
+        {
+            "sha": "c6f23c32a960b09172cc8e69cf1d449932956586",
+            "datum": "2026-10-10T21:04:31+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0132, WI-0134): Betreiberentscheide fünf Nachkommastellen und F1 = B, Auswirkungen für den Cutover, Bau in den bestehenden Strängen",
+            "doku": true
+        },
+        {
+            "sha": "a5ab7de57995dfd3eab26cdcbfc24f4b7374d799",
+            "datum": "2026-10-10T20:57:25+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): R2/WI-0131 an Claudio wartet auf den Release-Schnitt der Koordination (kein eigenes Artefakt)",
+            "doku": true
+        },
+        {
+            "sha": "fc80037074bc53d211940ae6e778cba9fbfba190",
+            "datum": "2026-10-10T20:56:56+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): WI-0129 R2 und WI-0131 Stufe 1 an Claudio, F3 erteilt",
+            "doku": true
+        },
+        {
+            "sha": "e592f27d710f72e9b9156afd3818de26a9e1b613",
+            "datum": "2026-10-10T20:34:33+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0129 R2): Zoomstufe 8 freigeschaltet und Zoomanzeige im Editor",
+            "doku": false
+        },
+        {
+            "sha": "420e96b9f18d6159654e13fb1b762ac219bb7e32",
+            "datum": "2026-10-10T20:08:20+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0131): Prüfhaken im Auge, Stufe 1 - Flüsse bergaufwärts, Offene Wegenden, Unverbunden, Keine Wiki-Zuweisung",
+            "doku": false
+        },
+        {
+            "sha": "dbf078a81539c3ecb7b6232609b41eb7b3baa8f1",
+            "datum": "2026-10-10T19:56:48+02:00",
+            "wer": "Claudio",
+            "betreff": "Release 557c6d11: Phase 0 und 1 vorbereitet (Handover)",
+            "doku": true
+        },
+        {
+            "sha": "fcab333dc49fb63d6047447e31672976af6f54ce",
+            "datum": "2026-10-10T19:56:30+02:00",
+            "wer": "Claudio",
+            "betreff": "Release 557c6d11 vorbereitet: Grants media/map/jobs, AUTH_GATE und Backup-Variablen, vhost Bereitschaft, Drossel Reise/Suche (429 JSON), Upload 22m, Body-Grenze der Tuerfrage aufgehoben, Medienordner source/evidence",
+            "doku": false
+        },
+        {
+            "sha": "f25cb8db6fb17e4df9e72e37ad908a85436010c9",
+            "datum": "2026-10-10T19:43:31+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0068 P4b): Leisten als eine Zeile mit Zeichen, Trichter für alle Filter, Menü nach der Seite seines Knopfs (Betreiber 2026-10-10)",
+            "doku": true
+        },
+        {
+            "sha": "0c1da76e2fa223106dcdc7ee0c65bdbf3853fe40",
+            "datum": "2026-10-10T19:30:37+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0132): P1 eingeordnet - Regelwerk trägt, Sackgasse und Ort zuerst festgelegt, Genauigkeitsfrage beim Betreiber",
+            "doku": true
+        },
+        {
+            "sha": "cbc91711fd14fe127ec70b98cfd100c1f4286a0a",
+            "datum": "2026-10-10T19:28:06+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0132 P1): lesende Messung der kreuzungsfreien Topologie mit dem echten Router",
+            "doku": false
+        },
+        {
+            "sha": "6313c3eae1b0b26ff30bbe20aa8a0409db669d26",
+            "datum": "2026-10-10T19:24:05+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0127 SYS-14b): Abgleiche auf Stage ueber Claudios Korridor - ABGLEICHE=korridor je Quelle, job_sync_claim/phase/finish (0098)",
+            "doku": false
+        },
+        {
+            "sha": "10227eb4625aa4c3db62c6859fde27a96e72db8e",
+            "datum": "2026-10-10T19:12:25+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(review-einordnung): Stätten-Gegenprüfung eingeordnet, F1 mit Varianten A, B, C beim Betreiber",
+            "doku": true
+        },
+        {
+            "sha": "e4d123eff2192abce1e9f27453fb152332eca76f",
+            "datum": "2026-10-10T19:10:50+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0128): Gegenprüfung der Stätten-Analyse am Mirror 271e301d2",
+            "doku": true
+        },
+        {
+            "sha": "3ad85053290028d3f60c11e1c50f02930612ded8",
+            "datum": "2026-10-10T19:00:47+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Entscheid app.vue für die Zoom-Sitzung (Betreiber 2026-10-10 „app.vue: A“)",
+            "doku": true
+        },
+        {
+            "sha": "4f69b7663a0c3f338b3fba755616d58fad3cd58d",
+            "datum": "2026-10-10T18:59:51+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Status nach agenda-review F04/F07 berichtigt, WIP-Plätze, E11 bis E13 laufen",
+            "doku": true
+        },
+        {
+            "sha": "adb30d605f73c4c5458324dc44f9494ea50d3e95",
+            "datum": "2026-10-10T18:59:51+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(review-einordnung): vier Reviews eingeordnet, WI-0132 Ablaufplan, Legacy endet am Cutoff",
+            "doku": true
+        },
+        {
+            "sha": "52f6665537b579d7653a22bbfc6334c33656ee90",
+            "datum": "2026-10-10T18:56:23+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Migration 0098 reserviert fuer WI-0127 SYS-14b (Abgleiche ueber den Korridor)",
+            "doku": true
+        },
+        {
+            "sha": "506825eac16026206a475f0b8f27b651be773c2a",
+            "datum": "2026-10-10T18:52:22+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): Stage-Release 557c6d11 an Claudio - SYS komplett, Konten, Medien-Schreibweg, Geländerezept 18, Zoombänder, 0089-0097, Ablauf in Phasen mit Rollback-Probe zuerst",
+            "doku": true
+        },
+        {
+            "sha": "582813e43867ac2496f34c016b616dba877da84d",
+            "datum": "2026-10-10T18:47:27+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0068 P4b): Filterblatt links im Fenster linksbündig, rechts rechtsbündig (Betreiber 2026-10-10)",
+            "doku": false
+        }
+    ]
+}

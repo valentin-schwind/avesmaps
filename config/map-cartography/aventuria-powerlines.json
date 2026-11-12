@@ -1,0 +1,136 @@
+{
+    "$comment": "Kartografie der KRAFTLINIEN im Map Domain aventuria (WI-0025). Legacys Werte, Ziffer für Ziffer (avesmaps@770c80e): Breiten und Deckkraft aus `getPowerlineRenderStyles` (js/map-features/map-features-powerlines.js), Farben aus css/features/powerlines.css, Namen aus `getPowerlineLabelStyle` und dem Wegenamen-Overlay, die Magiersicht aus `syncPowerlineMapTint` (js/map-features/map-features-display-mode.js). Wer hier etwas ändert, ändert die Karte.",
+    "schemaVersion": 1,
+    "mapDomain": "aventuria",
+    "$glowComment": "Drei Leuchtlagen, von unten nach oben: Aura, Mitte, Kern. `widthPx` ist eine BILDSCHIRMbreite, die beim Zoomen gleich bleibt (Leaflets `weight`). 🪤 Legacy trägt die Durchsichtigkeit ZWEIMAL: im CSS-Strich (`alpha`) und als Leaflet-`opacity`. Beide multiplizieren sich; die Aura steht also mit 0,42 × 0,34 ≈ 0,14 auf der Karte. Sie stehen hier getrennt, weil MapLibre dieselben zwei Stellen hat (Farbe mit Alpha und `line-opacity`) — zusammengerechnet sähe man nicht mehr, woher sie kommen.",
+    "glow": [
+        {
+            "id": "aura",
+            "color": "#ff465a",
+            "alpha": 0.42,
+            "opacity": 0.34,
+            "widthPx": 10
+        },
+        {
+            "id": "mitte",
+            "color": "#ff6982",
+            "alpha": 0.82,
+            "opacity": 0.72,
+            "widthPx": 4.6
+        },
+        {
+            "id": "kern",
+            "color": "#ffebf0",
+            "alpha": 1,
+            "opacity": 0.98,
+            "widthPx": 1.5
+        }
+    ],
+    "$auswahlComment": "Die gewählte Kraftlinie (WI-0063 P8) glüht gelb-orange und hell, statt der rosa Lagen, mit allen Strängen und Fäden. 🔴 Abweichung von Legacy (Betreiber 2026-10-11: „viel geiler wär, wenn die streifen bei einem klick gelb-orange und hell glühen würden“): Legacy hebt nur heller hervor und ändert die Farbe ausdrücklich nicht (`.powerline--kurve-aktiv`, css/features/powerlines.css: „Kein Farbwechsel: die Kraftlinien-Farbe trägt Bedeutung“); bisher hier ebenso. Von unten nach oben: ein breiter warmer Schein, dann Aura, Mitte und Kern wie bei `glow`, nur in Glut-Tönen. Breiten wie dort mal der Stärke jedes Fadens.",
+    "auswahl": [
+        {
+            "id": "schein",
+            "color": "#ff8a1f",
+            "alpha": 1,
+            "opacity": 0.16,
+            "widthPx": 26
+        },
+        {
+            "id": "aura",
+            "color": "#ff9f2e",
+            "alpha": 0.7,
+            "opacity": 0.55,
+            "widthPx": 12
+        },
+        {
+            "id": "mitte",
+            "color": "#ffc445",
+            "alpha": 0.95,
+            "opacity": 0.9,
+            "widthPx": 5
+        },
+        {
+            "id": "kern",
+            "color": "#fff6d6",
+            "alpha": 1,
+            "opacity": 1,
+            "widthPx": 2
+        }
+    ],
+    "$labelComment": "Der Name einer Kraftlinie: 18 px (Legacy rechnet max(18, Grundgröße + 7), und das ist heute immer 18), rosa, 10 px über der Linie, ab Legacys Zoomstufe 2. Legacy prüft dabei KEINE Kollision (`drawGlyphsAlong`, „der Weg für Aufrufer ohne Ausweichprüfung“). 🪤 Den Schein malt Legacy als weichen Canvas-Schatten (0,14 × Schriftgröße, ohne Kontur). MapLibres Saum lebt im Rand der Glyphenbilder, und der ist bei 18 px nur gut 2 px breit (3 px bei 24 px): ein breiterer Saum füllt die ganze Glyphenkachel, und hinter jedem Buchstaben steht ein grauer Kasten (am 2026-09-23 auf hellem Grund gesehen). Deshalb Saum 0,07 und Weichzeichnung 0,035 × Schriftgröße. 🔴 Abweichung von Legacy (Betreiberbefund 2026-09-23: „Das Zoomverhalten der Kraftlinienbeschriftungen ist noch ein bisschen komisch“): Legacy setzt den Namen einmal in die Mitte jedes Abschnitts, und beim Hineinzoomen wandert er aus dem Bild. Hier wiederholt er sich alle 600 px entlang der Linie - Legacys Abstand für Wegnamen (WAY_LABEL_SCREEN_INTERVAL_PX) -, und Kraftliniennamen weichen einander und den Nodices aus, statt übereinander zu stehen.",
+    "label": {
+        "color": "#ffc4d6",
+        "alpha": 0.98,
+        "sizePx": 18,
+        "offsetPx": 10,
+        "repeatPx": 600,
+        "haloColor": "#000000",
+        "haloAlpha": 0.5,
+        "haloWidthRatio": 0.07,
+        "haloBlurRatio": 0.035,
+        "fromLegacyZoom": 2
+    },
+    "$leyKnotenComment": "Die Nodices in der Kraftlinien-Ansicht: leuchtende „Ley-Knoten“ statt Ortsmarker (Legacy `setEntries`/`_redraw`, js/map-features/map-features-location-canvas-layer.js). Radius = max(5 px, Außenradius des Ortsmarkers × 1,7); darunter ein weicher Schein (Legacy `shadowBlur` 16 in #ff7da0), dann die helle Scheibe, eine rosa Scheibe mit 0,92 des Radius und ein pinker Punkt mit 0,42 des Radius (mindestens 1,5 px). Unterhalb des Zoombands seiner Klasse gilt die erste gefüllte Zelle (Legacy: „UNTERHALB DES BANDES GILT DIE ERSTE GEFÜLLTE ZELLE, NICHT 0“). Ihre Namen stehen auf jeder Zoomstufe; unterhalb des Bandes in 8 pt (Legacy `LOCATION_NAME_LABEL_BELOW_BAND_SIZE`). 🔴 Abweichung von Legacy (Betreiber 2026-10-11: „die nodices sind diese hellroten scheiben. kannst du daraus auch - wie die kraftlinien - glühende punkte machen (vielleicht \"waber\" der glow?\")“): Zeichnen die Bögen, zeichnen sie auch die Knoten, als glühende Punkte in den Farben der Leuchtlagen (`glow`: Kern innen, Mitte, Aura als Schein, der `glowPx` weit reicht), gewählt in den Farben der Auswahl. Der Schein wabert rund um den Knoten um `wabern` seiner Weite, der ganze Knoten schwillt um `puls` an und ab, jeder in seiner eigenen Phase. Die Scheiben oben bleiben der Rückfall, wenn die Bögen nicht zeichnen.",
+    "leyKnoten": {
+        "glowColor": "#ff7da0",
+        "glowPx": 16,
+        "glowOpacity": 0.9,
+        "hofColor": "#fff3f7",
+        "ringColor": "#ffd3e0",
+        "ringShare": 0.92,
+        "kernColor": "#ff3d68",
+        "kernShare": 0.42,
+        "kernMinPx": 1.5,
+        "radiusFactor": 1.7,
+        "minRadiusPx": 5,
+        "nameBelowBandPt": 8,
+        "wabern": 0.35,
+        "puls": 0.12
+    },
+    "$straengeComment": "Legacys wabernde Stränge (`POWERLINE_RENDER_CONFIG`, js/config.js, avesmaps@770c80e): je Linie drei Stränge, jeder in allen drei Leuchtlagen oben, 30 Bilder je Sekunde. Die Formel steht wie in Legacy im Code (`createPowerlineStrandLatLngs`, hier im Shader von apps/web/src/map/powerline-arcs.ts); in der Tafel stehen ihre Stellschrauben. Versätze in KARTENeinheiten wie in Legacy: nah dran fächern die Stränge weiter auf. `segmente` ist die Stützpunktzahl einer geraden Linie. 🔴 Abweichung von Legacy (Betreiber 2026-10-11, Wortlaut bei `faeden`): Legacy hat 8 Stützpunkte und verbindet sie gerade, die Stränge knicken dort. Hier sind es 16, und der Strang läuft als Catmull-Rom-Kurve durch genau Legacys Punkte, also rund statt geknickt. 🔴 Zweite Abweichung (Betreiber 2026-10-11: „kannst du machen, dass alle bögen das gleiche rauschen-verhältnis relativ zu ihrer länge haben. im moment hat ein kleiner strang soviel rauschen wie ein großer, was ihn unruhig erscheinen lässt“): Legacys Versätze gelten für eine Linie von `bezugslaenge` Karteneinheiten; jede andere rauscht im Verhältnis ihrer Länge dazu, Wellen und Abstand der Fäden zusammen. Weil auch die Stützpunktzahl je Linie fest ist, sieht jede Linie aus wie jede andere, nur größer oder kleiner. Die Linien sind 5 bis 376 Karteneinheiten lang, die Hälfte unter 63. Zuerst 63: Die mittlere Linie behielt ihr Bild, kürzere wurden ruhiger, längere kräftiger (gegengeprüft mit 150: dann verschmelzen die Fäden der meisten Linien zu einem Bündel). 🔴 Dritte Abweichung (Betreiber am selben Tag: „jetzt auch den spread gleich breit machen. chalwens griff is 4x so breit wie elementares hexagramm“): Mit der Länge schwingt nur die Mitte des Bündels, eine Welle mit Legacys Formel und dem Ausschlag des ersten Strangs in einer Phase je Linie. Wie weit Stränge und Fäden um diese Mitte auseinanderlaufen, gilt wie bei der Bezugslänge, für jede Linie ab dieser Länge gleich; kürzere werden im Verhältnis ihrer Länge schmaler, damit sie ruhig bleiben. Betreiber danach: „schon, aber ein bisschen breiter gehen die stränge schon noch auseinander, ein kleines bisschen \"unruhiger\" geht auch“. Deshalb `faecherbreite` 1,5 (die Stränge laufen anderthalbmal so weit um die Mitte wie Legacys Versätze) und `bezugslaenge` 50 statt 63 (jede Linie rauscht gut ein Viertel stärker). `proben` sind die Proben je Segment, durch die die geglättete Kurve gezeichnet wird, bei einer Linie der Bezugslänge; jede andere bekommt sie im Verhältnis ihrer Länge, mindestens 2. So hat jede Linie dieselbe Punktdichte, und eine lange zeigt nah dran keine Ecken, die eine kurze nicht auch zeigte. Betreiber am selben Tag: „kannst du die glättung der kraftlinien gerade so runterschrauben, dass kanten fast nicht mehr sichtbar sind? … sonst würde meine grafikkarte nicht laut werden“. Gemessen am Knick zwischen zwei Proben (für jede Linie gleich, weil das Rauschen mit der Länge wächst): 6 Proben 95 % unter 1,8°, 3 Proben 95 % unter 3,3° (höchstens 9°), 2 Proben 95 % unter 4,9° (höchstens 12°); Legacys 8 gerade Stützpunkte knickten 95 % unter 3,4°. Deshalb 3 bei der Bezugslänge. Mit der Verteilung nach Länge rechnet das ganze Netz 15.664 Proben je Faden statt 16.722 (6 je Segment; mit Bezugslänge 63 waren es 12.906). Gemessen auf der Grafikkarte des Betreibers kostet der Bogen-Layer rund 0,1 ms je Bild, vor und nach den Fäden. Betreiber danach: „mehr unterteilungen wären doch nett beim näheren hinzoomen“, „mehr glättung mein ich“: Nah dran wird ein gerades Stück der gröbsten Stufe bis gut 380 Bildpunkte lang (Stufe 9,5, 362 Bildpunkte je Karteneinheit). Deshalb liegen die Proben auch zwei- und `verfeinerung`-mal so dicht auf der Grafikkarte, und je Bild bekommt jede Linie die gröbste Stufe, in der kein gerades Stück länger als `kantePx` Bildpunkte ist; eine Linie außerhalb des Bildes wird gar nicht gezeichnet. 4 hält die Ecken auch auf der höchsten Stufe unter einem Grad (95 %) bei rund 9 MB Ecken.",
+    "straenge": {
+        "anzahl": 3,
+        "segmente": 16,
+        "bezugslaenge": 50,
+        "faecherbreite": 1.5,
+        "proben": 3,
+        "verfeinerung": 4,
+        "kantePx": 20,
+        "normalScales": [0.125, 0.125, 0.125],
+        "waveOffsets": [-2, 2, 2],
+        "phaseStep": 1.73,
+        "tremorNormalAmplitude": 2.1,
+        "tremorTangentAmplitude": 0.3,
+        "tremorNormalSpeed": 0.85,
+        "tremorTangentSpeed": 0.65,
+        "tremorNormalFrequency": 0.38,
+        "tremorTangentFrequency": 0.29,
+        "tremorPhaseMultiplier": 2.4,
+        "interferenceAmplitude": 1.6,
+        "interferenceSpeed": 2.4,
+        "frameIntervalMs": 33
+    },
+    "$faedenComment": "Feine Fäden neben Legacys drei Strängen (nicht aus Legacy). Betreiber 2026-10-11: „Kannst du in der Kraftlinienansicht mehr leuchtende Fäden unterschiedlicher Stärke zwischen den Orten herstellen, ihnen mehr Punkte und vielleicht sogar Glättung geben.“ Jede Linie trägt Legacys Stränge in voller Stärke und dazu `anzahl` Fäden. Jeder Faden zieht aus der Kennung seiner Linie (pseudozufällig, eine Regel für alle Linien) einmal seine Stärke, die Breite und Leuchtkraft zusammen setzt, dazu Ausschlag, Versatz und Phase. Breite und Leuchtkraft sind Anteile der drei Leuchtlagen oben. Mehr Punkte und Glättung stehen bei den Strängen: `segmente` und die Kurve durch die Stützpunkte gelten für Stränge und Fäden gleich.",
+    "faeden": {
+        "anzahl": 5,
+        "breite": [0.2, 0.6],
+        "leuchtkraft": [0.4, 0.85],
+        "ausschlag": [0.09, 0.2],
+        "versatz": [-5, 5]
+    },
+    "$boegenComment": "Die Bögen am Himmel (WI-0025 Stufe 2, neu, nicht aus Legacy). Betreiber 2026-09-23: „kraft linien laufen für die menschen am \"himmel entlang\", schweben also über der landschaft, enden aber dann in nodices“. Flach liegen sie auf der Legacy-Bahn, mit der Neigung steigen sie; ab `vollAbNeigung` Grad stehen sie ganz. Ein Bogen spannt sich über die ganze Kette von Anker zu Anker und ist `anteil` ihrer Länge hoch, höchstens `hoechstensPx` Bildschirmpixel. Die Grenze gilt auf dem Bildschirm, nicht in der Welt: Sonst lägen lange Bögen nah dran über der Kamera. Betreiber am selben Tag zum Entwurf mit 0,22 und 220 px: „die höhe der bögen leicht reduzieren“, deshalb 0,18 und 180 px. Nach dem ersten Blick in der App: „die linien können noch etwas flacher sein“, deshalb 0,14 und 140 px. Die Namen stehen im 3D-Bild aufrecht auf dem Bogen, in Leserichtung, und wiederholen sich wie die flachen.",
+    "boegen": {
+        "anteil": 0.14,
+        "hoechstensPx": 140,
+        "vollAbNeigung": 40,
+        "namePx": 20,
+        "nameAbstandPx": 10,
+        "nameWiederholungPx": 600
+    },
+    "$magiersichtComment": "Die Kraftlinien-Ansicht entsättigt und dunkelt den Untergrund ab (Legacy `LEY_MAP_SATURATION`, `LEY_MAP_BRIGHTNESS`, CSS `saturate(0.1) brightness(0.6)` mit `transition: filter 0.6s ease`). Nur das Geländeraster, nie die Linien, Orte oder Namen darüber. Das Vorschaubild im Kartenfächer liest dieselben zwei Zahlen.",
+    "magiersicht": {
+        "saturation": 0.1,
+        "brightness": 0.6,
+        "transitionMs": 600
+    }
+}

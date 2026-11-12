@@ -1,0 +1,39 @@
+{
+    "version": 1,
+    "hinweis": "Prüfprofil B (Betreiberentscheidung 2026-10-24, WI-0248): die feste Browser-Stichprobe der Kernabläufe für einen regulären Production-Kandidaten, neben statischer Prüfung, Bau und allen Vitest-Tests. Vorhandene Specs, keine neuen. Gemessen am Lauf d1feba8: rund 11 min Testzeit, bei zwei Arbeitern gut 6 min. Die vollständige Browser-Suite (vier Teile, release-teile.json) läuft nur auf ausdrücklichen Auftrag (AVESMAPS_RELEASE_PROFIL=voll). Eine Spec, die es nicht mehr gibt, macht den Teil rot: dann hier ersetzen.",
+    "name": "Kernabläufe",
+    "bereiche": [
+        "orte",
+        "wege",
+        "kraftlinien",
+        "gebiete",
+        "landschaften",
+        "kartenbedienung",
+        "reisen",
+        "planer",
+        "systemsteuerung"
+    ],
+    "specs": [
+        "route-load.spec.ts",
+        "route-departure.spec.ts",
+        "route-planner.touch.spec.ts",
+        "search.spec.ts",
+        "playmode.touch.spec.ts",
+        "info-panel-komma.spec.ts",
+        "anmeldung.spec.ts",
+        "freigabe-knopf.spec.ts",
+        "editor-panel.touch.spec.ts",
+        "kartenmenue-untermenue.spec.ts",
+        "ortseditor-setzen.spec.ts",
+        "ortseditor-speichern.spec.ts",
+        "ortseditor-sperre.spec.ts",
+        "wegeditor-neuer-weg.spec.ts",
+        "kraftlinieneditor.spec.ts",
+        "gebietseditor-einstiege.spec.ts",
+        "landschaftseditor-neue-flaeche.spec.ts",
+        "landschaftseditor-malen.spec.ts",
+        "landschaftseditor-gipfel.spec.ts",
+        "beschriftung-anlegen.spec.ts",
+        "medien-karten.spec.ts"
+    ]
+}

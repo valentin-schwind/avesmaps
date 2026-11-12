@@ -1,0 +1,99 @@
+{
+    "$comment": "Kartografie der HERRSCHAFTSGEBIETE im Map Domain aventuria (WI-0062, ADR-0014). Werte aus Legacys Grenzen-Overlay (js/map-features/map-features-boundary-canvas-overlay.js, avesmaps@ce24bbff0) und den Regionsnamen (css/features/map-labels.css `.region-label`). Wer hier etwas ändert, ändert die Karte. Die FARBE der Fläche ist Datum des Gebiets (`territory.color`, F4); ihre DECKKRAFT steht hier (`fillOpacity`).",
+    "schemaVersion": 1,
+    "mapDomain": "aventuria",
+    "$zeitComment": "🔴 DAS ANZEIGEJAHR STEHT GENAU HIER (Betreiber 2026-09-29, F9: „1049, aber darum wird gerade noch heftig gestritten“). Ableitung und Prüfung lesen es von hier; es steht in der Revision, eine Änderung erzwingt neue Kacheln. `openEndBf` ist Legacys Sentinel für eine offene Gültigkeit (`null` und 9999 heißen beide offen). Nicht an anderer Stelle wiederholen.",
+    "displayYearBf": 1049,
+    "openEndBf": 9999,
+    "$bandComment": "Die Bänder sind Legacys Zoomstufen, bei uns 0 bis 8 (WI-0188, EDIT-0003 T23). Legacy klemmt jede Gebietsanfrage auf 6 (`avesmapsPoliticalClampLayerRequestZoom`); seine 6 heißt darum „bis ganz nah“ und wird beim Gebietsimport 8 (`upperPoliticalBandFromLegacy`), so zeigen Band 7 und 8, was Band 6 zeigt. Das Band der Karte ist `floor(Kamerazoom − 1 + Vorzug)`, geklemmt auf 0 bis maxBand und auf das oberste ABGELEITETE Band (Gebietszeiger `maxBand`; solange der Bestand in Legacys Skala steht, leitet die Ableitung nur bis 6 ab): Band b beginnt beim Kamerazoom `b + 1 − Vorzug` und gilt bis zum nächsten; ab dem obersten gilt es für jeden höheren Zoom. 🔴 Das Band folgt NUR dem Kamerazoom (dem Abstand der Kamera zur Oberfläche), nie dem Zoom einer Kachel: Die Kacheln tragen alle Bänder mit ihrer Bandnummer, der Stil wählt das eine Band der ganzen Ansicht (Betreiber 2026-09-30). Der Vorzug hängt am GERÄT: `bandLeadZoom` gilt am Rechner, `bandLeadZoomPhone` am Telefon (grober Zeiger und kurze Bildschirmseite bis 600 px, `isPhoneViewport` in der Oberfläche); beide sind die EINE Stelle für ihren Vorzug und KOMMAZAHLEN (stufenlos). Betreiber 2026-09-30: „kannst du fürs handy 4 und für desktop 5 machen?“ - die Baronien (Band 4) beginnen am Rechner bei Zoom 5 (Vorzug 0 = Legacys Abbildung: Legacy z = MapLibre z − 1, an gleichem Kartenmaßstab gemessen, WI-0015: Legacy z5 = 32 px je Einheit = MapLibre z6) und am Telefon bei Zoom 4 (Vorzug 1: die Bänder kommen eine ganze Stufe früher, Band 3 ab Zoom 3, Band 1 ab Zoom 1). Zwischenstände am selben Tag waren 1 für alle (den Baronien zu früh) und 0,5 (Baronien ab 4,5, „zwischen 4 und 5“). Das Telefon weicht damit bewusst von Legacy ab, keine Fehlerkorrektur: Die Abbildung selbst stimmt; Legacy kennt nur ganze Stufen, MapLibre zoomt stetig, und `floor` lässt ein Band bis zur nächsten ganzen Stufe stehen. Jeder Wert ab 0 ist erlaubt: die Kachel trägt ab Zoom − 3 alle Bänder, das genügt für jeden Vorzug ab 0.",
+    "maxBand": 8,
+    "bandLeadZoom": 0,
+    "bandLeadZoomPhone": 1,
+    "$fillComment": "Die Deckkraft der Gebietsfläche ist für Besucher EINHEITLICH (Legacy-Frontend `js/config.js:325-339`, Legacy-Owner 2026-06-24). Hier steht die VORGABE; einstellbar ist sie als Transparenz in der Systemsteuerung unter Standardwerte (Kanal OPS-000082, `gebieteTransparenz`). Vali 2026-11-04: „Transparenz der Herrschaftsgebiete“, „Standard ist 70%“, also Deckkraft 0,3; bis dahin stand hier 0,7 (Betreiber 2026-09-30: „70“). `territory.opacity` (0,33/0,5/0,7) gilt in Legacy nur im Editor und bleibt als Datum gespeichert, wird hier aber nicht gezeigt.",
+    "fillOpacity": 0.3,
+    "$outerComment": "Die AUSSENGRENZE einer Hülle: hellgrau und durchgezogen (Legacy `OUTER_LINE_COLOR` #d3d3d3, boundary-canvas-overlay.js:37). Legacy clippt auf das Innere der Hülle und zeichnet die Linie doppelt breit: sichtbar ist die INNERE HÄLFTE (`OUTER_LINE_WIDTH` 2 = 1 px, `_ROOT` 4 = 2 px; auf Zoom 0 und 1 `_FINE` 1 = 0,5 px und `_ROOT_FINE` 3 = 1,5 px, Zeilen 17-21 und 801-806). Zwei Nachbarhüllen liegen so nebeneinander, jede auf ihrer Seite: an einer geteilten Grenze steht die doppelte Breite, an der Küste nur die einfache. MapLibre kann nicht clippen, aber `line-offset`: `placement: inside` zeichnet die SICHTBARE Breite um ihre halbe Breite nach innen versetzt (die Hülle ist im Ableiter rechtsläufig ausgerichtet, damit innen immer rechts liegt), `center` läge mittig auf der Grenze. `rootWidthPx` gilt für Gebiete ohne Elter (eigenständige Reiche, Ebene 0), `otherWidthPx` für alle übrigen Hüllen; ein Wert je Band 0 bis 6. Im schwachen Modus (Standard, Landschaften) gilt `weak.outerWidthPx` für alle Hüllen gleich, ohne Verdicken der Reiche. Dazu kommt ein feiner dunkler Saum (`casing`) unter der hellen Linie, auf jeder Seite `widthPx` breit: KEIN Legacy-Wert, Betreiberwunsch 2026-09-30 („Grenzen könnten besser sichtbar sein, manchmal gar nicht sichtbar“) - die helle Linie allein verschwindet auf hellem Gelände. Er folgt den Breiten und im schwachen Modus den Deckkräften der Linie. Legacys ebenenweise Linienstile (`map-features-boundary-style.js`: Reich 4, Herzogtum 3, Grafschaft gestrichelt) sind dort per `levelSourceIsReliable() === false` ausgeschaltet und nicht übernommen.",
+    "outer": {
+        "color": "#d3d3d3",
+        "placement": "inside",
+        "rootWidthPx": [1.5, 1.5, 2, 2, 2, 2, 2],
+        "otherWidthPx": [0.5, 0.5, 1, 1, 1, 1, 1],
+        "casing": { "color": "#2f2f2f", "alpha": 0.32, "widthPx": 0.75 }
+    },
+    "$innerComment": "Die INNENGRENZEN: die geteilten Kanten der direkten Kinder, weiß und gestrichelt, leicht durchsichtig (Legacy `INNER_LINE_*`: 2 px und [5,4] ab Zoom 4, 1,25 px und [4,3] auf Zoom 3, 0,75 px und [2,3] auf Zoom 1 und 2, Zoom 0 ganz aus). `dashPx` sind Pixel: MapLibre rechnet `line-dasharray` in Vielfachen der Linienbreite, der Stilbau teilt durch `widthPx`. `alpha` ist die Deckkraft in der politischen Ansicht: Legacy 0,6 (`INNER_LINE_ALPHA`), hier 0,75 (Betreiberwunsch 2026-09-30, „Grenzen könnten besser sichtbar sein“: weiß und gestrichelt verschwand auf hellem Gelände; der schwache Modus über Standard und Landschaften bleibt bei Legacys Werten).",
+    "inner": {
+        "color": "#ffffff",
+        "alpha": 0.75,
+        "groups": [
+            { "fromBand": 1, "toBand": 2, "widthPx": 0.75, "dashPx": [2, 3] },
+            { "fromBand": 3, "toBand": 3, "widthPx": 1.25, "dashPx": [4, 3] },
+            { "fromBand": 4, "toBand": 8, "widthPx": 2, "dashPx": [5, 4] }
+        ]
+    },
+    "$innerUniqueComment": "Zwischen zwei angrenzenden Flächen steht genau EINE Innengrenze (Betreiber 2026-09-30: „nur 1 innengrenze zwischen 2 angrenzenden flächen … 2 gestrichelte grenzen übereinander, das sieht doppelgemoppelt aus“). Ursache waren Flächen, die sich in einem schmalen Streifen überlappen (Legacys Nachbarflächen fallen nicht überall kantengleich zusammen): der Umriss beider Flächen blieb stehen. Die Ableitung (derive-inner-borders.ts) macht aus den Flächen überlappungsfreie Zellen und zeichnet die gemeinsame Kante zweier Zellen. Was danach übrig bleibt, sind Reste dünner Streifen, deren beide Kanten fast aufeinander liegen. Erstens: Liegt ein Stück von mindestens minLengthUnits Karteneinheiten zu share seiner Länge näher als toleranceUnits an einem längeren Stück, entfällt es. Zweitens: Liegt eine Strecke von mindestens minLengthUnits näher als coincidenceUnits an einem längeren Stück, entfällt sie (die Spitze eines Keils, dessen beide Kanten zusammenlaufen). 0,03 Einheiten sind bei Zoom 5,6 rund 0,7 px und bei Zoom 8 knapp 4 px, 0,01 rund 0,24 und 1,3 px (24 und 128 px je Einheit). Der Prüfer inner_border_unique verlangt: keine Linie doppelt, keine Strecke von minLengthUnits, die näher als coincidenceUnits an einer anderen liegt.",
+    "innerUnique": {
+        "toleranceUnits": 0.03,
+        "share": 0.8,
+        "coincidenceUnits": 0.01,
+        "minLengthUnits": 0.2
+    },
+    "$weakComment": "Der Schalter „Grenzen“ über Standard und Landschaften zeichnet dieselben Linien im SCHWACHEN Modus (Legacy `BOUNDARY_WEAK_MODES` deregraphic, powerlines, ecosystem): die Außengrenze blendet von Zoom 0 (aus) bis Zoom 4 (voll) ein (`BOUNDARY_WEAK_ALPHA_BY_ZOOM`, Zeile 48), die Innengrenze hat ab Zoom 4 0,5 / 0,75 / 1 (`BOUNDARY_WEAK_INNER_ALPHA_BY_ZOOM`) und darunter 0,6 × Außendeckkraft (Zeilen 54-58). Die Breite der Außengrenze ist im schwachen Modus EIGENE Tafel (`BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM` 3 / 4 / 6 auf Zoom 4 / 5 / 6, sonst 2, Zeilen 61-65; sichtbar die Hälfte) und ohne Verdicken der Reiche (Zeile 802). Ein Wert je Band 0 bis 6. 🪤 Nicht übernommen: Auf Legacys Zoom 7 fällt die Breite auf 2 (sichtbar 1 px) und die Innendeckkraft auf 0,6 zurück, weil die Tafeln dort enden; das ist ein Tafelrand, kein Entscheid, und die Werte von Band 6 gelten bei uns für jedes höhere Band (7 und 8, WI-0188).",
+    "weak": {
+        "outerAlpha": [0, 0.15, 0.3, 0.5, 1, 1, 1],
+        "innerAlpha": [0, 0.09, 0.18, 0.3, 0.5, 0.75, 1],
+        "outerWidthPx": [1, 1, 1, 1, 1.5, 2, 3]
+    },
+    "$hatchComment": "Die SCHRAFFUR umstrittener Gebiete (Legacy `js/map-features/map-features-contested-hatch-overlay.js`, Konzept `docs/feature-umstrittene-gebiete.md`, Betreiber-Spike 2026-06-11: „20px / 45° / fully alternating“): diagonale Streifen durch die Farben der Parteien, das umstrittene Gebiet zuerst (`territory.color`), dann die Anspruchsteller nach `sort_order`. Nur in der politischen Ansicht (Zeile 164-168: „NUR im politischen Modus“). Winkel 45° (Zeile 21). Breite wie `stripeWidthForZoom` (Zeilen 22-28, 40-44): 20 px bei Legacy-Zoom 6, je Stufe × 1,25, zwischen 3 und 22 px. Deckkraft: im Frontend die einheitliche Flächendeckkraft (`POLITICAL_FRONTEND_FILL_OPACITY`, Zeilen 29-32, 122-134), also `fillOpacity` oben, kein eigener Wert. Legacy schneidet das umstrittene Gebiet aus der Füllung heraus (Feature-Doku „Option A“, bestätigt 2026-06-12): Die Streifen liegen über dem Kartenbild, nicht über der Farbe des Reiches („sonst Mischfarben“). Bei uns tut es die Ableitung (`territory_shape.fill_render_geom`); wo ein Gebiet ganz umstritten ist, bleibt seine Fläche als Ziel des Klicks stehen und wird nur nicht gefüllt. Legacy schraffiert auf JEDER Zoomstufe, auch wo das Gebiet in einem Vorfahren aufgeht (`contested_pieces` der Hülle): dasselbe tut die Karte. `patternScale` gleicht aus, dass MapLibre ein Muster innerhalb einer Zoomstufe von 1× auf 2× zoomt.",
+    "claimHatch": {
+        "views": ["political"],
+        "angleDeg": 45,
+        "stripeWidthBasePx": 20,
+        "stripeWidthRefBand": 6,
+        "stripeWidthRatio": 1.25,
+        "stripeWidthMinPx": 3,
+        "stripeWidthMaxPx": 22,
+        "patternScale": 0.7
+    },
+    "$labelComment": "Der Gebietsname in der Fläche: weiß mit schwarzer Kontur, mehrzeilig gestapelt und zentriert. 🔴 Die Farben sind gegenüber Legacy GETAUSCHT (WI-0121 Nachtrag, Betreiber 2026-10-09 auf „füll und glowfarbe tauschen … als schrift weiß, kontur schwarz“ am Vergleichsblatt `review/wi-0121/farbtausch/`: „genau so, mach das mal“): Legacy `.region-label` stand dunkel auf weißem Schein (16 px abzüglich 2 pt = 13,3 px, `color: #2f251c`, `text-shadow: 0 0 4px white`, im Canvas eine scharfe Kontur von 0,13 der Schrift). `maxWidthEm` bricht lange Namen um (fest, Betreiber 2026-10-09: „nö“ zum Umbruch nach der Fläche); `sizePx` ist die Schriftgröße in px bei Faktor 1. 🔴 `sizePx` 18 (WI-0121 Nachtrag, Betreiber 2026-10-09: „du kannst die schriftart der territorien größer machen, die lesbarkeit des schriftzugs verbessern, indem der glow verändert wird“): größer als Legacys 13,3 px, am Bild entschieden aus 14,5 / 16 / 17,5 px (`npm run review:gebietsname`), zuerst 16, nach dem Farbtausch 17,5 (Betreiber 2026-10-09: „kannst du jetzt noch die schrift etwas größer machen?“), dann **18** (Betreiber 2026-10-09: „mach 18px“); die Wappen und die Lücke zur Schrift bleiben (`coat.gapToEmTopPx`). 🔴 Der Saum: MapLibre zeichnet ihn aus dem Abstandsfeld der Glyphe, und das trägt nur 3 von 24 Bildpunkten Rand, also höchstens 0,125 der Schrift für die Breite (die Unschärfe läuft als schwacher Auslauf darüber hinaus; ein breiterer Saum schneidet das Glyphenviereck als gerade Kante ab, die Falle der Kraftlinien-Namen). Legacys weicher Schein von 4 px ist damit nicht zu haben; was geht, ist ein fast scharfer, deckender Rand: `haloWidthRatio` 0,115 (2,1 px bei 18 px) und `haloBlurRatio` 0,03, vorher 0,09 und 0,06 (1,2 px mit 0,8 px Unschärfe), das auf dunklen Flächen (Thorwal-Blau, Grün) als graue Wolke um die Buchstaben lag. 🔴 `selected` ist der Name des GEWÄHLTEN Gebiets (Betreiber 2026-10-09: „einfach nur text, der schon da steht, gelb werden soll“): derselbe Name in derselben Ebene, am selben Ort, nur in der Auswahlfarbe des Kanons (`colour.mapSelection`, kein eigenes Gelb) auf dunklem Saum (Legacys Braun der Schrift, so am Vergleichsblatt mit abgenommen), eine Spur kräftiger (0,125), damit das helle Gelb auf jeder Fläche trägt. 🔴 `scaleByBand` (WI-0121, Legacy `createRegionLabelMarkup`, `js/map-features/map-features.js:699`, Mirror `cbe278210`: „Zoom 0 -> 0.75, 1 -> 0.83, 2 -> 0.91, ab 3 voll“) verkleinert Schrift UND Wappen in den dichten Bändern 0 bis 2 und gilt für jeden Namen, mit Wappen oder ohne; das Band der Karte ersetzt Legacys Zoom (Legacy z = Band).",
+    "$coatComment": "Das Wappen am Namen (WI-0121, Betreiber 2026-10-09: „prima und zentriert wie in legacy“). Legacy setzt Wappen und Name als EINEN Block, der mit `direction: center` auf dem Ankerpunkt sitzt (`js/map-features/map-features-region-rendering.js:416-462`): eine Spalte (`.region-label__content`, `css/features/map-labels.css:331-376`), das Wappen 40 × 40 (`object-fit: contain`) zentriert oben, darunter der Name als Bild (`renderMapLabelToImage`, `map-features-labels.js:207`: Höhe `ceil(Größe × 1,7 + 2 × max(0,5, Größe × strokeRatio 0,13))`, 27 px bei Größe 13,3; der Name steht in seiner Mitte), mehrzeilig gestapelt mit Zeilenabstand `round(Größe × 1,18)`. Polster `2px 5px 5px`, der Name hängt 2 px unter dem Wappen (`gapToEmTopPx` fasst das mit dem Überstand des Namensbildes zusammen). Daraus folgt bei Faktor 1, einer Zeile und Legacys Schrift von 13,3 px: Wappen-Unterkante +4 px, Mitte der Namenszeile +19,5 px, Lücke Wappen → Oberkante der Schrift rund 8,8 px, vom Anker aus gesehen; jede weitere Zeile schiebt den ganzen Block um 8 px nach oben (halber Zeilenabstand), ohne die Lücke zu ändern. 🔴 Der Name steht größer als bei Legacy (`label.sizePx`): Namensbild, Zeilenabstand und Höhe des Blocks folgen der Schrift, die wirklich steht, der Block bleibt auf dem Anker zentriert; die LÜCKE vom Wappen zur Schrift ist ein eigener Wert (`gapToEmTopPx` 8,85 px bei Faktor 1, Legacys Ergebnis bei seiner Schrift: 2 + (27 − 13,3) / 2) und wächst nicht mit. Kein Schatten am Wappen (der Eindruck kommt aus der Grafik selbst) und kein Platzhalter: ohne öffentliches Wappen steht nur der Name, und er steht dann wie bisher auf dem Anker (Legacy: Block aus dem Namen allein). 🪤 `calibratedLines`: MapLibre setzt Wappen (Symbol) und Name (Text) mit festem Abstand, wie viele Zeilen der Name bekommt, weiß erst der Kachelbau. Gewählt ist die häufigste Zeilenzahl der 401 Gebiete mit Wappen (Stand 2026-10-09, gerechnet mit den Vorschubwerten der Schrift (`config/glyph-metrics`) und `maxWidthEm`: 2 Zeilen 73 %, 1 Zeile 14 %, 3 Zeilen 12 %); ein Name mit einer Zeile steht dann 8 px höher, einer mit drei 8 px tiefer, als Legacys Block es wäre. Maßgeblich ist UNSERE Zeilenzahl, nicht Legacys: Legacy bricht nach der Fläche des Gebiets um (`computeRegionLabelMaxWidthPx`, große Gebiete stehen einzeilig), bei uns bricht `maxWidthEm` fest um. Ändert sich der Umbruch, ist diese Zahl neu zu messen. Die Rundungen (Wappen `round`, Namensbild `ceil`, Zeilenabstand `round`) stehen in `political-coat.ts`.",
+    "label": {
+        "color": "#ffffff",
+        "sizePx": 18,
+        "haloColor": "#000000",
+        "haloWidthRatio": 0.115,
+        "haloBlurRatio": 0.03,
+        "maxWidthEm": 7,
+        "lineHeightEm": 1.15,
+        "scaleByBand": [0.75, 0.83, 0.91, 1],
+        "coat": {
+            "edgePx": 40,
+            "paddingTopPx": 2,
+            "paddingBottomPx": 5,
+            "gapToEmTopPx": 8.85,
+            "nameImageHeightEm": 1.7,
+            "nameImageStrokeRatio": 0.13,
+            "lineStepEm": 1.18,
+            "calibratedLines": 2
+        },
+        "selected": {
+            "haloColor": "#2f251c",
+            "haloWidthRatio": 0.125,
+            "haloBlurRatio": 0.03
+        }
+    },
+    "$borderNameComment": "Der Gebietsname ENTLANG der Außengrenze (Legacy `drawTerritoryBorderLabels`, boundary-canvas-overlay.js:250-357). 🔴 Nur in der Ansicht STANDARD und nur, solange „Grenzen“ an ist (Zeile 862: `currentMapLayerMode === \"deregraphic\"`; in Politisch stehen die Namen schon in der Fläche, Zeile 860-861; in den Landschaften zeigt Legacy sie nicht; Commit 5c4a37876, Betreiber 2026-08-24: „Betrifft nur die Namen entlang der Aussengrenzen im Standard-Modus ab Zoom 4“). `views` ist die eine Stelle dafür. `fromBand` 4 = Legacy Zoom 4 (Betreiber 2026-08-24: „die grenzbeschriftungen beginnen schon bei zoom 4“, Commit 8f2bc8bc0), bei uns MapLibre-Zoom 5. `excludeNamePattern` ist Legacys `TERRITORY_LABEL_EXCLUDE` (Zeile 97, ohne Groß-/Kleinschreibung, am Namensanfang): zu kleinteilig. Der Ableiter prüft es und schreibt den Namen nur an Hüllen, die es besteht. Weiß, leicht durchsichtig, KEIN Saum, KEIN Schein (`TERRITORY_LABEL_ALPHA` 0,75, Zeile 142; Betreiber 2026-08-24: „die grenznamen waren früher mal bitmap und leicht transparenz“), Versalien mit 3 px Sperrung (Zeilen 111 und 171). `sizePx` und `offsetPx` haben einen Wert je Band ab `fromBand`; der letzte gilt für jedes höhere (Zeilen 100-109: Zoom 4 / 5 / 6 = 9 / 11 / 16 px Schrift, 10 / 12 / 20 px Abstand nach innen). `repeatPx` ist der Abstand, in dem sich der Name wiederholt (Legacy setzt ihn einmal je Gebiet nahe der Bildmitte; MapLibre kennt das nicht, der Abstand ist Legacys Wert für Wegnamen). `minPoints` ist Legacys `ring.length < 8` (Zeile 293): eine Hülle mit weniger Stützpunkten bekommt keinen Namen. `smoothing` sind die Durchgänge des Eckenschneidens (Chaikin) über dem Umriss: Legacy legt einen quadratischen B-Spline durch die Stützpunkte (Zeilen 152-167, 346-349), und Chaikins Verfahren konvergiert genau gegen ihn. Ohne Glättung setzt MapLibre an den Knicken der handgezeichneten Grenze keinen Namen (`text-max-angle`), gemessen 0 bis 2 Namen je Bild. `coincidenceUnits` ist der Abstand in Karteneinheiten, unter dem zwei Grenzen als zusammenfallend gelten: Wo die Grenze einer Hülle mit der ihres Vorfahren zusammenfällt, trägt der Vorfahr den Namen schon auf derselben Seite, und das Kind bekommt dort keinen (Legacy verwirft überlappende Namen, `collidesFootprint`, Zeilen 277-285 und 352, große Gebiete zuerst).",
+    "borderName": {
+        "views": ["standard"],
+        "fromBand": 4,
+        "excludeNamePattern": "^(Baronie|Junkertum|Vogtei|Rittergut|Freiherrschaft|Reichsstadt|Stadt)\\b",
+        "color": "#ffffff",
+        "alpha": 0.75,
+        "uppercase": true,
+        "sizePx": [9, 11, 16],
+        "offsetPx": [10, 12, 20],
+        "letterSpacingPx": 3,
+        "repeatPx": 600,
+        "minPoints": 8,
+        "smoothing": 3,
+        "coincidenceUnits": 0.01
+    }
+}

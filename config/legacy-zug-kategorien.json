@@ -1,0 +1,116 @@
+{
+    "version": 1,
+    "herkunft": "project-control/handovers/2026-10-13-legacy-zug-nach-production-je-kategorie.md, Betreiber 2026-10-13",
+    "kategorien": {
+        "landschaften": {
+            "name": "Landschaften",
+            "quellen": ["ecosystem-display.php", "ecosystem-regions.php", "ecosystem-areas.php", "map-features.php"],
+            "schritte": ["I16", "I2", "I3", "I4", "I19", "I9", "I10", "I11", "I12", "I13"],
+            "pruefungen": [
+                "verify:landscape-display",
+                "verify:regions",
+                "verify:runs",
+                "verify:sea-routes",
+                "verify:terrain",
+                "verify:terrain-dem",
+                "verify:domain-terrain",
+                "verify:display-heights"
+            ],
+            "idempotenz": ["I16", "I2", "I4"],
+            "tafeln": [
+                "landscape_display_art",
+                "landscape_display_source",
+                "region",
+                "region_area",
+                "map_label",
+                "landscape_label_run",
+                "climate_divider",
+                "climate_band",
+                "region_area_smooth",
+                "climate_band_smooth",
+                "sea_route_graph",
+                "terrain_control",
+                "terrain_peak",
+                "terrain_raster",
+                "terrain_domain_raster",
+                "terrain_dem",
+                "terrain_dem_tile",
+                "terrain_path_profile",
+                "terrain_display_height",
+                "terrain_contour",
+                "terrain_height_band",
+                "terrain_continental_base"
+            ],
+            "dateien": [],
+            "umfasst_auch": [
+                "Gipfel und Vulkane (terrain_peak): Betreiber 2026-10-13 „gipfel kommen mit“ — sie hängen an ihrer Gebirgsfläche, I10 schreibt sie zusammen mit den Reglern"
+            ]
+        },
+        "wege": {
+            "name": "Wege",
+            "quellen": ["map-features.php"],
+            "schritte": ["I5", "I6", "I7", "derive:path-profiles"],
+            "pruefungen": ["verify:paths", "verify:path-visuals", "verify:path-runs"],
+            "idempotenz": ["I5"],
+            "tafeln": ["path", "path_visual", "path_label_run", "terrain_path_profile"],
+            "dateien": [],
+            "umfasst_auch": [
+                "Steigungsprofile (terrain_path_profile): Betreiber 2026-10-14 „ja, danke der nachfrage“ — ein Wege-Zug schreibt die Geometrie neu, also passt das Profil nicht mehr. Der ganze Zug rechnet es in I11; ein Zug nur der Wege rührt die Geländekette nicht an und ruft darum nach I7 `derive:path-profiles` (dieselbe Rechnung, nur die Wege mit neuer Geometrie). Deshalb trägt der Schritt keine I-Nummer: es ist kein Schritt der ganzen Kette."
+            ]
+        },
+        "orte": {
+            "name": "Orte",
+            "quellen": ["map-features.php", "staetten-rohquellen-export.php", "wiki-siedlungen-export.php"],
+            "schritte": ["I1", "I9", "I27", "I28"],
+            "pruefungen": ["verify:places", "verify:sea-routes", "verify:staetten", "verify:wiki-settlements"],
+            "idempotenz": ["I1"],
+            "tafeln": [
+                "place",
+                "sea_route_graph",
+                "site",
+                "site_settlement",
+                "site_named_place",
+                "settlement_place",
+                "wiki_settlement_registry",
+                "wiki_settlement_registry_named_place"
+            ],
+            "dateien": [],
+            "umfasst_auch": [
+                "Stätten (I27, mit X4 `staetten-rohquellen-export.php`) und die Wiki-Siedlungsregistry (I28, X3 `wiki-siedlungen-export.php`): Betreiber 2026-10-16 „A ja“ — der Ortseditor (Innerorts, Reiter „Fehlt“, Trichter „Nicht auf der Karte“) liest sie. Ihre Prüfer und ihr zweiter Lauf melden nur (Betreiber 2026-10-03); fehlt X3 oder X4 im Satz, entfällt nur ihr Teil."
+            ]
+        }
+    },
+    "nie": {
+        "grund": "Betreiber 2026-10-13: „herrschaftsgebiete auf keinen fall -> die sind kaputt durch die limitierung von strato“",
+        "quellen": ["political-territories-export.php"],
+        "schritte": ["I14", "I15", "I23"],
+        "tafeln": [
+            "territory",
+            "territory_area",
+            "territory_claim",
+            "territory_claim_shape",
+            "territory_state",
+            "territory_border",
+            "territory_capital_band",
+            "territory_inner_edge",
+            "territory_display_area",
+            "territory_shape",
+            "territory_detail",
+            "territory_detail_field_origin",
+            "wiki_territory_snapshot",
+            "wiki_territory_snapshot_unknown",
+            "territory_canon",
+            "territory_source",
+            "territory_media",
+            "territory_media_suppression"
+        ]
+    },
+    "ohne_kategorie": {
+        "grund": "Betreiber 2026-10-13, wörtlich: „gipfel kommen mit, kraftlinien nicht“. Kraftlinien und Kraftlinienpunkte fasst kein Zug an; Änderungen an ihnen erreichen Production nur über einen ganzen Zug. Die alte Kreuzungstafel und Orte ohne Lage gehören ohnehin keiner Quelle.",
+        "tafeln": ["powerline", "nodix", "crossing", "place_unplaced"]
+    },
+    "gemeinsam": {
+        "grund": "Von Migrationen gefüllte Kataloge und Betreiberentscheide: auf Stage und Production gleich, nie Teil einer Kopie",
+        "tafeln": ["map_domain", "climate_zone_type", "label_class_rank", "region_retirement", "content_switch"]
+    }
+}

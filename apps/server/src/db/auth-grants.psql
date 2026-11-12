@@ -1,0 +1,65 @@
+-- Rechte im Schema avesmaps_auth (WI-0120 A2, Migration 0079, ADR-0010 Nr. 2). psql-Datei mit \gexec.
+--
+-- Vorlage fuer Claudios `avesmaps3d-db-grants` (Handover 2026-10-09-auth-grants-claudio.md): `${e}` ist die Umgebung
+-- (staging, production), wie in `grants_sql_tmpl` (ops/runtime/runtime-foundation.sh). In den Tests fuehrt sie
+-- apps/server/test/support/vps-cluster.ts auf einem Wegwerf-Cluster nach der Migration aus (auth-responsibility.test.ts, WI-0189).
+--
+-- Grundsatz: fail-closed. Im Schema gibt es KEINE Default-Privilegien; jede neue Tabelle braucht hier eine Zeile
+-- (`auth-schema.test.ts` prueft, dass jede Tabelle des Schemas genannt ist). Fehlt das Schema, entfaellt alles still.
+-- `claudio` und die Kachelrolle bekommen nichts (ADR-0010: ausserhalb der Allowlist).
+
+SELECT 'GRANT USAGE ON SCHEMA avesmaps_auth TO avesmaps3d_${e}_app' WHERE to_regnamespace('avesmaps_auth') IS NOT NULL \gexec
+
+-- Lesen, anlegen, aendern; nie loeschen (Personen, Zugang, Sonderrechte, Sonderrollen, Passkeys, Einladungen, Links, Legacy-Akteure,
+-- Zugaenge zu den Kartendateien: WI-0280, Migration 0324).
+SELECT format('GRANT SELECT, INSERT, UPDATE ON avesmaps_auth.%I TO avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['person', 'person_access', 'capability_grant', 'passkey_credential', 'invitation', 'access_link', 'abzug_schluessel', 'legacy_identity', 'sonderrolle_zuteilung', 'invitation_sonderrolle', 'karten_zugang']) AS t
+ WHERE to_regclass('avesmaps_auth.' || t) IS NOT NULL \gexec
+
+-- Kurzlebiges und Anmeldewege: auch loeschen (abgemeldet, abgelaufen, geloester Anmeldeweg).
+SELECT format('GRANT SELECT, INSERT, UPDATE, DELETE ON avesmaps_auth.%I TO avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['password_login', 'discord_login', 'session', 'oauth_flow', 'webauthn_challenge', 'login_throttle']) AS t
+ WHERE to_regclass('avesmaps_auth.' || t) IS NOT NULL \gexec
+
+-- Protokoll: nur anhaengen (Kap. 10.63, AUTH-0001 T18).
+SELECT 'GRANT SELECT, INSERT ON avesmaps_auth.security_event TO avesmaps3d_${e}_app'
+ WHERE to_regclass('avesmaps_auth.security_event') IS NOT NULL \gexec
+SELECT 'REVOKE UPDATE, DELETE, TRUNCATE ON avesmaps_auth.security_event FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('avesmaps_auth.security_event') IS NOT NULL \gexec
+
+-- Identitaetsspalten (security_event, capability_grant, sonderrolle_zuteilung, legacy_identity) brauchen die Sequenz.
+SELECT format('GRANT USAGE ON SEQUENCE %s TO avesmaps3d_${e}_app', c.oid::regclass)
+  FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+ WHERE n.nspname = 'avesmaps_auth' AND c.relkind = 'S' \gexec
+
+-- Aufbewahrung (AUTH-0001 §5, WI-0120 A12; Claudio 2026-10-09): Die Jobs-Rolle ruft nur avesmaps_auth.purge_expired() (Migration
+-- 0082, SECURITY DEFINER, gehoert der Migrationsrolle). An keiner Tabelle des Schemas hat sie ein Recht, auch nicht nach einer
+-- frueheren Fassung dieser Datei. Fehlt die Jobs-Rolle (eine Umgebung ohne Queue) oder die Funktion, entfaellt der Block still.
+SELECT 'GRANT USAGE ON SCHEMA avesmaps_auth TO avesmaps3d_${e}_jobs'
+ WHERE to_regnamespace('avesmaps_auth') IS NOT NULL AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL \gexec
+SELECT 'REVOKE ALL ON ALL TABLES IN SCHEMA avesmaps_auth FROM avesmaps3d_${e}_jobs'
+ WHERE to_regnamespace('avesmaps_auth') IS NOT NULL AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL \gexec
+SELECT 'GRANT EXECUTE ON FUNCTION avesmaps_auth.purge_expired() TO avesmaps3d_${e}_jobs'
+ WHERE to_regprocedure('avesmaps_auth.purge_expired()') IS NOT NULL AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL \gexec
+-- Karten herunterladen (WI-0280, Migration 0324): Der SVG-Bau hebt eigene Abzuege auf, solange ein gueltiger Zugang sie nennt. Die Funktion nennt nur
+-- die Karten, nie Hash oder Namen; ein Recht an der Tafel bekommt die Jobs-Rolle dadurch nicht. Ohne sie hebt der Bau alles auf (`karten-svg-job.ts`).
+SELECT 'GRANT EXECUTE ON FUNCTION avesmaps_auth.karten_zugang_karten() TO avesmaps3d_${e}_jobs'
+ WHERE to_regprocedure('avesmaps_auth.karten_zugang_karten()') IS NOT NULL AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL \gexec
+
+-- Konto aufloesen (WI-0120 A15, Bauschritt B; Betreiber 2026-10-09: "1 B"): Die App-Rolle schwaerzt Freitext mit Personenbezug
+-- in den Protokolleintraegen EINER Person nur ueber avesmaps_auth.redact_person_events(uuid) (Migration 0083, SECURITY DEFINER,
+-- gehoert der Migrationsrolle). Ein Recht am Protokoll selbst bekommt sie dadurch nicht: dort bleibt es bei SELECT, INSERT.
+-- Die Jobs-Rolle bekommt sie nicht. Fehlt die Funktion, entfaellt die Zeile still.
+SELECT 'GRANT EXECUTE ON FUNCTION avesmaps_auth.redact_person_events(uuid) TO avesmaps3d_${e}_app'
+ WHERE to_regprocedure('avesmaps_auth.redact_person_events(uuid)') IS NOT NULL \gexec
+
+-- Die Leserolle des Dirigenten (WI-0293; Betreiber 2026-11-09 auf die Frage, ob Auftraege der anderen Umgebung den Namen zeigen
+-- sollen: "Ja, Namen zeigen"): Sie liest NUR Kennung und Anzeigename der Personen, damit die gemeinsame Reihe in beiden Umgebungen
+-- sagt, wer einen Auftrag ausgeloest hat. Keine andere Spalte, keine andere Tafel, keine Funktion; was frueher vergeben war, nimmt
+-- das REVOKE zuerst weg (es nimmt auch Spaltenrechte). Fehlt die Rolle (vor WI-0163) oder die Tafel, entfaellt der Block still.
+SELECT 'GRANT USAGE ON SCHEMA avesmaps_auth TO avesmaps3d_${e}_queue_read'
+ WHERE to_regnamespace('avesmaps_auth') IS NOT NULL AND to_regrole('avesmaps3d_${e}_queue_read') IS NOT NULL \gexec
+SELECT 'REVOKE ALL ON ALL TABLES IN SCHEMA avesmaps_auth FROM avesmaps3d_${e}_queue_read'
+ WHERE to_regnamespace('avesmaps_auth') IS NOT NULL AND to_regrole('avesmaps3d_${e}_queue_read') IS NOT NULL \gexec
+SELECT 'GRANT SELECT (id, display_name) ON avesmaps_auth.person TO avesmaps3d_${e}_queue_read'
+ WHERE to_regclass('avesmaps_auth.person') IS NOT NULL AND to_regrole('avesmaps3d_${e}_queue_read') IS NOT NULL \gexec

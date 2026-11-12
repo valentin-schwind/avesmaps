@@ -1,0 +1,66 @@
+-- Rechte im Schema avesmaps_kanal (WI-0124, Migration 0106, KANAL-0001 §4). psql-Datei mit \gexec.
+--
+-- Vorlage fuer Claudios „avesmaps3d-db-grants“ („grants_sql_tmpl“ in ops/runtime/runtime-foundation.sh): „${e}“ ist die Umgebung
+-- (staging, production), wie dort. Im Schema gibt es KEINE Default-Privilegien (die Default-Privilegien der Migrationsrolle gelten nur
+-- in public); jede Tafel und jede Funktion steht hier ausdruecklich. Wie die uebrigen Vorlagen gehoert sie hinter JEDE Migration.
+--
+-- - App („avesmaps3d_${e}_app“): liest die Tafeln, schreibt NUR ueber die Funktionen der Betreiber; die Uebergaenge prueft die Datenbank.
+-- - Agenten („avesmaps3d_${e}_claudio“, „avesmaps3d_${e}_claudia“; legt Claudio an, sobald der Betreiber die Claudio-Seite freigibt,
+--   „wir warten mit Claudio“): nur die Funktionen der Agenten, an keiner Tafel ein Recht. Fehlt die Rolle, entfaellt ihr Block still.
+-- - Jobs („avesmaps3d_${e}_jobs“): nur die Funktionen der Bilder und der Aufbewahrung.
+-- - Die Kachelrolle bekommt nichts.
+-- Fehlt das Schema (0106 noch nicht angewandt), entfaellt alles still. Geprueft in apps/server/test/kanal-grants.test.ts.
+
+SELECT 'GRANT USAGE ON SCHEMA avesmaps_kanal TO avesmaps3d_${e}_app' WHERE to_regnamespace('avesmaps_kanal') IS NOT NULL \gexec
+SELECT 'REVOKE ALL ON ALL TABLES IN SCHEMA avesmaps_kanal FROM avesmaps3d_${e}_app' WHERE to_regnamespace('avesmaps_kanal') IS NOT NULL \gexec
+SELECT format('GRANT SELECT ON avesmaps_kanal.%I TO avesmaps3d_${e}_app', t)
+  FROM unnest(ARRAY['vorgang', 'eintrag', 'nachweis', 'aenderung', 'beobachtung', 'bild', 'agent']) AS t
+ WHERE to_regclass('avesmaps_kanal.' || t) IS NOT NULL \gexec
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO avesmaps3d_${e}_app', p.oid::regprocedure)
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'avesmaps_kanal'
+   AND p.proname IN ('kanal_melden', 'kanal_wiederherstellung', 'kanal_nachricht', 'kanal_abnehmen', 'kanal_wieder_oeffnen',
+                     'kanal_loeschen', 'kanal_bild_anlegen', 'kanal_bild_entfernen', 'redact_person_kanal',
+                     -- Der Betreiber schließt selbst ab: erledigt oder abgebrochen (Migration 0127, WI-0145).
+                     'kanal_abschliessen',
+                     -- Production-Freigabe (FREIGABE-0001, Migration 0124): Die App legt den Vorgang an, nachdem sie die
+                     -- Person angemeldet und „release_to_production“ mit frischem Passkey geprueft hat. Kein GRANT INSERT
+                     -- auf „vorgang“ - im Kanal schreibt die App nur ueber Funktionen.
+                     'kanal_freigabe_anlegen',
+                     -- Eine Nacht-Freigabe abbrechen (WI-0234, Migration 0207): jeder aktive Betreiber, die Route prueft das Recht.
+                     'kanal_freigabe_abbrechen',
+                     -- Discord (WI-0255 Paket 2, Migration 0231): Die App legt einen Vorgang an, nachdem sie die Signatur von Discord
+                     -- geprueft hat (zu sichten); ein Betreiber gibt ihn frei (Recht use_operator_channel, die Route prueft es).
+                     'kanal_discord_melden', 'kanal_sichten',
+                     -- /erledigt des Melders (Migration 0260): nur seine Meldung aus Discord, die Funktion prueft die Kennung.
+                     'kanal_discord_zurueckziehen',
+                     -- An die Community weiterleiten (WI-0297, Migration 0332): erst nachdem Production die COM-Nummer nannte; die Route prueft das Recht.
+                     'kanal_an_community') \gexec
+
+-- Agenten: je Rolle, wenn es sie gibt.
+SELECT format('GRANT USAGE ON SCHEMA avesmaps_kanal TO %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname IN ('avesmaps3d_${e}_claudio', 'avesmaps3d_${e}_claudia') AND to_regnamespace('avesmaps_kanal') IS NOT NULL \gexec
+SELECT format('REVOKE ALL ON ALL TABLES IN SCHEMA avesmaps_kanal FROM %I', r.rolname)
+  FROM pg_roles r
+ WHERE r.rolname IN ('avesmaps3d_${e}_claudio', 'avesmaps3d_${e}_claudia') AND to_regnamespace('avesmaps_kanal') IS NOT NULL \gexec
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO %I', p.oid::regprocedure, r.rolname)
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ CROSS JOIN pg_roles r
+ WHERE n.nspname = 'avesmaps_kanal'
+   AND r.rolname IN ('avesmaps3d_${e}_claudio', 'avesmaps3d_${e}_claudia')
+   AND p.proname IN ('kanal_abholen', 'kanal_lesen', 'kanal_eintragen', 'kanal_status', 'kanal_einstufen', 'kanal_aenderung',
+                     'kanal_beobachtung', 'kanal_nachweis', 'kanal_nachpruefen', 'kanal_aenderungen_offen',
+                     -- Production-Freigabe (FREIGABE-0001, Migration 0123): Die Funktion prueft selbst, dass nur Claudio
+                     -- und nur eine Freigabe durchkommt; das Recht hier ist der Weg, nicht die Erlaubnis.
+                     'kanal_freigabe_abschluss') \gexec
+
+-- Jobs: Rendern der Bilder und Aufbewahrung.
+SELECT 'GRANT USAGE ON SCHEMA avesmaps_kanal TO avesmaps3d_${e}_jobs'
+ WHERE to_regnamespace('avesmaps_kanal') IS NOT NULL AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL \gexec
+SELECT 'REVOKE ALL ON ALL TABLES IN SCHEMA avesmaps_kanal FROM avesmaps3d_${e}_jobs'
+ WHERE to_regnamespace('avesmaps_kanal') IS NOT NULL AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL \gexec
+SELECT format('GRANT EXECUTE ON FUNCTION %s TO avesmaps3d_${e}_jobs', p.oid::regprocedure)
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'avesmaps_kanal' AND to_regrole('avesmaps3d_${e}_jobs') IS NOT NULL
+   AND p.proname IN ('kanal_bild_fertig', 'kanal_faellige_bilder', 'kanal_bild_geloescht', 'kanal_purge_expired') \gexec

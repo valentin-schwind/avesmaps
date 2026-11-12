@@ -1,0 +1,684 @@
+/*
+ * ERZEUGT - nicht von Hand aendern.
+ *
+ * Quelle: config/design-canon/avesmaps.json
+ * Erzeuger: node scripts/dev/build-design-canon-css.mjs
+ *
+ * Wer hier einen Wert aendert, aendert ihn nur fuer die Oberflaeche und nicht fuer die Karte -
+ * und beim naechsten Lauf ist die Aenderung weg. Der Wert gehoert in den Kanon.
+ */
+
+/*
+ * Die Hausschrift der OBERFLAECHE. Die Karte bekommt dieselbe Schrift als SDF-Glyphen
+ * (scripts/dev/build-glyphs.mjs) - beide aus derselben TTF-Vorlage, damit ein Panel und ein
+ * Kartenname nicht in zwei Schriften stehen.
+ *
+ * 🔴 Nur woff2, kein Rueckfallformat: Chrome holt die ersten ZWEI Quellen einer src-Liste, eine
+ * Rueckfallkette kostet also bei jedem Kaltbesuch eine zweite Datei, ohne je gebraucht zu werden.
+ */
+@font-face {
+    font-family: "Faculty Glyphic";
+    src: url("/fonts/FacultyGlyphic-Regular.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+:root {
+    color-scheme: light;
+    /* Typografie */
+    --font-ui: "Faculty Glyphic", "Arial", sans-serif;
+    --font-size-caption: 11px;
+    --font-size-small: 12px;
+    --font-size-body: 13px;
+    --font-size-reading: 14px;
+    --font-size-subhead: 16px;
+    --font-size-title: 20px;
+    --font-size-display: 22px;
+    --font-size-toast: 15px;
+    --font-size-lang: 8px;
+    --font-size-fan: 10px;
+    --font-size-kanon: 9px;
+    --font-size-touch: 16px;
+    --font-size-zoomstufe: 30px;
+    --font-size-zoomstufe-wort: 9px;
+    --font-size-hinweise-text: 13.5px;
+    --leading-tight: 1.15;
+    --leading-snug: 1.25;
+    --leading-normal: 1.45;
+    --leading-hinweise-text: 1.5;
+    --font-weight-regular: 400;
+    --font-weight-bold: 700;
+    --letter-spacing-caps: 0.08em;
+    --descender-room: 0.3em;
+
+    /* Farbe */
+    --color-page-bg: #f3f0e8;
+    --color-page-bg-deep: #2b2721;
+    --color-panel: #fffdf9;
+    --color-panel-soft: #faf6ee;
+    --color-disclosure-bg: #f3eee4;
+    --color-panel-muted: #f1ece1;
+    --color-panel-active: #e7ddc9;
+    --color-text: #2e271e;
+    --color-text-strong: #3c3327;
+    --color-text-muted: #706557;
+    --color-placeholder: #9a8f7e;
+    --color-border: #ddd3c3;
+    --color-border-strong: #cdbfa8;
+    --color-divider: rgba(125, 115, 96, 0.3);
+    --color-button: #5b5548;
+    --color-button-border: #635b4d;
+    --color-button-text: #f6efe1;
+    --color-button-hover: #6a6353;
+    --color-button-active: #4c473b;
+    --color-button-soft: #efe9db;
+    --color-button-soft-text: #564b3b;
+    --color-button-soft-border: #cdbda0;
+    --color-button-soft-hover: #e7ddc9;
+    --color-button-soft-active: #ddd1b9;
+    --color-on-button-muted: rgba(255, 255, 255, 0.8);
+    --color-accent: #bfa03a;
+    --color-accent-strong: #7e651d;
+    --color-accent-brown: #7a5a3a;
+    --color-compass-north-light: #bfa03a;
+    --color-compass-north-shade: #7e651d;
+    --color-compass-south-light: #cdbfa8;
+    --color-compass-south-shade: #706557;
+    --color-link: #79611b;
+    --color-link-hover: #6f5a1c;
+    --color-hinweise-unterpunkt: #84602c;
+    --color-pill: #f3ecd9;
+    --color-pill-border: #d7c7a2;
+    --color-pill-text: #675024;
+    --color-kanon-official: #8a6b16;
+    --color-kanon-official-text: #fffaea;
+    --color-kanon-unofficial: #1f6b64;
+    --color-kanon-unofficial-text: #eafaf7;
+    --color-agent-claudia: #1f6b64;
+    --color-agent-claudia-text: #eafaf7;
+    --color-agent-claudio: #1f4f86;
+    --color-agent-claudio-text: #eef4fb;
+    --color-pill-hidden: #7c5598;
+    --color-pill-hidden-text: #f9f1fd;
+    --color-media-nav: rgba(24, 18, 12, 0.46);
+    --color-media-nav-hover: rgba(24, 18, 12, 0.74);
+    --color-media-text: #ffffff;
+    --color-media-mark-muted: rgba(255, 255, 255, 0.5);
+    --color-focus: rgba(191, 160, 58, 0.45);
+    --color-hover-wash: rgba(191, 160, 58, 0.14);
+    --color-active-wash: rgba(191, 160, 58, 0.24);
+    --color-disabled-bg: #ece7dd;
+    --color-disabled-text: #a99f8e;
+    --color-disabled-border: #dcd3c4;
+    --color-danger: #9d3a2e;
+    --color-success: #2f7d3a;
+    --color-warning: #b8860b;
+    --color-warning-soft: #faeeda;
+    --color-warning-soft-border: #ef9f27;
+    --color-warning-soft-text: #854f0b;
+    --color-success-soft: #eef6e2;
+    --color-success-soft-border: #a9c07f;
+    --color-success-soft-text: #3c5a1c;
+    --color-danger-soft: #fbeae6;
+    --color-danger-soft-border: #d3a79c;
+    --color-danger-soft-text: #8a2d22;
+    --color-local: #1f6b64;
+    --color-local-soft: #e2eae6;
+    --color-local-soft-border: #9abbb6;
+    --color-local-soft-text: #23635b;
+    --color-success-halo: rgba(79, 159, 74, 0.16);
+    --color-muted-halo: rgba(161, 140, 116, 0.16);
+    --color-danger-halo: rgba(157, 58, 46, 0.16);
+    --color-warning-halo: rgba(184, 134, 11, 0.16);
+    --color-marker-settlement: #cc2f2a;
+    --color-marker-settlement-contour: #ffffff;
+    --color-marker-settlement-site: #635497;
+    --color-marker-settlement-unofficial: #a66a3f;
+    --color-marker-settlement-site-unofficial: #c49ac7;
+    --color-marker-hairline: rgba(0, 0, 0, 0.55);
+    --color-marker-capital-ring: #e7b04a;
+    --color-marker-capital-ring-edge: rgba(0, 0, 0, 0.35);
+    --color-marker-active: #f0b429;
+    --color-map-selection: #ffd72e;
+    --color-map-selection-glow: rgba(255, 230, 74, 0.92);
+    --color-list-selection-text: #8a6a00;
+    --color-map-vorkommen1: #b22a6c;
+    --color-map-vorkommen2: #e88b0e;
+    --color-map-vorkommen3: #a890fd;
+    --color-map-vorkommen4: #1ba09c;
+    --color-map-vorkommen5: #5933ab;
+    --color-map-vorkommen6: #7d4005;
+    --color-map-vorkommen7: #f15f7a;
+    --color-map-vorkommen8: #a957c7;
+    --color-map-vorkommen9: #aa5f04;
+    --color-map-vorkommen10: #e873cf;
+    --color-map-vorkommen11: #831a83;
+    --color-map-vorkommen12: #0181a2;
+    --color-map-vorkommen13: #db640e;
+    --color-map-vorkommen14: #8045bb;
+    --color-map-vorkommen15: #9a0240;
+    --color-map-vorkommen16: #9172ee;
+    --color-map-paper: #f4efe4;
+    --color-scrim-light: rgba(18, 15, 12, 0.34);
+    --color-spotlight-bg: rgba(31, 27, 24, 0.94);
+    --color-spotlight-border: rgba(255, 255, 255, 0.24);
+    --color-spotlight-divider: rgba(255, 255, 255, 0.12);
+    --color-spotlight-active: rgba(255, 216, 88, 0.18);
+    --color-spotlight-text: #fff9ef;
+    --color-spotlight-text-soft: rgba(255, 249, 239, 0.68);
+    --color-spotlight-text-faint: rgba(255, 249, 239, 0.58);
+    --color-marker-waypoint: #e33b35;
+    --color-marker-waypoint-core: #2e2119;
+    --color-marker-waypoint-ring: #dcb877;
+    --color-marker-crossing: #f6efe1;
+    --color-map-check-uphill: #e8590c;
+    --color-map-shared-edge: #7b2fd6;
+    --color-map-check-loose-path: #e01b24;
+    --color-map-check-unconnected: #e0559a;
+    --color-map-check-no-wiki: #a01029;
+    --color-map-check-apart: #0b8f9a;
+    --color-map-check-halo: #ffffff;
+    --color-map-hex-grid: #ffffff;
+    --color-map-context-anchor-contour: #fff9f4;
+    --color-map-context-anchor-outline: rgba(0, 0, 0, 0.42);
+    --color-map-gefahr: #c4302b;
+    --color-route: #1452f7;
+    --color-route-halo: #ffffff;
+    --color-route-selected: #ffd54a;
+    --color-route-flight: #d0312d;
+    --color-traveler-light-tip: #f3c08c;
+    --color-traveler-light-base: #c07a3e;
+    --color-traveler-dark-tip: #b3713a;
+    --color-traveler-dark-base: #6e4020;
+    --color-traveler-rim: #4a3218;
+    --color-theme-sun: #e6a532;
+    --color-theme-moon: #d8d0bd;
+    --color-browser-bar: #565044;
+    --color-toast-bg: rgba(255, 249, 244, 0.98);
+    --color-toast-border: #c7aa88;
+    --color-toast-text: #4a392c;
+    --color-toast-bg-success: rgba(250, 243, 236, 0.98);
+    --color-toast-border-success: #b69572;
+    --color-toast-bg-warning: rgba(246, 237, 227, 0.98);
+    --color-toast-border-warning: #c8a98b;
+    --color-loading-bar-deep: #6b3f10;
+    --color-loading-bar-mid: #a9741f;
+    --color-loading-bar-light: #cf9a34;
+    --color-scrollbar-thumb: rgba(141, 121, 98, 0.4);
+    --color-scrollbar-thumb-hover: rgba(141, 121, 98, 0.6);
+    --color-scrollbar-track: transparent;
+    --color-scrim-dialog: rgba(20, 16, 12, 0.56);
+    --color-scrim-spoiler: rgba(20, 16, 12, 0.62);
+    --color-scrim-spoiler-text: #f4ece0;
+    --color-scrim-viewer: rgba(12, 10, 8, 0.92);
+    --color-star: #e0a528;
+    --color-star-muted: #d9c7a6;
+    --color-tier-fast-bg: #d2e5ad;
+    --color-tier-fast-text: #2b5407;
+    --color-tier-mid-bg: #f2ddb0;
+    --color-tier-mid-text: #6b3d07;
+    --color-tier-slow-bg: #f3cfcf;
+    --color-tier-slow-text: #7a1c1c;
+    --color-map-presence: #6a7f3a;
+    --color-edit-handle: #1452f7;
+    --color-edit-edge: #ee1c25;
+    --color-chart1: #c9821c;
+    --color-chart2: #a02a24;
+    --color-chart3: #2f7d3a;
+    --color-profile-land: #a9794a;
+    --color-profile-river: #4c89c6;
+    --color-profile-sea: #1f4f86;
+    --color-profile-air: #d0312d;
+    --color-map-contour: #5a3d24;
+    --color-map-height0: #a3c48e;
+    --color-map-height1: #bfd49a;
+    --color-map-height2: #dcdca2;
+    --color-map-height3: #e4c98e;
+    --color-map-height4: #cfa672;
+    --color-map-height5: #b1835f;
+    --color-map-height6: #977163;
+    --color-map-height7: #ffffff;
+    --color-season-summer: #f1dc9b;
+    --color-season-autumn: #e7bf98;
+    --color-season-winter: #cfdbe4;
+    --color-season-spring: #cfe2b8;
+    --color-season-nameless: #ddd6ca;
+    --color-season-text: #3c3327;
+    --color-change-before-bg: rgba(226, 140, 128, 0.28);
+    --color-change-before-line: #cf6f62;
+    --color-change-after-bg: rgba(255, 232, 120, 0.55);
+    --color-change-after-line: #c9a41e;
+    --color-map-change-before-fill: rgba(233, 150, 138, 0.42);
+    --color-map-change-before-line: #c9584a;
+    --color-map-change-before-halo: rgba(236, 152, 140, 0.55);
+    --color-map-change-before-ink: #8f2f23;
+    --color-map-change-after-fill: rgba(255, 236, 120, 0.78);
+    --color-map-change-after-line: #b8920f;
+    --color-map-change-after-halo: rgba(255, 240, 140, 0.95);
+    --color-map-change-after-ink: #6b5200;
+    --color-map-change-link: #5a3d24;
+
+    /* Abstand, Radius, Symbolgroessen */
+    --space-2: 4px;
+    --space-4: 6px;
+    --space-6: 8px;
+    --space-8: 10px;
+    --space-10: 12px;
+    --space-12: 14px;
+    --space-16: 18px;
+    --space-20: 22px;
+    --space-24: 26px;
+    --radius-sm: 5px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --icon-sm: 16px;
+    --icon-kachel: 18px;
+    --icon-md: 20px;
+    --icon-lg: 24px;
+    --icon-xl: 46px;
+    --icon-xxl: 48px;
+    --icon-hero: 130px;
+    --icon-banner: 240px;
+
+    /* Bedienelemente und Fensterbauteile */
+    --avm-control-h: 32px;
+    --avm-field-label-w: 130px;
+    --avm-kopf-pad: 6px 14px;
+    --avm-row-pad: 4px 6px;
+    --avm-col-pad: 8px 12px;
+    --divider-gap: 14px;
+    --divider-gap-tight: 8px;
+    --focus-ring: 0 0 0 3px var(--color-focus);
+    --focus-ring-width: 3px;
+    --avm-status-dot: 9px;
+    --avm-status-halo: 3px;
+    --avm-fenster-lesen: 860px;
+    --avm-fenster-anmelden: 360px;
+    --avm-fenster-entscheiden: 520px;
+    --avm-fenster-tafel: 940px;
+    --avm-fenster-verwaltung: 1040px;
+    --avm-fenster-medien: 1240px;
+    --avm-fenster-werkzeug: 960px;
+    --avm-fenster-wege: 1120px;
+    --avm-fenster-spalte: 230px;
+    --avm-fenster-lesespalte: 340px;
+    --avm-fenster-schiene: 228px;
+    --avm-fenster-schiene-wert: 46px;
+    --avm-fenster-schiene-kante: 3px;
+    --avm-fenster-facetten: 208px;
+    --avm-fenster-inspektor: 400px;
+    --avm-fenster-kachel: 112px;
+    --avm-fenster-daumen: 36px;
+    --avm-fenster-hinweise-begriff: 152px;
+    --avm-fenster-hinweise-bild: 380px;
+    --avm-fenster-bildansicht-pfeil: 44px;
+    /* Das Umschlagbild eines Treffers vor dem Titel (WI-0287), das Vorschaubild und der leere Platz der Kartenvorschläge (WI-0275), die Beschriftungsspalten ihrer Fakten und der Zeile „Version“. */
+    --avm-fenster-umschlag-w: 24px;
+    --avm-fenster-umschlag-h: 32px;
+    --avm-fenster-vorschau-hoehe: clamp(180px, 26dvh, 300px);
+    --avm-fenster-platzhalter-hoehe: 88px;
+    --avm-fenster-fakten-label: 96px;
+    --avm-fenster-version-label: 72px;
+    --avm-kreis: 11px;
+    --avm-kreis-ring: 2px;
+    --avm-tooltip-pad: 5px 20px;
+    --avm-tooltip-arrow: 15px;
+    --avm-tooltip-offset: 10px;
+    --avm-tooltip-leading: 1.5;
+
+    /* Routenplaner (Guide §17.1, §17.2) - Legacys Namen */
+    --avesmaps-planner-width: 350px;
+    --avesmaps-tab-w: 30px;
+    --avesmaps-tab-h: 140px;
+    --avesmaps-tab-top: 30px;
+    --avesmaps-handle-w: 26px;
+    --avesmaps-handle-h: 56px;
+
+    /* Infopanel am rechten Rand (Guide §16) - Legacys Namen */
+    --avesmaps-infopanel-width: 400px;
+    --avesmaps-infopanel-close: 26px;
+    --avesmaps-infopanel-label-w: 96px;
+    --avesmaps-infopanel-nav: 32px;
+    --avesmaps-infopanel-mark-w: 15px;
+    --avesmaps-infopanel-mark-h: 6px;
+    --avesmaps-infopanel-tile-min-h: 60px;
+    --avesmaps-infopanel-tile-icon: 36px;
+    --avesmaps-infopanel-figure-icon: 36px;
+    --avesmaps-infopanel-lid-pad: 3px 9px;
+    --avesmaps-infopanel-cover-w: 78px;
+    --avesmaps-infopanel-cover-h: 110px;
+    --avesmaps-infopanel-map-w: 116px;
+    --avesmaps-infopanel-map-h: 72px;
+    --avesmaps-infopanel-veil-blur: 7px;
+    --avesmaps-infopanel-stair-coat: 15px;
+    --avesmaps-infopanel-stair-coat-drop: 3px;
+    --avesmaps-infopanel-lore-letter: 14px;
+    --avesmaps-infopanel-lore-col: 105px;
+
+    /* Dunst und Himmel der geneigten Karte (WI-0016) */
+    --atmosphere-sky: #2d75be;
+    --atmosphere-sky-horizon: #b4d9f3;
+    --atmosphere-sea: #1b5e8a;
+
+    /* Schatten und Stapelung */
+    --shadow-disclosure: 0 1px 3px rgba(46, 39, 30, 0.09);
+    --shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.16);
+    --shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.38);
+    --shadow-button-hover: 0 4px 10px rgba(52, 41, 32, 0.14);
+    --shadow-button-hover-strong: 0 5px 12px rgba(52, 41, 32, 0.22);
+    --shadow-spotlight: 0 24px 70px rgba(0, 0, 0, 0.48);
+    --shadow-field-float: 0 3px 8px rgba(52, 41, 32, 0.08);
+    --shadow-field-rest: 0 2px 5px rgba(52, 41, 32, 0.08);
+    --shadow-toast: 0 12px 28px rgba(0, 0, 0, 0.24);
+    --shadow-loading-bar: 0 0 6px rgba(169, 116, 31, 0.5), 0 1px 2px rgba(0, 0, 0, 0.22);
+    --shadow-drag-lift: 0 10px 20px rgba(52, 41, 32, 0.2);
+    --shadow-tooltip: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-media-mark: 0 1px 2px rgba(0, 0, 0, 0.6);
+    --shadow-media-label: 0 1px 3px rgba(9, 7, 5, 1), 0 0 5px rgba(9, 7, 5, 1);
+    --shadow-map-ink: 0 1px 2px rgba(0, 0, 0, 0.95);
+    --shadow-map-context-anchor: 0 2px 8px rgba(0, 0, 0, 0.38);
+    --z-map-ui: 1000;
+    --z-map-panel: 1010;
+    --z-map-hint: 1015;
+    --z-map-menu: 1020;
+    --z-dialog: 1450;
+    --z-dialog-high: 1460;
+    --z-editor-overlay: 1500;
+    --z-autocomplete: 1600;
+    --z-dialog-over-editor: 3000;
+    --z-modal: 5000;
+    --z-loading-bar: 6000;
+}
+
+/*
+ * Das dunkle Thema: nur die Werte, die im Dunkeln anders sind. Was auf der Karte liegt, bleibt,
+ * wie es ist - die Karte ist ein gezeichnetes Pergament (Guide §23.1).
+ */
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --color-list-selection-text: #ffd72e;
+    --color-page-bg: #211f19;
+    --color-page-bg-deep: #181611;
+    --color-panel: #312e26;
+    --color-panel-soft: #37342b;
+    --color-disclosure-bg: #3d392f;
+    --color-panel-muted: #39352b;
+    --color-panel-active: #4c4636;
+    --color-text: #eee7da;
+    --color-text-strong: #f5f0e4;
+    --color-text-muted: #b4a895;
+    --color-placeholder: #7b7467;
+    --color-border: #514a3c;
+    --color-border-strong: #615a49;
+    --color-divider: rgba(207, 197, 171, 0.24);
+    --color-button: #6b6456;
+    --color-button-border: #7a7361;
+    --color-button-text: #f5ebd7;
+    --color-button-hover: #5e5749;
+    --color-button-active: #4f4a3d;
+    --color-button-soft: #3a362c;
+    --color-button-soft-text: #eae1cf;
+    --color-button-soft-border: #585142;
+    --color-button-soft-hover: #453f32;
+    --color-button-soft-active: #4e4739;
+    --color-accent: #cfb767;
+    --color-accent-strong: #dcc77e;
+    --color-accent-brown: #c9a97e;
+    --color-compass-north-light: #dcc77e;
+    --color-compass-north-shade: #cfb767;
+    --color-compass-south-light: #b4a895;
+    --color-compass-south-shade: #615a49;
+    --color-link: #d7c38b;
+    --color-link-hover: #e3d39f;
+    --color-hinweise-unterpunkt: #c2975a;
+    --color-pill: #3b3522;
+    --color-pill-border: #5c5237;
+    --color-pill-text: #e7d7a5;
+    --color-kanon-official: #dcc77e;
+    --color-kanon-official-text: #2b2311;
+    --color-kanon-unofficial: #6fc7bd;
+    --color-kanon-unofficial-text: #0f2f2b;
+    --color-agent-claudia: #6fc7bd;
+    --color-agent-claudia-text: #0f2f2b;
+    --color-agent-claudio: #5b8fd1;
+    --color-agent-claudio-text: #0d1d33;
+    --color-pill-hidden: #d0aeea;
+    --color-pill-hidden-text: #2c2233;
+    --color-focus: rgba(207, 183, 103, 0.5);
+    --color-hover-wash: rgba(207, 183, 103, 0.18);
+    --color-active-wash: rgba(207, 183, 103, 0.3);
+    --color-disabled-bg: #322f27;
+    --color-disabled-text: #6e685c;
+    --color-disabled-border: #433e33;
+    --color-danger: #d27566;
+    --color-success: #7cc48a;
+    --color-warning: #e0b45c;
+    --color-warning-soft: #3b3122;
+    --color-warning-soft-border: #6d5629;
+    --color-warning-soft-text: #e9c684;
+    --color-success-soft: #2c3a24;
+    --color-success-soft-border: #4d6b3a;
+    --color-success-soft-text: #9cd39a;
+    --color-danger-soft: #3f2a26;
+    --color-danger-soft-border: #6b463f;
+    --color-danger-soft-text: #e29c8f;
+    --color-local: #6fc7bd;
+    --color-local-soft: #39423a;
+    --color-local-soft-border: #4d736a;
+    --color-local-soft-text: #83cdc3;
+    --color-success-halo: rgba(124, 196, 138, 0.22);
+    --color-muted-halo: rgba(180, 168, 149, 0.2);
+    --color-danger-halo: rgba(210, 117, 102, 0.22);
+    --color-warning-halo: rgba(224, 180, 92, 0.22);
+    --color-toast-bg: rgba(49, 46, 38, 0.98);
+    --color-toast-border: #6f5f4b;
+    --color-toast-text: #eee7da;
+    --color-toast-bg-success: rgba(55, 52, 43, 0.98);
+    --color-toast-border-success: #7d6a53;
+    --color-toast-bg-warning: rgba(57, 53, 43, 0.98);
+    --color-toast-border-warning: #86704f;
+    --color-scrollbar-thumb: rgba(180, 168, 149, 0.35);
+    --color-scrollbar-thumb-hover: rgba(180, 168, 149, 0.55);
+    --color-browser-bar: #211f19;
+    --color-tier-fast-bg: #3f5326;
+    --color-tier-fast-text: #d3e9ac;
+    --color-tier-mid-bg: #5d4720;
+    --color-tier-mid-text: #f2dcab;
+    --color-tier-slow-bg: #753831;
+    --color-tier-slow-text: #f7d4ce;
+    --color-chart1: #b58c10;
+    --color-chart2: #c74a55;
+    --color-chart3: #2f9647;
+    --color-profile-land: #d1ac7b;
+    --color-profile-river: #7fb2e5;
+    --color-profile-sea: #5b8fd1;
+    --color-profile-air: #ef6a66;
+    --color-star-muted: #6f6757;
+    --color-season-summer: #6b5a26;
+    --color-season-autumn: #6a4a2f;
+    --color-season-winter: #3c4b56;
+    --color-season-spring: #3f5530;
+    --color-season-nameless: #4a453b;
+    --color-season-text: #efe6d4;
+    --color-change-before-bg: rgba(217, 120, 107, 0.26);
+    --color-change-before-line: #d9786b;
+    --color-change-after-bg: rgba(240, 214, 90, 0.22);
+    --color-change-after-line: #d8b83a;
+    --shadow-disclosure: 0 1px 3px rgba(0, 0, 0, 0.22);
+    --shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.6);
+    --shadow-button-hover: 0 4px 10px rgba(0, 0, 0, 0.38);
+    --shadow-button-hover-strong: 0 5px 12px rgba(0, 0, 0, 0.5);
+    --shadow-field-float: 0 3px 8px rgba(0, 0, 0, 0.3);
+    --shadow-field-rest: 0 2px 5px rgba(0, 0, 0, 0.3);
+    --shadow-toast: 0 12px 28px rgba(0, 0, 0, 0.5);
+    --shadow-drag-lift: 0 10px 20px rgba(0, 0, 0, 0.5);
+}
+
+/*
+ * Die Schrift traegt Oberflaeche UND Karte, wie bei Legacy.
+ *
+ * 🔴 `font-synthesis-weight: none`, weil Faculty Glyphic nur den Regular-Schnitt mitbringt: ein
+ * vom Browser gerechnetes Fett rendert matschig. Betonung entsteht ueber Farbe
+ * (--color-text-strong, --color-accent-strong), nicht ueber Gewicht.
+ */
+html,
+body,
+button,
+input,
+select,
+textarea {
+    font-family: var(--font-ui);
+    font-synthesis-weight: none;
+}
+
+/*
+ * 🔴 DEUTSCHE SILBENTRENNUNG, AUCH IN LINKS (Hausregel, WI-0088 P3).
+ *
+ * Betreiber 2026-10-06, woertlich: „und kannst du auf deutsche silbentrennung achten - auch bei links“.
+ *
+ * Zusammengesetzte Woerter sind hier der Normalfall, nicht die Ausnahme: „Herrschaftsgebiet“ oder
+ * „Westliches Vorgebirge des Raschtulswalls“. In einer schmalen Spalte und am Telefon lief ein solches
+ * Wort bisher ueber den Rand, oder `overflow-wrap: anywhere` brach es OHNE Strich mitten im Wort - der
+ * Leser sieht dann nicht, dass es weitergeht. Mit Trennung bricht es an einer Silbe, mit Strich.
+ *
+ * Die Trennung richtet sich nach `lang` an `<html>`. Das setzt `applyLocale()` beim Start UND bei
+ * jedem Sprachwechsel (apps/web/src/i18n/i18n.ts, apps/web/src/main.ts); gemessen am 2026-10-06 traegt
+ * das Dokument `de` beziehungsweise `en` von der ersten Zeichnung an. Darum steht hier nur die Regel
+ * und keine Sprache: Englisch trennt nach eigenen Stellen, und beide Woerterbuecher liegen im Browser.
+ *
+ * Sie steht HIER und nicht in den Bauteilen: EINE Aussage, EINE Rezeptur. `hyphens` erbt, also gilt sie
+ * auch fuer Links, Ueberschriften, Tabellenzellen und Knopfaufschriften - genau das war der Wunsch.
+ *
+ * 🪤 Was NICHT getrennt werden darf, nimmt sich selbst aus: Was `white-space: nowrap` traegt, bricht nie
+ * um und kann darum nicht getrennt werden - ein Wert samt Einheit (`AvmWert`, „4 S 8 H“), die Pillen, die
+ * Etiketten, eine Reihe von Masszahlen. Ein Wort ohne Trennstellen im Woerterbuch (Kennung, Adresse,
+ * Kuerzel, Zahl) laesst der Browser ganz; dort faengt weiter `overflow-wrap` den Ueberlauf.
+ * Wer eine Flaeche ausdruecklich ungetrennt braucht, setzt `hyphens: manual` an ihr und sagt warum
+ * (so wie der Vermerk unter den Kosten im Planer).
+ */
+html {
+    hyphens: auto;
+}
+
+/*
+ * 🔴 IN EINER LEISTE SITZT DIE VERSALHOEHE IN DER MITTE, NICHT DIE ZEILE (Hausregel, Guide §3.2).
+ *
+ * Leiste, Pille, Kopfzeile, Schalter: Der Text darin steht senkrecht mittig. Gemeint ist die Mitte
+ * der VERSALHOEHE - vom Scheitel der Grossbuchstaben bis zur Grundlinie -, nicht die Mitte des
+ * Zeilenkastens. 💣 Chrome rundet Ober- und Unterlaenge der Hausschrift auf ganze Pixel; wer die
+ * Zeile zentriert, setzt die Buchstaben bis zu einem Geraetepixel daneben.
+ *
+ * Dreimal verlangt, deshalb eine Regel und keine dritte Einzelkorrektur:
+ * 2026-09-25 „DE | EN einfach nur perfekt vertikal zentrieren sonst nix“,
+ * 2026-10-04 „mach den text darin fett und zentrier ihn vertikal exakt mittig“,
+ * 2026-10-05 „kannst du bei sowas darauf achten, dass der text immer vertikal zentriert ist?“.
+ *
+ * Das Rezept hat zwei Haelften, und es steht HIER statt ein viertes Mal in einer Komponente:
+ * 1. Die Leiste zentriert ihre Kinder (`align-items: center`, oder `baseline`, wo mehrere Felder auf
+ *    EINER Grundlinie stehen) und hat oben so viel Polster wie unten.
+ * 2. Der Text traegt diese Klasse: Sie schneidet seinen Kasten auf genau die Versalhoehe.
+ * Die Masse kommen damit aus der Schrift selbst, nicht aus einem von Hand austarierten Polster.
+ * Gemessen wird am gezeichneten Bild: apps/web/e2e/leisten-mitte.spec.ts, hoechstens 0,5 px.
+ */
+.avm-versalmitte {
+    display: block;
+    text-box: trim-both cap alphabetic;
+}
+
+/*
+ * 🔴 EINE EINZEILIGE KLAPPBOX HAT IM GANZEN HAUS DIESELBE KOPFHOEHE (Hausregel, Guide §16.3).
+ *
+ * Betreiber 2026-10-07, woertlich: „was mich stoert ist, dass klappboxen alle wieder
+ * unterschiedlich hoch sind. die sollen eine einheitliche hoehe haben (beispiele oneliner),
+ * im routenplaner wie im infopanel etc.“
+ *
+ * Gemessen am 2026-10-07 standen DREI Hoehen nebeneinander, alle vier Faelle (1280 und 360 px,
+ * hell und dunkel) gleich: die zwei Planerleisten 22,00 px, die fuenf Deckel der Routendetails
+ * 21,94 px, die Deckel des Infopanels 16,08 px. Keine der drei war gesetzt - 21,94 ist der
+ * Zeilenkasten von 11-px-Schrift (15,94) plus Polster, 16,08 der auf die Versalhoehe geschnittene
+ * Kasten des 13-px-Winkels (10,08) plus Polster. Nur die 22,00 ist eine Entscheidung.
+ *
+ * 🔴 Die Hoehe ist deshalb ABGELEITET und keine neue Zahl: eine Symbolzeile (`icon.sm`) in
+ * gleichem Polster oben und unten (`space.4`, also 3 px je Seite - genau das Polster, das die
+ * Klappbox und der Deckel des Infopanels schon tragen). Die 16 px sind der Befund des Betreibers
+ * vom 2026-09-24: Eine Kopfzeile mit Symbol darf nicht hoeher stehen als eine ohne, also ist die
+ * Zeile so hoch wie ein Symbol. Die groesste der drei Hoehen gewinnt auch deshalb, weil nur sie
+ * ein 16-px-Symbol traegt, ohne es zu beschneiden.
+ *
+ * 🪤 Die Klasse sagt die HOEHE, nicht die Ausrichtung. Wie der Text darin mittig sitzt, bleibt
+ * Sache des Bauteils (§3.2): die Klappbox ueber die Zeilenhoehe eines Symbols, der Deckel des
+ * Infopanels ueber `.avm-versalmitte` in einer senkrecht zentrierten Reihe. Eine gemeinsame
+ * Ausrichtungsregel waere hier falsch - sie hat am 2026-10-06 gemessen beides verschlechtert
+ * (WI-0089, dritter Nachgang).
+ *
+ * 🪤 Es ist eine UNTERGRENZE: Was mehr als eine Zeile traegt (die Vorschau unter einem Deckel,
+ * ein Satz, der bei 360 px umbricht, der zweireihige Kopf einer Etappengruppe), bleibt so hoch,
+ * wie sein Inhalt es verlangt. `border-box`, weil die Hoehe das Polster einschliesst.
+ * Gemessen wird am gezeichneten Bild: apps/web/e2e/klappbox-hoehe.spec.ts.
+ */
+.avm-klappbox-kopf {
+    box-sizing: border-box;
+    min-height: calc(var(--icon-sm) + var(--space-4));
+}
+
+/*
+ * 🔴 EIN LINK, DER DIE SEITE VERLAESST, TRAEGT EIN ↗ - UND ER BEKOMMT ES HIER, NICHT IM BAUTEIL.
+ *
+ * Guide §13.13: „Ein Pfeil ↗ heisst: das fuehrt aus Avesmaps hinaus. Ohne ihn sieht ein Wiki-Link aus
+ * wie ein Sprung auf die Karte, und der Unterschied ist fuer den Redakteur wesentlich.“ (CANON)
+ * Guide §13.42, Ausfuehrungsvorschrift zum ↗: „Einmal, zentral - nie von Hand je Verweis. (CANON)
+ * Entweder eine gemeinsame Verweisbehandlung oder automatisch ... Handgetippt bleibt er nirgends
+ * vollstaendig.“
+ *
+ * 🔴 Betreiber 2026-10-07, woertlich: „kannst du bei allein externen links immer das symbol ↗
+ * verwenden ich glaub es steht in den regeln, aber du hast jetzt bei den vorkommen (alles wiki-links
+ * ↗ nicht rangemacht - war schon in legacy falsch)“
+ *
+ * 💣 Er hat an beiden Enden recht, und der zweite Satz des Guide war die Diagnose: Vor dieser Regel
+ * stand der Pfeil an SECHS Stellen einzeln (zweimal als CSS-`::after`, viermal als
+ * `<span aria-hidden>` im Markup) und fehlte an ACHT anderen - den 110 Vorkommensnamen, dem
+ * Literaturtitel, der Kartensammlung und den fuenf Belegzeilen der Statusseite. Die naechste Stelle
+ * vergisst eine Regel, die an sechs Stellen steht. Jetzt steht sie an einer.
+ *
+ * 🔴 Der Traeger ist `target="_blank"`, nicht `href^="http"`: Was in einem neuen Fenster aufgeht,
+ * verlaesst diese Seite - genau die Aussage, die der Pfeil macht. Ueber `href` liefe die kurze
+ * Teiladresse im Toast (unsere eigene, mit `preventDefault`) in die Regel, und auf localhost gaebe es
+ * kein `avesmaps` im Namen, an dem man sie wieder ausnehmen koennte. Legacy traegt dieselbe Naht:
+ * `a[target="_blank"]::after` in css/components/legal-dialog.css.
+ *
+ * 🪤 Ein Link, der NICHT hinausfuehrt, bekommt keinen - und das ist bei uns keine Ausnahme, sondern
+ * eine andere Bauart: Der Objektlink im Panel (`info-link.vue`, die Treppe „Liegt in“, die
+ * Vorkommensnamen mit eigenem Kartenobjekt) ist ein `<button>` und kein `<a>`. Legacy sagt es an
+ * seinem Gegenstueck woertlich (css/features/lore.css): „Sieht aber aus wie ein Link, denn genau so
+ * wird es gelesen -- kein ↗, das steht fuer ‚verlaesst die Seite‘.“
+ *
+ * 🔴 Vorlesewerkzeuge hoeren ihn nicht: `content: <text> / ""` gibt dem erzeugten Inhalt einen leeren
+ * Alternativtext. Die Zeile davor ist der Rueckfall fuer Browser, die die Alternativschreibweise nicht
+ * kennen. Ein Pfeil, der in einer Reihe von 110 Vorkommensnamen 110-mal vorgelesen wird, waere
+ * schlimmer als keiner.
+ *
+ * 🪤 Das geschuetzte Leerzeichen ist kein Schmuck: Es haelt den Pfeil an SEINEM Namen. In der
+ * kommagetrennten Reihe der Vorkommen (`overflow-wrap: anywhere`) riss ein gewoehnliches Leerzeichen
+ * ihn an jedem Zeilenende vom Wort los und setzte ihn allein in die naechste Zeile.
+ *
+ * 🪤 Die einzige Ausnahme ist Legacys eigene, und sie ist eng: ein Link OHNE Text - ein Umschlagbild,
+ * ein Markenzeichen - hat nichts, woran der Pfeil haengen koennte. Sie wird im Bauteil mit
+ * `content: none` gesetzt und dort begruendet (`info-literature.vue`, `hinweise-kacheln.vue`).
+ * 💣 Eine solche Ausnahme braucht mehr Gewicht als diese Regel: `a[target="_blank"]` wiegt
+ * (0,1,1), eine Klasse allein nur (0,1,0). In einem Vue-Bauteil mit `<style scoped>` genuegt die
+ * Klasse, weil der Uebersetzer `[data-v-…]` anhaengt und daraus (0,2,0) macht; ein GLOBALES
+ * Stilblatt muesste `a.klasse[target="_blank"]` schreiben. Sonst wirkt die Ausnahme lautlos nicht.
+ *
+ * 🪤 `.avm-nach-draussen` ist derselbe Pfeil fuer den Fall, dass der Text des Ankers in einem KIND
+ * steht (die Kachel der Kartensammlung: Vorschau und Titel, beide Bloecke). Am Anker stuende der Pfeil
+ * dort als eigene Zeile unter dem Titel, und unter dem Spoiler-Deckel blieb er als einziges Zeichen
+ * sichtbar. Es ist EIN Regelblock mit zwei Waehlern - nicht eine zweite Fassung des Pfeils.
+ * Gemessen wird am gezeichneten Bild: apps/web/e2e/externe-links.spec.ts.
+ */
+a[target="_blank"]::after,
+.avm-nach-draussen::after {
+    content: "\a0↗";
+    content: "\a0↗" / "";
+}

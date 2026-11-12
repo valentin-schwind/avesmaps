@@ -1,0 +1,27 @@
+-- Rechte an den Tafeln des Höhenmodells (WI-0127 SYS-13, Migration 0100). psql-Datei mit \gexec.
+--
+-- Vorlage fuer Claudios `avesmaps3d-db-grants` (`grants_sql_tmpl` in ops/runtime/runtime-foundation.sh): `${e}` ist die Umgebung
+-- (staging, production), wie dort. Die Default-Privilegien geben der App-Rolle jede neue Tabelle mit SELECT, INSERT, UPDATE, DELETE, der
+-- Jobs-Rolle SELECT (der volle Lauf und der lokale Job lesen die Auswahl). Diese Datei vergibt nichts; sie nimmt der App weg, was sie
+-- nicht darf. Wie `system-grants.psql` gehoert sie hinter JEDE Migration.
+--
+-- - terrain_recipe_choice: waehlen und zurueck (INSERT der ersten Zeile, UPDATE), nie loeschen.
+-- - terrain_recipe_acceptance: Abnahmen nur anhaengen.
+-- - terrain_recipe_draft: anlegen und verwerfen (UPDATE des Zustands), nie loeschen.
+-- - terrain_recipe_test (WI-0240): setzen und sperren, nie loeschen; terrain_recipe_test_event nur anhaengen.
+-- `terrain_chain_enqueue` und `job_enqueue` darf die App ueber das Rechtewerkzeug (alle Funktionen der Migrationsrolle); hier keine Zeile.
+--
+-- Fehlt eine Tabelle (0100 noch nicht angewandt), entfaellt ihre Zeile still. Geprueft in apps/server/test/hoehenmodell-grants.test.ts
+-- (Wegwerf-Cluster wie der VPS: erst grants_sql_tmpl, dann diese Datei).
+
+SELECT 'REVOKE DELETE, TRUNCATE ON terrain_recipe_choice FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.terrain_recipe_choice') IS NOT NULL \gexec
+SELECT 'REVOKE UPDATE, DELETE, TRUNCATE ON terrain_recipe_acceptance FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.terrain_recipe_acceptance') IS NOT NULL \gexec
+SELECT 'REVOKE DELETE, TRUNCATE ON terrain_recipe_draft FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.terrain_recipe_draft') IS NOT NULL \gexec
+-- WI-0240 (Migration 0210): die Werte von "19 (Test)" setzen (INSERT der ersten Zeile, UPDATE), nie loeschen; ihr Verlauf nur anhaengen.
+SELECT 'REVOKE DELETE, TRUNCATE ON terrain_recipe_test FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.terrain_recipe_test') IS NOT NULL \gexec
+SELECT 'REVOKE UPDATE, DELETE, TRUNCATE ON terrain_recipe_test_event FROM avesmaps3d_${e}_app'
+ WHERE to_regclass('public.terrain_recipe_test_event') IS NOT NULL \gexec

@@ -1,0 +1,6 @@
+/* Der Seitengrund hinter der Statusseite: dieselbe Fläche wie hinter den Panels der Karte (Guide §2). Nur auf der eigenen Seite
+   (`status.html`); eingebettet in der Systemsteuerung gilt der Grund der Karte. */
+body {
+    margin: 0;
+    background: var(--color-page-bg);
+}

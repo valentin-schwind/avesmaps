@@ -1,0 +1,11 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        // Gebaut wird aus den Tests nichts: Vitest entfernt die Typen nur, geprüft werden sie hier.
+        // `rootDir` ist die Wurzel, weil `coordination.test.ts` die Skripte unter `scripts/` lädt.
+        "composite": false,
+        "rootDir": "../..",
+        "noEmit": true
+    },
+    "include": ["test/**/*.ts"]
+}

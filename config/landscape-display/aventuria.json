@@ -1,0 +1,68 @@
+{
+    "$comment": "Die VORGABEN der Landschafts-Darstellungstafel, wie Legacys Code sie fuehrt (js/map-features/ecosystem-display.js, WI-0064). ERZEUGT von scripts/dev/extract-legacy-display-defaults.ts - nicht von Hand aendern. Legacys Endpunkt ecosystem-display.php liefert nur die UEBERSTEUERUNGEN; die wirksame Tafel ist beides zusammen (packages/shared/src/landscape-display.ts). `commit` ist der letzte Commit, der die Datei beruehrt, `blob` ihr Git-Blob: an ihm erkennt `--check`, ob Legacy sie geaendert hat. Schriftgroessen: 9 Werte je Art, z0 bis z8 in PIXELN (nicht Punkt, siehe config/zoom-bands). Ein Band mit bis < ab heisst 'aus'.",
+    "schemaVersion": 1,
+    "mapDomain": "aventuria",
+    "source": {
+        "repository": "https://github.com/valentin-schwind/avesmaps",
+        "file": "js/map-features/ecosystem-display.js",
+        "commit": "d9ec0e669bdfb35c44dc375c7734dd22cdf4ac2b",
+        "blob": "4cda34a889a870682f2273452272ec6075a8ff17"
+    },
+    "bandMax": 7,
+    "base": { "ab": 0, "bis": 7, "curveMax": 1, "prio": 3 },
+    "perArt": {
+        "auenlandschaft": { "ab": 4 },
+        "berggipfel": { "ab": 4 },
+        "ebene": { "ab": 3 },
+        "fluss": { "ab": 4 },
+        "flussdelta": { "ab": 2 },
+        "flussland_flusstal": { "ab": 3 },
+        "gebirge": { "ab": 2 },
+        "graslandschaft": { "ab": 3 },
+        "hochebene": { "ab": 3 },
+        "huegelland": { "ab": 3 },
+        "insel": { "ab": 2 },
+        "inselgruppe": { "ab": 2 },
+        "kontinent": { "bis": 3 },
+        "kueste": { "ab": 2 },
+        "kulturlandschaft": { "ab": 5 },
+        "meer": { "ab": 2 },
+        "region": { "ab": 2 },
+        "see": { "ab": 4 },
+        "sonstiges": { "ab": 4 },
+        "steppe": { "ab": 2 },
+        "suempfe_moore": { "ab": 3 },
+        "tal": { "ab": 2 },
+        "tiefebene": { "ab": 3 },
+        "vulkan": { "ab": 4 },
+        "wadi": { "ab": 5 },
+        "wald": { "ab": 4 },
+        "wueste": { "ab": 2 },
+        "wuestenoase": { "ab": 5 }
+    },
+    "sizeByBand": [9, 11, 13, 14, 16, 18, 19, 21, 21],
+    "sizeLimits": { "min": 4, "max": 30 },
+    "collision": {
+        "base": { "teil": true, "fest": false },
+        "perArt": {
+            "berggipfel": { "fest": true },
+            "vulkan": { "fest": true },
+            "bergkette": { "fest": true },
+            "felsformation": { "fest": true },
+            "huegel": { "fest": true }
+        }
+    },
+    "opacity": {
+        "perLayer": { "derographisch": 0.16, "vegetation": 0.72, "topographie": 0.72, "klima": 0.3 },
+        "perArea": { "topographie:see": 1 },
+        "waterAreas": ["topographie:see"]
+    },
+    "spacing": {
+        "defaults": { "repel": 2, "versatz": 8, "drift": 72 },
+        "limits": {
+            "repel": { "min": 0, "max": 20 },
+            "versatz": { "min": 2, "max": 24 },
+            "drift": { "min": 0, "max": 150 }
+        }
+    }
+}

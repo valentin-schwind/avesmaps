@@ -1,0 +1,93 @@
+{
+    "fassung": "beispielbild-1",
+    "bilder": [
+        {
+            "schluessel": "gareth-1",
+            "datei": "reichsstrasse.webp",
+            "ort": "Gareth",
+            "versatz": [1, 1],
+            "gebunden": true,
+            "beschreibung": "Beispielbild: Die Reichsstraße führt im Abendlicht auf die Tore von Gareth zu.",
+            "name": "Avesmaps-Beispiel",
+            "entstehung": "ai_generated",
+            "nutzung": "avesmaps_only"
+        },
+        {
+            "schluessel": "gareth-2",
+            "datei": "gebaeude.webp",
+            "ort": "Gareth",
+            "versatz": [-1, 1],
+            "gebunden": true,
+            "beschreibung": "Beispielbild: Ein Gebäude am Rand von Gareth, gezeichnet und mit einer Fahne am Ortsmarker.",
+            "name": "Avesmaps-Beispiel",
+            "entstehung": "drawing",
+            "nutzung": "avesmaps_only"
+        },
+        {
+            "schluessel": "gareth-3",
+            "datei": "stadt.webp",
+            "ort": "Gareth",
+            "versatz": [1, -1],
+            "gebunden": true,
+            "beschreibung": "Beispielbild: Blick über die Dächer einer Stadt, gezeichnet und unter CC BY 4.0 freigegeben.",
+            "name": "Avesmaps-Beispiel",
+            "entstehung": "drawing",
+            "nutzung": "cc-by-4.0"
+        },
+        {
+            "schluessel": "rommilys-1",
+            "datei": "fluss.webp",
+            "ort": "Rommilys",
+            "versatz": [2, 1],
+            "gebunden": true,
+            "beschreibung": "Beispielbild: Ein Fluss windet sich durch das Land bei Rommilys.",
+            "name": "Avesmaps-Beispiel",
+            "entstehung": "ai_generated",
+            "nutzung": "avesmaps_only"
+        },
+        {
+            "schluessel": "buendel-1",
+            "datei": "see.webp",
+            "ort": "Gareth",
+            "versatz": [40, 25],
+            "gebunden": false,
+            "beschreibung": "Beispielbild: Ein stiller See, eines von drei Bildern dicht beieinander.",
+            "name": "Avesmaps-Beispiel",
+            "entstehung": "ai_generated",
+            "nutzung": "avesmaps_only"
+        },
+        {
+            "schluessel": "buendel-2",
+            "datei": "gebirge.webp",
+            "ort": "Gareth",
+            "versatz": [42, 27],
+            "gebunden": false,
+            "beschreibung": "Beispielbild: Ein Gebirge im Dunst, eines von drei Bildern dicht beieinander.",
+            "name": "Avesmaps-Beispiel",
+            "entstehung": "ai_generated",
+            "nutzung": "avesmaps_only"
+        },
+        {
+            "schluessel": "buendel-3",
+            "datei": "huegel.webp",
+            "ort": "Gareth",
+            "versatz": [44, 24],
+            "gebunden": false,
+            "beschreibung": "Beispielbild: Sanfte Hügel, eine Aufnahme aus Avesmaps selbst, eines von drei Bildern dicht beieinander.",
+            "name": "Avesmaps-Beispiel",
+            "entstehung": "avesmaps_capture",
+            "nutzung": "avesmaps_only"
+        },
+        {
+            "schluessel": "frei-1",
+            "datei": "kulturlandschaft.webp",
+            "ort": "Gareth",
+            "versatz": [-45, -30],
+            "gebunden": false,
+            "beschreibung": "Beispielbild: Bestelltes Land mit Feldern und Hecken, ein einzelnes Bild ohne Namen und mit Blick nach Osten.",
+            "entstehung": "ai_generated",
+            "nutzung": "cc-by-4.0",
+            "blickrichtung": 2
+        }
+    ]
+}

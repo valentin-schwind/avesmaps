@@ -1,0 +1,1817 @@
+{
+    "hinweis": "Erzeugt von scripts/dev/wiki-kategorien-orakel.php aus Legacy a7f2dac86. Nicht von Hand ändern.",
+    "kontinent": [
+        {
+            "id": "nichts",
+            "titel": "Gareth",
+            "kategorien": [],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "aventurien-artikel",
+            "titel": "Gareth",
+            "kategorien": ["Dorf", "Aventurien-Artikel"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "myranor-artikel",
+            "titel": "Horasia",
+            "kategorien": ["Myranor-Artikel"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "ort-in-myranor",
+            "titel": "Neu-Horas",
+            "kategorien": ["Dorf", "Ort in Myranor"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "staat-myranor",
+            "titel": "Zwerch",
+            "kategorien": ["Staat (Myranor)"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "nav-staaten-myranor",
+            "titel": "Zwerch",
+            "kategorien": ["Nav Staaten Myranor"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "abgeleitet-von-horas",
+            "titel": "Wiedererstandenes Reich des Horas",
+            "kategorien": ["Abgeleitet von Horas (Myranor)", "Aventurien-Artikel"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "abgeleitet-mit-leerzeichen",
+            "titel": "Horas-Reich",
+            "kategorien": ["  Abgeleitet von Horas (Myranor)", "Aventurien-Artikel"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "abgeleitet-grossgeschrieben",
+            "titel": "Horas-Reich",
+            "kategorien": ["ABGELEITET VON Horas (Myranor)"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "abgeleitet-ohne-grenze",
+            "titel": "Horas-Reich",
+            "kategorien": ["Abgeleitet vonHoras Myranor"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "uthuria",
+            "titel": "Tamaran",
+            "kategorien": ["Ort auf Uthuria"],
+            "erwartet": "Uthuria"
+        },
+        {
+            "id": "uthuria-im-titel",
+            "titel": "Uthuria-Hafen",
+            "kategorien": [],
+            "erwartet": "Uthuria"
+        },
+        {
+            "id": "tharun",
+            "titel": "Tharun-Stadt",
+            "kategorien": ["Tharun-Artikel"],
+            "erwartet": "Tharun"
+        },
+        {
+            "id": "lahmaria",
+            "titel": "Lahmaria-Insel",
+            "kategorien": ["Lahmaria-Artikel"],
+            "erwartet": "Lahmaria"
+        },
+        {
+            "id": "rakshazar",
+            "titel": "Rakshazar-Siedlung",
+            "kategorien": ["Rakshazar-Artikel"],
+            "erwartet": "Rakshazar / Riesland"
+        },
+        {
+            "id": "riesland",
+            "titel": "Kalgor",
+            "kategorien": ["Ort im Riesland"],
+            "erwartet": "Rakshazar / Riesland"
+        },
+        {
+            "id": "guldenland",
+            "titel": "Mysobien",
+            "kategorien": ["Güldenland-Artikel"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "gueldenland",
+            "titel": "Mysobien",
+            "kategorien": ["Gueldenland-Artikel"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "rastabor",
+            "titel": "Rastabor",
+            "kategorien": ["Dorf"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "vesayama",
+            "titel": "Vesayama",
+            "kategorien": [],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "al-anfa-kolonien",
+            "titel": "Al’Anfa",
+            "kategorien": ["Geographisch: Meridiana; Kolonien: Uthuria", "Aventurien-Artikel"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "kolonie-singular",
+            "titel": "Al’Anfa",
+            "kategorien": ["Kolonie Uthuria", "Aventurien-Artikel"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "kolonialbesitz",
+            "titel": "Brabak",
+            "kategorien": ["Kolonialbesitz in Myranor", "Aventurien-Artikel"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "protektorat",
+            "titel": "Brabak",
+            "kategorien": ["Protektorat Tharun", "Aventurien-Artikel"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "aussenposten",
+            "titel": "Brabak",
+            "kategorien": ["Außenposten in Uthuria", "Aventurien-Artikel"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "aussenposten-ss",
+            "titel": "Brabak",
+            "kategorien": ["Aussenposten in Uthuria", "Aventurien-Artikel"],
+            "erwartet": "Uthuria"
+        },
+        {
+            "id": "exklave",
+            "titel": "Brabak",
+            "kategorien": ["Exklave: Myranor", "Aventurien-Artikel"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "dependance",
+            "titel": "Brabak",
+            "kategorien": ["Dependance, Rakshazar", "Aventurien-Artikel"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "kolonie-zu-weit",
+            "titel": "Brabak",
+            "kategorien": ["Kolonien a b c Uthuria", "Aventurien-Artikel"],
+            "erwartet": "Uthuria"
+        },
+        {
+            "id": "kolonie-zwei-woerter",
+            "titel": "Brabak",
+            "kategorien": ["Kolonien nahe der Uthuria", "Aventurien-Artikel"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "kolonie-ohne-grenze",
+            "titel": "Brabak",
+            "kategorien": ["Kolonienuthuria", "Aventurien-Artikel"],
+            "erwartet": "Uthuria"
+        },
+        {
+            "id": "kolonie-vor-buchstabe",
+            "titel": "Brabak",
+            "kategorien": ["Dekolonie Uthuria", "Aventurien-Artikel"],
+            "erwartet": "Uthuria"
+        },
+        {
+            "id": "nav-staaten-aventurien",
+            "titel": "Wiedererstandenes Reich des Horas",
+            "kategorien": ["Nav Staaten Aventurien", "Abgeleitet von Horas (Myranor)", "Ort in Myranor"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "nav-staaten-aventurien-titel",
+            "titel": "Horasreich",
+            "kategorien": ["NavStaatenAventurien", "Myranor"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "reihenfolge-myranor-vor-aventurien",
+            "titel": "Streitort",
+            "kategorien": ["Aventurien-Artikel", "Myranor-Artikel"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "reihenfolge-rakshazar-vor-uthuria",
+            "titel": "Streitort",
+            "kategorien": ["Uthuria", "Rakshazar"],
+            "erwartet": "Rakshazar / Riesland"
+        },
+        {
+            "id": "umlaute-akzente",
+            "titel": "Ôrt",
+            "kategorien": ["Ünbekannt"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "unterstriche",
+            "titel": "Ort_in_Myranor",
+            "kategorien": [],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "sprungmarke",
+            "titel": "Ort#Myranor",
+            "kategorien": ["Dorf"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "sonderzeichen",
+            "titel": "Ort — \"A'B\" (Stadt)",
+            "kategorien": ["Dorf (Siedlung)", "!!!"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "grossschreibung",
+            "titel": "MYRANOR-ORT",
+            "kategorien": [],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "nbsp",
+            "titel": "Brabak",
+            "kategorien": ["Kolonien: Uthuria", "Aventurien-Artikel"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "tab",
+            "titel": "Brabak",
+            "kategorien": ["Kolonien\tUthuria", "Aventurien-Artikel"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-0",
+            "titel": "Nav Staaten Aventurien",
+            "kategorien": ["Gareth"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-1",
+            "titel": "Geographisch: Meridiana",
+            "kategorien": ["Vesayama", "Al’Anfa", "Aventurien-Artikel", "Wiedererstandenes Reich"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-2",
+            "titel": "Aventurien-Artikel",
+            "kategorien": [],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-3",
+            "titel": "Riesland",
+            "kategorien": ["Myranor-Artikel"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-4",
+            "titel": "Staat (Myranor)",
+            "kategorien": ["Dorf", "Nav Staaten Myranor", "Briefspielartikel"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-5",
+            "titel": "Abgeleitet von Horas (Myranor)",
+            "kategorien": ["42", "Staat (Myranor)", "Staat (Myranor)"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-6",
+            "titel": "Wiedererstandenes Reich",
+            "kategorien": ["Güldenland"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-7",
+            "titel": "Kolonien: Uthuria",
+            "kategorien": ["Briefspielartikel", "Kolonie Myranor"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-8",
+            "titel": "42",
+            "kategorien": ["Protektorat Rakshazar"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-9",
+            "titel": "Rakshazar",
+            "kategorien": [
+                "in",
+                "Spielerwelten Ort",
+                "Abgeleitet von Gareth",
+                "Abgeleitet von Gareth",
+                "Myranor-Artikel"
+            ],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-10",
+            "titel": "Dorf",
+            "kategorien": ["Aventurien-Artikel", "in"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-11",
+            "titel": "Äußerste Insel",
+            "kategorien": ["Staat (Myranor)", "Rakshazar"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-12",
+            "titel": "Nav Staaten Myranor",
+            "kategorien": ["Äußerste Insel", "ß-Straße", "Staat (Myranor)"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-13",
+            "titel": "Nav Staaten Aventurien",
+            "kategorien": ["Spielerwelten Ort"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-14",
+            "titel": "Abgeleitet von Horas (Myranor)",
+            "kategorien": ["Äußerste Insel", "Kolonialbesitz Tharun", "Tharun"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-15",
+            "titel": "Kolonien",
+            "kategorien": ["Tharun", "Rakshazar"],
+            "erwartet": "Rakshazar / Riesland"
+        },
+        {
+            "id": "zufall-16",
+            "titel": "x",
+            "kategorien": ["ß-Straße", "Abgeleitet von Gareth", "Nav Staaten Myranor"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-17",
+            "titel": "Horas",
+            "kategorien": ["Rastabor"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-18",
+            "titel": "Kolonialbesitz Tharun",
+            "kategorien": ["Güldenland", "ß-Straße"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-19",
+            "titel": "Rakshazar",
+            "kategorien": ["nahe der", "Außenposten Lahmaria", "Staat (Myranor)", "Äußerste Insel", "Uthuria"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-20",
+            "titel": "Kolonie Myranor",
+            "kategorien": ["Äußerste Insel", "Protektorat Rakshazar", "Kolonialbesitz Tharun"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-21",
+            "titel": "Güldenland",
+            "kategorien": [
+                "Kolonialbesitz Tharun",
+                "Abgeleitet von Horas (Myranor)",
+                "Abgeleitet von Horas (Myranor)",
+                "Vesayama",
+                "Dorf"
+            ],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-22",
+            "titel": "Horas",
+            "kategorien": ["Nav Staaten Aventurien", "Rakshazar", "Abgeleitet von Gareth", "Ort in Myranor", "Dorf"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-23",
+            "titel": "Gareth",
+            "kategorien": ["in", "Havena", "Dependance Güldenland"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-24",
+            "titel": "Kolonialbesitz Tharun",
+            "kategorien": ["Wiedererstandenes Reich"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-25",
+            "titel": "Staat (Myranor)",
+            "kategorien": [],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-26",
+            "titel": "Güldenland",
+            "kategorien": ["Äußerste Insel", "x", "Kolonialbesitz Tharun", "Rastabor", "Nav Staaten Aventurien"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-27",
+            "titel": "Stadt",
+            "kategorien": [],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-28",
+            "titel": "Äußerste Insel",
+            "kategorien": [
+                "Kolonialbesitz Tharun",
+                "Nav Staaten Aventurien",
+                "Spielerwelten Ort",
+                "Kolonien",
+                "Protektorat Rakshazar"
+            ],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-29",
+            "titel": "Dorf",
+            "kategorien": ["Rakshazar", "Lahmaria", "Al’Anfa"],
+            "erwartet": "Rakshazar / Riesland"
+        },
+        {
+            "id": "zufall-30",
+            "titel": "Aventurien-Artikel",
+            "kategorien": [],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-31",
+            "titel": "ß-Straße",
+            "kategorien": ["nahe der", "Kolonie Myranor", "Güldenland", "Abgeleitet von Gareth", "42"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-32",
+            "titel": "Abgeleitet von Horas (Myranor)",
+            "kategorien": [
+                "Geographisch: Meridiana",
+                "Geographisch: Meridiana",
+                "Dorf",
+                "Dorf",
+                "Protektorat Rakshazar"
+            ],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-33",
+            "titel": "Kolonie Myranor",
+            "kategorien": ["x", "Myranor-Artikel"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-34",
+            "titel": "42",
+            "kategorien": ["Kolonialbesitz Tharun"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-35",
+            "titel": "Spielerwelten Ort",
+            "kategorien": ["Abgeleitet von Gareth", "Havena", "Ort in Myranor", "Dorf", "am Meer"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-36",
+            "titel": "ß-Straße",
+            "kategorien": ["Güldenland", "Kolonien: Uthuria", "in", "Äußerste Insel"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-37",
+            "titel": "Exklave Riesland",
+            "kategorien": ["Geographisch: Meridiana", "Ort in Myranor"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-38",
+            "titel": "Lahmaria",
+            "kategorien": [
+                "Inoffizielle Siedlung",
+                "Geographisch: Meridiana",
+                "am Meer",
+                "Al’Anfa",
+                "Wiedererstandenes Reich"
+            ],
+            "erwartet": "Lahmaria"
+        },
+        {
+            "id": "zufall-39",
+            "titel": "Riesland",
+            "kategorien": [],
+            "erwartet": "Rakshazar / Riesland"
+        },
+        {
+            "id": "zufall-40",
+            "titel": "Kolonie Myranor",
+            "kategorien": ["Wiedererstandenes Reich", "Gareth"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-41",
+            "titel": "Dorf",
+            "kategorien": ["42"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-42",
+            "titel": "x",
+            "kategorien": ["in", "Inoffizielle Siedlung"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-43",
+            "titel": "Al’Anfa",
+            "kategorien": [],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-44",
+            "titel": "Kolonialbesitz Tharun",
+            "kategorien": ["Abgeleitet von Horas (Myranor)", "Kolonien"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-45",
+            "titel": "Tharun",
+            "kategorien": [],
+            "erwartet": "Tharun"
+        },
+        {
+            "id": "zufall-46",
+            "titel": "Dependance Güldenland",
+            "kategorien": ["Exklave Riesland"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-47",
+            "titel": "Uthuria",
+            "kategorien": ["42", "Geographisch: Meridiana"],
+            "erwartet": "Uthuria"
+        },
+        {
+            "id": "zufall-48",
+            "titel": "am Meer",
+            "kategorien": ["am Meer", "Ort in Myranor"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-49",
+            "titel": "Äußerste Insel",
+            "kategorien": ["42", "Horas"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-50",
+            "titel": "Ünterland",
+            "kategorien": ["nahe der", "Spielerwelten Ort", "Horas", "Rakshazar"],
+            "erwartet": "Rakshazar / Riesland"
+        },
+        {
+            "id": "zufall-51",
+            "titel": "Horas",
+            "kategorien": ["Außenposten Lahmaria", "Ort in Myranor", "Abgeleitet von Gareth", "am Meer", "Rakshazar"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-52",
+            "titel": "Kolonie Myranor",
+            "kategorien": [],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-53",
+            "titel": "Staat (Myranor)",
+            "kategorien": ["Rastabor", "in", "Ort in Myranor", "Geographisch: Meridiana", "Kolonien: Uthuria"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-54",
+            "titel": "Wiedererstandenes Reich",
+            "kategorien": ["Wiedererstandenes Reich", "Staat (Myranor)"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-55",
+            "titel": "Exklave Riesland",
+            "kategorien": ["Abgeleitet von Horas (Myranor)", "Rastabor", "in"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-56",
+            "titel": "Al’Anfa",
+            "kategorien": ["Nav Staaten Myranor", "Stadt", "Äußerste Insel"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-57",
+            "titel": "Havena",
+            "kategorien": ["Wiedererstandenes Reich", "Ünterland", "Riesland", "Rastabor"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-58",
+            "titel": "Kolonien: Uthuria",
+            "kategorien": [
+                "Gareth",
+                "Abgeleitet von Horas (Myranor)",
+                "Rastabor",
+                "Abgeleitet von Horas (Myranor)",
+                "Stadt"
+            ],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-59",
+            "titel": "Vesayama",
+            "kategorien": ["Gueldenland"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-60",
+            "titel": "Außenposten Lahmaria",
+            "kategorien": ["Kolonien: Uthuria", "Kolonien: Uthuria", "Dependance Güldenland", "nahe der"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-61",
+            "titel": "Rakshazar",
+            "kategorien": ["Nav Staaten Aventurien", "Uthuria", "Lahmaria", "Inoffizielle Siedlung", "Lahmaria"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-62",
+            "titel": "Abgeleitet von Horas (Myranor)",
+            "kategorien": ["Abgeleitet von Horas (Myranor)", "Außenposten Lahmaria", "in", "Briefspielartikel"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-63",
+            "titel": "Tharun",
+            "kategorien": ["Dependance Güldenland", "Abgeleitet von Horas (Myranor)"],
+            "erwartet": "Tharun"
+        },
+        {
+            "id": "zufall-64",
+            "titel": "Dorf",
+            "kategorien": [],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-65",
+            "titel": "Briefspielartikel",
+            "kategorien": ["Gareth", "Äußerste Insel", "Abgeleitet von Gareth"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-66",
+            "titel": "Vesayama",
+            "kategorien": [],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-67",
+            "titel": "Riesland",
+            "kategorien": [],
+            "erwartet": "Rakshazar / Riesland"
+        },
+        {
+            "id": "zufall-68",
+            "titel": "Al’Anfa",
+            "kategorien": ["Rastabor", "Außenposten Lahmaria", "Briefspielartikel", "Horas"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-69",
+            "titel": "Nav Staaten Myranor",
+            "kategorien": ["Uthuria", "Stadt", "Wiedererstandenes Reich", "Havena"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-70",
+            "titel": "Tharun",
+            "kategorien": ["Ort in Myranor", "Inoffizielle Siedlung"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-71",
+            "titel": "ß-Straße",
+            "kategorien": ["Horas", "Nav Staaten Aventurien"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-72",
+            "titel": "Kolonialbesitz Tharun",
+            "kategorien": ["Rastabor"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-73",
+            "titel": "Al’Anfa",
+            "kategorien": ["Rakshazar", "42", "Myranor-Artikel"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-74",
+            "titel": "Myranor-Artikel",
+            "kategorien": [
+                "Briefspielartikel",
+                "Spielerwelten Ort",
+                "Kolonie Myranor",
+                "Wiedererstandenes Reich",
+                "Riesland"
+            ],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-75",
+            "titel": "Rastabor",
+            "kategorien": ["Al’Anfa", "x", "Havena"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-76",
+            "titel": "Abgeleitet von Gareth",
+            "kategorien": ["in"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-77",
+            "titel": "Geographisch: Meridiana",
+            "kategorien": [
+                "Exklave Riesland",
+                "Kolonie Myranor",
+                "Ort in Myranor",
+                "Kolonialbesitz Tharun",
+                "nahe der"
+            ],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-78",
+            "titel": "x",
+            "kategorien": [],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-79",
+            "titel": "Nav Staaten Aventurien",
+            "kategorien": ["am Meer", "nahe der", "Myranor-Artikel", "Uthuria", "nahe der"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-80",
+            "titel": "Myranor-Artikel",
+            "kategorien": ["Dorf", "Briefspielartikel", "42"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-81",
+            "titel": "Abgeleitet von Gareth",
+            "kategorien": ["Gareth", "Wiedererstandenes Reich"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-82",
+            "titel": "Äußerste Insel",
+            "kategorien": ["Al’Anfa", "ß-Straße", "Lahmaria"],
+            "erwartet": "Lahmaria"
+        },
+        {
+            "id": "zufall-83",
+            "titel": "nahe der",
+            "kategorien": ["Staat (Myranor)", "Gueldenland", "Exklave Riesland"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-84",
+            "titel": "Nav Staaten Aventurien",
+            "kategorien": ["42"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-85",
+            "titel": "Aventurien-Artikel",
+            "kategorien": ["Dependance Güldenland", "Gareth"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-86",
+            "titel": "Staat (Myranor)",
+            "kategorien": ["Kolonien", "Vesayama", "Güldenland", "Gareth", "Riesland"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-87",
+            "titel": "Uthuria",
+            "kategorien": ["Dorf", "Gareth", "Nav Staaten Myranor", "Dependance Güldenland"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-88",
+            "titel": "Nav Staaten Aventurien",
+            "kategorien": ["Al’Anfa", "Protektorat Rakshazar", "Güldenland", "Abgeleitet von Horas (Myranor)"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-89",
+            "titel": "Horas",
+            "kategorien": ["Aventurien-Artikel"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-90",
+            "titel": "Geographisch: Meridiana",
+            "kategorien": ["Geographisch: Meridiana", "Kolonien: Uthuria", "Havena", "Havena"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-91",
+            "titel": "Horas",
+            "kategorien": ["Horas"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-92",
+            "titel": "Riesland",
+            "kategorien": ["Inoffizielle Siedlung", "Stadt", "Stadt"],
+            "erwartet": "Rakshazar / Riesland"
+        },
+        {
+            "id": "zufall-93",
+            "titel": "Güldenland",
+            "kategorien": [],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-94",
+            "titel": "Al’Anfa",
+            "kategorien": ["am Meer", "Inoffizielle Siedlung", "Myranor-Artikel"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-95",
+            "titel": "ß-Straße",
+            "kategorien": [],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-96",
+            "titel": "Riesland",
+            "kategorien": [],
+            "erwartet": "Rakshazar / Riesland"
+        },
+        {
+            "id": "zufall-97",
+            "titel": "Spielerwelten Ort",
+            "kategorien": ["Kolonien"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-98",
+            "titel": "42",
+            "kategorien": ["Äußerste Insel", "Staat (Myranor)", "Riesland", "Geographisch: Meridiana"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-99",
+            "titel": "Dependance Güldenland",
+            "kategorien": [
+                "Inoffizielle Siedlung",
+                "Staat (Myranor)",
+                "Nav Staaten Myranor",
+                "Wiedererstandenes Reich",
+                "Nav Staaten Myranor"
+            ],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-100",
+            "titel": "Aventurien-Artikel",
+            "kategorien": [
+                "Protektorat Rakshazar",
+                "Protektorat Rakshazar",
+                "Kolonialbesitz Tharun",
+                "Geographisch: Meridiana"
+            ],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-101",
+            "titel": "42",
+            "kategorien": [],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-102",
+            "titel": "Staat (Myranor)",
+            "kategorien": [],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-103",
+            "titel": "ß-Straße",
+            "kategorien": ["Uthuria", "in", "Güldenland"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-104",
+            "titel": "Aventurien-Artikel",
+            "kategorien": ["Havena", "Güldenland"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-105",
+            "titel": "Al’Anfa",
+            "kategorien": ["nahe der"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-106",
+            "titel": "Außenposten Lahmaria",
+            "kategorien": [],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-107",
+            "titel": "Ort in Myranor",
+            "kategorien": ["Güldenland", "Horas", "Uthuria", "Exklave Riesland", "Briefspielartikel"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-108",
+            "titel": "Exklave Riesland",
+            "kategorien": ["Rakshazar", "Aventurien-Artikel"],
+            "erwartet": "Rakshazar / Riesland"
+        },
+        {
+            "id": "zufall-109",
+            "titel": "Rakshazar",
+            "kategorien": ["in", "Kolonien: Uthuria", "am Meer"],
+            "erwartet": "Rakshazar / Riesland"
+        },
+        {
+            "id": "zufall-110",
+            "titel": "Rakshazar",
+            "kategorien": ["Gueldenland", "Kolonien: Uthuria"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-111",
+            "titel": "Kolonien",
+            "kategorien": [],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-112",
+            "titel": "Gueldenland",
+            "kategorien": ["Exklave Riesland"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-113",
+            "titel": "Tharun",
+            "kategorien": ["x", "am Meer", "Protektorat Rakshazar", "x"],
+            "erwartet": "Tharun"
+        },
+        {
+            "id": "zufall-114",
+            "titel": "Nav Staaten Aventurien",
+            "kategorien": [
+                "Wiedererstandenes Reich",
+                "Wiedererstandenes Reich",
+                "Briefspielartikel",
+                "Aventurien-Artikel"
+            ],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-115",
+            "titel": "42",
+            "kategorien": ["Havena", "x", "Vesayama"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-116",
+            "titel": "Rastabor",
+            "kategorien": ["ß-Straße", "am Meer", "Exklave Riesland", "Al’Anfa", "Havena"],
+            "erwartet": "Myranor / Güldenland"
+        },
+        {
+            "id": "zufall-117",
+            "titel": "ß-Straße",
+            "kategorien": ["Spielerwelten Ort", "Ünterland", "Dorf", "nahe der", "Al’Anfa"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-118",
+            "titel": "am Meer",
+            "kategorien": ["Stadt", "Äußerste Insel"],
+            "erwartet": "Aventurien"
+        },
+        {
+            "id": "zufall-119",
+            "titel": "Briefspielartikel",
+            "kategorien": ["Protektorat Rakshazar", "Myranor-Artikel"],
+            "erwartet": "Myranor / Güldenland"
+        }
+    ],
+    "klassen": [
+        {
+            "id": "einfach",
+            "kategorien": {
+                "Dorf": ["Almada", "Bärenau"],
+                "Kleinstadt": ["Fasar"],
+                "Mittelgroße Stadt": ["Havena"],
+                "Großstadt": ["Vinsalt"],
+                "Metropole (Siedlungsgröße)": ["Gareth"]
+            },
+            "erwartet": {
+                "Almada": "dorf",
+                "Bärenau": "dorf",
+                "Fasar": "kleinstadt",
+                "Havena": "stadt",
+                "Vinsalt": "grossstadt",
+                "Gareth": "metropole"
+            }
+        },
+        {
+            "id": "erster-gewinnt",
+            "kategorien": {
+                "Dorf": ["Doppel"],
+                "Kleinstadt": ["Doppel", "Einzel"],
+                "Großstadt": ["Doppel"]
+            },
+            "erwartet": {
+                "Doppel": "dorf",
+                "Einzel": "kleinstadt"
+            }
+        },
+        {
+            "id": "normalisierung",
+            "kategorien": {
+                "Dorf": ["Alt_Dorf", "Mit#Sprung", "  Mit Rand  ", ""],
+                "Kleinstadt": ["Alt Dorf"]
+            },
+            "erwartet": {
+                "Alt Dorf": "dorf",
+                "Mit": "dorf",
+                "Mit Rand": "dorf"
+            }
+        },
+        {
+            "id": "fremde-kategorie",
+            "kategorien": {
+                "Ganz anders": ["Wird ignoriert"],
+                "Dorf": ["Zählt"]
+            },
+            "erwartet": {
+                "Zählt": "dorf"
+            }
+        },
+        {
+            "id": "leer",
+            "kategorien": [],
+            "erwartet": []
+        }
+    ],
+    "bauwerke": [
+        {
+            "id": "einfach",
+            "arten": {
+                "Festung": ["Greifenburg"],
+                "Tempel": ["Rondratempel"]
+            },
+            "erwartet": {
+                "Greifenburg": "Festung",
+                "Rondratempel": "Tempel"
+            }
+        },
+        {
+            "id": "erste-art-gewinnt",
+            "arten": {
+                "Steinkreis": ["Feuersturm-Tempel", "Steinkreis von Gareth"],
+                "Kultstätte": ["Feuersturm-Tempel", "Anderswo"]
+            },
+            "erwartet": {
+                "Feuersturm-Tempel": "Steinkreis",
+                "Steinkreis von Gareth": "Steinkreis",
+                "Anderswo": "Kultstätte"
+            }
+        },
+        {
+            "id": "normalisierung",
+            "arten": {
+                "Turm": ["Hoher_Turm", "Mit#Sprung", ""],
+                "Ruine": ["Hoher Turm"]
+            },
+            "erwartet": {
+                "Hoher Turm": "Turm",
+                "Mit": "Turm"
+            }
+        },
+        {
+            "id": "leer",
+            "arten": [],
+            "erwartet": []
+        }
+    ],
+    "arten": [
+        {
+            "id": "keine-online",
+            "seiten": [[]],
+            "erwartet": [
+                "Festung",
+                "Festungsruine",
+                "Historische Festung",
+                "Tempel",
+                "Turm",
+                "Ruine",
+                "Palast",
+                "Kloster",
+                "Leuchtturm",
+                "Steinkreis",
+                "Hexentanzplatz",
+                "Heiligtum",
+                "Schrein",
+                "Toteninsel",
+                "Borbarad-Kultstätte",
+                "Pforte des Grauens",
+                "Kultstätte",
+                "Unheiligtum",
+                "Höhle",
+                "Grotte",
+                "Sphärenruptur",
+                "Drachenhort",
+                "Feentor",
+                "Bauwerk",
+                "Akademie",
+                "Amphitheater",
+                "Arena",
+                "Binge",
+                "Brücke",
+                "Brunnen",
+                "Eispalast",
+                "Fährstation",
+                "Feggagir",
+                "Gutshof",
+                "Hafen",
+                "Kriegshafen",
+                "Labyrinth",
+                "Luftschiffhafen",
+                "Plantage",
+                "Platz",
+                "Pyramide",
+                "Schloss",
+                "Stadion",
+                "Stadttor",
+                "Statue",
+                "Theater",
+                "Therme",
+                "Tor (Bauwerk)",
+                "Torbogen",
+                "Treppe",
+                "Zoo",
+                "Archiv",
+                "Bank",
+                "Bibliothek",
+                "Garnison",
+                "Gestüt",
+                "Gildenhaus",
+                "Grabanlage",
+                "Kaiserpfalz",
+                "Karawanserei",
+                "Kerker",
+                "Kontor",
+                "Labor",
+                "Lagerhaus",
+                "Museum",
+                "Observatorium",
+                "Remise",
+                "Siechenhaus",
+                "Stall",
+                "Verwaltungsgebäude",
+                "Wohnhaus",
+                "Zeughaus",
+                "Zunfthaus",
+                "Oase",
+                "Eshbathya",
+                "Hof",
+                "Hof (Thorwal)",
+                "Zwergenstadt",
+                "Wehrhof",
+                "Gut",
+                "Unterirdische Siedlung",
+                "Tiefe Stadt",
+                "Schwimmende Siedlung",
+                "Elementare Stadt",
+                "Planstadt",
+                "Magierakademie",
+                "Kriegerakademie",
+                "Kadettenschule",
+                "Gelehrtenschule",
+                "Kampfschule",
+                "Kapitänsschule",
+                "Gladiatorenschule",
+                "Handwerkerschule",
+                "Kunstschule",
+                "Kurtisanenschule",
+                "Novadi-Rechtsschule",
+                "Schwertgesellenschule",
+                "Universität",
+                "Fakultät",
+                "Schule",
+                "Lehreinrichtung",
+                "Werft",
+                "Furt"
+            ]
+        },
+        {
+            "id": "eine-seite",
+            "seiten": [["Kategorie:Brunnen", "Kategorie:Steinkreis", "Kategorie:Mauer", "Kategorie:Neue Art"]],
+            "erwartet": [
+                "Brunnen",
+                "Steinkreis",
+                "Neue Art",
+                "Festung",
+                "Festungsruine",
+                "Historische Festung",
+                "Tempel",
+                "Turm",
+                "Ruine",
+                "Palast",
+                "Kloster",
+                "Leuchtturm",
+                "Hexentanzplatz",
+                "Heiligtum",
+                "Schrein",
+                "Toteninsel",
+                "Borbarad-Kultstätte",
+                "Pforte des Grauens",
+                "Kultstätte",
+                "Unheiligtum",
+                "Höhle",
+                "Grotte",
+                "Sphärenruptur",
+                "Drachenhort",
+                "Feentor",
+                "Bauwerk",
+                "Akademie",
+                "Amphitheater",
+                "Arena",
+                "Binge",
+                "Brücke",
+                "Eispalast",
+                "Fährstation",
+                "Feggagir",
+                "Gutshof",
+                "Hafen",
+                "Kriegshafen",
+                "Labyrinth",
+                "Luftschiffhafen",
+                "Plantage",
+                "Platz",
+                "Pyramide",
+                "Schloss",
+                "Stadion",
+                "Stadttor",
+                "Statue",
+                "Theater",
+                "Therme",
+                "Tor (Bauwerk)",
+                "Torbogen",
+                "Treppe",
+                "Zoo",
+                "Archiv",
+                "Bank",
+                "Bibliothek",
+                "Garnison",
+                "Gestüt",
+                "Gildenhaus",
+                "Grabanlage",
+                "Kaiserpfalz",
+                "Karawanserei",
+                "Kerker",
+                "Kontor",
+                "Labor",
+                "Lagerhaus",
+                "Museum",
+                "Observatorium",
+                "Remise",
+                "Siechenhaus",
+                "Stall",
+                "Verwaltungsgebäude",
+                "Wohnhaus",
+                "Zeughaus",
+                "Zunfthaus",
+                "Oase",
+                "Eshbathya",
+                "Hof",
+                "Hof (Thorwal)",
+                "Zwergenstadt",
+                "Wehrhof",
+                "Gut",
+                "Unterirdische Siedlung",
+                "Tiefe Stadt",
+                "Schwimmende Siedlung",
+                "Elementare Stadt",
+                "Planstadt",
+                "Magierakademie",
+                "Kriegerakademie",
+                "Kadettenschule",
+                "Gelehrtenschule",
+                "Kampfschule",
+                "Kapitänsschule",
+                "Gladiatorenschule",
+                "Handwerkerschule",
+                "Kunstschule",
+                "Kurtisanenschule",
+                "Novadi-Rechtsschule",
+                "Schwertgesellenschule",
+                "Universität",
+                "Fakultät",
+                "Schule",
+                "Lehreinrichtung",
+                "Werft",
+                "Furt"
+            ]
+        },
+        {
+            "id": "zwei-seiten",
+            "seiten": [
+                ["Kategorie:Aa", "Kategorie:Bb"],
+                ["Kategorie:Bb", "Category:Cc", "Kategorie:Damm", "Kategorie: Dd "]
+            ],
+            "erwartet": [
+                "Aa",
+                "Bb",
+                "Cc",
+                "Dd",
+                "Festung",
+                "Festungsruine",
+                "Historische Festung",
+                "Tempel",
+                "Turm",
+                "Ruine",
+                "Palast",
+                "Kloster",
+                "Leuchtturm",
+                "Steinkreis",
+                "Hexentanzplatz",
+                "Heiligtum",
+                "Schrein",
+                "Toteninsel",
+                "Borbarad-Kultstätte",
+                "Pforte des Grauens",
+                "Kultstätte",
+                "Unheiligtum",
+                "Höhle",
+                "Grotte",
+                "Sphärenruptur",
+                "Drachenhort",
+                "Feentor",
+                "Bauwerk",
+                "Akademie",
+                "Amphitheater",
+                "Arena",
+                "Binge",
+                "Brücke",
+                "Brunnen",
+                "Eispalast",
+                "Fährstation",
+                "Feggagir",
+                "Gutshof",
+                "Hafen",
+                "Kriegshafen",
+                "Labyrinth",
+                "Luftschiffhafen",
+                "Plantage",
+                "Platz",
+                "Pyramide",
+                "Schloss",
+                "Stadion",
+                "Stadttor",
+                "Statue",
+                "Theater",
+                "Therme",
+                "Tor (Bauwerk)",
+                "Torbogen",
+                "Treppe",
+                "Zoo",
+                "Archiv",
+                "Bank",
+                "Bibliothek",
+                "Garnison",
+                "Gestüt",
+                "Gildenhaus",
+                "Grabanlage",
+                "Kaiserpfalz",
+                "Karawanserei",
+                "Kerker",
+                "Kontor",
+                "Labor",
+                "Lagerhaus",
+                "Museum",
+                "Observatorium",
+                "Remise",
+                "Siechenhaus",
+                "Stall",
+                "Verwaltungsgebäude",
+                "Wohnhaus",
+                "Zeughaus",
+                "Zunfthaus",
+                "Oase",
+                "Eshbathya",
+                "Hof",
+                "Hof (Thorwal)",
+                "Zwergenstadt",
+                "Wehrhof",
+                "Gut",
+                "Unterirdische Siedlung",
+                "Tiefe Stadt",
+                "Schwimmende Siedlung",
+                "Elementare Stadt",
+                "Planstadt",
+                "Magierakademie",
+                "Kriegerakademie",
+                "Kadettenschule",
+                "Gelehrtenschule",
+                "Kampfschule",
+                "Kapitänsschule",
+                "Gladiatorenschule",
+                "Handwerkerschule",
+                "Kunstschule",
+                "Kurtisanenschule",
+                "Novadi-Rechtsschule",
+                "Schwertgesellenschule",
+                "Universität",
+                "Fakultät",
+                "Schule",
+                "Lehreinrichtung",
+                "Werft",
+                "Furt"
+            ]
+        },
+        {
+            "id": "mit-legacy-schon-dabei",
+            "seiten": [["Kategorie:Tempel", "Kategorie:Festung", "Kategorie:Straße"]],
+            "erwartet": [
+                "Tempel",
+                "Festung",
+                "Festungsruine",
+                "Historische Festung",
+                "Turm",
+                "Ruine",
+                "Palast",
+                "Kloster",
+                "Leuchtturm",
+                "Steinkreis",
+                "Hexentanzplatz",
+                "Heiligtum",
+                "Schrein",
+                "Toteninsel",
+                "Borbarad-Kultstätte",
+                "Pforte des Grauens",
+                "Kultstätte",
+                "Unheiligtum",
+                "Höhle",
+                "Grotte",
+                "Sphärenruptur",
+                "Drachenhort",
+                "Feentor",
+                "Bauwerk",
+                "Akademie",
+                "Amphitheater",
+                "Arena",
+                "Binge",
+                "Brücke",
+                "Brunnen",
+                "Eispalast",
+                "Fährstation",
+                "Feggagir",
+                "Gutshof",
+                "Hafen",
+                "Kriegshafen",
+                "Labyrinth",
+                "Luftschiffhafen",
+                "Plantage",
+                "Platz",
+                "Pyramide",
+                "Schloss",
+                "Stadion",
+                "Stadttor",
+                "Statue",
+                "Theater",
+                "Therme",
+                "Tor (Bauwerk)",
+                "Torbogen",
+                "Treppe",
+                "Zoo",
+                "Archiv",
+                "Bank",
+                "Bibliothek",
+                "Garnison",
+                "Gestüt",
+                "Gildenhaus",
+                "Grabanlage",
+                "Kaiserpfalz",
+                "Karawanserei",
+                "Kerker",
+                "Kontor",
+                "Labor",
+                "Lagerhaus",
+                "Museum",
+                "Observatorium",
+                "Remise",
+                "Siechenhaus",
+                "Stall",
+                "Verwaltungsgebäude",
+                "Wohnhaus",
+                "Zeughaus",
+                "Zunfthaus",
+                "Oase",
+                "Eshbathya",
+                "Hof",
+                "Hof (Thorwal)",
+                "Zwergenstadt",
+                "Wehrhof",
+                "Gut",
+                "Unterirdische Siedlung",
+                "Tiefe Stadt",
+                "Schwimmende Siedlung",
+                "Elementare Stadt",
+                "Planstadt",
+                "Magierakademie",
+                "Kriegerakademie",
+                "Kadettenschule",
+                "Gelehrtenschule",
+                "Kampfschule",
+                "Kapitänsschule",
+                "Gladiatorenschule",
+                "Handwerkerschule",
+                "Kunstschule",
+                "Kurtisanenschule",
+                "Novadi-Rechtsschule",
+                "Schwertgesellenschule",
+                "Universität",
+                "Fakultät",
+                "Schule",
+                "Lehreinrichtung",
+                "Werft",
+                "Furt"
+            ]
+        }
+    ],
+    "ausgeschlossen": [
+        {
+            "art": "Straße",
+            "erwartet": true
+        },
+        {
+            "art": "Strasse",
+            "erwartet": true
+        },
+        {
+            "art": "Reichsstraße",
+            "erwartet": true
+        },
+        {
+            "art": "Reichsstrasse",
+            "erwartet": true
+        },
+        {
+            "art": "Mauer",
+            "erwartet": true
+        },
+        {
+            "art": "Damm",
+            "erwartet": true
+        },
+        {
+            "art": "Deich",
+            "erwartet": true
+        },
+        {
+            "art": "Kanalisation",
+            "erwartet": true
+        },
+        {
+            "art": "Äquadukt",
+            "erwartet": true
+        },
+        {
+            "art": "Aequadukt",
+            "erwartet": true
+        },
+        {
+            "art": " mauer ",
+            "erwartet": true
+        },
+        {
+            "art": "MAUER",
+            "erwartet": true
+        },
+        {
+            "art": "Tempel",
+            "erwartet": false
+        },
+        {
+            "art": "Brücke",
+            "erwartet": false
+        },
+        {
+            "art": "Bauwerk",
+            "erwartet": false
+        },
+        {
+            "art": "",
+            "erwartet": false
+        }
+    ],
+    "titel": [
+        {
+            "roh": "Gareth",
+            "erwartet": "Gareth"
+        },
+        {
+            "roh": "Alt_Name",
+            "erwartet": "Alt Name"
+        },
+        {
+            "roh": " Rand ",
+            "erwartet": "Rand"
+        },
+        {
+            "roh": "Ort#Sprung",
+            "erwartet": "Ort"
+        },
+        {
+            "roh": "#nur",
+            "erwartet": ""
+        },
+        {
+            "roh": "A_B#C_D",
+            "erwartet": "A B"
+        },
+        {
+            "roh": "Tab\tTitel",
+            "erwartet": "Tab\tTitel"
+        },
+        {
+            "roh": "Über_Ort",
+            "erwartet": "Über Ort"
+        },
+        {
+            "roh": "",
+            "erwartet": ""
+        }
+    ],
+    "bauwerkListe": {
+        "arten": [
+            "Festung",
+            "Festungsruine",
+            "Historische Festung",
+            "Tempel",
+            "Turm",
+            "Ruine",
+            "Palast",
+            "Kloster",
+            "Leuchtturm",
+            "Steinkreis",
+            "Hexentanzplatz",
+            "Heiligtum",
+            "Schrein",
+            "Toteninsel",
+            "Borbarad-Kultstätte",
+            "Pforte des Grauens",
+            "Kultstätte",
+            "Unheiligtum",
+            "Höhle",
+            "Grotte",
+            "Sphärenruptur",
+            "Drachenhort",
+            "Feentor",
+            "Bauwerk",
+            "Akademie",
+            "Amphitheater",
+            "Arena",
+            "Binge",
+            "Brücke",
+            "Brunnen",
+            "Damm",
+            "Deich",
+            "Eispalast",
+            "Fährstation",
+            "Feggagir",
+            "Gutshof",
+            "Hafen",
+            "Kanalisation",
+            "Kriegshafen",
+            "Labyrinth",
+            "Luftschiffhafen",
+            "Mauer",
+            "Plantage",
+            "Platz",
+            "Pyramide",
+            "Schloss",
+            "Stadion",
+            "Stadttor",
+            "Statue",
+            "Theater",
+            "Therme",
+            "Tor (Bauwerk)",
+            "Torbogen",
+            "Treppe",
+            "Zoo",
+            "Äquadukt",
+            "Archiv",
+            "Bank",
+            "Bibliothek",
+            "Garnison",
+            "Gestüt",
+            "Gildenhaus",
+            "Grabanlage",
+            "Kaiserpfalz",
+            "Karawanserei",
+            "Kerker",
+            "Kontor",
+            "Labor",
+            "Lagerhaus",
+            "Museum",
+            "Observatorium",
+            "Remise",
+            "Siechenhaus",
+            "Stall",
+            "Verwaltungsgebäude",
+            "Wohnhaus",
+            "Zeughaus",
+            "Zunfthaus",
+            "Oase",
+            "Eshbathya",
+            "Hof",
+            "Hof (Thorwal)",
+            "Zwergenstadt",
+            "Wehrhof",
+            "Gut",
+            "Unterirdische Siedlung",
+            "Tiefe Stadt",
+            "Schwimmende Siedlung",
+            "Elementare Stadt",
+            "Planstadt",
+            "Magierakademie",
+            "Kriegerakademie",
+            "Kadettenschule",
+            "Gelehrtenschule",
+            "Kampfschule",
+            "Kapitänsschule",
+            "Gladiatorenschule",
+            "Handwerkerschule",
+            "Kunstschule",
+            "Kurtisanenschule",
+            "Novadi-Rechtsschule",
+            "Schwertgesellenschule",
+            "Universität",
+            "Fakultät",
+            "Schule",
+            "Lehreinrichtung",
+            "Werft",
+            "Furt"
+        ],
+        "kern": 24
+    },
+    "klassenKategorien": {
+        "Dorf": "dorf",
+        "Kleinstadt": "kleinstadt",
+        "Mittelgroße Stadt": "stadt",
+        "Großstadt": "grossstadt",
+        "Metropole (Siedlungsgröße)": "metropole"
+    }
+}

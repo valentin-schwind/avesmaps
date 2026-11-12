@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="de">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <!-- Hell oder dunkel VOR dem ersten Bild: synchron im Kopf, als Datei wegen der statischen CSP (WI-0120 A12). -->
+        <script src="/theme-start.js"></script>
+        <!--
+            Das Zeichen ausdrücklich nennen, statt auf die stille Abfrage des Browsers nach /favicon.ico zu bauen (so hielt es
+            Legacy, und dort ist die Datei her). Der Titel hier ist nur der erste: Sobald die Sitzung steht, führt ihn
+            `auth/seitentitel.ts` nach und hängt Umgebung und „Editor“ an.
+        -->
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <title>Avesmaps</title>
+    </head>
+    <body>
+        <div id="app"></div>
+        <script type="module" src="/src/main.ts"></script>
+    </body>
+</html>

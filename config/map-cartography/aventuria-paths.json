@@ -1,0 +1,142 @@
+{
+    "$comment": "Kartografie der WEGE im Map Domain aventuria (WI-0010 Stufe 1). Farbe, Breite und Zeichenreihenfolge. Produktsemantik, rendererunabhängig. Wer hier etwas ändert, ändert die Karte.",
+    "schemaVersion": 1,
+    "mapDomain": "aventuria",
+    "$trennungComment": "🔴 HIER STEHT KEIN KOSTENFAKTOR UND KEINE GESCHWINDIGKEIT (Betreiberentscheidung 2026-09-21). Kartografische Wegdarstellung und Routingkosten sind zwei Verantwortungen: eine Änderung der Darstellung darf nicht nebenbei das Routing ändern. Beide benutzen die Wegart als Schlüssel - das ist eine Verbindung, keine Verschmelzung. Legacy belegt die Trennung selbst: seine Geschwindigkeiten stehen als Matrix Verkehrsmittel × Wegart an ganz anderer Stelle, und `allowed_transports` hängt sogar am einzelnen Weg. Das Travel-Modell kommt in Stufe 3 und bekommt seine eigene Quelle.",
+    "$orderComment": "Zeichenreihenfolge von unten nach oben, aus Legacy übernommen (`PATH_DRAW_ORDER_BOTTOM_TO_TOP`). 🪤 Das Wasser liegt UNTEN: eine Straße, die einen Fluss quert, gehört über ihn - sonst sieht es aus, als ende sie im Wasser. Reichsstraßen liegen ganz oben.",
+    "$strokeComment": "Jeder Weg wird ZWEIMAL gezeichnet: eine breitere Kontur und darauf der schmalere Kern. Das ist keine Verzierung, sondern was eine Linie auf einer bunten Karte überhaupt lesbar macht - der helle Saum trennt sie vom Untergrund. Legacy macht es genauso (`_pathLines[0]` und `[1]`). Die Breiten sind Legacys Werte bei Zoom über 2.",
+    "types": {
+        "Reichsstrasse": {
+            "order": 8,
+            "center": "#ffffff",
+            "outline": "#9a9a9a",
+            "centerWidth": 4,
+            "outlineWidth": 6.5,
+            "$comment": "Die einzige mit grauer Kontur statt weißer - eine weiße Linie mit weißem Saum wäre unsichtbar.",
+            "labelColor": "#f4f4f4"
+        },
+        "Strasse": {
+            "order": 7,
+            "center": "#e2e2de",
+            "outline": "#9a9a9a",
+            "centerWidth": 3,
+            "outlineWidth": 5,
+            "$comment": "🔴 BEWUSST ANDERS ALS LEGACY (dort Kern #8b8b8b, weiße Kontur, 2,5 und 4): Betreiber 2026-10-18, wörtlich: „kannst du das aussehen der straße an die reichstraße angleichen, mit einem gräulichen weiß und etwas dünner“. Gebaut wie die Reichsstraße - heller Kern, graue Kontur in derselben Farbe -, der Kern aber gräulich weiß statt rein weiß, damit beide unterscheidbar bleiben, und beide Breiten unter denen der Reichsstraße. Der Kern #e2e2de ist Variante A von drei Grautönen am Kontrollbild (Betreiber 2026-10-18, wörtlich: „Tunnel ok, Straße A“). Der Name ist hell wie dort. Zoomkurve (`widthScale`) und Zeichenreihenfolge bleiben die der Straße.",
+            "labelColor": "#e6e6e2"
+        },
+        "Weg": {
+            "order": 6,
+            "center": "#cec4ae",
+            "outline": "#ffffff",
+            "centerWidth": 2.5,
+            "outlineWidth": 4,
+            "labelColor": "#f0ddb0"
+        },
+        "Pfad": {
+            "order": 5,
+            "center": "#9b755a",
+            "outline": "#ffffff",
+            "centerWidth": 1.5,
+            "outlineWidth": 3,
+            "labelColor": "#d8b28a"
+        },
+        "Gebirgspass": {
+            "order": 4,
+            "center": "#a8695c",
+            "outline": "#ffffff",
+            "centerWidth": 1.5,
+            "outlineWidth": 3,
+            "labelColor": "#e0a090"
+        },
+        "Wuestenpfad": {
+            "order": 3,
+            "center": "#bea470",
+            "outline": "#ffffff",
+            "centerWidth": 1.5,
+            "outlineWidth": 3,
+            "labelColor": "#f1c56f"
+        },
+        "Flussweg": {
+            "order": 2,
+            "center": "#4c89c6",
+            "outline": "#ffffff",
+            "centerWidth": 3,
+            "outlineWidth": 5,
+            "$comment": "🔴 EINE Wasserfarbe für Flusslinie, Bach und Seefläche (Legacy, Owner 09.09.2026). Wer sie hier ändert, muss auch an den Bach denken.",
+            "labelColor": "#b9e7ff"
+        },
+        "Seeweg": {
+            "$comment": "Die Karte zeigt keine Seewege mehr, niemandem (Betreiber 2026-09-27: 'wir tun so, als ob es seewege nicht mehr gibt. sie sollen nicht mehr auf der karte sein'; die Seefahrt faehrt frei, WI-0046). Bis dahin nur fuer Editoren (2026-09-23, Legacy IS_EDIT_MODE). Der Stil bleibt stehen, damit die Tafel vollstaendig ist.",
+            "hidden": true,
+            "order": 1,
+            "center": "#2f7dd3",
+            "outline": "#ffffff",
+            "centerWidth": 3,
+            "outlineWidth": 5,
+            "labelColor": "#9ed0ff"
+        }
+    },
+    "$bachComment": "Ein Bach ist ein Flussweg mit einem Merkmal, keine neunte Art (Legacy, Owner 30.08.2026; alle 272 im Bestand sind Flusswege). Er teilt dessen Farbe und bekommt die halbe Breite - in Legacy über `pathBreitenFaktor`. ⭐ Dass das Merkmal einen eigenen Namen hat, statt in einem Typwert mitzureisen, ist genau die Trennung, die Legacy bei `gebaeude` sieben Mal verfehlt hat (MCS-012). 🪤 Seine Breite steht NICHT mehr als eine Zahl hier, sondern als Zeile `bach` in `widthScale` - weil sie zoomabhängig ist: unter Stufe 4 wird ein Bach gar nicht gezeichnet. 🔴 BEWUSST EINE STUFE SPÄTER ALS LEGACY (dort ab Stufe 3): Kanal OPS-000036, Anregung von Thomas - auf Stufe 3 überladen die schmalen Bäche die Karte (Garetien, Weiden), und vor den Dorfnamen (Band 4) sollen sie nicht erscheinen; das hebt auch Fluss und Bach deutlicher voneinander ab. Betreiber 2026-10-17 zu Claudios Vorschlag (Stufe 4 oder 5): „du kannst den vorschlag umsetzen“; gewählt ist 4, Thomas' erster Wunsch. Stufe 5 wäre eine Null mehr in dieser Zeile.",
+    "$breitenComment": "💣 DIE NULL IST MEHR ALS UNSICHTBAR. In Legacy nimmt `pathShouldBeOnMap` einen Weg mit Faktor 0 VON DER KARTE - es braucht keinen zweiten Sichtbarkeitsriegel, und genau so verschwinden die Straßen beim Rauszoomen. Bei uns ist es das `minzoom` des Layers: derselbe Effekt, eine Stufe früher im Renderer. 🪤 DIE STUFEN SIND VERSCHOBEN: Legacys z0..z6 sind unsere z1..z7 (RENDER_ZOOM_OFFSET, gemessen in WI-0015). Die sieben Werte hier stehen in LEGACYS Zählung, genau wie sie in seiner Tafel stehen - die Umrechnung macht der Code, damit die Zahlen vergleichbar bleiben. ⭐ Flussweg und Seeweg fehlen mit Absicht: Legacys `getPathWidthScale` gibt für eine unbekannte Art 1 zurück, Gewässer werden also NIE dünner und verschwinden NIE. 🪛 Legacy rundet die Zoomstufe und springt damit; wir blenden weich über, wie schon bei den Marker- und Schriftgrößen entschieden (2026-09-20). Auf den ganzen Stufen sind die Werte identisch.",
+    "water": {
+        "$comment": "Betreiberentscheidung 2026-09-23: Wasser im Ueberblick als duenne Linie OHNE weisse Kontur, die Kontur erst im nahen Bild. Legacy: unter z3 Kontur-Deckkraft 0 (PATH_RENDER_CONFIG.simplified*), und Besucher sehen in der Standardansicht gar keine Flusslinien - nur die ins Kartenbild gemalten Fluesse und die Flussnamen. outlineFromBand ist Legacy-Zaehlung (Avesmaps3D z = Band + 1): die Kontur blendet ueber die Stufe davor ein.",
+        "types": ["Flussweg", "Seeweg"],
+        "outlineFromBand": 5,
+        "thinCenterWidth": 1.5
+    },
+    "widthScale": {
+        "Reichsstrasse": [0, 0, 0.3, 0.9, 1.2, 1.8, 2],
+        "Strasse": [0, 0.2, 0.3, 0.6, 0.6, 1, 1.2],
+        "Weg": [0, 0.1, 0.2, 0.6, 0.6, 1, 1.2],
+        "Pfad": [0, 0, 0.1, 0.4, 0.6, 1, 1.2],
+        "Gebirgspass": [0, 0, 0.1, 0.4, 0.6, 1, 1.2],
+        "Wuestenpfad": [0, 0, 0.1, 0.4, 0.6, 1, 1.2],
+        "bach": [0, 0, 0, 0, 0.5, 0.5, 0.5]
+    },
+    "provenance": {
+        "baselineId": "legacy-2026-09-22",
+        "source": "avesmaps@master:js/map-features/map-features.js#getPathStyleColors, js/config.js#PATH_OUTLINE_WEIGHTS/PATH_CENTER_WEIGHTS, js/map-features/map-features-path-rendering.js#PATH_DRAW_ORDER_BOTTOM_TO_TOP",
+        "note": "Farben, Breiten und Reihenfolge unverändert aus Legacy gelesen, nicht nachempfunden. Was NICHT übernommen wurde: die Vereinfachungsstufe bei Zoom ≤ 2 (Legacy blendet dort die Kontur aus und skaliert den Kern) und die Feinabstimmungs-Overrides aus `?pathwidthtune=1` - beides sind Renderer-Eigenheiten von Leaflet, keine Produktsemantik Eine Ausnahme ist gewollt: Die Straße sieht seit 2026-10-18 aus wie eine dünnere Reichsstraße mit gräulich weißem Kern (Betreiber, siehe `types.Strasse.$comment`)."
+    },
+    "tunnel": {
+        "$comment": "Ein Abschnitt im Tunnel ist gestrichelt (WI-0177, Migration 0172; Betreiber 2026-10-18: „du kannst unterirdische wege (tunnel) auf der map gestrichelt darstellen“). Farbe und Breite bleiben die seiner Wegart, nur der Strich setzt aus; die Kontur setzt im selben Takt aus, damit die Lücke den Untergrund zeigt. `dash` sind Strich und Lücke in Vielfachen der Kernbreite; lang (4 : 2), damit der Tunnel sich von den kurzen weißen Strichen der Grenzen abhebt (Bildvergleich 2026-10-18, 2 : 1,5 las sich wie eine Grenze). Kein Legacy-Vorbild: Legacy kennt keinen Tunnel. 🪤 Gestrichelt ist damit für den Tunnel vergeben; eine Wegart darf nicht ebenso aussehen.",
+        "dash": [4, 2]
+    },
+    "karawanenroute": {
+        "$comment": "Die Karawanenroute ist ein Kennzeichen über dem Wegtyp, keine Wegart (WI-0177 §30, Migration 0174; Betreiber 2026-10-18: „kannst du nicht die werte übernehmen, die es in legacy hat UND einen neuen typ machen?“). Kontur und Kern bleiben die des Wegtyps darunter (der Untergrund trägt Tempo und Reisemittel); darüber liegt eine Punktreihe in Dattelbraun, der Name steht in Apricot. Idee C des Entwurfs Fassung 2, abgenommen 2026-10-18 („karawanenrouten sind schön -> machen“). `dotWidth` ist der Durchmesser eines Punkts, `spacing` der Abstand zweier Punktmitten, beide in Bildpunkten bei Faktor 1 der Breitentafel des Wegtyps; sie wachsen mit ihm. Kein Legacy-Vorbild: Legacy führt Karawanenrouten nur als Wiki-Art. 🪤 Gestrichelt ist für den Tunnel vergeben, die Punktreihe für die Karawanenroute.",
+        "dot": "#5a2410",
+        "dotWidth": 2.6,
+        "spacing": 8,
+        "labelColor": "#ffb27a"
+    },
+    "$pfeilComment": "🔴 DIE STRÖMUNGSPFEILE SIND EIN EDITORWERKZEUG, kein Kartenbild (Legacy: map-features-river-flow-arrows.js steigt bei !IS_EDIT_MODE sofort aus; Betreiberentscheidung 2026-09-22 „flusspfeile nur für editoren sichtbar\"). 🪤 An derselben Regel hängt in Legacy die weiße Flusskontur im Landschaftsmodus: „Wer die Pfeile je für Besucher freigibt, nimmt die Kontur mit.\" Die FÜLLUNG des Dreiecks steht hier NICHT - sie ist die Flussfarbe aus types.Flussweg.center, und wer das Wasser umfärbt, färbt die Pfeile mit.",
+    "flowArrow": {
+        "spacingPx": 56,
+        "strokeColor": "#ffffff",
+        "strokeOpacity": 0.95
+    },
+    "$labelComment": "🔴 DIE NAMEN SIND HELL UND STEHEN AUF EINEM DUNKLEN HALO - genau umgekehrt zu den Orts- und Landschaftsnamen. Aus Legacy uebernommen (getPathLabelStyle): jeder Name traegt die Farbe seines Weges, aber deutlich aufgehellt, und der Halo ist schwarz. 🪛 Der erste Entwurf hatte hier dunklen Text auf hellem Halo, aus der Landschaftstafel abgeschrieben - auf einer hellen Strasse verschwindet er.",
+    "label": {
+        "$comment": "Der Halo ist schwarz und bei STRASSEN staerker als bei Fluessen (Legacy: Staerke 1.6 gegen 1.0). Ein heller Name auf hellem Gelaende braucht mehr Trennung als einer auf einem blauen Band.",
+        "$laufComment": "💣 baseSize und runHeadroom gehoeren ZUSAMMEN. Die Schriftlaeufe (Migration 0023, derive:path-runs) werden auf (baseSize + groesster sizeDelta) mal runHeadroom zugeschnitten. Ein Name, der breiter ist als sein Lauf, wird von MapLibre nicht gebogen, sondern weggelassen - ersatzlos und ohne Meldung. Wer baseSize erhoeht oder runHeadroom senkt, MUSS derive:path-runs neu laufen lassen, sonst verschwinden Wegnamen. runHeadroom war 1.6, solange der Regler noch eine Zahl suchen musste. Seit der Betreiber 1.4 gewaehlt hat, kostet so viel Reserve nur noch Laeufe: bei 1.6 entstanden 6620, bei 1.15 sind es 7319. Der Wert ist jetzt der Spielraum fuer kleine Nachjustierungen, nicht mehr fuer die Suche.",
+        "baseSize": 12,
+        "$kalibrierungComment": "⭐ Betreiberwert von der Stage-Abnahme am 2026-09-22: „1.4 für wege\", am Schriftgrößen-Regler abgelesen, NACHDEM die Zoomstufen und die Einheit der Ortsnamen korrigiert waren. Er steht neben baseSize statt darin: 12 ist Legacys Zahl mit Herkunftsnachweis, 1.4 ist eine Entscheidung, und beide bleiben einzeln lesbar. 💣 Er geht auch in die Ableitung der Schriftläufe ein — wer ihn nur hier erhöht, ohne derive:path-runs neu laufen zu lassen, lässt Wegnamen ersatzlos verschwinden.",
+        "calibration": 1.4,
+        "runHeadroom": 1.15,
+        "$winkelComment": "maxAngleDeg = MapLibres text-max-angle (Vorgabe 45): knickt die Linie unter dem Namen in einem Stueck von 3/5 Schriftgroesse staerker, verwirft MapLibre den Namen STILL. Die Ableitung (derive:path-runs) waehlt ihre Laeufe mit derselben Zahl aus. maxTurnDeg = Legacys PATH_LABEL_MAX_TURN_DEG (90) ueber den ganzen Namen. Gefunden 2026-09-23: von 42 Wegnamen in den Kacheln ueber Gareth setzte MapLibre selbst ohne jede Konkurrenz nur 7.",
+        "maxAngleDeg": 45,
+        "maxTurnDeg": 90,
+        "haloColor": "#000000",
+        "haloStrength": {
+            "strasse": 1.6,
+            "wasser": 1.0
+        },
+        "$groesseComment": "Flussnamen sind GROESSER als Strassennamen (Legacy: +3 gegen +1 auf die Grundgroesse), ein Bach dagegen kleiner (-2). Die Zahlen sind Aufschlaege, keine absoluten Groessen.",
+        "sizeDelta": {
+            "Flussweg": 3,
+            "bach": -2,
+            "sonst": 1
+        }
+    },
+    "$nichtUebernommen": "🪛 KURSIV = eingeschraenkt befahrbar (Legacy, Owner 01.09.2026). Nicht uebernommen: die Regel liest `befahrbar` und `allowed_transports`, und das sind Routing-Attribute, die Stufe 1 ausdruecklich nicht importiert. Wer sie spaeter holt, findet hier den Hinweis."
+}

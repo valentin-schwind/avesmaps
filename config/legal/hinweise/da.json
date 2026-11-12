@@ -1,0 +1,1960 @@
+{
+    "uebersetzung": "Disse oplysninger er oversat fra tysk. Hvis de to udgaver afviger fra hinanden, gælder den tyske udgave.",
+    "abschnitte": [
+        {
+            "id": "bedienung",
+            "titel": "Betjening",
+            "hinweis": "Tastaturgenveje, bevægelser og betjeningshjælp",
+            "bloecke": []
+        },
+        {
+            "id": "haeufige-fragen",
+            "titel": "Ofte stillede spørgsmål",
+            "hinweis": "Korte svar på det, der oftest spørges om",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Korte svar på det, der oftest spørges om. Henvisningerne fører til den udførlige omtale."
+                },
+                {
+                    "art": "frage",
+                    "id": "kostet-avesmaps-etwas",
+                    "frage": "Koster Avesmaps noget?",
+                    "antwort": "**Nej.** Avesmaps [koster intet](#was-es-kostet), **viser ingen reklame** og **sælger ingen data**."
+                },
+                {
+                    "art": "frage",
+                    "id": "ist-avesmaps-eine-offizielle-dsa-quelle",
+                    "frage": "Er Avesmaps en officiel DSA-kilde?",
+                    "antwort": "**Nej.** Avesmaps er et fanprojekt og har ingen officiel forbindelse til Ulisses Spiele. Det udgivne materiale fra Ulisses Spiele er fortsat [bindende](#was-avesmaps-nicht-ist)."
+                },
+                {
+                    "art": "frage",
+                    "id": "braucht-man-ein-konto",
+                    "frage": "Skal man have en konto?",
+                    "antwort": "**Nej.** Kortet og ruteplanlæggeren, meldinger, bedømmelser, kortforslag og rejsebilleder kan bruges uden konto. Kun den, der inviteres til at medarbejde, får en [konto](#konten)."
+                },
+                {
+                    "art": "frage",
+                    "id": "warum-haben-orte-unterschiedliche-farben",
+                    "frage": "Hvorfor har steder forskellige farver?",
+                    "antwort": "Farven på stedmarkeringen viser, om et sted stammer fra officielle udgivelser, eller om det er en [uofficiel tilføjelse](#offizielle-und-inoffizielle-inhalte), for eksempel fra det aventuriske brevspil."
+                },
+                {
+                    "art": "frage",
+                    "id": "lassen-sich-inoffizielle-inhalte-ausblenden",
+                    "frage": "Kan uofficielt indhold skjules?",
+                    "antwort": "**Ikke fuldt ud i øjeblikket:** Veje og stier kan [ikke altid entydigt tilordnes](#offizielle-und-inoffizielle-inhalte), og enkelte ville føre ingensteds hen."
+                },
+                {
+                    "art": "frage",
+                    "id": "gibt-es-eine-zeitleiste-oder-fruehere-politische-karten",
+                    "frage": "Findes der en tidslinje eller tidligere politiske kort?",
+                    "antwort": "**Nej.** Vi mangler kapaciteten til det: personale, tid og teknik. Allerede tilstanden i visningen „Politisk“ (**1047 BF**) er kun blevet til gennem den mest intensive research; for andre år findes der ikke noget fuldstændigt eller pålideligt datagrundlag. Til gengæld planlægger vi en sektion med krønike-emner, der gengiver udviklinger, som er afgrænset i sted og tid. Udviklingen af den er dog omfattende og vanskelig."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-genau-sind-reisezeiten-und-entfernungen",
+                    "frage": "Hvor præcise er rejsetider og afstande?",
+                    "antwort": "Det er en [orienteringshjælp](#grenzen-der-karte). Beregningerne bygger på de tilgængelige kortdata og på modellerne for de aventuriske rejseregler, som ikke altid er fri for modsigelser; vejr, terræn og vejens tilstand kan ikke altid tages fuldt ud i betragtning."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-laesst-sich-ein-fehler-oder-ein-fehlender-ort-melden",
+                    "frage": "Hvordan melder man en fejl eller et manglende sted?",
+                    "antwort": "Via „Meld noget her“ eller „Foreslå ændringer“ på kortet, [også uden konto](#meldungen-zur-karte), eller med /bug og /idee på Discord-serveren. Flere måder står under [Bidrage](#mitmachen)."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-kommt-ein-eigenes-bild-oder-eine-karte-auf-avesmaps",
+                    "frage": "Hvordan kommer et eget billede eller et eget kort med på Avesmaps?",
+                    "antwort": "Egne billeder kommer med som [rejsebillede](#reisebilder), kort via [„Foreslå kort“](#kartenvorschlaege). Redaktionen gennemgår hver indsendelse, før den vises."
+                },
+                {
+                    "art": "frage",
+                    "id": "duerfen-karten-oder-daten-weiterverwendet-werden",
+                    "frage": "Må kort eller data videreanvendes?",
+                    "antwort": "**Ikke automatisk:** [Indhold af forskellig oprindelse](#was-fuer-welche-inhalte-gilt) er underlagt egne vilkår. Programkoden er under MIT-licensen, DSA-materiale under ingen fri licens. I tvivlstilfælde hjælper en forespørgsel til adressen i kolofonen."
+                },
+                {
+                    "art": "frage",
+                    "id": "wird-ki-eingesetzt",
+                    "frage": "Bruges der AI?",
+                    "antwort": "**Ja.** [AI-agenter](#einsatz-von-kuenstlicher-intelligenz) understøtter den tekniske udvikling, og en del af billederne samt kortet „Modern“ er skabt med generativ AI. Hvad der udgives eller ændres i kortdata, afgør operatøren."
+                },
+                {
+                    "art": "frage",
+                    "id": "speichert-avesmaps-daten-ueber-besuche",
+                    "frage": "Gemmer Avesmaps data om besøg?",
+                    "antwort": "Besøg tæller Avesmaps kun [anonymt og i samlede tal](#anonyme-besucherstatistik), uden cookies og uden genkendelse. Webserveren gemmer i **omkring 14 dage** tekniske [logdata](#server-logdaten) med IP-adresse."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-lassen-sich-eigene-angaben-loeschen",
+                    "frage": "Hvordan kan egne oplysninger slettes?",
+                    "antwort": "En [forespørgsel](#rechte-der-betroffenen) til adressen i kolofonen er nok. Bedømmelser kan gøres indsigelse mod via „Anmeld“ med begrundelsen „Personlige data“, og rejsebilleder kan tages offline via det personlige link."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-bleibt-man-auf-dem-laufenden",
+                    "frage": "Hvordan holder man sig opdateret?",
+                    "antwort": "Via Nyheder øverst i dette vindue og via kanalerne på Discord, Instagram, Facebook og Mastodon."
+                }
+            ]
+        },
+        {
+            "id": "projekt-und-mitmachen",
+            "titel": "Projekt og bidrage",
+            "hinweis": "Hvad Avesmaps er, hvordan kortet bliver til, og hvordan man bidrager",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Et åbent, uafhængigt og ikke-kommercielt fanprojekt om [Det Sorte Øje](https://de.wikipedia.org/wiki/Das_Schwarze_Auge) af [Valentin Schwind](https://www.valentin-schwind.de) og Thomas Braun. Projektet har ingen officiel forbindelse til [Ulisses Spiele](https://de.wikipedia.org/wiki/Ulisses_Spiele)."
+                },
+                {
+                    "art": "h3",
+                    "id": "die-karte",
+                    "text": "Kortet"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps viser [Aventurien](https://de.wiki-aventurica.de/wiki/Aventurien) i browseren: byer og steder, herskerområder, landskaber og vandområder samt vejnettet, der forbinder dem. Kortet kan drejes og hældes, og det, man ser i 3D, er et beregnet [højdemodel](https://de.wikipedia.org/wiki/Digitales_H%C3%B6henmodell) og ikke et malet relief. Ruteplanlæggeren finder vejen mellem to steder og angiver strækning og rejsetid til fods, til hest, med skib og i luften."
+                },
+                {
+                    "art": "h3",
+                    "id": "wie-die-karte-entsteht",
+                    "text": "Hvordan kortet bliver til"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Bag hvert sted, hver vej og hver flade står en redaktionel beslutning. Redaktører samler kildesituationen, placerer steder, tegner veje og områder og skriver en del af de korte beskrivelser; meget af det kontrolleres mod [Wiki Aventurica](https://de.wiki-aventurica.de/) og udgivet materiale. Kortet er derfor aldrig færdigt, og det vokser ikke gennem filer, men gennem mennesker. Hvor dataene kommer fra i detaljer, står under [„Indhold og datakilder“](#inhalte-und-datenquellen)."
+                },
+                {
+                    "art": "h3",
+                    "id": "mitmachen",
+                    "text": "Bidrage"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps lever af støtten fra sit fællesskab. Bidrag er mulige på flere måder:"
+                },
+                {
+                    "art": "liste",
+                    "punkte": [
+                        "Fejl, manglende steder, oplysninger og kilder: via meldefunktionerne på kortet, via Discord og de øvrige kanaler øverst i dette vindue.",
+                        "Egne billeder og illustrationer: som rejsebillede, når værket er lavet selv (se [„Rejsebilleder“](#reisebilder)).",
+                        "Kort: som forslag til kortsamlingen, når de er et eget værk, eller når ophavsmanden har givet tilladelse.",
+                        "Arbejde på kortet: med en konto med trinvise rettigheder; hvad der gemmes i den forbindelse, står i afsnittet [Databeskyttelse](#datenschutz)."
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Vi vil især opfordre kunstnere til at præsentere deres værker på Avesmaps og være med til at forme Aventuriens verden. Målet er en åben platform, der bliver stadig bedre gennem fællesskabets viden, kreativitet og engagement."
+                },
+                {
+                    "art": "h3",
+                    "id": "was-avesmaps-nicht-ist",
+                    "text": "Hvad Avesmaps ikke er"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps er **ingen officiel udgivelse og ingen kanonisk kilde**. Hvor kilderne tier eller modsiger hinanden, træffer redaktionen en beslutning; hvilken kilde der står bag et enkelt objekt, viser dets infopanel. Det bindende er fortsat det udgivne materiale fra Ulisses Spiele, ikke dette kort. Avesmaps er en orienteringshjælp og ikke et bindende atlas over det officielle Aventurien; hvilket indhold en spilgruppe overtager, afgør den selv."
+                },
+                {
+                    "art": "h3",
+                    "id": "was-es-kostet",
+                    "text": "Hvad det koster"
+                },
+                {
+                    "art": "absatz",
+                    "text": "**Avesmaps koster intet**, **viser ingen reklame** og **sælger ingen data**. Server, drift og udvikling bekostes privat af operatøren; arbejdet med kort og software sker i fritiden."
+                }
+            ]
+        },
+        {
+            "id": "inhalte-und-datenquellen",
+            "titel": "Indhold og datakilder",
+            "hinweis": "Hvor steder, veje og områder kommer fra, hvad der er officielt, og hvordan der afstemmes",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Kortet forener tidligere fanarbejde, [Wiki Aventurica](https://de.wiki-aventurica.de/), kort fra [brevspillet](https://de.wikipedia.org/wiki/Briefspiel) og eget redaktionelt arbejde. Her står, hvad der kommer hvorfra, og hvordan det afstemmes."
+                },
+                {
+                    "art": "h3",
+                    "id": "offizielle-und-inoffizielle-inhalte",
+                    "text": "Officielt og uofficielt indhold"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps indeholder ud over steder fra officielle udgivelser også tilføjelser fra det aventuriske brevspil. Disse er ikke en del af det officielle DSA-kanon, men beriger spilverdenen gennem deres mangeårige udvikling og omfattende dokumentation. Vi ønsker bevidst at gøre disse indhold tilgængelige uden at ligestille dem med officielle fastlæggelser. Kortet viser forskellen ved farven på stedmarkeringen."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Det er i øjeblikket ikke muligt at skjule uofficielt indhold helt, fordi især veje og stier ikke altid kan tilordnes entydigt, og enkelte ville føre ingensteds hen. Også de eksisterende veje er ikke nødvendigvis belagt af officielle kilder."
+                },
+                {
+                    "art": "h3",
+                    "id": "avespfade",
+                    "text": "Avespfade"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Fra 2014 til 2026 var [Avespfade](https://avespfade.de/) ruteplanlæggeren for Aventurien. Oliver Hackstein og Florian Mazur præsenterede den 13. februar 2014 efter et halvt års arbejde: rejser til fods, til hest, over flod og sø, med vejpunkter, alternative ruter og områder, som ruten går uden om. Før det fandtes der ikke noget lignende."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps bygger på dette arbejde. En del af de steder, kryds og veje, som kortet i dag beregner rejser ud fra, stammer fra Avespfade. Uden det vejnet, der er vokset frem gennem tolv år, var Avesmaps begyndt helt anderledes."
+                },
+                {
+                    "art": "absatz",
+                    "text": "I oktober 2026 satte Oliver Hackstein og Florian Mazur Avespfade på pension og henviste derfra til Avesmaps. For det og for tolv år med Avespfade: tak."
+                },
+                {
+                    "art": "h3",
+                    "id": "orts-wege-und-routendaten",
+                    "text": "Sted-, vej- og ruteddata"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Sted-, kryds-, vej- og ruteddata er delvist udledt af offentligt tilgængelige fan- og referencekilder, redaktionelt bearbejdet, suppleret og teknisk tilrettelagt. Dele af udgangsdataene stammer efter den hidtidige kildesituation fra avespfade.de, hvor enkelte stedpositioner ifølge egne oplysninger er tilpasset [DereGlobus-projektet](https://www.dereglobus.org/)."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Landskabsflader og klimazoner derimod opstår overvejende her og er en redaktionel fortolkning af kildesituationen, ikke en overtagelse fra et forlæg. Posterne om natur og varer følger i vid udstrækning Wiki Aventurica (se [„Dataafstemning“](#datenabgleich))."
+                },
+                {
+                    "art": "h3",
+                    "id": "datenabgleich",
+                    "text": "Dataafstemning"
+                },
+                {
+                    "art": "absatz",
+                    "text": "En del af indholdet, især herskerområder, steder og regioner, afstemmes regelmæssigt med [Wiki Aventurica](https://de.wiki-aventurica.de/). En redaktør starter afstemningen. Kørslen overtager entydige ændringer automatisk; eget indhold og tvetydige forhold forbliver urørt, og hver kørsel kan tages tilbage."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "datenabgleich-kurzbeschreibungen",
+                            "begriff": "Korte beskrivelser",
+                            "werte": [
+                                "Også mange korte beskrivelser i infopanelet stammer derfra, og den tilhørende artikel er hver gang linket."
+                            ]
+                        },
+                        {
+                            "id": "datenabgleich-rechte-an-den-texten",
+                            "begriff": "Rettigheder til teksterne",
+                            "werte": [
+                                "Rettighederne til disse tekster forbliver hos deres forfattere; teksterne står under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/deed.da) og forbliver det også i redigeret form. Som navngivelse tjener henvisningen til artiklen og den forfatterliste, der føres der. Citater og indhold fra Ulisses er undtaget fra denne licens og overtages ikke."
+                            ]
+                        },
+                        {
+                            "id": "datenabgleich-dateien",
+                            "begriff": "Filer",
+                            "werte": [
+                                "Filer fra Wiki Aventurica, for eksempel våbenskjolde, har i modsætning hertil hver sin egen licens."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "kartendaten-aus-garetien-und-dem-kosch",
+                    "text": "Kortdata fra Garetien og Kosch"
+                },
+                {
+                    "art": "absatz",
+                    "text": "En del af vandområderne, vejene, skovene, bjergene, bebyggelserne og herskerområderne i området omkring Garetien, Greifenfurt, Perricum og Kosch stammer fra kortene af Volker Strunk (VolkoV), udgivet på [garetien.de](https://www.garetien.de/) og [koschwiki.de](https://www.koschwiki.de/)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "kartendaten-aus-garetien-und-dem-kosch-genehmigung",
+                            "begriff": "Tilladelse",
+                            "werte": [
+                                "Overtagelsen sker med udtrykkelig tilladelse fra Freundeskreis des phantastischen Briefspiels e. V. af 12.08.2026 og sker efter redaktionel kontrol, ikke automatisk."
+                            ]
+                        },
+                        {
+                            "id": "kartendaten-aus-garetien-und-dem-kosch-lizenz-und-nennung",
+                            "begriff": "Licens og navngivelse",
+                            "werte": [
+                                "Dette indhold står under [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/deed.da) og forbliver det også i redigeret form. Navngivelsen er „VolkoV / garetien.de“ henholdsvis „VolkoV / koschwiki.de“ ved den enkelte kilde i infopanelet, sammen med henvisningen til den tilhørende artikel."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "quelle-je-objekt",
+                    "text": "Kilde pr. objekt"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Hvilken kilde der står bag et enkelt sted, område eller en enkelt vej, viser infopanelet ved det pågældende objekt, for så vidt den er registreret, sammen med licens og navngivelse."
+                }
+            ]
+        },
+        {
+            "id": "karten-auf-avesmaps",
+            "titel": "Kort på Avesmaps",
+            "hinweis": "Det originale kort af Ina Kramer, hvad der blev af det, og under hvilken licens",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Alle tre kortserier går tilbage til det samme officielle kort og står derfor under samme licens; de adskiller sig kun i bearbejdningen."
+                },
+                {
+                    "art": "h3",
+                    "id": "die-originalkarte",
+                    "text": "Originalkortet"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Officielt Aventurienkort fra Ulisses Spiele, stillet til rådighed for fans via Aventurischer Atlas. Originalkortene foreligger i 8192 pixels."
+                },
+                {
+                    "art": "h3",
+                    "id": "die-kartenserien",
+                    "text": "Kortserierne"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Kortet kan vises i tre serier:"
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "die-kartenserien-old",
+                            "begriff": "Old",
+                            "werte": [
+                                "Kortet, således som grafikeren [Ina Kramer](https://de.wikipedia.org/wiki/Ina_Kramer) engang havde det. Udgivne scanninger af kortet indeholdt påskrifter, som blev fjernet ved hjælp af [kunstig intelligens](https://da.wikipedia.org/wiki/Kunstig_intelligens). Oplysning fra operatøren af 12.10.2026."
+                            ]
+                        },
+                        {
+                            "id": "die-kartenserien-original",
+                            "begriff": "Original",
+                            "werte": [
+                                "Det samme kort som „Old“, blot uden den indbrændte påskrift, som er fjernet; billedet er derefter ved AI-konvertering opskaleret til 32 768 pixels. Geometrisk sammenfaldende med de øvrige serier."
+                            ]
+                        },
+                        {
+                            "id": "die-kartenserien-modern",
+                            "begriff": "Modern",
+                            "werte": [
+                                "Det blev til i otte trin med [generativ AI](https://de.wikipedia.org/wiki/Generative_k%C3%BCnstliche_Intelligenz) ud fra Ina Kramers kort: Originalkortet blev opdelt i fliser på 1024 pixels, [Qwen](https://de.wikipedia.org/wiki/Qwen) fjernede påskriften fra hver flise, [ChatGPT](https://de.wikipedia.org/wiki/ChatGPT) Image tegnede den om som et malet terrænkort og større, og et Dense Warp lagde hver flise præcist tilbage på originalens geometri – kyster, floder, veje og grænser ligger derfor, hvor de lå før, og der kom intet til, som ikke allerede var der.",
+                                "Land- og vandflader blev bearbejdet hver for sig og igen sammenført, resultatet blev efterbearbejdet i hånden i [Photoshop](https://de.wikipedia.org/wiki/Adobe_Photoshop) og til sidst skåret i fliser (32 768 × 32 768 pixels); kortet zoomer i trinene 0 til 8."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "lizenz-und-genehmigung",
+                    "text": "Licens og tilladelse"
+                },
+                {
+                    "art": "absatz",
+                    "text": "For kortmaterialet gælder [licensaftalen for Ulisses-kortpakken](https://de.wiki-aventurica.de/wiki/Kartenpaket/Lizenz). Kopiering, spredning og udtrykkeligt også bearbejdning er tilladt, så længe anvendelsen forbliver ikke-kommerciel, og bearbejdningen er mærket som fanprojekt. Underlicenser er udelukket, og rettighederne bortfalder ved en overtrædelse. Ved enhver spredning skal en kopi af licensen eller dens fulde internetadresse medfølge."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "lizenz-und-genehmigung-genehmigung",
+                            "begriff": "Tilladelse",
+                            "werte": [
+                                "Anvendelsen til Avesmaps er specifikt godkendt for projektet. Oplysning fra operatøren af 20.09.2026. Den udstedende myndighed, tidspunktet og formen for denne tilladelse er ikke dokumenteret. Det betyder ikke, at der ikke findes en tilladelse – kun at den ikke kan dokumenteres her."
+                            ]
+                        },
+                        {
+                            "id": "lizenz-und-genehmigung-nennung",
+                            "begriff": "Navngivelse",
+                            "werte": [
+                                "Kortmateriale © Ulisses Spiele · Originalkort: Ina Kramer · Bearbejdning: Avesmaps (DSA-fanprojekt)"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "kasten",
+                    "titel": "Indtil tilbagekaldelse",
+                    "absaetze": [
+                        "Tilladelsen til at bruge billedmateriale gives ifølge Ulisses kun indtil tilbagekaldelse."
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "urheberrecht-marken-und-bildrechte",
+            "titel": "Ophavsret, varemærker og billedrettigheder",
+            "hinweis": "Hvad der gælder for hvilket indhold: fanretningslinjer, våbenskjolde, billeder, covers og varemærker",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Avesmaps bruger indhold af forskellig oprindelse, for hvilket der kan gælde egne brugsvilkår. Fri videreanvendelse af alt indhold er derfor ikke automatisk tilladt. Den, der vil bruge data, kort eller andre dele af Avesmaps i egne projekter, skal overholde de respektive licenser og kan i tvivlstilfælde henvende sig til os."
+                },
+                {
+                    "art": "h3",
+                    "id": "was-fuer-welche-inhalte-gilt",
+                    "text": "Hvad der gælder for hvilket indhold"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Der skal skelnes mellem fire grupper:"
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "was-fuer-welche-inhalte-gilt-dsa-inhalte",
+                            "begriff": "DSA-indhold",
+                            "werte": [
+                                "Rettighederne til Det Sorte Øje, Aventurien samt de anvendte varemærker, kort, tekster og illustrationer forbliver hos de respektive rettighedshavere. Detaljerne står under [„Ingen fri licens til DSA-materiale“](#keine-freie-lizenz-fuer-dsa-material)."
+                            ]
+                        },
+                        {
+                            "id": "was-fuer-welche-inhalte-gilt-kartenpaket",
+                            "begriff": "Kortpakke",
+                            "werte": ["Licensen under [„Kort på Avesmaps“](#karten-auf-avesmaps) gælder."]
+                        },
+                        {
+                            "id": "was-fuer-welche-inhalte-gilt-drittmaterial",
+                            "begriff": "Materiale fra tredjepart",
+                            "werte": [
+                                "Tekster fra [Wiki Aventurica](https://de.wiki-aventurica.de/) står under CC BY-SA 3.0, indhold fra Garetien og Kosch under CC BY-NC-SA 3.0 (se [„Indhold og datakilder“](#inhalte-und-datenquellen)); for våbenskjolde, billeder og covers gælder det, der står nedenfor."
+                            ]
+                        },
+                        {
+                            "id": "was-fuer-welche-inhalte-gilt-programmcode",
+                            "begriff": "Programkode",
+                            "werte": [
+                                "Den står under [MIT-licensen](https://de.wikipedia.org/wiki/MIT-Lizenz) (se [„Teknik og kunstig intelligens“](#technik-und-kuenstliche-intelligenz))."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Vi respekterer de oprindelige skaberes arbejde og bestræber os på en gennemsigtig mærkning af de anvendte kilder og ophavspersoner."
+                },
+                {
+                    "art": "h3",
+                    "id": "fanrichtlinien-und-fanprojekt-kennzeichnung",
+                    "text": "Fanretningslinjer og mærkning som fanprojekt"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps mærker sig selv som fanprojekt. Brugen af DSA-FANPROJEKT-logoet og de juridiske henvisninger sker i overensstemmelse med de [fanretningslinjer](https://ulisses-spiele.de/fan-richtlinie/), som Ulisses har udgivet. Tilladelsen til at bruge bestemte materialer kan tilbagekaldes af rettighedshaverne eller forbydes i det enkelte tilfælde. Ved henvisning fra en rettighedshaver undersøges det berørte indhold og fjernes eller tilpasses, for så vidt det er nødvendigt."
+                },
+                {
+                    "art": "h3",
+                    "id": "keine-freie-lizenz-fuer-dsa-material",
+                    "text": "Ingen fri licens til DSA-materiale"
+                },
+                {
+                    "art": "absatz",
+                    "text": "DSA-relateret kort-, billed-, varemærke-, navne- og baggrundsmateriale udgives ikke på Avesmaps under [Creative Commons](https://de.wikipedia.org/wiki/Creative_Commons), Open Data, Open Source eller en tilsvarende fri licens. Det gælder især indhold, der bygger på officielle udgivelser, kort, navne, begreber, varemærker eller andet beskyttet materiale fra Ulisses eller andre rettighedshavere. Videreanvendelse er kun tilladt inden for de respektive relevante rettigheder."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Uberørt af dette er to ting: den programkode, der er skrevet til Avesmaps, og som er [åben kildekode](https://da.wikipedia.org/wiki/Open_source) under MIT-licensen, samt overtagne tekster fra Wiki Aventurica, som står under deres forfatteres licens."
+                },
+                {
+                    "art": "h3",
+                    "id": "wappen-bilder-und-cover",
+                    "text": "Våbenskjolde, billeder og covers"
+                },
+                {
+                    "art": "h4",
+                    "id": "wappen",
+                    "text": "Våbenskjolde"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Våbenskjoldene på kortet over herskerområderne stammer fra Wiki Aventurica eller er særskilt genererede AI-billeder. Hvert medie har på Avesmaps sit eget retsgrundlag og sin egen godkendelsesstatus. Offentligt vises det, der er registreret som offentligt domæne, [CC0](https://creativecommons.org/publicdomain/zero/1.0/deed.da), eget arbejde eller særskilt genereret AI-billede, dertil det, redaktionen har godkendt efter regel eller enkeltvis. Våbenskjolde med ukendt eller begrænsende rettighedsstatus skjules uden en sådan godkendelse. Rettighederne forbliver hos de respektive ophavsmænd og rettighedshavere; visningen på Avesmaps skaber ingen egne rettigheder til dem. Ved henvisning fra rettighedshavere undersøges de berørte våbenskjolde og fjernes eller tilpasses, for så vidt det er nødvendigt."
+                },
+                {
+                    "art": "h4",
+                    "id": "bilder",
+                    "text": "Billeder"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Regioner, bebyggelser og andre steder kan desuden have et billede. Det skal give et genkendeligt indtryk af stedet og ikke erstatte kunstneres eller Ulisses’ arbejde. Der indsættes udelukkende det, hvortil der efter kontrol foreligger tilstrækkelig tilladelse, som regel materiale i det offentlige domæne og særskilt til Avesmaps genererede AI-billeder. Scanninger eller fotos af Ulisses-artworks samt fanart af andre kunstnere bruges ikke uden deres udtrykkelige tilladelse. Ved henvisning fra rettighedshavere undersøges de berørte billeder og fjernes eller tilpasses, for så vidt det er nødvendigt."
+                },
+                {
+                    "art": "h4",
+                    "id": "cover",
+                    "text": "Covers"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Covers af DSA-publikationer, som vises ved litteraturposterne, bruges med tilladelse fra Ulisses. Coveret henviser, for så vidt det er tilgængeligt i shoppen, til den pågældende publikation hos Ulisses eller i F-Shop; ellers fører henvisningen til den tilhørende artikel i Wiki Aventurica eller til Deutsche Nationalbibliothek."
+                },
+                {
+                    "art": "h3",
+                    "id": "marken-und-disclaimer",
+                    "text": "Varemærker og ansvarsfraskrivelse"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Artwork © Ulisses Spiele. DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA, RIESLAND and THE DARK EYE are registered trademarks of Ulisses Spiele GmbH, Waldems. The graphics are used within the guidelines permitted by Ulisses Spiele. Use beyond these guidelines may only take place with the prior written permission of Ulisses Medien und Spiel Distribution GmbH."
+                },
+                {
+                    "art": "absatz",
+                    "text": "DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA and RIESLAND are trademarks of Significant Fantasy Medienrechte GbR."
+                }
+            ]
+        },
+        {
+            "id": "technik-und-kuenstliche-intelligenz",
+            "titel": "Teknik og kunstig intelligens",
+            "hinweis": "Byggeklodserne, kildekoden, hvordan ruten beregnes, og hvor AI bruges",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Avesmaps består af fri software, egen programkode og en udvikling, der i stor udstrækning udføres af AI-agenter."
+                },
+                {
+                    "art": "h3",
+                    "id": "software-und-lizenzen",
+                    "text": "Software og licenser"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps bygger på disse byggeklodser:"
+                },
+                {
+                    "art": "tafel",
+                    "kopf": ["Område", "Byggeklods", "Licens"],
+                    "schluesselSpalten": 2,
+                    "zeilen": [
+                        {
+                            "id": "software-und-lizenzen-karte-im-browser-maplibre-gl-js",
+                            "zellen": ["Kort i browseren", "[MapLibre GL JS](https://maplibre.org/)", "BSD-3-Clause"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-oberflaeche-vue",
+                            "zellen": ["Brugerflade", "[Vue](https://vuejs.org/)", "MIT"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-server-fastify",
+                            "zellen": ["Server", "[Fastify](https://fastify.dev/)", "MIT"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-server-typebox",
+                            "zellen": ["Server", "[TypeBox](https://github.com/sinclairzx81/typebox)", "MIT"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-server-postgres-js",
+                            "zellen": ["Server", "[postgres.js](https://github.com/porsager/postgres)", "Unlicense"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-bildverarbeitung-sharp-mit-libvips",
+                            "zellen": [
+                                "Billedbehandling",
+                                "[sharp](https://sharp.pixelplumbing.com/), med [libvips](https://www.libvips.org/)",
+                                "Apache-2.0, libvips LGPL-3.0"
+                            ]
+                        },
+                        {
+                            "id": "software-und-lizenzen-daten-postgresql",
+                            "zellen": ["Data", "[PostgreSQL](https://www.postgresql.org/)", "PostgreSQL License"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-daten-postgis",
+                            "zellen": ["Data", "[PostGIS](https://postgis.net/)", "GPL-2.0 eller nyere"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-vektorkacheln-martin",
+                            "zellen": ["Vektorfliser", "[Martin](https://martin.maplibre.org/)", "MIT eller Apache-2.0"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-hausschrift-faculty-glyphic",
+                            "zellen": [
+                                "Husskrift",
+                                "[Faculty Glyphic](https://github.com/google/fonts/tree/main/ofl/facultyglyphic)",
+                                "SIL Open Font License 1.1"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Faculty Glyphic: Copyright 2024 The Faculty Glyphic Project Authors. Husskriften leveres fra egen server og indlæses ikke fra et fremmed netværk."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Disse byggeklodser vedrører kortets tekniske visning og betjening og begrunder ingen rettigheder til DSA-relateret kort-, navne-, varemærke- eller baggrundsmateriale."
+                },
+                {
+                    "art": "h3",
+                    "id": "quellcode",
+                    "text": "Kildekode"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Programkoden, der er skrevet til Avesmaps, er åben kildekode og findes på [GitHub](https://github.com/valentin-schwind/avesmaps) under MIT-licensen. Denne licens gælder udelukkende programkoden. Den omfatter hverken kortfliserne eller sted-, vej-, område- og geometridata, heller ikke DSA-relaterede tekster, våbenskjolde, billeder eller varemærker. For disse indhold gælder uændret rettighederne fra de respektive kilder og Ulisses’ fanretningslinjer."
+                },
+                {
+                    "art": "h3",
+                    "id": "wegfindung",
+                    "text": "Rutesøgning"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Rutesøgningen beregnes på serveren. Over vejnettet, hvis knuder er steder og kryds, og hvis kanter er vejene med længde og rejsetid pr. transportmiddel, kører [Dijkstra-algoritmen](https://da.wikipedia.org/wiki/Dijkstras_algoritme)."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Hvor der ikke findes en vej, for eksempel til et mål uden for nettet, søger en [A*-algoritme](https://de.wikipedia.org/wiki/A*-Algorithmus) derudover over et terrængitter: Hvert skridt vægtes efter landskab og højdeforskel; skov, sump og bjerge bremser, stigninger koster tid, og hav, søer og floder kan kun passeres, hvor en tegnet vej krydser. Den fundne terrænstrækning hænger derefter som en enkelt kant på vejnettet. Skibe sejler fra havn til havn over en afledt søgraf, ikke over tegnede veje."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Flyvende transportmidler beregnes over et eget felt med flyvehøjde og terræn."
+                },
+                {
+                    "art": "h3",
+                    "id": "einsatz-von-kuenstlicher-intelligenz",
+                    "text": "Brug af kunstig intelligens"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Vi sætter pris på og respekterer kunstneres arbejde og vil på længere sigt også gøre Avesmaps til en platform, hvor deres værker kan præsenteres og anerkendes. Samtidig er Avesmaps et projekt med begrænsede personlige og økonomiske ressourcer. Uden brug af kunstig intelligens ville udviklingen i dette omfang i øjeblikket næppe være mulig."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Her skelner vi udtrykkeligt mellem generativ AI til at skabe kunstneriske indhold og AI-understøttede programmeringsagenter, som hjælper os med den tekniske udvikling. Efter vores opfattelse skal de to anvendelsesområder vurderes forskelligt. Især ved illustrationer ser vi ikke AI som en grundlæggende erstatning for menneskelig kreativitet, men som en pragmatisk løsning under de nuværende rammevilkår. Vores mål er fortsat at inddrage menneskelig kunst stærkere og give interesserede kunstnere mulighed for at være med til at forme Aventurien."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Hvor AI konkret bruges, står ved det pågældende sted: ved kortet „Modern“, ved våbenskjolde og billeder, ved rejsebillederne og i databeskyttelsen under [„AI-værktøj“](#ki-werkzeug)."
+                },
+                {
+                    "art": "h3",
+                    "id": "claudia-und-claudio",
+                    "text": "Claudia og Claudio"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps bygges overvejende af to AI-agenter, der kører på Claude fra [Anthropic](https://de.wikipedia.org/wiki/Anthropic); til tider arbejder også Codex med."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "claudia-und-claudio-claudia",
+                            "begriff": "Claudia",
+                            "werte": [
+                                "Claudia arbejder på udviklingsmaskinen: arkitektur, programkode, datamodel, tests og de værktøjer, som kort- og rejsedata bearbejdes med."
+                            ]
+                        },
+                        {
+                            "id": "claudia-und-claudio-claudio",
+                            "begriff": "Claudio",
+                            "werte": [
+                                "Claudio arbejder på serveren: indlæser nye versioner, database, flisetjeneste, sikkerhedskopier, overvågning og fejlsøgningen, når noget hænger fast."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Ingen af dem arbejder frit: hvad der udgives eller ændres i kortdata, afgøres af operatøren. En ændring af kortet kræver operatørens udtrykkelige godkendelse, og enhver skrivetilgang protokolleres. Teksterne på denne side udarbejdes delvist af Claudia, men godkendes af operatøren; fortolkningen af kilderne og alt redaktionelt forbliver hos mennesker."
+                },
+                {
+                    "art": "bild",
+                    "src": "/img/claudia-claudio.webp",
+                    "alt": "Claudia og Claudio, de to AI-agenter fra Avesmaps, over et kort",
+                    "breite": 520,
+                    "hoehe": 520
+                }
+            ]
+        },
+        {
+            "id": "reisebilder",
+            "titel": "Rejsebilleder",
+            "hinweis": "Vilkår for egne billeder: ophavsret, anvendelse, kontrol, personligt link",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "For egne billeder gælder disse vilkår. Hvad der gemmes i den forbindelse, står i [databeskyttelsen](#datenschutz-bei-reisebildern)."
+                },
+                {
+                    "art": "h3",
+                    "id": "bedingungen",
+                    "text": "Vilkår"
+                },
+                {
+                    "art": "absatz",
+                    "text": "For hvert indsendt billede gælder:"
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "bedingungen-eigenes-werk",
+                            "begriff": "Eget værk",
+                            "werte": [
+                                "Der indsendes kun et selvlavet billede: malet eller tegnet, fotograferet, skabt med AI eller optaget i Avesmaps. Værker fra andre, også officielle DSA-illustrationer og scanninger fra bøger, er udelukket."
+                            ]
+                        },
+                        {
+                            "id": "bedingungen-personen-und-alter",
+                            "begriff": "Personer og alder",
+                            "werte": [
+                                "Genkendelige personer vises kun med deres samtykke. Den indsendende person er mindst 16 år."
+                            ]
+                        },
+                        {
+                            "id": "bedingungen-pruefung",
+                            "begriff": "Kontrol",
+                            "werte": [
+                                "Redaktionen gennemgår hvert billede, før det offentliggøres. Den må rette placering, sted, henvisning og beskrivelse, men ikke billedet. **Der er ingen ret til offentliggørelse**. AI-billeder mærker vi som AI-billeder."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "nutzung",
+                    "text": "Anvendelse"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Den indsendende person vælger, hvordan Avesmaps må bruge billedet:"
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "nutzung-nur-fuer-avesmaps-vorgabe",
+                            "begriff": "Kun til Avesmaps (standard)",
+                            "werte": [
+                                "Avesmaps må vise billedet på kortet, i billedlinjen, i infoboksen og langs ruter og må i den forbindelse formindske og beskære det, med det angivne navn eller som „anonym“. Alle andre rettigheder forbliver hos den indsendende person. Tilladelsen ophører, når billedet tages offline."
+                            ]
+                        },
+                        {
+                            "id": "nutzung-cc-by-4-0",
+                            "begriff": "[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.da)",
+                            "werte": [
+                                "Enhver må videreanvende billedet med navngivelse, også kommercielt. **Det kan ikke trækkes tilbage**: Når billedet tages offline, forsvinder det fra Avesmaps, men licensen for andre består. Licensen omfatter kun det egne bidrag; tredjeparters rettigheder, for eksempel Ulisses’ rettigheder til DSA-indhold, forbliver urørt."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "En optagelse fra Avesmaps findes kun som „Kun til Avesmaps“, fordi kortet i den ikke tilhører den indsendende person."
+                },
+                {
+                    "art": "kasten",
+                    "titel": "Personligt link",
+                    "absaetze": [
+                        "Den, der kender det personlige link, kan ændre billedet eller tage det offline. Linket bør opbevares godt; vi kan ikke gendanne det."
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "grenzen-der-karte-und-haftung",
+            "titel": "Kortets grænser og ansvar",
+            "hinweis": "Hvor præcist kortet er, og hvad projektet står inde for",
+            "bloecke": [
+                {
+                    "art": "h3",
+                    "id": "grenzen-der-karte",
+                    "text": "Kortets grænser"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps er et støt voksende fanprojekt og gør ikke krav på fuldstændighed, fejlfrihed, kanonicitet eller officiel bindende gyldighed. Trods omfattende kildearbejde kan steder, veje og andre oplysninger mangle, være upræcise eller stamme fra forskellige tidsstadier i Aventurien."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Især skal de beregnede rejsetider og afstande forstås **som orienteringshjælp**. Grundlaget er de tilgængelige kortdata og modellerne for de aventuriske rejseregler („Wege des Entdeckers“, S. 160–162; „Geographia Aventurica“, S. 123, 129 og 131), som ikke altid er uden modsigelser. Vejr, terræn, vejens tilstand og andre påvirkninger kan ikke altid tages fuldt ud i betragtning. Avesmaps skal gøre rejseplanlægningen lettere, ikke erstatte spilleders beslutninger eller de officielle regelbøger."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Til spillere, der ønsker kanonicitet og en tilknytning til Foundry, anbefaler vi [DSA Unbound](https://dasschwarzeauge.de/unbound) og [Aventurischer Atlas für Foundry VTT](https://foundryvtt.com/packages/dsa5-atlas)."
+                },
+                {
+                    "art": "h3",
+                    "id": "haftungsausschluss",
+                    "text": "Ansvarsfraskrivelse"
+                },
+                {
+                    "art": "h4",
+                    "id": "haftung-fuer-inhalte",
+                    "text": "Ansvar for indhold"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Indholdet på denne hjemmeside er udarbejdet med størst mulig omhu. For rigtighed, fuldstændighed og aktualitet påtages dog ingen garanti. I det omfang loven tillader det, påtages **intet ansvar** for skader, der opstår ved brug eller ikke-brug af de angivne oplysninger. For eget indhold er operatøren ansvarlig efter de almindelige love, men er ikke forpligtet til at overvåge fremsendte eller lagrede fremmede oplysninger eller til at undersøge forhold, der tyder på en retsstridig aktivitet."
+                },
+                {
+                    "art": "h4",
+                    "id": "haftung-fuer-verweise",
+                    "text": "Ansvar for henvisninger"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Denne hjemmeside indeholder henvisninger til eksterne websites hos tredjeparter, over hvis indhold operatøren ikke har indflydelse. For dette fremmede indhold er altid den respektive udbyder eller operatør af de linkede sider ansvarlig. På tidspunktet for linkningen var der ingen synlige retsovertrædelser. En løbende indholdsmæssig kontrol af de linkede sider er uden konkrete holdepunkter ikke rimelig at forlange; når retsovertrædelser bliver kendt, fjernes sådanne henvisninger straks."
+                },
+                {
+                    "art": "h4",
+                    "id": "verfuegbarkeit-und-nutzung",
+                    "text": "Tilgængelighed og brug"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Der består ingen ret til en konstant, uafbrudt eller fejlfri tilgængelighed af hjemmesiden. Kortet, søgningen og ruteplanlæggeren tjener til spilmæssig og privat brug i det fiktive Aventurien og giver ingen garanti for reel anvendelighed, vejføring eller afstande. Brugen sker på eget ansvar."
+                }
+            ]
+        },
+        {
+            "id": "datenschutz",
+            "titel": "Databeskyttelse",
+            "hinweis": "Hvad der gemmes, hvem der ser det, hvor længe det bliver, og hvilke rettigheder der gælder",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Ansvarlig er den operatør, der er nævnt i kolofonen. Der findes ingen reklame, ingen eksterne reklame- eller sporingsnetværk og ingen brugerrelaterede profiler."
+                },
+                {
+                    "art": "sprungliste",
+                    "wort": "I dette afsnit:",
+                    "ziele": [
+                        {
+                            "text": "Drift af siden",
+                            "ziel": "#betrieb-der-seite"
+                        },
+                        {
+                            "text": "Funktioner uden konto",
+                            "ziel": "#funktionen-ohne-konto"
+                        },
+                        {
+                            "text": "Medarbejde med konto",
+                            "ziel": "#mitarbeit-mit-konto"
+                        },
+                        {
+                            "text": "Eksterne tjenester",
+                            "ziel": "#externe-dienste"
+                        },
+                        {
+                            "text": "Frister og sikkerhedskopier",
+                            "ziel": "#fristen-und-sicherungen"
+                        },
+                        {
+                            "text": "Den registreredes rettigheder",
+                            "ziel": "#rechte-der-betroffenen"
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "betrieb-der-seite",
+                    "text": "Drift af siden"
+                },
+                {
+                    "art": "h4",
+                    "id": "server-logdaten",
+                    "text": "Serverlogdata"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps kører på en egen server hos [STRATO](https://de.wikipedia.org/wiki/Strato_AG)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "server-logdaten-was-wird-verarbeitet",
+                            "begriff": "Hvad behandles?",
+                            "werte": [
+                                "Ved hjemmesidens opkald behandler serveren tekniske logdata, blandt andet [IP-adresse](https://da.wikipedia.org/wiki/Internetadresse), tidspunkt, den hentede ressource samt browser- og enhedstype, til teknisk levering, stabilitet og sikkerhed."
+                            ]
+                        },
+                        {
+                            "id": "server-logdaten-wie-lange",
+                            "begriff": "Hvor længe?",
+                            "werte": ["Webserverens logfiler og systemprotokollen slettes efter **omkring 14 dage**."]
+                        },
+                        {
+                            "id": "server-logdaten-anwendung",
+                            "begriff": "Applikationen",
+                            "werte": [
+                                "Selve applikationen skriver kun en forkortet IP-adresse i systemprotokollen: [IPv4](https://de.wikipedia.org/wiki/IPv4) uden den sidste byte, [IPv6](https://de.wikipedia.org/wiki/IPv6) på de første 48 bit."
+                            ]
+                        },
+                        {
+                            "id": "server-logdaten-schutzdienst",
+                            "begriff": "Beskyttelsestjenesten",
+                            "werte": [
+                                "Spærrer beskyttelsestjenesten en IP-adresse efter gentagne mislykkede logins på serveren ([SSH](https://da.wikipedia.org/wiki/Secure_Shell)), forbliver den ligeledes i **omkring 14 dage** i tjenestens egen protokol."
+                            ]
+                        },
+                        {
+                            "id": "server-logdaten-zusammenfuehrung",
+                            "begriff": "Sammenkædning",
+                            "werte": ["Disse logdata sammenkædes ikke med andre datakilder."]
+                        },
+                        {
+                            "id": "server-logdaten-rechtsgrundlage",
+                            "begriff": "Retsgrundlag",
+                            "werte": [
+                                "Det legitime interesse i en sikker drift (art. 6, stk. 1, litra f, i [GDPR](https://de.wikipedia.org/wiki/Datenschutz-Grundverordnung))."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "cookies-und-browser-speicher",
+                    "text": "Cookies og browserlager"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Den, der bruger Avesmaps uden login, får ingen [cookies](https://da.wikipedia.org/wiki/Cookie), undtagen når en melding forbindes med Discord (se nedenfor)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "cookies-und-browser-speicher-sitzungs-cookie",
+                            "begriff": "Sessionscookie",
+                            "werte": [
+                                "Den, der logger ind, får et teknisk nødvendigt sessionscookie (__Host-avesmaps-session). Det indeholder kun en tilfældig identifikator, er ulæseligt for sidens scripts og gælder kun for denne adresse. Det bevares også efter lukning af browseren, indtil sessionen slutter: med udlogningen, når den afsluttes i kontoen eller af administrationen, eller når kontoen spærres eller opløses; cookien har ingen fast løbetid, kun nødadgangen udløber efter **60 minutter**. Browseren opbevarer cookien højst **400 dage** og modtager den på ny ved hvert besøg."
+                            ]
+                        },
+                        {
+                            "id": "cookies-und-browser-speicher-anmelde-umweg",
+                            "begriff": "Login-omvejen",
+                            "werte": [
+                                "Ved login via Discord og ved forbindelse af en melding med Discord sætter Avesmaps i højst **ti minutter** en anden, lige så nødvendig cookie, som binder returvejen fra Discord til den samme browser."
+                            ]
+                        },
+                        {
+                            "id": "cookies-und-browser-speicher-browser-speicher",
+                            "begriff": "Browserlager",
+                            "werte": [
+                                "Desuden bliver følgende liggende i browseren på den pågældende enhed:",
+                                [
+                                    "Indstillinger, for eksempel sprog, farveskema, tastaturbetjening og kontakter på kortet",
+                                    "læsestatus for nyhederne",
+                                    "hvilke bedømmelser denne browser har synes godt om",
+                                    "efter ønske linkene til egne rejsebilleder",
+                                    "ved medarbejde ikke-gemte udkast til redigeringen og skillelinjen Ny/Arkiv i klokken",
+                                    "i den tid, login-omvejen varer, kortudsnittet (højst **15 minutter**, kun i denne fane), ligeledes nøglen til den egne melding, når en melding forbindes med Discord"
+                                ],
+                                "**Alt dette sendes ikke automatisk til serveren.**"
+                            ]
+                        },
+                        {
+                            "id": "cookies-und-browser-speicher-rechtsgrundlage",
+                            "begriff": "Retsgrundlag",
+                            "werte": [
+                                "For sessionscookie og login-omvejen gælder § 25, stk. 2, nr. 2, i [TDDDG](https://de.wikipedia.org/wiki/Telekommunikation-Digitale-Dienste-Datenschutz-Gesetz); et samtykke er ikke nødvendigt til dette."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "anonyme-besucherstatistik",
+                    "text": "Anonym besøgsstatistik"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps tæller besøg anonymt og i samlede tal."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "anonyme-besucherstatistik-was-gezaehlt-wird",
+                            "begriff": "Hvad der tælles",
+                            "werte": [
+                                [
+                                    "Sidevisninger og opholdstid",
+                                    "Oprindelse som land og, inden for Tyskland, som delstat",
+                                    "Enhedstype, operativsystem, browser, browsersprog og vinduesklasse",
+                                    "Det valgte sprog på siden og dens farveskema (lyst eller mørkt)",
+                                    "Enhedens egenskaber (3D, touch, mindre bevægelse, mørkt farveskema)",
+                                    "hvorfra opkaldet kom (direkte, internt eller domænet på henvisningssiden)",
+                                    "hvad der bruges på kortet"
+                                ]
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-wetter",
+                            "begriff": "Eksperimentelt vejr",
+                            "werte": [
+                                "Browseren hos den, der bruger det eksperimentelle vejr, melder anonymt og i summer, hvilke vejrkontakter der slås til eller fra, samt grove ydelsesværdier i klasser (billedfrekvens og billedtid, skyopløsning, varigheden af den første start, typen af en fejl samt grafikkortets familie, for eksempel “NVIDIA” eller “Adreno”, og om det er en computer eller en telefon), uden tilknytning til personen."
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-ip-adressen",
+                            "begriff": "IP-adresser",
+                            "werte": [
+                                "IP-adresser læses i den forbindelse, men gemmes aldrig af statistikken; de bruges kun til opslag af landet og en dagskennung, som udløber ved midnat (UTC), og som herefter ikke længere kan henføres til en enhed."
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-was-es-nicht-gibt",
+                            "begriff": "Hvad der ikke findes",
+                            "werte": [
+                                "Der opstår ingen tabel over enkelte besøg, der er ingen genkendelse på tværs af dage, ingen cookies, intet lager i browseren og ingen eksterne analysetjenester."
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-angemeldete-personen",
+                            "begriff": "Personer, der er logget ind",
+                            "werte": [
+                                "Personer, der er logget ind, tælles som egen gruppe og indgår i ingen besøgstal."
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-rechtsgrundlage",
+                            "begriff": "Retsgrundlag",
+                            "werte": [
+                                "Det legitime interesse i en fejlfri og sikker drift (art. 6, stk. 1, litra f, i GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "fehlerdiagnose",
+                    "text": "Fejldiagnose"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Støder siden på en fejl, for eksempel ved opstart, i kortet eller i 3D-grafikken, sender browseren en kort teknisk diagnose, så vi kan finde og rette fejlen."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "fehlerdiagnose-was-gesendet-wird",
+                            "begriff": "Hvad der sendes",
+                            "werte": [
+                                [
+                                    "Fejlens type og navn",
+                                    "en renset melding uden adresser, identifikatorer, tal og indtastninger",
+                                    "op til fem steder i Avesmaps’ programkode",
+                                    "programversionen og browserfamilien",
+                                    "hvilken grafikunderstøttelse browseren tilbyder ([WebGL](https://de.wikipedia.org/wiki/WebGL) 2, WebGL 1 eller ingen)"
+                                ]
+                            ]
+                        },
+                        {
+                            "id": "fehlerdiagnose-was-nicht-dabei-ist",
+                            "begriff": "Hvad der ikke medsendes",
+                            "werte": [
+                                "Diagnosen indeholder ingen IP-adresse, ingen dagskennung, intet klokkeslæt og intet kortudsnit og kan ikke henføres til et besøg; ens diagnoser fra samme dag lægges sammen."
+                            ]
+                        },
+                        {
+                            "id": "fehlerdiagnose-wann-wird-es-geloescht",
+                            "begriff": "Hvornår slettes den?",
+                            "werte": [
+                                "Den slettes efter **14 dage**; i sikkerhedskopier ligger den op til **seks måneder**. Antallet af fejl pr. type og dag bliver som samlet tal."
+                            ]
+                        },
+                        {
+                            "id": "fehlerdiagnose-rechtsgrundlage",
+                            "begriff": "Retsgrundlag",
+                            "werte": [
+                                "Det legitime interesse i en fejlfri og sikker drift (art. 6, stk. 1, litra f, i GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "missbrauchsschutz",
+                    "text": "Misbrugsbeskyttelse"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Mod misbrug og oversvømmelse tæller applikationen ved meldinger, bedømmelser, kortforslag og rejsebilleder i arbejdshukommelsen, hvor mange indtastninger der kommer fra en [hashet](https://de.wikipedia.org/wiki/Hashfunktion) adresse; **det gemmes ikke**. Ved delte links tæller den i arbejdshukommelsen pr. IP-adresse med, hvor mange links der går ud; **IP-adressen gemmes ikke i den forbindelse**."
+                },
+                {
+                    "art": "kasten",
+                    "titel": "Serverlogdata forbliver upåvirket heraf",
+                    "absaetze": ["Webserveren protokollerer også disse opkald med den fulde IP-adresse."]
+                },
+                {
+                    "art": "h3",
+                    "id": "funktionen-ohne-konto",
+                    "text": "Funktioner uden konto"
+                },
+                {
+                    "art": "h4",
+                    "id": "meldungen-zur-karte",
+                    "text": "Meldinger om kortet"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Via „Meld noget her“ og „Foreslå ændringer“ kan enhver på kortet melde noget, også uden konto."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "meldungen-zur-karte-was-wird-gespeichert",
+                            "begriff": "Hvad gemmes?",
+                            "werte": [
+                                "Der gemmes beskrivelsen, den frivillige kilde, det meldingen vedrører (et kortobjekt eller et sted, efter ønske med foreslået ny placering) og, når det er angivet, navn eller pseudonym. **En mailadresse efterspørges ikke**. IP-adresse, [browseridentifikation](https://de.wikipedia.org/wiki/User_Agent) og sideadresse gemmes ikke.",
+                                "Svaret står på en privat statusside. Linket dertil får kun den meldende person; Avesmaps gemmer kun en kontrolværdi af dens nøgle. Her kan meldingen også trækkes tilbage.",
+                                "Frivilligt kan en melding forbindes med Discord. Så gemmer Avesmaps dertil Discord-identifikator og visningsnavn, så /offen på Avesmaps-Discord viser de egne meldinger. Forbindelsen kan til enhver tid løses på statussiden."
+                            ]
+                        },
+                        {
+                            "id": "meldungen-zur-karte-wer-sieht-es",
+                            "begriff": "Hvem ser det?",
+                            "werte": [
+                                "Meldinger læses af de personer i redaktionen, der behandler meldinger, sammen med det angivne navn og, ved en forbundet melding, Discord-visningsnavnet. Operatørerne behandler også meldinger med et AI-værktøj (Claude fra Anthropic, se [„AI-værktøj“](#ki-werkzeug)), som så ser teksten og navnene. Melding og navn optræder **aldrig offentligt**, heller ikke i kortdata, beskrivelser eller nyheder."
+                            ]
+                        },
+                        {
+                            "id": "meldungen-zur-karte-wann-wird-es-geloescht",
+                            "begriff": "Hvornår slettes den?",
+                            "werte": [
+                                "Så længe en melding er åben, bliver oplysningerne gemt. Navn, Discord-oplysninger og statuslink slettes **90 dage** efter afslutningen. Tekst og sagsindhold bliver i arkivet; står der et navn i det, bliver det, indtil nogen anmoder om sletning. Det, der ligger i papirkurven, for eksempel spam, slettes helt efter **30 dage**. **Efter anmodning sletter vi** oplysninger og tekster fra den meldende person **straks**; sagsindholdet bliver."
+                            ]
+                        },
+                        {
+                            "id": "meldungen-zur-karte-rechtsgrundlage",
+                            "begriff": "Retsgrundlag",
+                            "werte": [
+                                "Det legitime interesse i at holde kortet korrekt og besvare meldinger (art. 6, stk. 1, litra f, i GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "kontakt-und-mail",
+                    "text": "Kontakt og mail"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Forespørgsler når redaktionen via kontaktformularen eller pr. mail."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "kontakt-und-mail-was-wird-gespeichert",
+                            "begriff": "Hvad gemmes?",
+                            "werte": [
+                                "Via kontaktformularen går besked, emne og, når det er angivet, navn og mailadresse til redaktionen. Uden adresse står svaret kun på den private statusside; med adresse kommer det også pr. mail.",
+                                "Mails til {mail} henter Avesmaps fra postkassen. Der gemmes afsender, emne, tekst, renset HTML, vedhæftninger og den originale mail. Billeder kodes om og mister i den forbindelse deres metadata. Eksekverbare filer, arkiver og dokumenter med makroer overtages ikke, kun deres navn og størrelse."
+                            ]
+                        },
+                        {
+                            "id": "kontakt-und-mail-wer-sieht-es",
+                            "begriff": "Hvem ser det?",
+                            "werte": [
+                                "Forespørgsler og mails sammen med afsender læses kun af operatørerne og af personer med særrollen „Diplomat“. Operatørerne behandler dem også med et AI-værktøj (Claude fra Anthropic, se [„AI-værktøj“](#ki-werkzeug)), som så ser teksten og afsenderen. Disse er **aldrig offentlige**. Bliver en forespørgsel til en melding om kortet, bliver navn og adresse i forespørgslen."
+                            ]
+                        },
+                        {
+                            "id": "kontakt-und-mail-wann-wird-es-geloescht",
+                            "begriff": "Hvornår slettes den?",
+                            "werte": [
+                                "Så længe en forespørgsel er åben, bliver oplysningerne gemt. Navn, adresse, afsender, originalmail og statuslink slettes **90 dage** efter afslutningen. Tekst, emne, renset HTML, vedhæftninger med deres filnavne og mailens tekniske identifikatorer bliver i arkivet; står der et navn eller en signatur i det, bliver den, indtil nogen anmoder om sletning. Det, der ligger i papirkurven, for eksempel spam, slettes helt efter **30 dage**. **Efter anmodning sletter vi** oplysninger, tekster og vedhæftninger fra personen **straks**. Skriver redaktionen af sig selv en ny mail, fastholder administrationsprotokollen en forkortet kontrolværdi af modtageradressen uden frist."
+                            ]
+                        },
+                        {
+                            "id": "kontakt-und-mail-rechtsgrundlage",
+                            "begriff": "Retsgrundlag",
+                            "werte": [
+                                "Det legitime interesse i at besvare forespørgsler (art. 6, stk. 1, litra f, i GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "bewertungen",
+                    "text": "Bedømmelser"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Til et sted kan man uden konto skrive en bedømmelse: en til fem stjerner, frivilligt en kort tekst, et frit valgt navn og en aventurisk dato."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "bewertungen-was-wird-gespeichert",
+                            "begriff": "Hvad gemmes?",
+                            "werte": [
+                                "Alt dette vises offentligt i stedets infopanel. Et rigtigt navn er ikke nødvendigt; uden navn vises „Anonym“. Dertil kommer tidspunktet for modtagelsen. **IP-adresse, browseridentifikation og sideadresse gemmes ikke**.",
+                                "Bedømmelser fra den tidligere version af Avesmaps er overtaget med stjerner, navn, tekst og dato, uden IP-adresse eller browserdata.",
+                                "„Synes godt om“ er kun et tal: Serveren ved ikke, hvem der gav det. At en browser allerede har synes godt om en bedømmelse, husker den selv, for højst 500 bedømmelser."
+                            ]
+                        },
+                        {
+                            "id": "bewertungen-wer-sieht-es",
+                            "begriff": "Hvem ser det?",
+                            "werte": [
+                                "Offentligt, se ovenfor. Nye bedømmelser vises **straks**, og redaktionen gennemser dem bagefter. Indeholder en bedømmelse en adresse eller et ord fra en spamliste, holdes den tilbage, indtil redaktionen godkender den."
+                            ]
+                        },
+                        {
+                            "id": "bewertungen-wann-wird-es-geloescht",
+                            "begriff": "Hvornår slettes den?",
+                            "werte": [
+                                "En bedømmelse bliver, så længe den er synlig. Vedrører den en person, kan der gøres indsigelse mod den via „Anmeld“ med begrundelsen „Personlige data“; redaktionen skjuler den og sletter navn, tekst og dato. Stjernerne bliver tilbage, men vises så ikke længere. Skjulte og tilbageholdte bedømmelser bliver, indtil redaktionen sletter deres indhold eller godkender dem."
+                            ]
+                        },
+                        {
+                            "id": "bewertungen-rechtsgrundlage",
+                            "begriff": "Retsgrundlag",
+                            "werte": [
+                                "Det legitime interesse i at vise vurderinger af steder på kortet (art. 6, stk. 1, litra f, i GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "kartenvorschlaege",
+                    "text": "Kortforslag"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Via „Foreslå kort“ kan der uden konto indsendes et forslag om et kort til kortsamlingen, enten som link eller som egen fil (JPEG, PNG, WebP eller PDF)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "kartenvorschlaege-was-wird-gespeichert",
+                            "begriff": "Hvad gemmes?",
+                            "werte": [
+                                "Der gemmes titel, link eller fil, de frivillige oplysninger om kortet, en note til redaktionen, den valgte anvendelse, versionen af vilkårene og, når det er angivet, et navn. **En mailadresse efterspørges ikke**. **IP-adresse og browseridentifikation gemmes ikke**.",
+                                "Ved billeder fjerner Avesmaps allerede ved modtagelsen [EXIF](https://de.wikipedia.org/wiki/Exchangeable_Image_File_Format), [XMP](https://de.wikipedia.org/wiki/Extensible_Metadata_Platform), [IPTC](https://de.wikipedia.org/wiki/IPTC-IIM-Standard) og kommentarer. En PDF beholder sine metadata, indtil originalen er slettet.",
+                                "Status fremgår af en statusside. Linket dertil får kun den indsendende person; Avesmaps gemmer kun en kontrolværdi af dens nøgle. Dér står også begrundelsen for en afvisning, og forslaget kan trækkes tilbage."
+                            ]
+                        },
+                        {
+                            "id": "kartenvorschlaege-wer-sieht-es",
+                            "begriff": "Hvem ser det?",
+                            "werte": [
+                                "Indtil afgørelsen ser kun redaktionen forslaget. Bliver det godkendt, vises kortet med titel og oplysninger i kortsamlingen. Noten, forhåndsvisningslinket og navnet på den indsendende person overtages ikke; der nævnes den angivne tegner eller forlag. Filen bliver først offentlig, når dens rettigheder tillader det."
+                            ]
+                        },
+                        {
+                            "id": "kartenvorschlaege-wann-wird-es-geloescht",
+                            "begriff": "Hvornår slettes den?",
+                            "werte": [
+                                "Et forslag, hvis fil aldrig kom frem eller ikke kunne behandles, slettes efter **7 dage**, et afvist eller tilbagetrukket efter **30 dage**, i hvert tilfælde sammen med fil og navn. Ved et godkendt forslag slettes navn og note **90 dage** efter afgørelsen. Et forslag, der endnu ikke er afgjort, bliver gemt indtil afgørelsen.",
+                                "Den uploadede fil til et godkendt kort slettes **omkring en uge** efter godkendelsen. Der bliver tilbage en heraf beregnet version i fuld opløsning; ved en PDF kun første side. I sikkerhedskopier kan filen ligge længere (se [„Sikkerhedskopier“](#sicherungen))."
+                            ]
+                        },
+                        {
+                            "id": "kartenvorschlaege-rechtsgrundlage",
+                            "begriff": "Retsgrundlag",
+                            "werte": [
+                                "Det legitime interesse i at vedligeholde kortsamlingen (art. 6, stk. 1, litra f, i GDPR). For brugen af filen gælder de vilkår, som personen accepterer ved upload."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "datenschutz-bei-reisebildern",
+                    "text": "Databeskyttelse for rejsebilleder"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Rejsebilleder kan indsendes uden konto; vilkårene står under [„Rejsebilleder“](#reisebilder)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "datenschutz-bei-reisebildern-was-wird-gespeichert",
+                            "begriff": "Hvad gemmes?",
+                            "werte": [
+                                "Vi gemmer billedet og oplysningerne (sted, beskrivelse, tilblivelse, anvendelse, kigeretning, frivilligt navn), tidspunktet, versionen af disse vilkår og en kontrolsum af det personlige link. **Ingen konto, ingen mail, ingen cookie.**",
+                                "Efter ønske husker browseren de personlige links til egne rejsebilleder på denne enhed. Til Avesmaps sendes de kun ved hentning af status, ligesom ved åbning af linket. Under ‚Mine rejsebilleder‘ kan de enkeltvis glemmes.",
+                                "Metadata i filen (sted, tid, enhed, navn) fjerner vi allerede ved modtagelsen, også fra originalen. Originalen bliver, så længe billedet ligger hos os. Filnavnet gemmer vi ikke. Om IP-adressen se [„Misbrugsbeskyttelse“](#missbrauchsschutz)."
+                            ]
+                        },
+                        {
+                            "id": "datenschutz-bei-reisebildern-wer-sieht-es",
+                            "begriff": "Hvem ser det?",
+                            "werte": [
+                                "Navnet til navngivelse forbliver synligt, så længe billedet er offentligt. Offentliggjorte billeder kan gøres indsigelse mod via „Anmeld“."
+                            ]
+                        },
+                        {
+                            "id": "datenschutz-bei-reisebildern-wann-wird-es-geloescht",
+                            "begriff": "Hvornår slettes den?",
+                            "werte": [
+                                "Afviste, tilbagetrukne og offline taget indsendelser sletter vi efter **30 dage** sammen med oplysningerne; billedfilerne til offline taget indsendelser slettes allerede ved den næste daglige kørsel. Uafgjorte forfalder efter **60 dage** og slettes **30 dage** derefter. Derefter fører linket ingensteds hen.",
+                                "At tage offline virker **straks**: Billedet er fjernet fra Avesmaps, og filerne slettes ved den næste daglige kørsel. Kopier, som andre allerede har lavet, kan vi ikke hente tilbage."
+                            ]
+                        },
+                        {
+                            "id": "datenschutz-bei-reisebildern-rechtsgrundlage",
+                            "begriff": "Retsgrundlag",
+                            "werte": ["Indsendelsen efter vilkårene (art. 6, stk. 1, litra b, i GDPR)."]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "geteilte-links",
+                    "text": "Delte links"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Kort og rejseplanlægning kan deles som kortlink."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "geteilte-links-was-wird-gespeichert",
+                            "begriff": "Hvad gemmes?",
+                            "werte": [
+                                "Et delt link gemmer kun den kortstatus, det gendanner, altså kort, visning, lag, visningskontakter og rejseplanlægning. Oplysninger om personen indeholder det ikke."
+                            ]
+                        },
+                        {
+                            "id": "geteilte-links-wer-sieht-es",
+                            "begriff": "Hvem ser det?",
+                            "werte": ["Den, der kender linket."]
+                        },
+                        {
+                            "id": "geteilte-links-wann-wird-es-geloescht",
+                            "begriff": "Hvornår slettes den?",
+                            "werte": ["Delte links bliver bevaret."]
+                        },
+                        {
+                            "id": "geteilte-links-rechtsgrundlage",
+                            "begriff": "Retsgrundlag",
+                            "werte": [
+                                "Det legitime interesse i at kunne dele kort og rejser (art. 6, stk. 1, litra f, i GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "mitarbeit-mit-konto",
+                    "text": "Medarbejde med konto"
+                },
+                {
+                    "art": "h4",
+                    "id": "konten",
+                    "text": "Konti"
+                },
+                {
+                    "art": "absatz",
+                    "text": "**Et konto får kun den, der inviteres**; det offentlige kort kræver ingen."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "konten-kontodaten",
+                            "begriff": "Kontooplysninger",
+                            "werte": [
+                                "Til en konto gemmer Avesmaps visningsnavnet, rollen, om kontoen er aktiv eller spærret, hvornår den blev oprettet, og hvornår det sidste login var. Afhængigt af den valgte loginmetode kommer der yderligere oplysninger til."
+                            ]
+                        },
+                        {
+                            "id": "konten-benutzername-und-passwort",
+                            "begriff": "Brugernavn og adgangskode",
+                            "werte": [
+                                "Til login med brugernavn og adgangskode gemmer Avesmaps brugernavnet og en kontrolværdi af adgangskoden ([Argon2id](https://de.wikipedia.org/wiki/Argon2)). **Selve adgangskoden gemmes aldrig**."
+                            ]
+                        },
+                        {
+                            "id": "konten-discord",
+                            "begriff": "Discord",
+                            "werte": [
+                                "Til login med Discord gemmer Avesmaps Discord-identifikatoren, Discord-brugernavnet og visningsnavnet. Avesmaps henter hos Discord kun kontoens grundoplysninger (tilladelsen identify), hverken mailadresse, server, venneliste eller beskeder, og overtager kun disse tre. Ved login sender siden videre til Discord (for personer i EU Discord Netherlands BV; data går også til [Discord Inc.](https://de.wikipedia.org/wiki/Discord) i USA); der gælder [Discords databeskyttelseserklæring](https://discord.com/privacy). Login med brugernavn og adgangskode fungerer også uden Discord."
+                            ]
+                        },
+                        {
+                            "id": "konten-passkey",
+                            "begriff": "Passkey",
+                            "werte": [
+                                "Til en [Passkey](https://de.wikipedia.org/wiki/Passkey) gemmer Avesmaps dens offentlige nøgle, dens identifikator, en selvvalgt betegnelse og om den synkroniseres mellem enheder, dertil dens tæller, overførselsveje, enhedstypen og hvornår den blev oprettet og sidst brugt. Fingeraftryk, ansigtsbillede eller enhedens pinkode forlader aldrig enheden."
+                            ]
+                        },
+                        {
+                            "id": "konten-verantwortlich-fuer",
+                            "begriff": "Ansvarlig for",
+                            "werte": [
+                                "Frivilligt kan en konto have en kort angivelse „Ansvarlig for“ (en linje, højst 120 tegn), som personen selv indtaster, eller som en operatør fastsætter. Den er synlig i administrationen af konti og i editorlisten; protokollen noterer kun, at den er ændret, ikke dens indhold."
+                            ]
+                        },
+                        {
+                            "id": "konten-wortform",
+                            "begriff": "Kønsform",
+                            "werte": [
+                                "Ligeledes frivilligt vælger personen kønsformen for sine roller (maskulin, feminin eller neutral)."
+                            ]
+                        },
+                        {
+                            "id": "konten-sonderrolle",
+                            "begriff": "Særrolle",
+                            "werte": [
+                                "Til en særrolle (for eksempel „Diplomat“) gemmer Avesmaps rollen, eventuelt regionen, begrundelsen og hvem der har tildelt eller frataget den og hvornår."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "sitzungen-und-protokoll",
+                    "text": "Sessioner og protokol"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps fører sessioner og protokoller, så logins forbliver sikre, og ændringer kan følges."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "sitzungen-und-protokoll-sitzungen",
+                            "begriff": "Sessioner",
+                            "werte": [
+                                "Til hver session gemmer Avesmaps, hvornår den begyndte og sidst blev brugt, loginvejen, en grov enhedsbetegnelse (for eksempel „Firefox · Windows“, aldrig den fulde browseridentifikation) og en forkortet IP-adresse (IPv4 uden den sidste byte, IPv6 på de første 48 bit). Derfor kan hver person genkende og afslutte sine egne sessioner i kontoen."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-protokoll",
+                            "begriff": "Protokol",
+                            "werte": [
+                                "En protokol noterer, hvem der har logget ind hvornår, hvilke logins der mislykkedes, og hvilke administrative handlinger der fandt sted (invitationer, roller, spærringer, links). Den indeholder aldrig adgangskoder, cookieværdier, invitations- eller nulstillingslinks. For at modvirke gennemprøvning af adgangskoder gemmer Avesmaps til hvert indtastet brugernavn en kontrolværdi og antallet af fejlforsøg, også når navnet ikke findes; efter **30 dages** ro falder posten væk."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-fristen",
+                            "begriff": "Frister",
+                            "werte": [
+                                "Logins og fejlforsøg i protokollen slettes efter **90 dage**, den forkortede IP-adresse tømmes efter **14 dage**. Udløbne sessioner, udløbne nulstillings- og opsætningslinks samt login-omveje slettes **30 dage** efter deres afslutning. Administrative handlinger bliver, fordi de forklarer, hvem der har tildelt en rolle eller spærret en konto; ligeså ændringer af den egne adgang (adgangskode, passkey, Discord-forbindelse, afsluttede sessioner). Kontooplysninger bliver, så længe kontoen består."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-editorenliste",
+                            "begriff": "Editorlisten",
+                            "werte": [
+                                "Den, der må åbne editoren, ser editorlisten: navn, rolle, særroller og ansvarsangivelsen for de øvrige personer med adgang, om de er online, og hvornår de sidst var der, deres enhed, på hvor mange af de sidste tredive dage de var aktive, hvad de arbejder på lige nu, og hvad de sidst har ændret."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-redaktionsprotokoll-und-betreiber-kanal",
+                            "begriff": "Redaktionsprotokol og operatørkanal",
+                            "werte": [
+                                "Den, der redigerer kortet eller billederne, optræder i redaktionsprotokollen: til hver handling står personen, tidspunktet og hvad der er ændret. Denne protokol bliver, fordi den forklarer, hvem der har foretaget en ændring. Når en konto opløses, sløres personens begrundelser i den, og filnavnene på hendes uploads fjernes; kortindholdet bliver, og hendes navn fremgår derefter som en pladsholder. Meldinger og billeder fra operatørkanalen slettes **90 dage** efter deres godkendelse; der bliver kun korttitler, dokumentation og fix-rapport tilbage."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-rechtsgrundlage",
+                            "begriff": "Retsgrundlag",
+                            "werte": [
+                                "For kontoen art. 6, stk. 1, litra b, i GDPR (det medarbejde, personen har anmodet om ved at acceptere invitationen), for protokol, drosling og forkortet IP-adresse det legitime interesse i en sikker drift (art. 6, stk. 1, litra f, i GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "benachrichtigungen",
+                    "text": "Beskeder"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Personer, der er logget ind, får beskeder i linjen, for eksempel om nye meldinger eller om sager, de er involveret i."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "benachrichtigungen-was-wird-gespeichert",
+                            "begriff": "Hvad gemmes?",
+                            "werte": [
+                                "En besked hører til kontoen og indeholder type, afsender, tidspunkt og et nummer eller en korttitel, aldrig teksten eller navnet fra en melding. Den, der bruger kortet uden login, har ingen klokke."
+                            ]
+                        },
+                        {
+                            "id": "benachrichtigungen-gelesen-und-neu",
+                            "begriff": "Læst og ny",
+                            "werte": [
+                                "Om en besked er læst eller besvaret, gemmer serveren sammen med den. Hvor langt listen på denne enhed gælder som „Ny“, husker browseren derudover kun selv; det sendes ikke til serveren."
+                            ]
+                        },
+                        {
+                            "id": "benachrichtigungen-abfrage",
+                            "begriff": "Hentning",
+                            "werte": ["Så længe fanen er synlig, henter siden én gang i minuttet nye poster."]
+                        },
+                        {
+                            "id": "benachrichtigungen-wann-wird-es-geloescht",
+                            "begriff": "Hvornår slettes den?",
+                            "werte": [
+                                "Beskeder slettes **90 dage** efter læsning eller besvarelse, under alle omstændigheder efter **180 dage**, og ved opløsning af kontoen **straks**."
+                            ]
+                        },
+                        {
+                            "id": "benachrichtigungen-rechtsgrundlage",
+                            "begriff": "Retsgrundlag",
+                            "werte": [
+                                "Som for kontoen art. 6, stk. 1, litra b, i GDPR (det medarbejde, personen har anmodet om ved at acceptere invitationen)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "konto-aufloesen",
+                    "text": "Opløsning af konto"
+                },
+                {
+                    "art": "absatz",
+                    "text": "En konto opløses efter anmodning. Anmodningen modtages af den operatør, der er nævnt i kolofonen."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "konto-aufloesen-was-geloescht-wird",
+                            "begriff": "Hvad der slettes",
+                            "werte": [
+                                "Så slettes brugernavn og adgangskodens kontrolværdi, forbindelsen med Discord samt Discord-oplysningerne, sessionerne, angivelsen „Ansvarlig for“, rollernes kønsform samt nøgler og betegnelser for passkeys; åbne links til personen bortfalder **straks**, adgang, særrettigheder og særroller frataget, og visningsnavnet erstattes af en neutral pladsholder."
+                            ]
+                        },
+                        {
+                            "id": "konto-aufloesen-was-im-protokoll-bleibt",
+                            "begriff": "Hvad der bliver i protokollen",
+                            "werte": [
+                                "Administrative handlinger bliver stående i protokollen og nævner personen med pladsholderen, fordi de forklarer, hvem der har tildelt en rolle eller spærret en konto."
+                            ]
+                        },
+                        {
+                            "id": "konto-aufloesen-was-geschwaerzt-wird",
+                            "begriff": "Hvad der sløres",
+                            "werte": [
+                                "I posterne om personen sløres det, der beskriver hende: tidligere visningsnavne, Discord-navnet, betegnelser for passkeys, noten til hendes invitation, begrundelser for en spærring, en særrettighed eller en særrolle og et tilordnet Legacy-navn med begrundelse; i hendes egne poster desuden enhedsbetegnelse og forkortet IP-adresse."
+                            ]
+                        },
+                        {
+                            "id": "konto-aufloesen-anmeldungen",
+                            "begriff": "Logins",
+                            "werte": ["Logins i protokollen slettes efter de nævnte frister."]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "externe-dienste",
+                    "text": "Eksterne tjenester"
+                },
+                {
+                    "art": "h4",
+                    "id": "discord-befehle",
+                    "text": "Discord-kommandoer"
+                },
+                {
+                    "art": "absatz",
+                    "text": "På vores Discord-server modtager Avesmaps-botten meldinger."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "discord-befehle-was-wird-gespeichert",
+                            "begriff": "Hvad gemmes?",
+                            "werte": [
+                                "Den, der bruger /bug, /idee eller /frage, sender formularens indhold til Avesmaps. Der gemmes denne tekst, visningsnavnet, som Discord angiver (serverkaldenavn, ellers globalt navn eller brugernavn), og Discord-identifikatoren. Identifikatoren forbliver intern: Den knytter personens meldinger til personen og hjælper mod misbrug."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-was-wird-oeffentlich",
+                            "begriff": "Hvad bliver offentligt?",
+                            "werte": [
+                                "/bug og /idee vises bagefter offentligt i #bugs eller i idékanalen, med nummer, titel, en til to sætninger fra teksten og en tak, der nævner personen. /frage bliver ikke postet. Den daglige rapport på Discord nævner åbne meldinger med titel og kort status og, så snart en melding er gennemgået, navnet på den meldende person. Det gælder også for meldinger fra operatørkanalen."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-eigene-meldungen",
+                            "begriff": "Egne meldinger",
+                            "werte": [
+                                "/offen viser kun den spørgende person de åbne meldinger fra Discord og hendes egne fra hjemmesiden; til det forespørger botten med hendes identifikator hos Avesmaps. /erledigt lukker en egen melding; operatører lukker dermed enhver."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-wer-sieht-es",
+                            "begriff": "Hvem ser det?",
+                            "werte": [
+                                "Meldinger læses af operatørerne. Gennemgåede meldinger behandler de også med AI-værktøjet (se [„AI-værktøj“](#ki-werkzeug)), som så ser teksten og visningsnavnene."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-wann-wird-es-geloescht",
+                            "begriff": "Hvornår slettes den?",
+                            "werte": [
+                                "Så længe en melding er åben, bliver oplysningerne gemt. **90 dage** efter afslutningen slettes tekst, visningsnavn og identifikator; der bliver korttitler, dokumentation og rapporten om udbedringen. Det, der allerede står på Discord, bliver der, indtil det slettes; efter anmodning fjerner vi vores opslag."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-usa-und-rechtsgrundlage",
+                            "begriff": "USA og retsgrundlag",
+                            "werte": [
+                                "Det, der sker på Discord, behandler Discord også selv. For personer i EU er Discord Netherlands BV ansvarlig; data går også til Discord Inc. i USA, ifølge Discord sikret med standardkontraktbestemmelser og EU-U.S. [Data Privacy Framework](https://de.wikipedia.org/wiki/EU-US_Data_Privacy_Framework). [Discords databeskyttelseserklæring](https://discord.com/privacy) gælder. Retsgrundlaget er det legitime interesse i at rette fejl og drøfte idéer åbent (art. 6, stk. 1, litra f, i GDPR); **indsigelse er til enhver tid mulig**."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "ki-werkzeug",
+                    "text": "AI-værktøj"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Operatørerne behandler også meldinger, forespørgsler og mails med et AI-værktøj (Claude fra Anthropic), som så ser teksten og navnet eller afsenderen; for meldinger fra Discord gælder det for gennemgåede meldinger."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "ki-werkzeug-taeglicher-bericht",
+                            "begriff": "Daglig rapport",
+                            "werte": [
+                                "Den daglige rapport på Discord formuleres af Claude Sonnet; til det sendes en gang om dagen titler og tekst fra endnu ikke gennemgåede meldinger med, uden navne og identifikatorer."
+                            ]
+                        },
+                        {
+                            "id": "ki-werkzeug-abonnement-und-bedingungen",
+                            "begriff": "Abonnement og vilkår",
+                            "werte": [
+                                "Begge dele kører via et abonnement hos Anthropic; der gælder Anthropics [brugsvilkår](https://www.anthropic.com/legal/consumer-terms) og [databeskyttelseserklæring](https://www.anthropic.com/legal/privacy). Udbyder er Anthropic Ireland, Limited; data kan gå til USA, ifølge Anthropic sikret med standardkontraktbestemmelser. Brugen af input til træning af AI-modellerne er slået fra i Avesmaps’ konti."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "mailpostfach",
+                    "text": "Mailpostkasse"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Postkassen ligger hos STRATO, og den bruges også til at sende svar. STRATO behandler mailene for os som databehandler. Avesmaps læser kun indgående mails og sletter intet: mails og kopier bliver liggende, indtil operatørerne fjerner dem."
+                },
+                {
+                    "art": "h4",
+                    "id": "social-media",
+                    "text": "Sociale medier"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Redaktionen offentliggør indlæg i Avesmaps’ nyheder og på sine kanaler hos [Mastodon](https://joinmastodon.org), Facebook, Instagram og Discord."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "social-media-personenbezug",
+                            "begriff": "Personhenførbarhed",
+                            "werte": ["Personhenførbarhed opstår kun, når et indlæg nævner eller viser en person."]
+                        },
+                        {
+                            "id": "social-media-wohin-es-geht",
+                            "begriff": "Hvor det går hen",
+                            "werte": [
+                                "Ved afsendelsen går tekst og billede til den respektive tjeneste: rollenspiel.social (Mastodon), Meta Platforms Ireland (Facebook, Instagram) og Discord Inc. (USA). Der gælder deres databeskyttelseserklæringer."
+                            ]
+                        },
+                        {
+                            "id": "social-media-wer-dahintersteht",
+                            "begriff": "Hvem der står bag",
+                            "werte": [
+                                "Hvem der har skrevet eller godkendt et indlæg, fremgår kun af det interne forløb og vises ikke offentligt."
+                            ]
+                        },
+                        {
+                            "id": "social-media-was-die-seite-laedt",
+                            "begriff": "Hvad siden indlæser",
+                            "werte": [
+                                "Avesmaps indlæser intet fra disse tjenester. Knapperne til vores kanaler er almindelige links; først den, der følger dem, er dér, og så gælder deres databeskyttelse der."
+                            ]
+                        },
+                        {
+                            "id": "social-media-wann-wird-es-geloescht",
+                            "begriff": "Hvornår slettes den?",
+                            "werte": [
+                                "Åbne indlæg i papirkurven slettes efter **30 dage**. Offentliggjorte indlæg bliver i det interne forløb. Når de tages tilbage, forsvinder de fra nyhederne og på Mastodon, Facebook og Discord; på Instagram fjerner redaktionen dem i hånden. Den, der er nævnt eller vist i et indlæg og ikke ønsker det, kan henvende sig til adressen i kolofonen."
+                            ]
+                        },
+                        {
+                            "id": "social-media-rechtsgrundlage",
+                            "begriff": "Retsgrundlag",
+                            "werte": [
+                                "Det legitime interesse i at informere om projektet (art. 6, stk. 1, litra f, i GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "fristen-und-sicherungen",
+                    "text": "Frister og sikkerhedskopier"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Overblik; detaljer og undtagelser står ved den pågældende funktion."
+                },
+                {
+                    "art": "tafel",
+                    "kopf": ["Hvad", "Frist", "Hvad der bliver eller afviger"],
+                    "schluesselSpalten": 1,
+                    "zeilen": [
+                        {
+                            "id": "fristen-und-sicherungen-webserver-und-systemprotokoll-sperrprotokoll",
+                            "zellen": ["Webserver- og systemprotokol, spærreprotokol", "**omkring 14 dage**", ""]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-fehlerdiagnose",
+                            "zellen": [
+                                "Fejldiagnose",
+                                "**14 dage**",
+                                "antallet af fejl pr. type og dag bliver som samlet tal"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-anmeldungen-und-fehlversuche",
+                            "zellen": [
+                                "Logins og fejlforsøg",
+                                "**90 dage**",
+                                "forkortet IP-adresse tømt allerede efter **14 dage**"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-abgelaufene-sitzungen-links-anmeldeumwege",
+                            "zellen": ["Udløbne sessioner, links, login-omveje", "**30 dage** efter afslutningen", ""]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-drossel-der-anmeldung",
+                            "zellen": ["Drosling af login", "**30 dages** ro", ""]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-verwaltungshandlungen-aenderungen-am-zugang-redaktionsprotokoll",
+                            "zellen": [
+                                "Administrative handlinger, ændringer af adgangen, redaktionsprotokol",
+                                "bliver",
+                                "sløres ved kontoopløsning"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-betreiber-kanal",
+                            "zellen": [
+                                "Operatørkanal",
+                                "**90 dage** efter godkendelsen",
+                                "Korttitler, dokumentation og fix-rapport bliver"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-benachrichtigungen",
+                            "zellen": [
+                                "Beskeder",
+                                "**90 dage** efter læsning eller svar, senest **180 dage**",
+                                "**straks** ved kontoopløsning"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-meldungen",
+                            "zellen": [
+                                "Meldinger",
+                                "Navn, Discord-oplysninger, statuslink: **90 dage** efter afslutningen",
+                                "åben: bliver; tekst og sagsindhold bliver i arkivet"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-kontakt-und-mail",
+                            "zellen": [
+                                "Kontakt og mail",
+                                "Navn, adresse, afsender, originalmail, statuslink: **90 dage** efter afslutningen",
+                                "åben: bliver; tekst, emne, HTML, vedhæftninger og identifikatorer bliver i arkivet"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-discord-befehle",
+                            "zellen": [
+                                "Discord-kommandoer",
+                                "Tekst, visningsnavn, identifikator: **90 dage** efter afslutningen",
+                                "åben: bliver; korttitler, dokumentation og rapport bliver"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-papierkorb-meldungen-anfragen-social-media",
+                            "zellen": ["Papirkurv (meldinger, forespørgsler, sociale medier)", "**30 dage**", ""]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-bewertungen",
+                            "zellen": [
+                                "Bedømmelser",
+                                "bliver, så længe de er synlige",
+                                "indsigelse: navn, tekst og dato fjernes, stjernerne bliver"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-kartenvorschlaege",
+                            "zellen": [
+                                "Kortforslag",
+                                "fil aldrig modtaget eller ikke behandlet: **7 dage**; afvist eller tilbagetrukket: **30 dage**",
+                                "åben: indtil afgørelsen; godkendt: fil **omkring en uge**, navn og note **90 dage**"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-reisebilder",
+                            "zellen": [
+                                "Rejsebilleder",
+                                "afvist, tilbagetrukket, offline: **30 dage**",
+                                "uafgjort: forfalder efter **60 dage**, slettes **30 dage** derefter"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-sicherungen",
+                            "zellen": [
+                                "Sikkerhedskopier",
+                                "op til **seks måneder**",
+                                "Medier og mails kan ligge længere"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "sicherungen",
+                    "text": "Sikkerhedskopier"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps sikkerhedskopierer dagligt sine databaser og sin konfiguration; dertil kommer, når de ændrer sig, originalerne af medierne med rettighedsdokumentation og de arkiverede mails."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "sicherungen-was-darin-steht",
+                            "begriff": "Hvad der står i den",
+                            "werte": [
+                                "Sikkerhedskopierne indeholder dermed også konti, meldinger, forespørgsler, bedømmelser og protokoller."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-wo-es-liegt",
+                            "begriff": "Hvor den ligger",
+                            "werte": [
+                                "Filerne krypteres, før de forlader serveren, og de ligger på serveren og eksternt hos en lagringstjeneste. Tjenesten får kun de krypterede filer og en oversigt uden personoplysninger."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-schluessel",
+                            "begriff": "Nøgle",
+                            "werte": [
+                                "Nøglen opbevares af operatøren; en anden nøgle til den regelmæssige gendannelsesprøve ligger på serveren."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-wie-lange",
+                            "begriff": "Hvor længe",
+                            "werte": [
+                                "Eksternt bliver de syv seneste sikkerhedskopier og dertil én fra **fire uger** og én fra seks måneder. Det, der er slettet i Avesmaps, kan derfor ligge op til **seks måneder** i en sikkerhedskopi."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-wozu",
+                            "begriff": "Til hvad",
+                            "werte": [
+                                "En sikkerhedskopi læses kun for at gendanne data efter et nedbrud eller for at øve det."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-kopie-fuer-die-entwicklung",
+                            "begriff": "Kopi til udviklingen",
+                            "werte": [
+                                "Til udviklingen henter operatøren midlertidigt en kopi af kortdata og mediefiler til sin maskine. Konti, meldinger, forespørgsler og protokoller er ikke med, navne er skjult; originalfilerne af medierne medfølger dog."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-rechtsgrundlage",
+                            "begriff": "Retsgrundlag",
+                            "werte": ["Det legitime interesse i en sikker drift (art. 6, stk. 1, litra f, i GDPR)."]
+                        }
+                    ]
+                },
+                {
+                    "art": "kasten",
+                    "titel": "Slettet indhold kan ligge længere i sikkerhedskopier",
+                    "absaetze": [
+                        "Medier og mails ligger dér i de to seneste versioner og erstattes kun, når noget ændrer sig; en slettet fil kan derfor også ligge der længere end **seks måneder**."
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "rechte-der-betroffenen",
+                    "text": "Den registreredes rettigheder"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Inden for rammerne af GDPR gælder disse rettigheder:"
+                },
+                {
+                    "art": "liste",
+                    "punkte": [
+                        "Indsigt",
+                        "Berigtigelse",
+                        "Sletning",
+                        "Begrænsning af behandling",
+                        "Dataportabilitet",
+                        "Indsigelse",
+                        "Klage til en tilsynsmyndighed for databeskyttelse"
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Forespørgsler om databeskyttelse sendes til adressen i kolofonen."
+                }
+            ]
+        },
+        {
+            "id": "kontakt-und-impressum",
+            "titel": "Kontakt og kolofon",
+            "hinweis": "Adresse efter § 5 i DDG og hvordan projektet kan kontaktes",
+            "bloecke": [
+                {
+                    "art": "absatz",
+                    "text": "Udvikling, gestaltning, programmering og drift varetages af [Valentin Schwind](https://www.valentin-schwind.de) (c/o Nobelstr. 10, D-70569 Stuttgart); til programmeringen bruges [Claude Code](https://www.anthropic.com/claude-code). Ansvarlig for den redaktionelle vedligeholdelse af kortindholdet er Thomas Braun."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Mail: [{mail}](mailto:{mail})"
+                },
+                {
+                    "art": "kontaktknoepfe"
+                }
+            ]
+        }
+    ],
+    "schluss": "Disse oplysninger kan tilpasses ved tekniske, juridiske eller indholdsmæssige ændringer i projektet."
+}

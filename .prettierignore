@@ -1,0 +1,34 @@
+node_modules
+# `dist*`, nicht `dist`: auch ein Wegwerf-Build daneben (`dist-jetzt`) ist erzeugt, nicht geschrieben.
+dist*
+coverage
+package-lock.json
+
+# Prose and steering documents stay as written; formatting them churns tables and headings.
+*.md
+docs
+project-control
+test-results
+playwright-report
+
+# Die zwei Infoscreens sind erzeugt (scripts/dev/build-infoscreens.mjs, WI-0127 SYS-6); ein Test hält sie bytegleich am Generator.
+apps/server/static/infoscreen
+
+# Arbeitsbäume paralleler Sitzungen (je ein eigener Checkout, nur lokal ausgeschlossen).
+.claude/worktrees
+
+# Festgelegtes Datenartefakt: ops/news/news-seed.sh prueft seine SHA-256 (SEED_SHA). Umformatieren machte das Seed-Werkzeug unbrauchbar (WI-0189, Review L7-01).
+config/news/legacy-seed.json
+
+# Erzeugt von scripts/dev/wiki-parser-orakel.php (Legacys Parser als Orakel); ein Umformatieren ändert nichts an der Erwartung, aber das Werkzeug schriebe es zurück.
+apps/server/test/fixtures/wiki-infobox-orakel.json
+# Ebenso scripts/dev/wiki-literatur-orakel.php (Legacys Literatur-Parser als Orakel, WI-0253 Scheibe Literatur).
+apps/server/test/fixtures/wiki-literatur-orakel.json
+# Ebenso scripts/dev/wiki-schluessel-orakel.php und wiki-ortsliste-orakel.php (Legacys Slug und Abgleich der Ortslisten, WI-0253 Scheibe Ortslisten).
+apps/server/test/fixtures/wiki-schluessel-orakel.json
+apps/server/test/fixtures/wiki-ortsliste-orakel.json
+# Ebenso scripts/dev/wiki-quellen-orakel.php (Legacys Publikationen und Produktseiten als Orakel, WI-0253 Scheibe Quellen).
+apps/server/test/fixtures/wiki-quellen-orakel.json
+
+# Ebenso scripts/dev/wiki-vorkommen-orakel.php (Legacys Lore-Parser als Orakel, WI-0253 Scheibe Vorkommen).
+apps/server/test/fixtures/wiki-vorkommen-orakel.json

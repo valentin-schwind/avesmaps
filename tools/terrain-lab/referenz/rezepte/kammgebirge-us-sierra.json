@@ -1,0 +1,47 @@
+{
+    "format": "avesmaps-referenzrezept",
+    "version": 1,
+    "id": "kammgebirge-us-sierra",
+    "quelle": {
+        "art": "cog-fenster",
+        "urls": [
+            "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n37w119/USGS_13_n37w119.tif",
+            "https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n38w119/USGS_13_n38w119.tif"
+        ],
+        "rand_zellen": 8
+    },
+    "ziel": {
+        "crs": "EPSG:26911",
+        "fenster": [340500.0, 4054500.0, 400500.0, 4102500.0]
+    },
+    "nodata": {
+        "quelle": null,
+        "mindestanteil_gueltig": 0.5
+    },
+    "stufen": [
+        {
+            "name": "30m",
+            "zellgroesse_m": 30,
+            "verfahren": "warp-mittel"
+        },
+        {
+            "name": "187_5m",
+            "zellgroesse_m": 187.5,
+            "verfahren": "warp-mittel"
+        },
+        {
+            "name": "375m",
+            "zellgroesse_m": 375,
+            "verfahren": "block-mittel",
+            "aus": "187_5m",
+            "faktor": 2
+        },
+        {
+            "name": "750m",
+            "zellgroesse_m": 750,
+            "verfahren": "block-mittel",
+            "aus": "187_5m",
+            "faktor": 4
+        }
+    ]
+}

@@ -1,0 +1,37 @@
+{
+    "$comment": "Kartografie des FLUGS im Map Domain aventuria (WI-0051 F3). Neu, nicht aus Legacy: Legacy hat keinen Flug. Nur Darstellung: Weg, Länge und Zeit rechnet der Server (F1, F2). Die Farben stehen im Designkanon (routeFlight, routeSelected, routeHalo), die Breite der Bahn ebenfalls (route.width, route.haloWidth). Wer hier etwas ändert, ändert die Karte.",
+    "schemaVersion": 1,
+    "mapDomain": "aventuria",
+    "$formComment": "Die Ecken des F2-Wegs um die Gebirge werden für das Bild zu Kurven gerundet, flach wie geneigt dieselbe Form (Betreiber 2026-09-28 zum Entwurf: „3. ja“, Ecken auch in 2D rund). Gerechnet wird weiter auf dem Weg. Rund durch Abschneiden der Ecken (Chaikin, jede Strecke bei einem und drei Vierteln, eckenRunden-mal), wie im Entwurf f3-farbe.png, den der Betreiber gesehen hat. 🪤 NICHT Catmull-Rom wie die Wege: Die Knicke von F2 liegen oft dicht beieinander zwischen langen Strecken, und die gleichmäßige Catmull-Rom-Kurve schlug dort Schleifen (gemessen an acht F2-Linien: zwei Schleifen, drei Umkehrungen, bis 4,5 E neben dem Weg). Abschneiden bleibt in der Hülle des Wegs, schlägt keine Schleife und lag höchstens 1,35 E neben ihm. Anfang und Ende bleiben auf den Wegpunkten.",
+    "form": {
+        "eckenRunden": 3
+    },
+    "$bahnComment": "Die Flugbahn im Raum, im echten Höhenmaßstab (Betreiber 2026-09-28 zum Entwurf f3-echt2, wörtlich „A“; ersetzt den bildschirmbezogenen Bogen „B + C“). Regel des Betreibers: „zuerst steigt das flugmittel auf die durchschnittliche flughöhe, erst wenn hindernisse kommen, steigt das fluggerät bis 1000% an. wenn es dann nicht ausweichen kann, weicht es aus“. Nur geneigt; flach bleibt der Flug die Linie der Route. Bedarf je Probe = min(Obergrenze, max(Reisehöhe, Boden + Mindestabstand)) in Schritt über dem Meer; die Obergrenze je Probe ist min(Höchstflughöhe über dem Meer, Boden + höchste Höhe über Grund) und gewinnt über Halten und Steigung (Betreiber 2026-10-04: das Flugmittel erreicht das 10x der Höhe über Grund, höchstens 5000 Schritt über dem Meer). Reisehöhe und beide Grenzen kommen aus der Route (air.altitude_schritt, air.max_above_ground_schritt, air.ceiling_schritt), der Mindestabstand aus dem Reisemodell (flug.wert.mindestabstandSchritt, 200). Außerhalb der Gebirge ist der Boden 0; ausgewichen ist schon, den Weg um zu hohe Gebirge rechnet F2. Der Bedarf gilt über ± haltenEinheiten E (2 E sind 6 Meilen), damit das Flugmittel über nahe beieinander liegenden Graten nicht in jedes Tal sinkt. Steigen und Sinken mit steigung (1 : 4): die obere Hülle des Bedarfs mit dieser Steigung, am Start vom Boden auf, am Ziel auf den Boden, nie unter dem Boden. Maßstab 1 : 1 wie das Gelände (1 Schritt = 1 / (1024 · 3000) Mercator), mal der Überhöhung, die gerade gilt: Beim Neigen wächst die Bahn genau mit den Bergen. Herkunft von steigung und haltenEinheiten: Betreiber 2026-09-28, A (Entwurf f3-echt2).",
+    "bahn": {
+        "steigung": 0.25,
+        "haltenEinheiten": 2
+    },
+    "$probenComment": "Die Bodenhöhen unter der Bahn werden einmal je Route und je Geländewechsel abgefragt (neue Höhenkacheln, anderes Gelände), nie in jedem Bild: bei den Kraftlinienbögen kosteten 350 Abfragen je Bild die Hälfte der Bildrate. Je Abschnitt so viele Proben, wie ihm nach seiner Länge von jeRouteHoechstens zustehen, zwischen jeAbschnittMindestens und jeAbschnittHoechstens. Im echten Maßstab zählt jeder Grat: 1.600 Proben auf Punin → Perricum sind je 250 Schritt, wie im Entwurf f3-echt2 (vorher 400 für den Bogen). Kommen Höhenkacheln Schlag auf Schlag, wird frühestens nach neuFruehestensMs wieder abgefragt. Gemessen am 2026-09-28 mit Grafikkarte: 400 Abfragen 0,2 bis 0,6 ms; beim Drehen und Zoomen 60 Bilder je Sekunde mit und ohne Flugbahn.",
+    "proben": {
+        "jeAbschnittMindestens": 32,
+        "jeAbschnittHoechstens": 1600,
+        "jeRouteHoechstens": 4096,
+        "neuFruehestensMs": 250
+    },
+    "$zeichnungComment": "Wie im Entwurf f3-farbe.png (Betreiber 2026-09-28: „nein keine pfeile aber ein rote flugbahn für fluggeräte“, dann jeder Flug rot): die Bahn im Stil der Route (weißer Saum, farbiger Kern, Breiten aus dem Kanon), darunter die Bodenspur gestrichelt in der Farbe der Bahn, dazwischen dezente helle Lote. Keine Pfeile, keine Bewegung. Strich und Lücke gelten wie bei den Pillen querfeldein in der Bildmitte; ein Strich ist samt seiner runden Enden strichPx lang. Die Lote stehen in Halbierungen des Abschnitts (1/2, dann 1/4 und 3/4 und so fort, höchstens teileHoechstens Teile): voll, sobald ein Lot abstandPx Pixel von seinen Nachbarn hat, darunter bis zum halben Abstand ausgeblendet. Beim Zoomen blendet so die nächste Teilung ein, keines springt. anhebenPx wie die Pillen im Raum: gezeichnet am Ort, getestet mit der Tiefe des angehobenen Punkts.",
+    "zeichnung": {
+        "bodenspur": {
+            "breitePx": 2.5,
+            "strichPx": 8.5,
+            "lueckePx": 3.5,
+            "deckkraft": 0.85
+        },
+        "lote": {
+            "breitePx": 1.5,
+            "deckkraft": 0.9,
+            "abstandPx": 48,
+            "teileHoechstens": 32
+        },
+        "anhebenPx": 8
+    }
+}

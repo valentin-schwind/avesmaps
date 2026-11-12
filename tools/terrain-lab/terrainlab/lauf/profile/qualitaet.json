@@ -1,0 +1,11 @@
+{
+    "name": "qualitaet",
+    "beschreibung": "Qualitäts-Grundlage: Deskriptoren (alle Gruppen) der Vorschau 2x von Blutzinnen, Nordwalser Höhen und Trollzacken sowie der Saat der Blutzinnen",
+    "vorgabe": { "rezept": { "fassung": 19 } },
+    "qualitaet": { "gruppen": null, "ohne_teuer": false, "parameter": {} },
+    "ziele": {},
+    "matrix": [
+        { "fixtures": ["blutzinnen", "nordwalser-hoehen", "trollzacken"], "stufe": "vorschau", "aufloesungen": [2] }
+    ],
+    "faelle": [{ "name": "blutzinnen-saat", "gebirge": { "fixture": "blutzinnen" }, "stufe": "saat" }]
+}

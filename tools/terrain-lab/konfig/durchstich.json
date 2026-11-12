@@ -1,0 +1,33 @@
+{
+    "name": "durchstich",
+    "beschreibung": "Durchstich WI-0250 A4/A5: Kettengebirge (Blutzinnen) und Karst (Trollzacken) bei 1x gesucht, bei 2x/4x gegen die Validierungsausschnitte geprüft; unter einer Stunde",
+    "commit": "f1586257ddb1c8adced755e7f6441d972ec5c86a",
+    "fassung": 19,
+    "typen": [
+        { "typ": "kettengebirge", "gebirge": "blutzinnen" },
+        { "typ": "karst", "gebirge": "trollzacken" }
+    ],
+    "saaten": [null, 4711, 9173],
+    "vorschau": { "kante": 640, "talboden": "typ" },
+    "bewertung": {
+        "plausibilitaet": {
+            "gruppen": null,
+            "ohne_teuer": false,
+            "rand_m": 1500,
+            "relief_angleichen": true
+        },
+        "tor_faktor": 0.8
+    },
+    "sensitivitaet": { "trajektorien": 3, "ebenen": 4, "schwelle": 0.05, "max_aktiv": 12, "seed": 1 },
+    "suche": {
+        "kandidaten": 32,
+        "eta": 3,
+        "saaten": 3,
+        "verfeinerung": { "runden": 2, "nachkommen": 6, "schritt": 0.15 },
+        "seed": 20261023
+    },
+    "validierung": { "beste": 3, "aufloesungen": [2, 4], "vier_x_fuer": 3, "saaten": 2, "gewinn_min": 0.02 },
+    "strategien": { "aktiv": true, "kandidaten": 16, "erreichbar_faktor": 2.0 },
+    "endgelaende": { "aktiv": false, "beste": 0, "schnappschuss": null },
+    "grenzen": { "zeit_s": 3300, "versuche": 900, "cpu_s": null, "ram_min_mib": 600, "ram_warten_s": 120 }
+}

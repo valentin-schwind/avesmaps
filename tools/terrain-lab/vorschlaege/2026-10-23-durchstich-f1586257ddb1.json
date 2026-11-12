@@ -1,0 +1,837 @@
+{
+    "format": "avesmaps-terrainlab-vorschlag",
+    "version": 1,
+    "erzeugt": "2026-10-23T17:05:42",
+    "lauf": "2026-10-23-durchstich",
+    "profil": "durchstich",
+    "commit": "f1586257ddb1c8adced755e7f6441d972ec5c86a",
+    "fassung_basis": 19,
+    "saaten": ["fixture", "4711", "9173"],
+    "vorschau": {
+        "kante": 640,
+        "talboden": "typ"
+    },
+    "bewertung": {
+        "plausibilitaet": {
+            "gruppen": null,
+            "ohne_teuer": false,
+            "parameter": {},
+            "rand_m": 1500,
+            "ausschluss_gruppen": ["frequenz"],
+            "ausschluss_namen": [
+                "hoehe",
+                "hoehe_min",
+                "hoehe_max",
+                "hoehe_mittel",
+                "hoehe_q??",
+                "hoehe_flaeche",
+                "hoehe_nodata_anteil"
+            ],
+            "leitwert_arten": ["relativ", "verteilung", "raeumlich"],
+            "relief_angleichen": true,
+            "min_zellen": 300
+        },
+        "tor_faktor": 0.8
+    },
+    "hinweis": "Vorschlag zur Prüfung durch einen Menschen, keine Fassung und keine Entscheidung. `ueberlagerung` hat die Form der Werte von „19 (Test)“ (presets.typen.<typ>); der Optimierer schreibt nie config/terrain/aventuria/19.json.",
+    "nach_wi_0249": [
+        "Kalibrierungen der Wirkung von `erosion`, `form.erosion`, `form.erhalt`, `plateau` und der Talbodenableitung (`hypsometrie`, `band.ziel`, `gratMin`) gelten nur für diesen Generator-Stand; WI-0249 P2 ändert Einbettung, Erosion und Formerhalt, danach ist neu zu messen.",
+        "Der Formerhalt (Köpfe der Nebengipfel, Kamm) verbessert sich mit WI-0249 P2 selbst; das Formtor und seine Vorgabewerte sind danach neu zu setzen.",
+        "Typwerte, die ein V12-Preset übersteuert (`form.schaerfe`, `form.rauschen`, `form.koernung`, `form.erosion`), sind erst sinnvoll zu kalibrieren, wenn feststeht, welche Seite gilt (Entscheidung offen, P4-Befund 8.3)."
+    ],
+    "typen": {
+        "kettengebirge": {
+            "am_rand": [],
+            "begruendung": "10 Werte geändert (netz.form.breite, netz.form.erhalt, netz.form.grat, netz.form.gratBreite, netz.form.talboden, v12.bergform, v12.erosion, v12.koernung, v12.rauschen, v12.talbreite). Abstand zur Optimierungsreferenz bei 1×: 0,201 → 0,105 (Leitwert, 0 = gleich), Formerhalt 0,82 → 0,90. Validierungsreferenz bei 2×: 0,189 → 0,107 (Gewinn 43,3 %), Formtor gehalten. Validierungsreferenz bei 4×: 0,176 → 0,113 (Gewinn 35,7 %), Formtor gehalten. Bestätigt als Platz 1 der Suche: besser als die Vorgabe an jeder validierten Auflösung, Formtor an jeder gehalten.",
+            "gebirge": "blutzinnen",
+            "kammhoehe_m": 2300.0,
+            "kandidat": {
+                "netz.form.breite": 1.4,
+                "netz.form.erhalt": 0.9,
+                "netz.form.grat": 0.24,
+                "netz.form.gratBreite": 0.5,
+                "netz.form.talboden": 0.6,
+                "v12.bergform": 4.4,
+                "v12.erosion": 1,
+                "v12.koernung": 86.1,
+                "v12.rauschen": 0.47,
+                "v12.talbreite": 1.0
+            },
+            "kennzahlen": {
+                "1x": {
+                    "vorgabe": {
+                        "d1": 0.20070814993124375,
+                        "d1_arten": {
+                            "absolut": 0.1803756274075796,
+                            "raeumlich": 0.14298752669168677,
+                            "relativ": 0.25901717630095983,
+                            "verteilung": 0.20011974680108469
+                        },
+                        "d1_streuung": 0.0061532729898152085,
+                        "form": 0.8227513227513228,
+                        "komponenten": {
+                            "fluss_faellt": 1.0,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 0.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": 1.0,
+                            "neben_kopf": 0.7592592592592592,
+                            "tal_tief": null
+                        },
+                        "rss_mib": 166.4333333333333,
+                        "saaten": 3,
+                        "wall_ms": 1253.8666666666668,
+                        "zellen": 34528
+                    },
+                    "vorschlag": {
+                        "d1": 0.10502519560686896,
+                        "d1_arten": {
+                            "absolut": 0.11284787928527092,
+                            "raeumlich": 0.04751091313900535,
+                            "relativ": 0.11912400630227825,
+                            "verteilung": 0.1484406673793233
+                        },
+                        "d1_streuung": 0.005709577397193143,
+                        "form": 0.9047619047619048,
+                        "komponenten": {
+                            "fluss_faellt": 1.0,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 0.6666666666666666,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": 1.0,
+                            "neben_kopf": 0.6666666666666666,
+                            "tal_tief": null
+                        },
+                        "rss_mib": 164.50000000000003,
+                        "saaten": 3,
+                        "wall_ms": 299.8,
+                        "zellen": 34528
+                    }
+                },
+                "2x": {
+                    "bestaetigt": true,
+                    "gewinn_validierung": 0.43269383099819453,
+                    "tor_ok": true,
+                    "vorgabe_optimierung": {
+                        "d1": 0.1727476287170993,
+                        "d1_arten": {
+                            "absolut": 0.11743070369543109,
+                            "raeumlich": 0.129442072096017,
+                            "relativ": 0.23030176804221694,
+                            "verteilung": 0.15849904601306403
+                        },
+                        "d1_streuung": 0.0012213081644924077,
+                        "form": 0.8452380952380952,
+                        "komponenten": {
+                            "fluss_faellt": 1.0,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 0.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": 1.0,
+                            "neben_kopf": 0.9166666666666666,
+                            "tal_tief": null
+                        },
+                        "rss_mib": 166.60000000000002,
+                        "saaten": 2,
+                        "wall_ms": 5455.15,
+                        "zellen": 137780
+                    },
+                    "vorgabe_validierung": {
+                        "d1": 0.1889662548279411,
+                        "d1_arten": {
+                            "absolut": 0.19127118970618087,
+                            "raeumlich": 0.11040199652908986,
+                            "relativ": 0.28626360454140126,
+                            "verteilung": 0.17023316341333222
+                        },
+                        "d1_streuung": 0.00031523318029959437,
+                        "form": 0.8452380952380952,
+                        "komponenten": {
+                            "fluss_faellt": 1.0,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 0.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": 1.0,
+                            "neben_kopf": 0.9166666666666666,
+                            "tal_tief": null
+                        },
+                        "rss_mib": 166.60000000000002,
+                        "saaten": 2,
+                        "wall_ms": 5455.15,
+                        "zellen": 137780
+                    },
+                    "vorschlag_optimierung": {
+                        "d1": 0.09519279905180045,
+                        "d1_arten": {
+                            "absolut": 0.11450317674289409,
+                            "raeumlich": 0.07564014555912252,
+                            "relativ": 0.09192563458450592,
+                            "verteilung": 0.11801261701177287
+                        },
+                        "d1_streuung": 0.010991637309726932,
+                        "form": 0.9682539682539683,
+                        "komponenten": {
+                            "fluss_faellt": 1.0,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 1.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": 1.0,
+                            "neben_kopf": 0.7777777777777778,
+                            "tal_tief": null
+                        },
+                        "rss_mib": 162.75,
+                        "saaten": 2,
+                        "wall_ms": 1140.1,
+                        "zellen": 137780
+                    },
+                    "vorschlag_validierung": {
+                        "d1": 0.1072017220970582,
+                        "d1_arten": {
+                            "absolut": 0.1375299187238393,
+                            "raeumlich": 0.0709623511998363,
+                            "relativ": 0.12727084607082773,
+                            "verteilung": 0.12337196902051056
+                        },
+                        "d1_streuung": 0.002063421667909885,
+                        "form": 0.9682539682539683,
+                        "komponenten": {
+                            "fluss_faellt": 1.0,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 1.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": 1.0,
+                            "neben_kopf": 0.7777777777777778,
+                            "tal_tief": null
+                        },
+                        "rss_mib": 162.75,
+                        "saaten": 2,
+                        "wall_ms": 1140.1,
+                        "zellen": 137780
+                    }
+                },
+                "4x": {
+                    "bestaetigt": true,
+                    "gewinn_validierung": 0.35716276587875284,
+                    "tor_ok": true,
+                    "vorgabe_optimierung": {
+                        "d1": 0.18037071295367582,
+                        "d1_arten": {
+                            "absolut": 0.13507823814666245,
+                            "raeumlich": 0.115946752995894,
+                            "relativ": 0.24218692153504728,
+                            "verteilung": 0.18297846433008627
+                        },
+                        "d1_streuung": 0.0,
+                        "form": 1.0,
+                        "komponenten": {
+                            "fluss_faellt": 1.0,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 1.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": 1.0,
+                            "neben_kopf": 1.0,
+                            "tal_tief": null
+                        },
+                        "rss_mib": 221.9,
+                        "saaten": 1,
+                        "wall_ms": 23781.5,
+                        "zellen": 548798
+                    },
+                    "vorgabe_validierung": {
+                        "d1": 0.17618074915840198,
+                        "d1_arten": {
+                            "absolut": 0.18488515507361214,
+                            "raeumlich": 0.10026987078020973,
+                            "relativ": 0.2637712986603518,
+                            "verteilung": 0.16450107803464442
+                        },
+                        "d1_streuung": 0.0,
+                        "form": 1.0,
+                        "komponenten": {
+                            "fluss_faellt": 1.0,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 1.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": 1.0,
+                            "neben_kopf": 1.0,
+                            "tal_tief": null
+                        },
+                        "rss_mib": 221.9,
+                        "saaten": 1,
+                        "wall_ms": 23781.5,
+                        "zellen": 548798
+                    },
+                    "vorschlag_optimierung": {
+                        "d1": 0.08659394063699133,
+                        "d1_arten": {
+                            "absolut": 0.09842221422116552,
+                            "raeumlich": 0.07686395080707148,
+                            "relativ": 0.0831382985984459,
+                            "verteilung": 0.09977957250545663
+                        },
+                        "d1_streuung": 0.0,
+                        "form": 0.9841269841269842,
+                        "komponenten": {
+                            "fluss_faellt": 1.0,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 1.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": 1.0,
+                            "neben_kopf": 0.8888888888888888,
+                            "tal_tief": null
+                        },
+                        "rss_mib": 218.5,
+                        "saaten": 1,
+                        "wall_ms": 7506.3,
+                        "zellen": 548798
+                    },
+                    "vorschlag_validierung": {
+                        "d1": 0.11325554549439637,
+                        "d1_arten": {
+                            "absolut": 0.14402717843695978,
+                            "raeumlich": 0.08375130921170154,
+                            "relativ": 0.14423473472067394,
+                            "verteilung": 0.11178059255081366
+                        },
+                        "d1_streuung": 0.0,
+                        "form": 0.9841269841269842,
+                        "komponenten": {
+                            "fluss_faellt": 1.0,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 1.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": 1.0,
+                            "neben_kopf": 0.8888888888888888,
+                            "tal_tief": null
+                        },
+                        "rss_mib": 218.5,
+                        "saaten": 1,
+                        "wall_ms": 7506.3,
+                        "zellen": 548798
+                    }
+                }
+            },
+            "modellgrenzen": [
+                "hydro_senken_anzahl (absolut): Referenz 49, erzeugt zuletzt 0; in 99 % der 216 Messungen unter den sechs am weitesten entfernten Kennzahlen",
+                "hydro_senken_dichte (raeumlich): Referenz 0,017, erzeugt zuletzt 0; in 93 % der 216 Messungen unter den sechs am weitesten entfernten Kennzahlen"
+            ],
+            "sensitivitaet": {
+                "aktiv": [
+                    "netz.form.talboden",
+                    "muster",
+                    "v12.rauschen",
+                    "v12.bergform",
+                    "v12.koernung",
+                    "netz.form.randBreite",
+                    "netz.form.breite",
+                    "netz.form.gratBreite",
+                    "v12.talbreite",
+                    "netz.form.erhalt",
+                    "netz.form.grat",
+                    "v12.erosion"
+                ],
+                "bedingt": ["v12.bergform"],
+                "schwach": [
+                    "netz.struktur.astAbstand",
+                    "netz.struktur.astLaenge",
+                    "netz.struktur.welle",
+                    "v12.einschnitt",
+                    "v12.stufen"
+                ],
+                "wirkungslos": [
+                    "netz.band.ziel",
+                    "netz.form.erosion",
+                    "netz.form.koernung",
+                    "netz.form.rauschen",
+                    "netz.form.schaerfe",
+                    "netz.gratMin",
+                    "v12.hypsometrie"
+                ]
+            },
+            "status": "bestaetigt",
+            "strategie": {
+                "empfehlung": {
+                    "abstand": 0.10524863464413653,
+                    "name": "kaemme-rauschen"
+                },
+                "erreichbar": true,
+                "erreichbar_faktor": 2.0,
+                "referenzstreuung": 0.08142486509675513,
+                "urteil": "empfohlene Strategie: kaemme-rauschen (Abstand 0,105, höchstens 2-mal die Referenzstreuung 0,081)"
+            },
+            "typ": "kettengebirge",
+            "ueberlagerung": {
+                "presets": {
+                    "typen": {
+                        "kettengebirge": {
+                            "rueckennetz": {
+                                "form.breite": 1.4,
+                                "form.erhalt": 0.9,
+                                "form.grat": 0.24,
+                                "form.gratBreite": 0.5,
+                                "form.talboden": 0.6
+                            },
+                            "werte": {
+                                "bergform": 4.4,
+                                "erosion": 1,
+                                "koernung": 86.1,
+                                "rauschen": 0.47,
+                                "talbreite": 1.0
+                            }
+                        }
+                    }
+                }
+            },
+            "vorgabe": {
+                "netz": {
+                    "form.breite": 1.2,
+                    "form.erhalt": 0.5,
+                    "form.grat": 0.18,
+                    "form.gratBreite": 0.45,
+                    "form.talboden": 0.2
+                },
+                "v12": {
+                    "bergform": 2.5,
+                    "erosion": 5,
+                    "koernung": 9,
+                    "rauschen": 0.5,
+                    "talbreite": 1.1
+                }
+            },
+            "werte": {
+                "netz": {
+                    "form.breite": 1.4,
+                    "form.erhalt": 0.9,
+                    "form.grat": 0.24,
+                    "form.gratBreite": 0.5,
+                    "form.talboden": 0.6
+                },
+                "v12": {
+                    "bergform": 4.4,
+                    "erosion": 1,
+                    "koernung": 86.1,
+                    "rauschen": 0.47,
+                    "talbreite": 1.0
+                }
+            }
+        },
+        "karst": {
+            "am_rand": [
+                "netz.form.gratBreite = 0,15 (Bereich 0,15 bis 1,5: unteres Zwanzigstel)",
+                "v12.erosion = 5 (Bereich 0 bis 5: oberes Zwanzigstel)",
+                "v12.rauschen = 1 (Bereich 0 bis 1: oberes Zwanzigstel)"
+            ],
+            "begruendung": "10 Werte geändert (netz.form.breite, netz.form.grat, netz.form.gratBreite, netz.form.randBreite, netz.form.talboden, v12.einschnitt, v12.erosion, v12.koernung, v12.rauschen, v12.talbreite). Abstand zur Optimierungsreferenz bei 1×: 0,166 → 0,155 (Leitwert, 0 = gleich), Formerhalt 0,98 → 1,00. Validierungsreferenz bei 2×: 0,231 → 0,202 (Gewinn 12,6 %), Formtor gehalten. Validierungsreferenz bei 4×: 0,217 → 0,199 (Gewinn 8,0 %), Formtor gehalten. Bestätigt als Platz 1 der Suche: besser als die Vorgabe an jeder validierten Auflösung, Formtor an jeder gehalten.",
+            "gebirge": "trollzacken",
+            "kammhoehe_m": 3200.0,
+            "kandidat": {
+                "netz.form.breite": 0.65,
+                "netz.form.grat": 0.06,
+                "netz.form.gratBreite": 0.15,
+                "netz.form.randBreite": 1.5,
+                "netz.form.talboden": 0.56,
+                "v12.einschnitt": 1875,
+                "v12.erosion": 5,
+                "v12.koernung": 28.5,
+                "v12.rauschen": 1,
+                "v12.talbreite": 4.2
+            },
+            "kennzahlen": {
+                "1x": {
+                    "vorgabe": {
+                        "d1": 0.16614571347786608,
+                        "d1_arten": {
+                            "absolut": 0.16425302970837882,
+                            "raeumlich": 0.13911162284139017,
+                            "relativ": 0.18661982818481046,
+                            "verteilung": 0.17270568940739758
+                        },
+                        "d1_streuung": 0.008522933017051499,
+                        "form": 0.9761904761904763,
+                        "komponenten": {
+                            "fluss_faellt": 1.0,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 1.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": null,
+                            "neben_kopf": 0.8333333333333334,
+                            "tal_tief": 1.0
+                        },
+                        "rss_mib": 160.43333333333334,
+                        "saaten": 3,
+                        "wall_ms": 1627.4666666666665,
+                        "zellen": 55650
+                    },
+                    "vorschlag": {
+                        "d1": 0.15498372554028664,
+                        "d1_arten": {
+                            "absolut": 0.19320402529100678,
+                            "raeumlich": 0.1380370414919818,
+                            "relativ": 0.15963596579954234,
+                            "verteilung": 0.16727816932933584
+                        },
+                        "d1_streuung": 0.005307166980684372,
+                        "form": 1.0,
+                        "komponenten": {
+                            "fluss_faellt": 1.0,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 1.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": null,
+                            "neben_kopf": 1.0,
+                            "tal_tief": 1.0
+                        },
+                        "rss_mib": 160.0,
+                        "saaten": 3,
+                        "wall_ms": 2297.0,
+                        "zellen": 55650
+                    }
+                },
+                "2x": {
+                    "bestaetigt": true,
+                    "gewinn_validierung": 0.12598014383358608,
+                    "tor_ok": true,
+                    "vorgabe_optimierung": {
+                        "d1": 0.1936745057207095,
+                        "d1_arten": {
+                            "absolut": 0.3000745566553834,
+                            "raeumlich": 0.13524355912772132,
+                            "relativ": 0.18607067100981933,
+                            "verteilung": 0.25970928702458784
+                        },
+                        "d1_streuung": 0.006408170034522902,
+                        "form": 0.9821428571428572,
+                        "komponenten": {
+                            "fluss_faellt": 1.0,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 1.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": null,
+                            "neben_kopf": 0.875,
+                            "tal_tief": 1.0
+                        },
+                        "rss_mib": 210.55,
+                        "saaten": 2,
+                        "wall_ms": 9164.7,
+                        "zellen": 221232
+                    },
+                    "vorgabe_validierung": {
+                        "d1": 0.23149428555145346,
+                        "d1_arten": {
+                            "absolut": 0.20168006186759135,
+                            "raeumlich": 0.15087347090870895,
+                            "relativ": 0.2500976383476583,
+                            "verteilung": 0.29351174739799313
+                        },
+                        "d1_streuung": 0.02237831158144494,
+                        "form": 0.9821428571428572,
+                        "komponenten": {
+                            "fluss_faellt": 1.0,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 1.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": null,
+                            "neben_kopf": 0.875,
+                            "tal_tief": 1.0
+                        },
+                        "rss_mib": 210.55,
+                        "saaten": 2,
+                        "wall_ms": 9164.7,
+                        "zellen": 221232
+                    },
+                    "vorschlag_optimierung": {
+                        "d1": 0.19554312332296925,
+                        "d1_arten": {
+                            "absolut": 0.30162991525450156,
+                            "raeumlich": 0.1217269464860381,
+                            "relativ": 0.17688811885539904,
+                            "verteilung": 0.2880143046274706
+                        },
+                        "d1_streuung": 0.0020824926605283135,
+                        "form": 1.0,
+                        "komponenten": {
+                            "fluss_faellt": 1.0,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 1.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": null,
+                            "neben_kopf": 1.0,
+                            "tal_tief": 1.0
+                        },
+                        "rss_mib": 228.5,
+                        "saaten": 2,
+                        "wall_ms": 10620.25,
+                        "zellen": 221232
+                    },
+                    "vorschlag_validierung": {
+                        "d1": 0.2023306021610281,
+                        "d1_arten": {
+                            "absolut": 0.18244471370029863,
+                            "raeumlich": 0.1252464286829163,
+                            "relativ": 0.229069310903537,
+                            "verteilung": 0.2526760668966311
+                        },
+                        "d1_streuung": 0.00291248205644487,
+                        "form": 1.0,
+                        "komponenten": {
+                            "fluss_faellt": 1.0,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 1.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": null,
+                            "neben_kopf": 1.0,
+                            "tal_tief": 1.0
+                        },
+                        "rss_mib": 228.5,
+                        "saaten": 2,
+                        "wall_ms": 10620.25,
+                        "zellen": 221232
+                    }
+                },
+                "4x": {
+                    "bestaetigt": true,
+                    "gewinn_validierung": 0.08014502182200513,
+                    "tor_ok": true,
+                    "vorgabe_optimierung": {
+                        "d1": 0.2244810155607658,
+                        "d1_arten": {
+                            "absolut": 0.3844671144424028,
+                            "raeumlich": 0.11684007748453783,
+                            "relativ": 0.18734919049541687,
+                            "verteilung": 0.36925377870234266
+                        },
+                        "d1_streuung": 0.0,
+                        "form": 0.9821428571428571,
+                        "komponenten": {
+                            "fluss_faellt": 0.875,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 1.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": null,
+                            "neben_kopf": 1.0,
+                            "tal_tief": 1.0
+                        },
+                        "rss_mib": 255.1,
+                        "saaten": 1,
+                        "wall_ms": 58619.3,
+                        "zellen": 881980
+                    },
+                    "vorgabe_validierung": {
+                        "d1": 0.2168340562738218,
+                        "d1_arten": {
+                            "absolut": 0.19550995143842334,
+                            "raeumlich": 0.11471029777503161,
+                            "relativ": 0.21718506473919214,
+                            "verteilung": 0.3186068063072417
+                        },
+                        "d1_streuung": 0.0,
+                        "form": 0.9821428571428571,
+                        "komponenten": {
+                            "fluss_faellt": 0.875,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 1.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": null,
+                            "neben_kopf": 1.0,
+                            "tal_tief": 1.0
+                        },
+                        "rss_mib": 255.1,
+                        "saaten": 1,
+                        "wall_ms": 58619.3,
+                        "zellen": 881980
+                    },
+                    "vorschlag_optimierung": {
+                        "d1": 0.2160553906639406,
+                        "d1_arten": {
+                            "absolut": 0.3801836969415412,
+                            "raeumlich": 0.11684007748453783,
+                            "relativ": 0.16264483157047427,
+                            "verteilung": 0.3686812629368097
+                        },
+                        "d1_streuung": 0.0,
+                        "form": 0.9821428571428571,
+                        "komponenten": {
+                            "fluss_faellt": 0.875,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 1.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": null,
+                            "neben_kopf": 1.0,
+                            "tal_tief": 1.0
+                        },
+                        "rss_mib": 236.5,
+                        "saaten": 1,
+                        "wall_ms": 80537.7,
+                        "zellen": 881980
+                    },
+                    "vorschlag_validierung": {
+                        "d1": 0.19945588610200246,
+                        "d1_arten": {
+                            "absolut": 0.17932729268843214,
+                            "raeumlich": 0.12279112003426858,
+                            "relativ": 0.21039861832918882,
+                            "verteilung": 0.26517791994254997
+                        },
+                        "d1_streuung": 0.0,
+                        "form": 0.9821428571428571,
+                        "komponenten": {
+                            "fluss_faellt": 0.875,
+                            "gipfel_exakt": 1.0,
+                            "gipfel_kopf": 1.0,
+                            "grat": 1.0,
+                            "kammlage": 1.0,
+                            "mulde_tief": null,
+                            "neben_exakt": null,
+                            "neben_kopf": 1.0,
+                            "tal_tief": 1.0
+                        },
+                        "rss_mib": 236.5,
+                        "saaten": 1,
+                        "wall_ms": 80537.7,
+                        "zellen": 881980
+                    }
+                }
+            },
+            "modellgrenzen": [
+                "hydro_senken_anzahl (absolut): Referenz 150, erzeugt zuletzt 0; in 100 % der 213 Messungen unter den sechs am weitesten entfernten Kennzahlen",
+                "hydro_senken_dichte (raeumlich): Referenz 0,0521, erzeugt zuletzt 0; in 100 % der 213 Messungen unter den sechs am weitesten entfernten Kennzahlen",
+                "hydro_senken_anteil (verteilung): Referenz 0,103, erzeugt zuletzt 0; in 92 % der 213 Messungen unter den sechs am weitesten entfernten Kennzahlen",
+                "hydro_senken_tiefe_max (verteilung): Referenz 482, erzeugt zuletzt 0; in 89 % der 213 Messungen unter den sechs am weitesten entfernten Kennzahlen",
+                "hydro_senken_tiefe_mittel (verteilung): Referenz 92,5, erzeugt zuletzt 0; in 88 % der 213 Messungen unter den sechs am weitesten entfernten Kennzahlen",
+                "Dolinen liegen unter der Zellgröße von 187,5 m (Referenzkorpus, Befund A1): Karst ist bei Avesmaps-Maßstab vor allem Hochfläche mit Senkenanteil; Senkenmaße ohne Wirkung auf das Modell."
+            ],
+            "sensitivitaet": {
+                "aktiv": [
+                    "v12.koernung",
+                    "netz.form.talboden",
+                    "v12.rauschen",
+                    "netz.form.breite",
+                    "muster",
+                    "netz.form.gratBreite",
+                    "v12.einschnitt",
+                    "netz.form.randBreite",
+                    "v12.talbreite",
+                    "v12.erosion",
+                    "v12.plateau",
+                    "netz.form.grat"
+                ],
+                "bedingt": ["v12.bergform"],
+                "schwach": ["netz.struktur.astAbstand", "netz.struktur.welle"],
+                "wirkungslos": [
+                    "netz.band.ziel",
+                    "netz.form.erosion",
+                    "netz.form.koernung",
+                    "netz.form.rauschen",
+                    "netz.form.schaerfe",
+                    "netz.gratMin",
+                    "v12.hypsometrie"
+                ]
+            },
+            "status": "bestaetigt",
+            "strategie": {
+                "empfehlung": {
+                    "abstand": 0.15278069374590264,
+                    "name": "kaemme-zellen"
+                },
+                "erreichbar": true,
+                "erreichbar_faktor": 2.0,
+                "referenzstreuung": 0.2708279348519858,
+                "urteil": "empfohlene Strategie: kaemme-zellen (Abstand 0,153, höchstens 2-mal die Referenzstreuung 0,271)",
+                "vorbehalt": "Der bestätigte Vorschlag nutzt kaemme-rauschen, die Empfehlung nennt kaemme-zellen (Unterschied im Abstand bei 1×: 0,004, innerhalb des Rauschens)."
+            },
+            "typ": "karst",
+            "ueberlagerung": {
+                "presets": {
+                    "typen": {
+                        "karst": {
+                            "rueckennetz": {
+                                "form.breite": 0.65,
+                                "form.grat": 0.06,
+                                "form.gratBreite": 0.15,
+                                "form.randBreite": 1.5,
+                                "form.talboden": 0.56
+                            },
+                            "werte": {
+                                "einschnitt": 1875,
+                                "erosion": 5,
+                                "koernung": 28.5,
+                                "rauschen": 1,
+                                "talbreite": 4.2
+                            }
+                        }
+                    }
+                }
+            },
+            "vorgabe": {
+                "netz": {
+                    "form.breite": 1.4,
+                    "form.grat": 0.12,
+                    "form.gratBreite": 0.45,
+                    "form.randBreite": 2,
+                    "form.talboden": 0.65
+                },
+                "v12": {
+                    "einschnitt": 1925,
+                    "erosion": 4,
+                    "koernung": 18,
+                    "rauschen": 0.94,
+                    "talbreite": 3.8
+                }
+            },
+            "werte": {
+                "netz": {
+                    "form.breite": 0.65,
+                    "form.grat": 0.06,
+                    "form.gratBreite": 0.15,
+                    "form.randBreite": 1.5,
+                    "form.talboden": 0.56
+                },
+                "v12": {
+                    "einschnitt": 1875,
+                    "erosion": 5,
+                    "koernung": 28.5,
+                    "rauschen": 1,
+                    "talbreite": 4.2
+                }
+            }
+        }
+    }
+}

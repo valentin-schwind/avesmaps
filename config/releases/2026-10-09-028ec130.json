@@ -1,0 +1,225 @@
+{
+    "schema": 1,
+    "titel": "Die App-Seite der Tür (R6) und alles seit 1ec3160e",
+    "von": "1ec3160ed8d9518dbf94815c41df86999e0fef84",
+    "bis": "028ec13019d6dbb82d34952714de9fc47ccc15da",
+    "datum": "2026-10-09T19:03:51+02:00",
+    "pakete": {
+        "WI-0060": "Häfen ohne Wasser-Zugang benennen (Grund „Hafen ohne Wasser“, Prüfhaken für den Editor)",
+        "WI-0073": "Höhenkacheln als verlustfreies WebP",
+        "WI-0120": "Auth-Plattform (Identität, Anmeldung, Rechte, Verwaltung)",
+        "WI-0123": "Testhygiene: Wappen im Schraffurfall, zwei See-Invarianten, Abbruch der Kartenauswahl, Blätter nur über `review:*`"
+    },
+    "commits": [
+        {
+            "sha": "028ec13019d6dbb82d34952714de9fc47ccc15da",
+            "datum": "2026-10-09T19:03:51+02:00",
+            "wer": "Claudia",
+            "betreff": "test(server): WI-0120 - gleichzeitiges Abberufen: beide 403-Codes sind richtig",
+            "doku": false
+        },
+        {
+            "sha": "3956a4b4c4814d3803a53bf22cc9552fb316d080",
+            "datum": "2026-10-09T18:58:32+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(auth): WI-0120 R6 - Stage-Tür: Gate prüft nur und merkt sich 30 s, Sitzungscookie mit Max-Age",
+            "doku": false
+        },
+        {
+            "sha": "0cc4eed7fe4fd321656500b9a7aa66e9e01a0546",
+            "datum": "2026-10-09T18:29:45+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): Stage-Tür - Punkt 1 und 2 in Arbeit, ein Release mit allem folgt",
+            "doku": true
+        },
+        {
+            "sha": "efb57e8167d8bb1df0e9342c0e54f8ea531870eb",
+            "datum": "2026-10-09T18:27:41+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: WI-0121 - Kollision entschieden: A, so lassen",
+            "doku": true
+        },
+        {
+            "sha": "e12488bfc39da91e7c4d1171037b83fc57cb1e40",
+            "datum": "2026-10-09T18:14:21+02:00",
+            "wer": "Claudio",
+            "betreff": "Handover Stage-Tuer-Abstimmung beantwortet",
+            "doku": true
+        },
+        {
+            "sha": "fa87b36aa57cc5fca52f726d83a560e53b48374a",
+            "datum": "2026-10-09T18:14:19+02:00",
+            "wer": "Claudio",
+            "betreff": "WI-0120 R6: Anmeldetuer statt Basic Auth im Stage-vhost gebaut (auth_request, Einstiege und Build-Dateien frei, Loopback durch, proxy_method GET), AUTH_ANONYMOUS_VIEW=visitor; nicht ausgerollt, wartet auf Claudias Gate-Fix",
+            "doku": false
+        },
+        {
+            "sha": "41e91fc6373e6f4412665ee45f5d72f6968946e4",
+            "datum": "2026-10-09T18:01:44+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(web): WI-0063 Nachtrag - der „Was ist hier?“-Tropfen weicht dem Reiseziel an derselben Stelle",
+            "doku": false
+        },
+        {
+            "sha": "8c5c29a2115fb9096b6d58fc191a89230260091a",
+            "datum": "2026-10-09T17:50:24+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): Stage-Tür - Abstimmung mit Claudio vor dem Umschalten",
+            "doku": true
+        },
+        {
+            "sha": "99b1b8c05f0c011b02dedc81e831c1d0652a1852",
+            "datum": "2026-10-09T17:50:06+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0063 Nachtrag - „Was ist hier?“-Tropfen 1,25-mal so groß",
+            "doku": false
+        },
+        {
+            "sha": "875816399b63ef3a2ff31f3c9348f18d8d72a4a5",
+            "datum": "2026-10-09T17:43:47+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0120): A13 - Stage-Rollout grün nachgetragen",
+            "doku": true
+        },
+        {
+            "sha": "e5454b3144ca1c4830e13db8d2c58029547dfc6d",
+            "datum": "2026-10-09T17:43:06+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0120 - der Kontoblock im Menü ist der Knopf zum Konto",
+            "doku": false
+        },
+        {
+            "sha": "7e86dfe2455523d49147d3a4e9948ef2ee9df5ab",
+            "datum": "2026-10-09T17:28:08+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0063 Nachtrag - „Was ist hier?“-Tropfen 1,5-mal so groß",
+            "doku": false
+        },
+        {
+            "sha": "3934b579958d469b0805ec904856d9400dbb4dec",
+            "datum": "2026-10-09T17:03:28+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: Paket 1 im Status, Prüfring-Farbe im Design Guide berichtigt (WI-0123)",
+            "doku": true
+        },
+        {
+            "sha": "0068737bcb8f03c0718f269e8bc2bb5c5563d1b0",
+            "datum": "2026-10-09T16:53:07+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: WI-0073 - Umbenennen der Kachelspalte entfällt (Implementierungsdetail)",
+            "doku": true
+        },
+        {
+            "sha": "dd16dd2e8238d29d8c7dab33865426c50866879c",
+            "datum": "2026-10-09T16:11:57+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0123): Testhygiene und Inventur der Prüfhaken in Legacys Editor",
+            "doku": true
+        },
+        {
+            "sha": "bc8775f94d8a374553622dc0d65ea8c0cd94010b",
+            "datum": "2026-10-09T16:11:56+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(web): WI-0123 - Wappen holen einen vorübergehend gescheiterten Abruf nach",
+            "doku": false
+        },
+        {
+            "sha": "e0b1e6a9c60b0d1628511e7f67cb68555d4ee4c5",
+            "datum": "2026-10-09T16:11:56+02:00",
+            "wer": "Claudia",
+            "betreff": "test(server): WI-0123 - See-Invarianten lesen die Anlegestelle aus dem Seegraphen",
+            "doku": false
+        },
+        {
+            "sha": "bd012928fd29b51287a04db30fd971cf1803140e",
+            "datum": "2026-10-09T16:11:50+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(server): WI-0123 - Kartenauswahl bricht ab, wenn der Client geht",
+            "doku": false
+        },
+        {
+            "sha": "9c6f81644989e0cda599932992a3a7495831b07e",
+            "datum": "2026-10-09T16:00:22+02:00",
+            "wer": "Claudio",
+            "betreff": "Runbook Notzugang: Schritt 2 auf den echten Befehl notzugang (60 min) umgestellt",
+            "doku": true
+        },
+        {
+            "sha": "37a64a5b31b3bd1b151764af4dd63115f06560f4",
+            "datum": "2026-10-09T15:58:35+02:00",
+            "wer": "Claudio",
+            "betreff": "Runbook Notzugang zur Anmeldung (avesmaps3d-auth, nur root): wer sich ausgesperrt hat, welche Schritte, was bei Fehlern",
+            "doku": true
+        },
+        {
+            "sha": "80dd6885d2c5bbbaa7fc34fc4d3282fb056f5c93",
+            "datum": "2026-10-09T15:58:20+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0104/WI-0098 - „Keine besonderen Vorkommen“ bei 0, am Telefon der Satz ohne Verb",
+            "doku": false
+        },
+        {
+            "sha": "58e7d465b203a98f2257ab267972f3cd082ed2de",
+            "datum": "2026-10-09T15:56:24+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0073): Nachlauf geprüft, PNG-Revision auf Stage offen, nichts gebaut",
+            "doku": true
+        },
+        {
+            "sha": "d7cd13c8c3d03415053e3a7b7d2c2b5f3188dddc",
+            "datum": "2026-10-09T15:56:07+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0060): Häfen ohne Wasser-Zugang samt Grund im Bericht von legacy:update",
+            "doku": false
+        },
+        {
+            "sha": "49717845af482228935f1129bc8170cb656a0f72",
+            "datum": "2026-10-09T15:49:43+02:00",
+            "wer": "Claudio",
+            "betreff": "Stage-Rollout 1ec3160 mit Anmeldung gruen: 0079-0082, Rechte geprueft, Discord an, CSP/HSTS, auth_retention gelaufen",
+            "doku": true
+        },
+        {
+            "sha": "47cdf4f1c1f824bede0047e95cbdbc8eb69c2359",
+            "datum": "2026-10-09T15:44:29+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(web): WI-0090 O2 - Strichelung der Wege in jeder Ansicht außer „Standard“",
+            "doku": false
+        },
+        {
+            "sha": "ae2fa2b2d1c431b3151e67a07c2038c3646cdca1",
+            "datum": "2026-10-09T15:43:40+02:00",
+            "wer": "Claudio",
+            "betreff": "Auth auf Stage vorbereitet (WI-0120 A13): runtime-foundation --apply-auth (Grants mit Auth-Teil, abgeschrieben und Zeile fuer Zeile geprueft; secrets.env und Unit-Zeile; Stage-Werte; avesmaps3d-auth nur root) und --set-discord-secret (verdeckt); vhost mit HSTS, statischer CSP, Drosseln fuer die Anmeldung, Discord-Rueckkehr ohne Query im Log; D3 versteht schema-qualifizierte Tabellen. Runtime 199, Nginx 114, Deploy 208 PASS",
+            "doku": false
+        },
+        {
+            "sha": "eb708799485d42d973b12400b120875d71cca6ae",
+            "datum": "2026-10-09T15:20:12+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): WI-0120 A13 - Client-ID der Discord-App für Stage",
+            "doku": true
+        },
+        {
+            "sha": "d35bff89f9bcc12a9054114a3b7d52d4dab3b005",
+            "datum": "2026-10-09T15:10:46+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): Release 1ec3160e - Mitfahrer WI-0121, WI-0122, WI-0063 bestätigt, Postflight der Stätten-Arten",
+            "doku": true
+        },
+        {
+            "sha": "03930a0c559f16d680d0b2a055d3c5e6e15c00a5",
+            "datum": "2026-10-09T15:08:47+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): WI-0120 A13 - Mitfahrer und Sicherung entschieden",
+            "doku": true
+        },
+        {
+            "sha": "758d58d4be055f4b894785c26a59b1c08f4af7c9",
+            "datum": "2026-10-09T15:02:32+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): WI-0120 A13 - Stage-Release 1ec3160e an Claudio",
+            "doku": true
+        }
+    ]
+}

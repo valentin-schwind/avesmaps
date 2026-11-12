@@ -1,0 +1,114 @@
+{
+    "$comment": "Profil der Warteschlange auf dem Entwicklungsrechner (JOBS-0001 Abschnitt 7, WI-0074). Lokale Werte sind nie Konfiguration für Stage oder Production, nur Begründung; sie stehen ausschließlich hier. Lokal sind die Werte großzügig, damit Tests und der Messlauf mit zwei Probe-Jobs gleichzeitig laufen können.",
+    "schemaVersion": 1,
+    "profile": "local",
+    "values": {
+        "heartbeatS": { "value": 10, "note": "MS1" },
+        "leaseS": { "value": { "default": 60 }, "note": "MS2" },
+        "recordedLeaseS": {
+            "value": {
+                "default": 900,
+                "import": 900,
+                "rollout": 300,
+                "stage_rollout": 2700,
+                "pruefung_nach_push": 2700
+            },
+            "note": "MS2 (aufgezeichnet)"
+        },
+        "maxConcurrent": {
+            "value": {
+                "probe": 2,
+                "land_smooth": 1,
+                "label_runs": 1,
+                "import": 1,
+                "terrain_local": 1,
+                "dem_publish": 1,
+                "display_heights": 1,
+                "routing_reload": 2,
+                "terrain_full": 1,
+                "media_derive": 1,
+                "sea_derive": 1,
+                "map_series_tile": 1,
+                "karten_svg": 1,
+                "path_label_runs": 1,
+                "path_profile": 1,
+                "sprache_treffer": 1
+            },
+            "note": "MS3; Gelände-Kette WI-0125: dem_publish nacheinander, terrain_full einer"
+        },
+        "exclusivePairs": {
+            "value": [
+                ["import", "terrain_local"],
+                ["import", "terrain_full"],
+                ["terrain_full", "terrain_local"],
+                ["wiki_uebernehmen", "legacy_zug"],
+                ["wiki_uebernehmen", "import"],
+                ["wiki_uebernehmen", "territory_derive"],
+                ["wiki_zuruecknehmen", "legacy_zug"],
+                ["wiki_zuruecknehmen", "import"],
+                ["wiki_zuruecknehmen", "territory_derive"]
+            ],
+            "note": "MS3"
+        },
+        "cpuBudgetThreads": { "value": 8, "note": "MS4: Ryzen 5900X, 24 Threads" },
+        "threads": {
+            "value": {
+                "probe": 1,
+                "media_derive": 1,
+                "terrain_local": 2,
+                "terrain_full": 2,
+                "dem_publish": 1,
+                "display_heights": 1
+            },
+            "note": "Threads je Jobart"
+        },
+        "memExpectedMb": {
+            "value": {
+                "terrain_full": 1400,
+                "terrain_publish_only": 800,
+                "display_heights": 700,
+                "import": 300,
+                "land_smooth": 100,
+                "label_runs": 120,
+                "media_derive": 250,
+                "media_derive_map_full": 600,
+                "sea_derive": 1200,
+                "map_series_tile": 900,
+                "karten_svg": 800,
+                "probe_base": 100,
+                "path_label_runs": 150,
+                "path_profile": 400,
+                "sprache_treffer": 150
+            },
+            "note": "MS5; media_derive lokal gemessen im Kindprozess: 102 bis 121 MB Spitze bei 4 bis 16 MP, map_full (verlustfrei, 16 MP) 484 MB"
+        },
+        "memTotalBudgetMb": { "value": 4096, "note": "MS6: Entwicklungsrechner mit 32 GB" },
+        "memAvailFloorMb": { "value": 2048, "note": "MS7" },
+        "rolloutMaxJobMb": { "value": 300, "note": "Q3" },
+        "memReportWarnMb": { "value": { "terrain_full": 1400, "display_heights": 700 }, "note": "MS8" },
+        "swapNoiseMb": { "value": 64, "note": "MS9" },
+        "swapInRateMbPerMin": { "value": 21, "note": "MS9" },
+        "expectedDurationS": {
+            "value": {
+                "terrain_full": 300,
+                "terrain_publish_only": 60,
+                "display_heights": 110,
+                "import": 600,
+                "land_smooth": 7.3,
+                "media_derive": 2,
+                "media_derive_map_full": 5,
+                "sea_derive": 250,
+                "map_series_tile": 120,
+                "karten_svg": 60
+            },
+            "note": "MS10: lokal gemessen (I11 288-298 s, I13 108 s, media_derive 0,6 bis 0,8 s, map_full bei 16 MP 3,3 s; sea_derive unter Last Median 249 s, ungestört 120,5 s, Spitze rund 1 GB, WI-0153 §11; map_series_tile 32k lokal 69 s mit 326 MB, WI-0220 §4.3)"
+        },
+        "historyMinRuns": { "value": 5, "note": "MS10" },
+        "drainMaxS": { "value": 420, "note": "MS12" },
+        "wsMaxConnections": { "value": null, "note": "MS14" },
+        "retention": { "value": { "keepDays": 30, "keepRuns": 200, "eventKeepDays": 14 }, "note": "MS15" },
+        "apiLatencyTargetMs": { "value": { "p95": 300, "p99": 1000 }, "note": "MS19" },
+        "dbConnectionBudget": { "value": 6, "note": "MS20" },
+        "tickS": { "value": 2, "note": "Takt des Planers" }
+    }
+}

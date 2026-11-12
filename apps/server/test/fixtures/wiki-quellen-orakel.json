@@ -1,0 +1,701 @@
+{
+    "_hinweis": "Erwartungen schreibt scripts/dev/wiki-quellen-orakel.php aus Legacys echten Funktionen (Mirror a7f2dac86); nie von Hand.",
+    "faelle": [
+        {
+            "id": "grundform",
+            "titel": "Gareth",
+            "text": "{{Infobox Siedlung\n|Name=Gareth\n}}\nText.\n== Publikationen ==\n=== Ausführliche Quellen ===\n* [[Das Herz des Reiches]] Seite 54\n* [[Am Großen Fluss]] Seiten 40, '''145''' <small>(Zerstörung)</small>\n=== Ergänzende Quellen ===\n* [[Reich des Horas|Horasreich]] S. 12-15 (Karte)\n=== Erwähnungen ===\n* [[Aventurischer Bote 120#Inhalt|AB 120]] Seite 3\n== Weblinks ==\n* [[Nicht gemeint]] Seite 9\n",
+            "erwartet": {
+                "zitate": [
+                    {
+                        "title": "Das Herz des Reiches",
+                        "reference_kind": "ausfuehrlich",
+                        "pages": "54",
+                        "note": null
+                    },
+                    {
+                        "title": "Am Großen Fluss",
+                        "reference_kind": "ausfuehrlich",
+                        "pages": "40, 145",
+                        "note": "Zerstörung"
+                    },
+                    {
+                        "title": "Reich des Horas",
+                        "reference_kind": "ergaenzend",
+                        "pages": "12, 15",
+                        "note": "Karte"
+                    },
+                    {
+                        "title": "Aventurischer Bote 120",
+                        "reference_kind": "erwaehnung",
+                        "pages": "3",
+                        "note": null
+                    }
+                ],
+                "produkt": null
+            }
+        },
+        {
+            "id": "ignorierte-abschnitte",
+            "titel": "Punin",
+            "text": "== Publikationen ==\n===Elektronische Quellen===\n* [[Elektronisch]] 5\n=== Bildquellen ===\n* [[Bild]] 6\n=== Sonstiges ===\n* [[Sonst]] 7\n===Ausführlich===\n*[[Drin]]\n",
+            "erwartet": {
+                "zitate": [
+                    {
+                        "title": "Drin",
+                        "reference_kind": "ausfuehrlich",
+                        "pages": null,
+                        "note": null
+                    }
+                ],
+                "produkt": null
+            }
+        },
+        {
+            "id": "kein-abschnitt",
+            "titel": "Leer",
+            "text": "Nur Text.\n==Weblinks==\n* [[A]]\n",
+            "erwartet": {
+                "zitate": [],
+                "produkt": null
+            }
+        },
+        {
+            "id": "gross-klein-und-leerraum",
+            "titel": "Kuslik",
+            "text": "Text\n==  publikationen  ==  \n\n=== ERGÄNZEND ===\n  *  [[ Kuslik-Buch ]]   Seite 1 \n* kein Link hier\n*[[]] leer\n* [[#Nur Abschnitt]] 4\n",
+            "erwartet": {
+                "zitate": [
+                    {
+                        "title": "Kuslik-Buch",
+                        "reference_kind": "ergaenzend",
+                        "pages": "1",
+                        "note": null
+                    }
+                ],
+                "produkt": null
+            }
+        },
+        {
+            "id": "entitaeten",
+            "titel": "Verräter",
+            "text": "== Publikationen ==\n=== Ausführliche Quellen ===\n* [[Verräter &#38; Geächtete]] Seite 7 &lt;small&gt;(Ent)&lt;/small&gt;\n* [[Ban&#39;Shi]] Seite 2\n",
+            "erwartet": {
+                "zitate": [
+                    {
+                        "title": "Verräter & Geächtete",
+                        "reference_kind": "ausfuehrlich",
+                        "pages": "7",
+                        "note": "Ent"
+                    },
+                    {
+                        "title": "Ban'Shi",
+                        "reference_kind": "ausfuehrlich",
+                        "pages": "2",
+                        "note": null
+                    }
+                ],
+                "produkt": null
+            }
+        },
+        {
+            "id": "small-varianten",
+            "titel": "Klein",
+            "text": "== Publikationen ==\n=== Erwähnung ===\n* [[A]] <SMALL> ( Notiz mit (Klammer) ) </SMALL> Seite 9\n* [[B]] Seite 1 <small></small> 2\n* [[C]] (erste) (zweite) Seite 3\n* [[D]] <small>ohne Klammer</small>\n* [[E]] Seiten ٣٤ und 5\n* [[F]]\n",
+            "erwartet": {
+                "zitate": [
+                    {
+                        "title": "A",
+                        "reference_kind": "erwaehnung",
+                        "pages": "9",
+                        "note": "Notiz mit (Klammer)"
+                    },
+                    {
+                        "title": "B",
+                        "reference_kind": "erwaehnung",
+                        "pages": "1, 2",
+                        "note": null
+                    },
+                    {
+                        "title": "C",
+                        "reference_kind": "erwaehnung",
+                        "pages": "3",
+                        "note": "erste"
+                    },
+                    {
+                        "title": "D",
+                        "reference_kind": "erwaehnung",
+                        "pages": null,
+                        "note": "ohne Klammer"
+                    },
+                    {
+                        "title": "E",
+                        "reference_kind": "erwaehnung",
+                        "pages": "٣٤, 5",
+                        "note": null
+                    },
+                    {
+                        "title": "F",
+                        "reference_kind": "erwaehnung",
+                        "pages": null,
+                        "note": null
+                    }
+                ],
+                "produkt": null
+            }
+        },
+        {
+            "id": "zwei-abschnitte",
+            "titel": "Doppelt",
+            "text": "== Publikationen ==\n=== Ausführlich ===\n* [[A]] 1\n== Publikationen ==\n=== Erwähnung ===\n* [[B]] 2\n",
+            "erwartet": {
+                "zitate": [
+                    {
+                        "title": "A",
+                        "reference_kind": "ausfuehrlich",
+                        "pages": "1",
+                        "note": null
+                    }
+                ],
+                "produkt": null
+            }
+        },
+        {
+            "id": "windows-zeilen",
+            "titel": "Fenster",
+            "text": "== Publikationen ==\r\n=== Ausführlich ===\r\n* [[A]] Seite 1\r\n* [[B]] Seite 2\r\n",
+            "erwartet": {
+                "zitate": [
+                    {
+                        "title": "A",
+                        "reference_kind": "ausfuehrlich",
+                        "pages": "1",
+                        "note": null
+                    },
+                    {
+                        "title": "B",
+                        "reference_kind": "ausfuehrlich",
+                        "pages": "2",
+                        "note": null
+                    }
+                ],
+                "produkt": null
+            }
+        },
+        {
+            "id": "doppelte-publikation",
+            "titel": "Zweimal",
+            "text": "== Publikationen ==\n=== Erwähnung ===\n* [[A]] 1\n=== Ausführlich ===\n* [[A]] 2\n",
+            "erwartet": {
+                "zitate": [
+                    {
+                        "title": "A",
+                        "reference_kind": "erwaehnung",
+                        "pages": "1",
+                        "note": null
+                    },
+                    {
+                        "title": "A",
+                        "reference_kind": "ausfuehrlich",
+                        "pages": "2",
+                        "note": null
+                    }
+                ],
+                "produkt": null
+            }
+        },
+        {
+            "id": "produkt-f-shop",
+            "titel": "Am Großen Fluss",
+            "text": "{{Infobox Produkt\n|Titel=Am Großen Fluss\n|Art=Regionalspielhilfe\n|Direktlinks={{F-Shop|PID=12011}} {{Ulisses|ID=1}}\n|Download={{PDF-Shop|ID=555}}\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": "https://www.f-shop.de/search?sSearch=12011",
+                    "titel": "Am Großen Fluss",
+                    "quellenart": "regionalspielhilfe"
+                }
+            }
+        },
+        {
+            "id": "produkt-pdf-shop",
+            "titel": "Nur PDF",
+            "text": "{{Infobox Produkt\n|Titel=Nur PDF\n|Art=Quellenband\n|Direktlinks={{F-Shop|PID=NUMMER}}\n|Download={{ PDF-Shop | ID = 109956 }}\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": "https://www.ulisses-ebooks.de/de/product/109956/",
+                    "titel": "Nur PDF",
+                    "quellenart": "quellenband"
+                }
+            }
+        },
+        {
+            "id": "produkt-ohne-adresse",
+            "titel": "Ohne Laden",
+            "text": "{{Infobox Produkt\n|Titel=Ohne Laden\n|Art=Roman\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Ohne Laden",
+                    "quellenart": "roman"
+                }
+            }
+        },
+        {
+            "id": "produkt-sonderzeichen",
+            "titel": "Sonder",
+            "text": "{{Infobox Produkt\n|Art=Roman\n|Direktlinks={{f-shop|pid=A&amp;B(1)}}\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": "https://www.f-shop.de/search?sSearch=A%26B%281%29",
+                    "titel": "Sonder",
+                    "quellenart": "roman"
+                }
+            }
+        },
+        {
+            "id": "produkt-zweite-infobox",
+            "titel": "Zweite",
+            "text": "{{Infobox Siedlung\n|Name=X\n}}\n{{Infobox Produkt\n|Titel=Zweite\n|Direktlinks={{F-Shop|PID=1}}\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": null
+            }
+        },
+        {
+            "id": "produkt-offen",
+            "titel": "Offen",
+            "text": "{{Infobox Produkt\n|Titel=Offen\n|Direktlinks={{F-Shop|PID=77}}\n",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": "https://www.f-shop.de/search?sSearch=77",
+                    "titel": "Offen",
+                    "quellenart": "sonstiges"
+                }
+            }
+        },
+        {
+            "id": "produkt-klein-geschrieben",
+            "titel": "klein",
+            "text": "{{Infobox produkt\n|Titel=klein\n|Download={{PDF-Shop|ID=x9}}\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": "https://www.ulisses-ebooks.de/de/product/x9/",
+                    "titel": "klein",
+                    "quellenart": "sonstiges"
+                }
+            }
+        },
+        {
+            "id": "kein-produkt-wort",
+            "titel": "Wort",
+            "text": "{{Infobox Region\n|Name=Wort\n}}\n== Publikationen ==\n=== Ausführlich ===\n* [[Produktkatalog]] 1\n",
+            "erwartet": {
+                "zitate": [
+                    {
+                        "title": "Produktkatalog",
+                        "reference_kind": "ausfuehrlich",
+                        "pages": "1",
+                        "note": null
+                    }
+                ],
+                "produkt": null
+            }
+        },
+        {
+            "id": "titel-untertitel-ist-seitenname",
+            "titel": "Aventurien - Das Lexikon des Schwarzen Auges",
+            "text": "{{Infobox Produkt\n|Titel=Aventurien\n|Untertitel=Das Lexikon des Schwarzen Auges\n|Art=Quellenband\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Aventurien - Das Lexikon des Schwarzen Auges",
+                    "quellenart": "quellenband"
+                }
+            }
+        },
+        {
+            "id": "titel-untertitel-nur-beschreibend",
+            "titel": "Hallen aus Gold",
+            "text": "{{Infobox Produkt\n|Titel=Hallen aus Gold\n|Untertitel=Brandans Pakt III\n|Art=Abenteuer\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Hallen aus Gold",
+                    "quellenart": "abenteuer"
+                }
+            }
+        },
+        {
+            "id": "titel-untertitel-gedankenstrich-gefaltet",
+            "titel": "Aventurien – Das Lexikon",
+            "text": "{{Infobox Produkt\n|Titel=Aventurien\n|Untertitel=Das Lexikon\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Aventurien – Das Lexikon",
+                    "quellenart": "sonstiges"
+                }
+            }
+        },
+        {
+            "id": "titel-untertitel-doppelpunkt-und-grossschreibung",
+            "titel": "DAS BUCH: Der Weg",
+            "text": "{{Infobox Produkt\n|Titel=Das Buch\n|Untertitel=Der  Weg\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "DAS BUCH: Der Weg",
+                    "quellenart": "sonstiges"
+                }
+            }
+        },
+        {
+            "id": "titel-fehlt",
+            "titel": "Seitenname als Titel",
+            "text": "{{Infobox Produkt\n|Art=Roman\n|Untertitel=Egal\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Seitenname als Titel",
+                    "quellenart": "roman"
+                }
+            }
+        },
+        {
+            "id": "titel-leer-und-untertitel",
+            "titel": "Nur der Seitenname",
+            "text": "{{Infobox Produkt\n|Titel=   \n|Untertitel=Egal\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Nur der Seitenname",
+                    "quellenart": "sonstiges"
+                }
+            }
+        },
+        {
+            "id": "titel-br-und-leerraum",
+            "titel": "Mit Umbruch",
+            "text": "{{Infobox Produkt\n|Titel=Erste<br/>Zeile<BR >zwei   drei\t\tvier\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Erste Zeile zwei drei vier",
+                    "quellenart": "sonstiges"
+                }
+            }
+        },
+        {
+            "id": "titel-zeichenverweise-genau-einmal",
+            "titel": "Verweise",
+            "text": "{{Infobox Produkt\n|Titel=Ban&#39;Shi &amp;amp; &lt;br&gt;Co\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Ban'Shi &amp; Co",
+                    "quellenart": "sonstiges"
+                }
+            }
+        },
+        {
+            "id": "titel-klein-geschriebener-parameter",
+            "titel": "Kleiner Parameter",
+            "text": "{{Infobox Produkt\n|titel=klein\n|untertitel=auch\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Kleiner Parameter",
+                    "quellenart": "sonstiges"
+                }
+            }
+        },
+        {
+            "id": "titel-lang",
+            "titel": "Lang",
+            "text": "{{Infobox Produkt\n|Titel=Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Ende\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort Wort ",
+                    "quellenart": "sonstiges"
+                }
+            }
+        },
+        {
+            "id": "titel-lang-mit-br-an-der-grenze",
+            "titel": "Lang mit Umbruch",
+            "text": "{{Infobox Produkt\n|Titel=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx<br/>yz\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                    "quellenart": "sonstiges"
+                }
+            }
+        },
+        {
+            "id": "titel-sigma",
+            "titel": "Οδυσσεύς – Σ",
+            "text": "{{Infobox Produkt\n|Titel=Οδυσσεύς\n|Untertitel=Σ\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Οδυσσεύς – Σ",
+                    "quellenart": "sonstiges"
+                }
+            }
+        },
+        {
+            "id": "art-gruppenabenteuer",
+            "titel": "Art Gruppenabenteuer",
+            "text": "{{Infobox Produkt\n|Titel=Art Gruppenabenteuer\n|Art=Gruppenabenteuer\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Art Gruppenabenteuer",
+                    "quellenart": "abenteuer"
+                }
+            }
+        },
+        {
+            "id": "art-kampagnenband",
+            "titel": "Art Kampagnenband",
+            "text": "{{Infobox Produkt\n|Titel=Art Kampagnenband\n|Art=Kampagnenband\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Art Kampagnenband",
+                    "quellenart": "abenteuer"
+                }
+            }
+        },
+        {
+            "id": "art-kurzgeschichte",
+            "titel": "Art Kurzgeschichte",
+            "text": "{{Infobox Produkt\n|Titel=Art Kurzgeschichte\n|Art=Kurzgeschichte\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Art Kurzgeschichte",
+                    "quellenart": "roman"
+                }
+            }
+        },
+        {
+            "id": "art-aventurischer-bote",
+            "titel": "Art Aventurischer Bote",
+            "text": "{{Infobox Produkt\n|Titel=Art Aventurischer Bote\n|Art=Aventurischer Bote\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Art Aventurischer Bote",
+                    "quellenart": "aventurischer_bote"
+                }
+            }
+        },
+        {
+            "id": "art-regelwerk",
+            "titel": "Art Regelwerk",
+            "text": "{{Infobox Produkt\n|Titel=Art Regelwerk\n|Art=Regelwerk\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Art Regelwerk",
+                    "quellenart": "regelbuch"
+                }
+            }
+        },
+        {
+            "id": "art-basisregelwerk-mit-umlaut-und-gross",
+            "titel": "Art BASISREGELWERK",
+            "text": "{{Infobox Produkt\n|Titel=Art BASISREGELWERK\n|Art=BASISREGELWERK\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Art BASISREGELWERK",
+                    "quellenart": "regelbuch"
+                }
+            }
+        },
+        {
+            "id": "art-briefspiel",
+            "titel": "Art Briefspiel",
+            "text": "{{Infobox Produkt\n|Titel=Art Briefspiel\n|Art=Briefspiel\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Art Briefspiel",
+                    "quellenart": "briefspiel"
+                }
+            }
+        },
+        {
+            "id": "art-unbekannt",
+            "titel": "Art Hörbuch",
+            "text": "{{Infobox Produkt\n|Titel=Art Hörbuch\n|Art=Hörbuch\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Art Hörbuch",
+                    "quellenart": "sonstiges"
+                }
+            }
+        },
+        {
+            "id": "art-teilwort-sammelband",
+            "titel": "Art Abenteuer-Sammelband",
+            "text": "{{Infobox Produkt\n|Titel=Art Abenteuer-Sammelband\n|Art=Abenteuer-Sammelband\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Art Abenteuer-Sammelband",
+                    "quellenart": "abenteuer"
+                }
+            }
+        },
+        {
+            "id": "art-teilwort-spielhilfe",
+            "titel": "Art Spielhilfe",
+            "text": "{{Infobox Produkt\n|Titel=Art Spielhilfe\n|Art=Spielhilfe\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Art Spielhilfe",
+                    "quellenart": "regionalspielhilfe"
+                }
+            }
+        },
+        {
+            "id": "art-teilwort-ilaris-regelwerk",
+            "titel": "Art Ilaris Regelwerk",
+            "text": "{{Infobox Produkt\n|Titel=Art Ilaris Regelwerk\n|Art=Ilaris Regelwerk\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Art Ilaris Regelwerk",
+                    "quellenart": "regelbuch"
+                }
+            }
+        },
+        {
+            "id": "art-band-trifft-zuerst-kampagnenband",
+            "titel": "Art Band",
+            "text": "{{Infobox Produkt\n|Titel=Art Band\n|Art=Band\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Art Band",
+                    "quellenart": "abenteuer"
+                }
+            }
+        },
+        {
+            "id": "art-szenario",
+            "titel": "Art Szenario",
+            "text": "{{Infobox Produkt\n|Titel=Art Szenario\n|Art=Szenario\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Art Szenario",
+                    "quellenart": "abenteuer"
+                }
+            }
+        },
+        {
+            "id": "art-mit-sonderzeichen",
+            "titel": "Art Quellen-Band (Neu)",
+            "text": "{{Infobox Produkt\n|Titel=Art Quellen-Band (Neu)\n|Art=Quellen-Band (Neu)\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Art Quellen-Band (Neu)",
+                    "quellenart": "quellenband"
+                }
+            }
+        },
+        {
+            "id": "art-leer-dann-unterkategorie",
+            "titel": "Unterkategorie",
+            "text": "{{Infobox Produkt\n|Titel=Unterkategorie\n|Art=\n|Unterkategorie=Quellenband\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Unterkategorie",
+                    "quellenart": "quellenband"
+                }
+            }
+        },
+        {
+            "id": "art-und-unterkategorie-art-gewinnt",
+            "titel": "Art gewinnt",
+            "text": "{{Infobox Produkt\n|Titel=Art gewinnt\n|Art=Roman\n|Unterkategorie=Quellenband\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Art gewinnt",
+                    "quellenart": "roman"
+                }
+            }
+        },
+        {
+            "id": "art-weder-noch",
+            "titel": "Ohne Art",
+            "text": "{{Infobox Produkt\n|Titel=Ohne Art\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Ohne Art",
+                    "quellenart": "sonstiges"
+                }
+            }
+        },
+        {
+            "id": "art-zeichenverweis",
+            "titel": "Art Verweis",
+            "text": "{{Infobox Produkt\n|Titel=Art Verweis\n|Art=Quellen&#98;and\n}}",
+            "erwartet": {
+                "zitate": [],
+                "produkt": {
+                    "adresse": null,
+                    "titel": "Art Verweis",
+                    "quellenart": "quellenband"
+                }
+            }
+        }
+    ]
+}

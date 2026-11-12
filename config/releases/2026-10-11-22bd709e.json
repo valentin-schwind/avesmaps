@@ -1,0 +1,1047 @@
+{
+    "schema": 1,
+    "titel": "Betreiber-Kanal, Glocke, Versionen, Inhaltsschalter, Ortseditor-Teile (aus), Kartenmenü mit Fadenkreuz",
+    "von": "df6f840c44cadd0980a94d420412fd26deb0cbe2",
+    "bis": "22bd709e66e38a043bafef30029eecc3a7a4c5fc",
+    "datum": "2026-10-11T16:49:56+02:00",
+    "pakete": {
+        "WI-0025": "Die Kraftlinien — Import, Zeichnung, Ansicht im Kartenfächer",
+        "WI-0065": "Nachtrag: Reiseplanung und Höhenprofil",
+        "WI-0068": "Media Asset Management im Editor",
+        "WI-0089": "Der Scrollbalken darf nichts verschieben, die Kacheln werden lesbar",
+        "WI-0102": "Drei dauerhaft rote Browserfälle: einer war das Bauteil, zwei die Messung",
+        "WI-0108": "Der lange Druck ist der Rechtsklick",
+        "WI-0124": "Verbindliche Arbeitsanweisung für den Betreiber-Chat mit Claudio",
+        "WI-0127": "Systemsteuerung, Bau Stufe 1 (SYS-0, SYS-1, SYS-6) und Stufe 2 (SYS-2)",
+        "WI-0128": "Prüfauftrag Orts- und Stättenmodell",
+        "WI-0129": "Zoomstufe 8 freischalten und die Zoomstufe im Editor anzeigen",
+        "WI-0132": "Kreuzungen ablösen: Routing nur aus der Geometrie der Wege",
+        "WI-0135": "Markierungen frei von Namen, Namensabstand nah am Marker",
+        "WI-0136": "Benachrichtigungen in der Leiste und „Neu laden“",
+        "WI-0137": "„Versionen“ in der Systemsteuerung (Commit-Liste je Release)"
+    },
+    "commits": [
+        {
+            "sha": "ec3d2e21a00b37efef39d4fb32323fa2d7c5470e",
+            "datum": "2026-10-11T16:49:47+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(release-tor): Kanal-Rechte lokal, fester Suchpfad im Waechter, LISTEN-Test, Titel der eingebetteten Statusseite",
+            "doku": false
+        },
+        {
+            "sha": "32bea010d6a1d05ec290fc89d1828db2c6a681a9",
+            "datum": "2026-10-11T16:37:17+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128 E19): Bilder als Bindung im Ortseditor",
+            "doku": false
+        },
+        {
+            "sha": "321f57d0c23088e8106293edb7b851809e3b85f8",
+            "datum": "2026-10-11T16:37:09+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068 P4b 6a): \"wird gerechnet ...\" - Inspector und Kachel zeigen den laufenden Job und laden nach, bis das Bild da ist",
+            "doku": false
+        },
+        {
+            "sha": "6092b6af297c5c496612e4168ac112b82122a1e8",
+            "datum": "2026-10-11T16:33:25+02:00",
+            "wer": "Claudio",
+            "betreff": "Handover Kanal-Routine: Kanal-Zugang angelegt (PASS 12/0)",
+            "doku": true
+        },
+        {
+            "sha": "70dd93b8253a2eee372a9363081eaf313ec2d013",
+            "datum": "2026-10-11T16:32:38+02:00",
+            "wer": "Claudio",
+            "betreff": "runtime-foundation --set-kanal-agent: erster Lauf brach still ab (pipefail beim Lesen der noch fehlenden Zugangsdatei)",
+            "doku": false
+        },
+        {
+            "sha": "f88ec6f7ffc7a579eafa3a7dfaa5800263296627",
+            "datum": "2026-10-11T16:30:14+02:00",
+            "wer": "Claudio",
+            "betreff": "Kanal-Zugang: runtime-foundation --set-kanal-agent (Rolle avesmaps3d_staging_claudio, Zugangsdatei, pg_hba), kanal-grants-Block, system/map-grants nachgezogen; Runbook Tagesobergrenze; Analyse 2 +60 min",
+            "doku": false
+        },
+        {
+            "sha": "095c4b96f9c865426189734faf8d47c88b0c6ce3",
+            "datum": "2026-10-11T16:22:32+02:00",
+            "wer": "Claudio",
+            "betreff": "Runbook Kanal-Routine: Tarif Max",
+            "doku": true
+        },
+        {
+            "sha": "7dee0f747cd95b20ac3e3bf343d63886ad78cfe7",
+            "datum": "2026-10-11T16:22:15+02:00",
+            "wer": "Claudio",
+            "betreff": "Kanal-Routine: Verbrauchsprotokoll je Lauf (verbrauch.tsv), Abo statt API im Runbook",
+            "doku": false
+        },
+        {
+            "sha": "fd93d6fdd46f154f848a127c9fad905bb5c2e9b0",
+            "datum": "2026-10-11T16:19:31+02:00",
+            "wer": "Claudio",
+            "betreff": "Kanal-Routine: Erkenntnisse Trockenlaeufe 2-5, Skript (Bericht aus Schlussantwort, shared bauen, einfache Befehle, Trap)",
+            "doku": false
+        },
+        {
+            "sha": "72ec3d6f7d9f27367e9d392d0b2dc9175e4517b1",
+            "datum": "2026-10-11T16:12:42+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0137 V5): Blatt der gebauten Versionen, Mockup-Module entfernt, Doku - fertig fuer Stage",
+            "doku": false
+        },
+        {
+            "sha": "87f1a8230b442f7234a3dff79eb85cf2ba8688f6",
+            "datum": "2026-10-11T16:12:12+02:00",
+            "wer": "Claudio",
+            "betreff": "Kanal-Routine: Erkenntnisse Trockenlauf 1 (Pfadregeln mit //, Zusatzwunsch an laufenden Strang)",
+            "doku": false
+        },
+        {
+            "sha": "1c5bf49bf997ad8b065b901a036132ed126aed50",
+            "datum": "2026-10-11T16:09:56+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0025): Stage-Proben fuer den Schnitt, Verweis in der Kopftafel",
+            "doku": true
+        },
+        {
+            "sha": "4997ab18e1dffe5f7ec8363687d4f76ac9d9e0a9",
+            "datum": "2026-10-11T16:08:45+02:00",
+            "wer": "Claudia",
+            "betreff": "﻿docs(WI-0025): Kraftlinien-Ansicht abgenommen, Stage gewuenscht",
+            "doku": true
+        },
+        {
+            "sha": "1ae590a7e27af145d49665babe378d8e4f2be861",
+            "datum": "2026-10-11T16:07:54+02:00",
+            "wer": "Claudio",
+            "betreff": "Kanal-Routine: Trockenlauf-Skript; Runbook: eigener Unix-Benutzer fuer den scharfen Betrieb",
+            "doku": false
+        },
+        {
+            "sha": "fd616895959978f7ca5b677abf5ef3768997ee6b",
+            "datum": "2026-10-11T16:06:48+02:00",
+            "wer": "Claudio",
+            "betreff": "Runbook Kanal-Routine (Entwurf) und Handover an Claudia zur Abnahme",
+            "doku": true
+        },
+        {
+            "sha": "45b104028c00c5d955d9443075031b9fb4aa85aa",
+            "datum": "2026-10-11T16:06:43+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128 E20): Prüfen im Ortseditor, Befunde statt Sperren",
+            "doku": false
+        },
+        {
+            "sha": "6527eb48dae66bb0980f882de71f65cc478b7e36",
+            "datum": "2026-10-11T16:02:59+02:00",
+            "wer": "Claudio",
+            "betreff": "Handover Kanal-Routine: auch tagsueber, Auffaelligkeiten melden (Betreiber 2026-10-11)",
+            "doku": true
+        },
+        {
+            "sha": "53b758bd0b336bd6b963096edccd7d46de06cad0",
+            "datum": "2026-10-11T15:59:47+02:00",
+            "wer": "Claudio",
+            "betreff": "Handover Kanal-Routine: Betreiberentscheidungen Hotfix ja, Fixes auch nachts",
+            "doku": true
+        },
+        {
+            "sha": "387365c4ff7ecfb7ba45a8d6f978d5f7ccf96519",
+            "datum": "2026-10-11T15:59:16+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0137 V4): ✦ oeffnet die Kurzinfo „Was ist neu?“, am Telefon in der Glocke; Commits im Kanal als Link auf GitHub",
+            "doku": false
+        },
+        {
+            "sha": "bd4d86a77d249e9be1c65ed95c13ffbd330770d2",
+            "datum": "2026-10-11T15:57:12+02:00",
+            "wer": "Claudio",
+            "betreff": "Handover Kanal-Routine: Vorpruefung verweist auf kanal_wartet()",
+            "doku": true
+        },
+        {
+            "sha": "25755d1434f4bd48e732b2cbcdc25f1546afaa9d",
+            "datum": "2026-10-11T15:57:06+02:00",
+            "wer": "Claudio",
+            "betreff": "Handover Kanal-Routine: Bitte um lease-freie Vorpruefung kanal_wartet()",
+            "doku": true
+        },
+        {
+            "sha": "33e2ca1814dadff10ebb1b322f6a891a7b4d5c87",
+            "datum": "2026-10-11T15:53:38+02:00",
+            "wer": "Claudio",
+            "betreff": "Handover: Kanal-Routine per Cron freigegeben (Betreiber 2026-10-11)",
+            "doku": true
+        },
+        {
+            "sha": "61fab5037b0dfc1d1fb6ef5eac79503a53bebf25",
+            "datum": "2026-10-11T15:52:17+02:00",
+            "wer": "Claudia",
+            "betreff": "style: Prettier und ESLint ganz gruen - medien-auswahl.test, kanal/agent-cli (nur Umbrueche), kanal/cli ohne leere Startzuweisung, app-glocke Attributfolge",
+            "doku": false
+        },
+        {
+            "sha": "c0c6d9e78fe63224e16c25da9f5a3b8e0ef501db",
+            "datum": "2026-10-11T15:48:38+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(Seitentitel): „Avesmaps3D · Editor“ mit Mittelpunkt, ohne Umgebung",
+            "doku": false
+        },
+        {
+            "sha": "0e85582aa6d37b9eaa4877050824653ad3d0392b",
+            "datum": "2026-10-11T15:47:09+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0025): Nodices glühen und wabern, ein Klick auf einen Nodix wählt den Ort",
+            "doku": false
+        },
+        {
+            "sha": "1cee683650208aae463aad1e966fd708c74afc51",
+            "datum": "2026-10-11T15:39:28+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(Seitentitel): „Avesmaps3D | Editor“, solange eine Sitzung besteht",
+            "doku": false
+        },
+        {
+            "sha": "8c194b644ccd9de9cfc53fbd580b9350d662051b",
+            "datum": "2026-10-11T15:43:33+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0137 V3): Systemsteuerung › Versionen - laufendes Release mit Kopf, Commits je Arbeitspaket, Doku hinter Schalter, fruehere Releases zum Aufklappen",
+            "doku": false
+        },
+        {
+            "sha": "bc727c8b471adcfa4e170d87ece9ce02f4941c95",
+            "datum": "2026-10-11T15:42:39+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128): E17 Verlauf und \"Aenderungen\"",
+            "doku": false
+        },
+        {
+            "sha": "dac247a6538082310c7ed0f4fc3560677e770f84",
+            "datum": "2026-10-11T15:37:25+02:00",
+            "wer": "Claudio",
+            "betreff": "Analyse 2: Fastify gibt Startspitze zurueck (872 -> 534 MB in 10 min); +312 MB waren Zeitpunktvergleich",
+            "doku": true
+        },
+        {
+            "sha": "b96efe345c15b7fc94c43c32f22fef06fd154123",
+            "datum": "2026-10-11T15:37:07+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068 P4b): Auswahl - Wappen als Liste, Titelbilder als Kacheln, \"hochgeladen von\", Binden als eine Operation, Hochladen und zurueck",
+            "doku": false
+        },
+        {
+            "sha": "cb89eb8b0da0a0a7b2fee55ae275b47ddac659c8",
+            "datum": "2026-10-11T15:28:09+02:00",
+            "wer": "Claudio",
+            "betreff": "Analyse 2 Fastify-Speicher: Zwischenstand (Herkunft 524/836, laufender Prozess, Neustart +1 min)",
+            "doku": true
+        },
+        {
+            "sha": "40b697d8e54cb2a6adf46639a9369679a67b0158",
+            "datum": "2026-10-11T15:18:54+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0137 V2): Versionen und Kurzinfo vom Server - Leser fuer config/releases, drei Routen",
+            "doku": false
+        },
+        {
+            "sha": "723e9072043da46f854a9d05fa2aa7656a42e863",
+            "datum": "2026-10-11T15:15:38+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0137 V1): Release-Notizen - Format, Werkzeug npm run release:notizen, Nachtrag der Stage-Releases",
+            "doku": false
+        },
+        {
+            "sha": "3548d9d5a26e6dcd2fe44d07c351320072dfb9e1",
+            "datum": "2026-10-11T15:15:10+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0025): Klick trifft die Kraftlinie auf ihren Fäden, die gewählte glüht gelb-orange",
+            "doku": false
+        },
+        {
+            "sha": "9872e471277c7f33e5310c08832a82bec1ccb838",
+            "datum": "2026-10-11T15:07:22+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0137): Bauplan VERSION-0001 (Entwurf) - Release-Notizen in config/releases, Werkzeug, Versionen, Kurzinfo",
+            "doku": true
+        },
+        {
+            "sha": "a823ae976c8fd955e03e08de5a87e6caa3de6a91",
+            "datum": "2026-10-11T15:04:21+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): WI-0137 Fassung 2 entschieden (Zeichen ✦, Telefon A)",
+            "doku": true
+        },
+        {
+            "sha": "7d404a5d1c2cf32f1c251dada0f395a7cf33ac55",
+            "datum": "2026-10-11T15:03:47+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0137): Mockup abgeschlossen - am Telefon öffnet ↺ die Kurzinfo",
+            "doku": true
+        },
+        {
+            "sha": "f80aceb4153212a9fe0c31fc75052e89ab575cb9",
+            "datum": "2026-10-11T15:00:46+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0137): Zeichen entschieden - Funkeln ✦ statt „Neue Version“",
+            "doku": true
+        },
+        {
+            "sha": "205c7af9f37be945213f564feaa5396a8c364933",
+            "datum": "2026-10-11T14:54:17+02:00",
+            "wer": "Claudia",
+            "betreff": "review(WI-0137): Fassung 2 - Kurzinfo „Was ist neu?“ am echten Kasten „Neue Version“",
+            "doku": false
+        },
+        {
+            "sha": "0266e9b84fb2e51b4af059b99bf1f643d8b07132",
+            "datum": "2026-10-11T14:41:36+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0136): Glocke abgenommen (\"glocke passt -> A\")",
+            "doku": true
+        },
+        {
+            "sha": "c0218cd91919bd7afb46f709d99f626271665e8c",
+            "datum": "2026-10-11T14:40:34+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Glocke WI-0136 N1 bis N3 abgenommen (\"glocke passt -> A\")",
+            "doku": true
+        },
+        {
+            "sha": "9903196ad25a7ebaab9fdf5177b4b6112792ce6c",
+            "datum": "2026-10-11T13:30:05+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): gesammelte Vorbereitung an Claudio fuer den SYS-Strang seit df6f840c",
+            "doku": true
+        },
+        {
+            "sha": "6a3b58711de3c0a3ac83f81b8fc5b9fd654f6164",
+            "datum": "2026-10-11T13:30:05+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0127 SYS-10): neue Ordner unter private/ mit 0700 (Quarantaene, Kanal, Quelle)",
+            "doku": false
+        },
+        {
+            "sha": "92d5368a6556062bc8802515658a608b8a4c62b2",
+            "datum": "2026-10-11T13:26:17+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0124): Betreiber-Kanal K1 bis K6 gebaut und abgenommen (\"A\")",
+            "doku": true
+        },
+        {
+            "sha": "d69ea3510f12af5ed2e0e84cc21264d6849c3b3f",
+            "datum": "2026-10-11T13:24:30+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0136 N2+N3): Glocke in der Leiste, Kanal als Absender",
+            "doku": false
+        },
+        {
+            "sha": "3bec302f4fca58493c09cdcdc8d72d9ff30126b3",
+            "datum": "2026-10-11T13:18:29+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Betreiber-Kanal K3 bis K5 abgenommen (\"A\")",
+            "doku": true
+        },
+        {
+            "sha": "f9705d78b9235f2a851156b0ceaab85e06785ece",
+            "datum": "2026-10-11T10:47:22+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0124 K4): Bilder im Betreiber-Kanal",
+            "doku": false
+        },
+        {
+            "sha": "9c325b750859aded87cc8ca071277efd7661efe6",
+            "datum": "2026-10-11T10:26:55+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0124 K5): Wiederherstellung beantragen unter Backups",
+            "doku": false
+        },
+        {
+            "sha": "d6080457bfbde9d9a99cf0b687c3aed1b1515850",
+            "datum": "2026-10-11T10:10:10+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0124 K3): Betreiber-Kanal - Oberflaeche in der Systemsteuerung, Fix-Berichte im Protokoll",
+            "doku": false
+        },
+        {
+            "sha": "420680d0d6cd68c6fe1e96cc55bd74a08ee4a43b",
+            "datum": "2026-10-11T09:24:58+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0124 K2): Betreiber-Kanal - Recht use_operator_channel, Schreibklasse kanal, Routen /api/kanal",
+            "doku": false
+        },
+        {
+            "sha": "41178a72fd0e2729e55925af04ac64e0a50ca6ac",
+            "datum": "2026-10-11T09:18:44+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0128): Merkmale - Verborgen nach dem Entscheid, Seehafen und Nodix setzt der Editor, Unterirdisch und Entrueckt neu",
+            "doku": false
+        },
+        {
+            "sha": "cf2ea46024f36b6f71032c82d9a921d2cc7f4aba",
+            "datum": "2026-10-11T09:08:05+02:00",
+            "wer": "Claudia",
+            "betreff": "test(e2e): Nachbau der Verwaltung antwortet fuer Systemzustand, Inhalte, Hoehenmodell und Abgleiche wie deren Nachbau",
+            "doku": false
+        },
+        {
+            "sha": "13d791f79b20538c46f9eeaab1f8cf0ad1d0f0da",
+            "datum": "2026-10-11T09:05:46+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Migration 0108 fuer WI-0128 Merkmale reserviert",
+            "doku": true
+        },
+        {
+            "sha": "856f630364e7d54bcc2fd9399ca8b3b70b5157ef",
+            "datum": "2026-10-11T09:03:13+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Betreiberwunsch Eingang vor dem Kanal (Discord-Bot, Kontaktformular) eingetragen",
+            "doku": true
+        },
+        {
+            "sha": "c90a2e6f67f24955b5210b89d4b7bff13cdb9c77",
+            "datum": "2026-10-11T09:02:23+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0136 N1): Neue Version - Kasten in der Kopfleiste, nie automatisch neu laden",
+            "doku": false
+        },
+        {
+            "sha": "6a2210d4291524866d5b1020d2018edf744e18cb",
+            "datum": "2026-10-11T08:59:08+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128): E16 Teil b - \"Neuer Ort\" im Menueband und \"Hier hinzufuegen\" im Kontextmenue",
+            "doku": false
+        },
+        {
+            "sha": "4e9f615c6b7cd7a8f985272fe32f38012947f9e7",
+            "datum": "2026-10-11T08:55:22+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0124): KANAL-0001 §13 - spaeter Eingang aus Discord-Bot und Kontaktformular, Betreiber entscheidet ueber die Uebergabe",
+            "doku": true
+        },
+        {
+            "sha": "854916b4b32a51f58dfb4a3acf03b232e3fc3897",
+            "datum": "2026-10-11T08:53:40+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0124 K1): Betreiber-Kanal - Datenmodell, Funktionen der Agenten, Fix-Bericht, Aufbewahrung (0106)",
+            "doku": false
+        },
+        {
+            "sha": "e5f09fada9ec6c0853a8f8e363d0defee4002c2b",
+            "datum": "2026-10-11T08:52:49+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0136, WI-0137): „Was ist neu?“ als Kurzinfo - Anschauen, Prüfen, Beachten",
+            "doku": true
+        },
+        {
+            "sha": "e28cdad142e18ca8954ff79161166f67b40909d5",
+            "datum": "2026-10-11T08:52:20+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): WI-0137 Formfragen (Doku hinter Klick; Kurzinfo statt Commit-Liste bei Neue Version)",
+            "doku": true
+        },
+        {
+            "sha": "50d7ca270db91e4540e61cda6e2d1ff0d403432b",
+            "datum": "2026-10-11T08:51:42+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0137): Antworten des Betreibers zum Blatt - Doku hinter Schalter, „Was ist neu?“ als Kurzinfo",
+            "doku": true
+        },
+        {
+            "sha": "ae99c03f81ca25d1137a35abafad198f6a01b00a",
+            "datum": "2026-10-11T08:45:56+02:00",
+            "wer": "Claudia",
+            "betreff": "review(WI-0137): Mockup-Blatt „Versionen“ in der Systemsteuerung",
+            "doku": false
+        },
+        {
+            "sha": "b8e7710900494fc8e373228d885822871e94b855",
+            "datum": "2026-10-11T08:44:15+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068 P4b): Inspector bearbeitet je Kasten - Name, Entstehung, Rechte samt Pruefung und Beleg (Blatt 1 A, Betreiber 2026-10-10)",
+            "doku": false
+        },
+        {
+            "sha": "1e5477a33608d26206336e40c5269e85080cc2d9",
+            "datum": "2026-10-11T08:33:09+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0136, WI-0124): Bauplan NACHRICHT-0001 (Entwurf); KANAL-0001 freigegeben mit 17 A und removeChannel; 0106/0107 reserviert",
+            "doku": true
+        },
+        {
+            "sha": "7f06c5ea6ccd6dda5f568266503c8501213e2a9f",
+            "datum": "2026-10-11T08:32:21+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0137): Versionen in der Systemsteuerung angelegt (Betreiber 2026-10-11: \"passt - genau so machen\")",
+            "doku": true
+        },
+        {
+            "sha": "952a6372807300b1a7da65006371b8cf905a2bf5",
+            "datum": "2026-10-11T08:32:05+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0135): Landschaftsnamen nach Ebene - Derographie vor Topographie vor Vegetation",
+            "doku": false
+        },
+        {
+            "sha": "b84f905539b05bb5455566d676c9a6101c62c178",
+            "datum": "2026-10-11T08:31:49+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128): E16 Teil a - Orte ohne Lage, Wiki-Eintraege per Ziehen oder Klick auf die Karte setzen",
+            "doku": false
+        },
+        {
+            "sha": "ec099f4c1bbeeda1227fcd1399e62ad8800096c7",
+            "datum": "2026-10-11T08:28:01+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0025): Kraftlinien nah dran feiner unterteilt, Unsichtbares nicht gezeichnet",
+            "doku": false
+        },
+        {
+            "sha": "81dcce080dcceb26465696cb7636a08671aff215",
+            "datum": "2026-10-11T08:27:50+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0124): Nachtrag-Blatt Betreiber-Kanal - Bilder, Aufbewahrung, Loeschen, Rest mit Fix-Bericht, Fix-Berichte im Protokoll, Wiederherstellung",
+            "doku": false
+        },
+        {
+            "sha": "93f8303b901cce92bffb142443d4e7202a2ec097",
+            "datum": "2026-10-11T08:27:28+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068): Nennung nur, wo die Rechte sie verlangen - nicht nach dem Weg der Freigabe (Betreiber 2026-10-11, Frage eines Editors)",
+            "doku": false
+        },
+        {
+            "sha": "3361af5377fdfb00ac3d8fe2a7c4dc176d95d72f",
+            "datum": "2026-10-11T08:24:28+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Entscheidung 18 Urheberzeile nur bei Nennungspflicht der Lizenz; WI-0136 Formfragen 1B 2A 3A",
+            "doku": true
+        },
+        {
+            "sha": "083c553b6a062e05bde421a9c11cb2cdf0731710",
+            "datum": "2026-10-11T08:16:27+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Kopftafel auf Stage df6f840c, naechstes Release noch nicht geschnitten, Naechste Schritte berichtigt (deep-audit-nachtrag N01)",
+            "doku": true
+        },
+        {
+            "sha": "8f1a18de7f6f0f19712d7b7315c09df2875c515d",
+            "datum": "2026-10-11T08:14:08+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068, KANAL-0001 M1-M3): private Ablage je Kanalbild, Renderprofile ohne MAM-Rolle, Zusage fuer Pruefer und Aufraeumer",
+            "doku": false
+        },
+        {
+            "sha": "a0d300781a2f81ffe5e59a2277140582004cedcf",
+            "datum": "2026-10-11T08:10:42+02:00",
+            "wer": "Valentin",
+            "betreff": "docs(audit): master-Abgleich 11.10 mit Stage-Drift, MAM, Terrain, Routing und Runtime-Findings",
+            "doku": true
+        },
+        {
+            "sha": "457e9114bd829d32b71f16b1176ccb0622cf1ec0",
+            "datum": "2026-10-11T08:08:50+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068): eigenes Werk nur nach Pruefung automatisch oeffentlich, KI-Bilder ueber die KI-Regel (Betreiber 2026-10-11, \"13: B!\")",
+            "doku": false
+        },
+        {
+            "sha": "b6912e7a91a93083f2abd070fd2db56cc367837f",
+            "datum": "2026-10-11T08:03:56+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Abnahmerunde 2026-10-11 Teil 2 - Kanal 10 B, 11 Bilder, 16 Aufbewahrung 90 Tage, 17 jeder Betreiber; Bildnamen mit Komma (12) und Umbenennen lokal (15); KI-Regel 13 B; Zeiger am Druckpunkt abgenommen",
+            "doku": true
+        },
+        {
+            "sha": "281e9677b02d1faee481822270fa841e80fa03c7",
+            "datum": "2026-10-11T08:02:21+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0025): Kraftlinien-Fäden lokal abgenommen",
+            "doku": true
+        },
+        {
+            "sha": "0cab2140ab3fc59ee9170ce48d3b022380ccec8d",
+            "datum": "2026-10-11T07:59:09+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0025): Kraftlinien - Fächer anderthalbmal so breit, Rauschen etwas kräftiger",
+            "doku": false
+        },
+        {
+            "sha": "45ebc8768290a74d940116dab859e0685c047c87",
+            "datum": "2026-10-11T07:57:21+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0135): geneigt steht kein Ortsname mehr doppelt",
+            "doku": false
+        },
+        {
+            "sha": "193765e6d10fe765ae342c4be0a7bcd05e47922d",
+            "datum": "2026-10-11T07:38:57+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0102): Publikationszeile bleibt einzeilig und kuerzt mit \"...\" (\"Telefon: mit ... abschneiden\")",
+            "doku": false
+        },
+        {
+            "sha": "6a445232de7f80919529ca7b6282e98ee0beb663",
+            "datum": "2026-10-11T07:38:52+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0089): Deckel der Routendetails tragen ihre Versalhoehe mittig (\"Reiseplaner: reparieren\")",
+            "doku": false
+        },
+        {
+            "sha": "ff04d108c7e6147479a1bf3ff0b1e83eecf35819",
+            "datum": "2026-10-11T07:54:41+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0108): Abstand 12 / 10 px festgehalten",
+            "doku": false
+        },
+        {
+            "sha": "a07e29044b3fef32bce72a1166fba5014ad74b2a",
+            "datum": "2026-10-11T07:53:00+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): WI-0128 E16 entschieden, Migration 0105 reserviert",
+            "doku": true
+        },
+        {
+            "sha": "14e55a0f98e77d040616b17153fbece7683f03db",
+            "datum": "2026-10-11T07:51:39+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068): Bildansicht - Klick auf ein Bild zeigt es gross, < > durch Folge oder Galerie, Esc schliesst (Betreiber 2026-10-11)",
+            "doku": false
+        },
+        {
+            "sha": "8d8dc126560532c89bb70e9d6d7cb24eb308e4a7",
+            "datum": "2026-10-11T07:52:25+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0124): KANAL-0001 §3.1 berichtigt - Meldungen und Bilder 90 Tage oder nach Wunsch, Fix-Bericht dauerhaft",
+            "doku": true
+        },
+        {
+            "sha": "4132ba9708ef8f6164ae539aec639e9dd404329f",
+            "datum": "2026-10-11T07:39:45+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0108 Nachtrag): Menü näher am Fadenkreuz, 12 / 10 px - abgenommen",
+            "doku": false
+        },
+        {
+            "sha": "d8b336f16ec25e55d71cff3eaa0fb01620f8dd21",
+            "datum": "2026-10-11T07:28:16+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0108 Nachtrag): Fadenkreuz statt Pfeil am Druckpunkt (Blatt 2)",
+            "doku": false
+        },
+        {
+            "sha": "bc49716b09ae4c0365dcc1506decd0e079bc6321",
+            "datum": "2026-10-11T07:10:19+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0108 Nachtrag): Zeiger am Druckpunkt, das Kartenmenü daneben",
+            "doku": false
+        },
+        {
+            "sha": "3ad5a0c3d0bcfae84290fafc1600bc12a7d1b2e7",
+            "datum": "2026-10-11T07:51:06+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0124): KANAL-0001 §3.1 Aufbewahrung - Bilder 90 Tage, Meldungen 2 Jahre, Fix-Bericht dauerhaft",
+            "doku": true
+        },
+        {
+            "sha": "72716dbc947990ca4791f8fc2ac0457eb4fd7715",
+            "datum": "2026-10-11T07:50:31+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128): Kartenklick oeffnet den Ort in den Ortseigenschaften; \"Eigenschaften & Overrides\" heisst \"Ortseigenschaften\"",
+            "doku": false
+        },
+        {
+            "sha": "220b99d1387f770376855d43bbec0d74d183b44b",
+            "datum": "2026-10-11T07:32:42+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0025): Kraftlinien - Fächer gleich breit, nur das Bündel schwingt mit der Länge",
+            "doku": false
+        },
+        {
+            "sha": "aad2c730411c767a7acdcc2c30928e19934d9fcd",
+            "datum": "2026-10-11T07:30:09+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0136): Blatt an WI-0124 Frage 2 = B und KANAL-0001 §7 angeglichen",
+            "doku": false
+        },
+        {
+            "sha": "656620d538d93972d05f4d4bab086448deb66350",
+            "datum": "2026-10-11T07:21:27+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0136): Mockup Benachrichtigungen in der Leiste - Blatt auf der echten Karte, drei Formfragen",
+            "doku": false
+        },
+        {
+            "sha": "3d3bb46e1ed9fc14fb16a2d629c74018a36b0c9c",
+            "datum": "2026-10-11T07:28:00+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0124): KANAL-0001 - Ablage je Bild (MAM-Schnitt M1), CHANNEL_PROFILES, Verkleinern im Browser vor dem Hochladen",
+            "doku": true
+        },
+        {
+            "sha": "064938cffdadf74a1705d388f53c88aea961233d",
+            "datum": "2026-10-11T07:21:27+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068): gleiche Namen verschiedener Objekte - die Art nach einem Komma (\"Wappen von Fasar, Stadt\"), Nachtrag benennt nur Namen des Systems um (Betreiber 2026-10-11)",
+            "doku": false
+        },
+        {
+            "sha": "d31a0cefd50c3fcbd4276e51e5c6843220a6bd58",
+            "datum": "2026-10-11T07:20:48+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0128): E16 Vorlage Fassung 2 - Ort ohne Lage wird gespeichert, eigene Tafel statt Wiki-Verzeichnis",
+            "doku": true
+        },
+        {
+            "sha": "d6d3daca433b97dbd079253d4bf000900a6bdc9a",
+            "datum": "2026-10-11T07:19:38+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0025): Kraftlinien rauschen im Verhältnis ihrer Länge, Punkte nach Länge verteilt",
+            "doku": false
+        },
+        {
+            "sha": "c5bc16019122262504fe98cbc1d3b0d7ccebd66d",
+            "datum": "2026-10-11T07:15:22+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0124, WI-0127): KANAL-0001 §6 Bilder ueber B1 mit MAM-Bedarf M1-M3; Jobs-Speicher bleibt beim Lebenszeichen",
+            "doku": true
+        },
+        {
+            "sha": "903cc324f271beab2321f276d141f37862b5e93b",
+            "datum": "2026-10-11T07:11:05+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0124): Bauplan KANAL-0001 (Entwurf) - drei Entscheide, W2/W9/W10 als Vorschlag, Anschluss WI-0136",
+            "doku": true
+        },
+        {
+            "sha": "174ab8bb3580bbb7e00fafd6d43f9cfdf5038729",
+            "datum": "2026-10-11T07:07:18+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128): Lage innerorts wie Legacy, ueber Wiki-Keys; Suche und Filter bleiben beim Oeffnen",
+            "doku": false
+        },
+        {
+            "sha": "8a734fa47e726ecced163df89f49308e5c5b51c6",
+            "datum": "2026-10-11T07:03:43+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0124): drei Entscheide eingetragen (1 = A mit Aenderungsprotokoll, 2 = B, 3 = mit Bildern)",
+            "doku": true
+        },
+        {
+            "sha": "0e1819d237cc58ba29121a24a9e5f9ed627d854f",
+            "datum": "2026-10-11T06:59:13+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0127 SYS-15): Protokoll als letzter Eintrag unter System & Betrieb (Abnahme B), Kreis F2 = A",
+            "doku": false
+        },
+        {
+            "sha": "b148e73138951ecd5b7e73810833d5b6109b42bb",
+            "datum": "2026-10-11T06:50:56+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0025): Kraftlinien - Fäden unterschiedlicher Stärke, 16 Stützpunkte, geglättet",
+            "doku": false
+        },
+        {
+            "sha": "cbffa67ad26e6e1848415053866790b28d2e9e5d",
+            "datum": "2026-10-11T06:44:52+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Abnahmerunde 2026-10-11 - Kreis A, Protokoll B, Vorkommen, Kraftlinien, Kartenmenue-Zeiger, Deckel und Publikationszeile, englische Texte, Betreiber-Kanal 9 A; WI-0136 Benachrichtigungen angelegt",
+            "doku": true
+        },
+        {
+            "sha": "dd05ee3e8df4111d8041424bc7a13047209d3d93",
+            "datum": "2026-10-11T06:36:05+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0127): Speicher je Prozess im Systemzustand - Routing als Thread mit Heap und Graph, Jobs ueber ein Lebenszeichen",
+            "doku": false
+        },
+        {
+            "sha": "bf615cfe4cf622e037251bba67fc01f5438b5bbe",
+            "datum": "2026-10-11T06:18:00+02:00",
+            "wer": "Claudia",
+            "betreff": "docs: Befund Fastify-Speicher (557c6d11 gegen df6f840c) mit Gegenmessung fuer Claudio; WI-0124 Entscheidungsvorlage",
+            "doku": true
+        },
+        {
+            "sha": "93ff4172c4beb5c9990391498d2312bbf91c194b",
+            "datum": "2026-10-11T06:17:13+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0135): Namen der Nodices stufenlos am Knoten",
+            "doku": false
+        },
+        {
+            "sha": "48bf4666345585bbca72244400d8623d8d2f759c",
+            "datum": "2026-10-11T05:59:40+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128): Ortsliste - \"Alle, Platziert, Fehlt\" als Facette \"Karte\" im Trichter",
+            "doku": false
+        },
+        {
+            "sha": "62dd6c3e28bf2655386ef48af0b7ea9fba1ba76e",
+            "datum": "2026-10-11T05:53:07+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Betreiberentscheide 2026-10-11 - Wegeeditor nach dem Ortseditor (Gutachten zuerst), E16 Ort ohne Lage wird gespeichert",
+            "doku": true
+        },
+        {
+            "sha": "4d13a35aa25718787934b535314162fb0cf47879",
+            "datum": "2026-10-11T05:48:25+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0135): Ortsnamen weichen Markierungen nach Rang und stehen stufenlos nah am Marker",
+            "doku": false
+        },
+        {
+            "sha": "8d23dfceab054c939f577db740a0f9dcc5fe4bff",
+            "datum": "2026-10-11T05:44:42+02:00",
+            "wer": "Claudio",
+            "betreff": "Vorbereitungsauftraege zu df6f840c abgeschlossen",
+            "doku": true
+        },
+        {
+            "sha": "f0b9700d995ded814595c352357fff4ecacbbd85",
+            "datum": "2026-10-11T05:44:31+02:00",
+            "wer": "Claudio",
+            "betreff": "Fix Knopf-Zug: Urteilszeile ueberspringt ::abgleich-Maschinenzeilen; Zusammenfassung nur aus dem aktuellen Import; Pin staging-import; Bericht erster Knopf-Zug",
+            "doku": false
+        },
+        {
+            "sha": "b6ac54b5f9715620750779d8e7c78ed2a6758bf9",
+            "datum": "2026-10-11T05:36:59+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0127): Systemsteuerung - Bereiche offen, grosse Verlaeufe mit %, Statusseite im Fenster",
+            "doku": false
+        },
+        {
+            "sha": "79cbd0962a3585413e5bc452335f401fd3502521",
+            "datum": "2026-10-11T05:29:04+02:00",
+            "wer": "Claudio",
+            "betreff": "df6f840c: Hoehenmodell zweites Oeffnen 0,011 s (Erklaerung bestaetigt)",
+            "doku": true
+        },
+        {
+            "sha": "1c3916d08b2a4f49f367b859e8a1ec9a0e7d7ca7",
+            "datum": "2026-10-11T05:15:45+02:00",
+            "wer": "Claudio",
+            "betreff": "SYS-10 vorbereitet: media-grants mit Quarantaene (0104), Rechte unter MEDIA_ROOT bestaetigt",
+            "doku": false
+        },
+        {
+            "sha": "b10baddfabf8611c895529d4a20809fab9750e34",
+            "datum": "2026-10-11T05:09:53+02:00",
+            "wer": "Claudio",
+            "betreff": "Analyse 1: graue Karte war eingeschraenkter Betrieb (Tuer 401), keine Wartungsflagge; vhost = Vorlage",
+            "doku": true
+        },
+        {
+            "sha": "f2f940839851988b1dbbe5f12ae83bf7771a90d5",
+            "datum": "2026-10-11T05:09:13+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0135): Messung und zwei Betreiberfragen (wie streng, Abstand)",
+            "doku": true
+        },
+        {
+            "sha": "e7404c1584f6bd39320f361d90ba1d9e9b4eab5f",
+            "datum": "2026-10-11T05:08:03+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0127 SYS-11): Reiseberechnung und 3D-Gelaende pausieren, Editor-Modus \"oeffentlich ausgeblendet\"",
+            "doku": false
+        },
+        {
+            "sha": "56b36facca9a04fdb45a6a529c7cb8d7051ef27a",
+            "datum": "2026-10-11T05:07:58+02:00",
+            "wer": "Claudio",
+            "betreff": "Erinnerung an Claudia: Medienabzug aus Legacy fuer Stage offen (Uploads-Sync, Angebot Legacy-Schnittstelle)",
+            "doku": true
+        },
+        {
+            "sha": "b80fd23772133f6a78659dcac4a69daa2b2912c9",
+            "datum": "2026-10-11T05:03:58+02:00",
+            "wer": "Claudio",
+            "betreff": "df6f840c: Befund Hoehenmodell laedt 11 s (Fassung aus Fingerabdruck erschlossen, Master vor 0100)",
+            "doku": true
+        },
+        {
+            "sha": "3597b359fbfc208aea0c89bb8d88b3d60ddaa706",
+            "datum": "2026-10-11T05:03:00+02:00",
+            "wer": "Claudio",
+            "betreff": "df6f840c: Sichtprobe Systemzustand (Betreiber)",
+            "doku": true
+        },
+        {
+            "sha": "670f1d941e5f98475fd640f5a558b41d503b0fce",
+            "datum": "2026-10-11T05:00:57+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128 E14): Testwelt zurücksetzen, meine Seite - testwelt:offen und testwelt:zuruecksetzen",
+            "doku": false
+        },
+        {
+            "sha": "32ec5a42cd3d2360a6b23c37c882d73513e0a056",
+            "datum": "2026-10-11T04:53:31+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0128 E16): Entscheidungsvorlage Ort ohne Lage - Leser von place.geom gemessen, Empfehlung A (Entwurf bis zur ersten Lage)",
+            "doku": true
+        },
+        {
+            "sha": "6d1355fb707ba55fe7b7535fad6b84af9e742544",
+            "datum": "2026-10-11T04:45:06+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0068 P4b): Spalte 1 \"Medienarten\" als Schiene der Fenster, Suche links in der Leiste der Treffer mit dem Trichter daneben (Betreiber 2026-10-11)",
+            "doku": false
+        },
+        {
+            "sha": "daeaa5595e77664e1b01d5375c940eefcdbaed66",
+            "datum": "2026-10-11T04:44:50+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0065): Mutantenpruefung des Zoll-Orakels sucht ihre Zeugen statt sie zu ziehen",
+            "doku": false
+        },
+        {
+            "sha": "e5f7ccb9dcddafbaf56c5eb7f44d009c25e62e40",
+            "datum": "2026-10-11T04:42:48+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0132 N): Wegpunkt knoten:… über HTTP 400 FST_ERR_VALIDATION, nicht unknown_waypoint",
+            "doku": true
+        },
+        {
+            "sha": "373b55b438f8c58ff154f08bb8f1b0561c3c719d",
+            "datum": "2026-10-11T04:42:11+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0127 SYS-10 Teil b3): Quarantaene der Mediendateien und Zahlen je Rechtsgrund (0104)",
+            "doku": false
+        },
+        {
+            "sha": "d79f549eac2a4061c1496db40793f199c1d0b115",
+            "datum": "2026-10-11T04:41:26+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0135): Arbeitspaket Markierungen frei von Namen anlegen",
+            "doku": true
+        },
+        {
+            "sha": "3eeafe9ce826367a154d33567d3afe6bc5848c43",
+            "datum": "2026-10-11T04:40:54+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128 E15): Handgriffe am Ort - Gruppe im Infopanel, Kontextmenü und Menü am Objekt",
+            "doku": false
+        },
+        {
+            "sha": "53c07a9503d0dcb7cc8dd168dcae015d2a581fa0",
+            "datum": "2026-10-11T04:36:50+02:00",
+            "wer": "Claudio",
+            "betreff": "Release df6f840c auf Stage (Korridor): 0098-0101, Systemzustand, Abgleiche aktiv; Postflight; Statusskript-Lock",
+            "doku": false
+        },
+        {
+            "sha": "a62a224a4ea533e0513beabcec818a9127cebafc",
+            "datum": "2026-10-11T04:33:34+02:00",
+            "wer": "Claudio",
+            "betreff": "Release df6f840c vorbereitet: Grants system (0101/0102) und hoehenmodell (0100), Rolle avesmaps3d_stats, Stage-Werte ABGLEICHE/SYSTEM_STATUS_FILE/MARTIN_URL, system.json-Zeitgeber (Tuer-Erwartung nach Betriebszustand); Tests 204/6",
+            "doku": false
+        },
+        {
+            "sha": "b14b820cab28bf784a8e8f735d647e4b8f0d6b05",
+            "datum": "2026-10-11T04:28:16+02:00",
+            "wer": "Claudio",
+            "betreff": "Release 557c6d11 abgeschlossen (Proben gruen)",
+            "doku": true
+        },
+        {
+            "sha": "f69ceeabf3502590977f5b7b56aa92e89d8d439c",
+            "datum": "2026-10-11T01:42:29+02:00",
+            "wer": "Claudia",
+            "betreff": "test(landscape-names): Referenzen Thasch und Flusslande statt zweier abgeschalteter Hangwald-Namen",
+            "doku": false
+        },
+        {
+            "sha": "35eb14f065fe069c0e7d88511537f0cb70850ea6",
+            "datum": "2026-10-11T04:17:04+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(handover): Stage-Release df6f840c an Claudio - Router ohne Kreuzungen, Zoomstufe 8 mit Anschlag 8,5, Pruefhaken, Hoehenmodell, Systemzustand, Abgleiche, Migrationen 0098-0101",
+            "doku": true
+        },
+        {
+            "sha": "b27b6085187b0fa6f6b33f62f48fb8db1726edae",
+            "datum": "2026-10-11T01:47:07+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0127 SYS-10 Teil b2): Inhaltsschalter im Infopanel, in den Katalogfenstern, im Faecher und in den Hinweisen",
+            "doku": false
+        },
+        {
+            "sha": "d64ae27f844d615860b4d2d673043e6d04b48fb3",
+            "datum": "2026-10-11T01:30:38+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0128 E12): Browserfall Verschieben im e2e-Typecheck - project({ lng, lat }) und getCanvas statt getContainer",
+            "doku": false
+        },
+        {
+            "sha": "df582c69938e032a33860f432a81cb6b9253712b",
+            "datum": "2026-10-11T01:28:36+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(WI-0129 §17d): Namen im Band an beiden Rändern; Nebenfund aus §17c berichtigt",
+            "doku": true
+        },
+        {
+            "sha": "46b3a85c95fa09b6572cceb8fa78138ec89a294c",
+            "datum": "2026-10-11T01:28:28+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0129 §17d): Kurvennamen - Läufe für ein Band ab Stufe 0 beginnen mit Kachel 0",
+            "doku": false
+        },
+        {
+            "sha": "f30bca8773dd46a8655a347235e4453c4102d556",
+            "datum": "2026-10-11T01:28:28+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0129 §17d): Orts-Overrides nach derselben Regel - Untergrenze 0 ohne unteren Rand",
+            "doku": false
+        },
+        {
+            "sha": "a99e8f292e6e83b6efe5931cd5323851f3d952ba",
+            "datum": "2026-10-11T01:28:10+02:00",
+            "wer": "Claudia",
+            "betreff": "fix(WI-0129 §17d): Stufe 0 hält bis zum kleinsten Zoom - Landschafts-Punktnamen nach einer Regel",
+            "doku": false
+        },
+        {
+            "sha": "763a59a51b72ea33baecef0bf89d993afb09aeb2",
+            "datum": "2026-10-11T01:26:03+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0128 E13): Ableitungen - Ereignis map.changed mit Kachelrevision, Job path_profile (0103)",
+            "doku": false
+        },
+        {
+            "sha": "b0ab7d03f85df89ae1bc715b7a6e19e643e1cf11",
+            "datum": "2026-10-11T01:19:36+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0127 SYS-10 Teil b1): Inhaltsschalter wirken auf Medien - switched_off in der EINEN Entscheidung",
+            "doku": false
+        },
+        {
+            "sha": "0da3cf1d1b9b9fad3fecb067f3426ba3087b087f",
+            "datum": "2026-10-11T01:04:54+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Migration 0104 fuer WI-0127 SYS-10 Teil b reserviert",
+            "doku": true
+        },
+        {
+            "sha": "0ed5ddb6d5416bfb211c375647c1feea0be840f7",
+            "datum": "2026-10-11T01:04:06+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): WI-0127 SYS-10 Teil a gebaut, fertig fuer Stage; 0102 belegt",
+            "doku": true
+        },
+        {
+            "sha": "54b64d2ffa4089b88510dfc5313d240d5bc99a32",
+            "datum": "2026-10-11T01:04:04+02:00",
+            "wer": "Claudia",
+            "betreff": "docs(state): Migration 0103 fuer WI-0128 E13 reserviert",
+            "doku": true
+        },
+        {
+            "sha": "41c8c505fc50e3994d0ea89d8800f04051f03997",
+            "datum": "2026-10-11T01:02:15+02:00",
+            "wer": "Claudia",
+            "betreff": "feat(WI-0127 SYS-10 Teil a): Inhaltsschalter in der Systemsteuerung - Katalog, Tafel, Umschalten, Lesepfad (0102)",
+            "doku": false
+        }
+    ]
+}

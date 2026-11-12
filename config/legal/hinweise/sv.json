@@ -1,0 +1,1950 @@
+{
+    "uebersetzung": "Den här informationen är översatt från tyska. Om de två versionerna skiljer sig åt gäller den tyska versionen.",
+    "abschnitte": [
+        {
+            "id": "bedienung",
+            "titel": "Handhavande",
+            "hinweis": "Tangentkommandon, gester och hjälpmedel",
+            "bloecke": []
+        },
+        {
+            "id": "haeufige-fragen",
+            "titel": "Vanliga frågor",
+            "hinweis": "Korta svar på det som frågas oftast",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "De korta svaren på det som frågas oftast. Hänvisningarna leder till det utförliga avsnittet."
+                },
+                {
+                    "art": "frage",
+                    "id": "kostet-avesmaps-etwas",
+                    "frage": "Kostar Avesmaps något?",
+                    "antwort": "**Nej.** Avesmaps [kostar ingenting](#was-es-kostet), **visar ingen reklam** och **säljer inga uppgifter**."
+                },
+                {
+                    "art": "frage",
+                    "id": "ist-avesmaps-eine-offizielle-dsa-quelle",
+                    "frage": "Är Avesmaps en officiell DSA-källa?",
+                    "antwort": "**Nej.** Avesmaps är ett fanprojekt och har ingen officiell koppling till Ulisses Spiele. [Bindande](#was-avesmaps-nicht-ist) är fortfarande det material som Ulisses Spiele har publicerat."
+                },
+                {
+                    "art": "frage",
+                    "id": "braucht-man-ein-konto",
+                    "frage": "Behöver man ett konto?",
+                    "antwort": "**Nej.** Kartan och ruttplaneraren, rapporter, omdömen, kartförslag och reseminnen fungerar utan konto. Ett [konto](#konten) får bara den som bjuds in till medverkan."
+                },
+                {
+                    "art": "frage",
+                    "id": "warum-haben-orte-unterschiedliche-farben",
+                    "frage": "Varför har orter olika färger?",
+                    "antwort": "Ortsmarkeringens färg visar om en ort kommer från officiella publikationer eller är en [inofficiell komplettering](#offizielle-und-inoffizielle-inhalte), till exempel från det aventuriska brevspelet."
+                },
+                {
+                    "art": "frage",
+                    "id": "lassen-sich-inoffizielle-inhalte-ausblenden",
+                    "frage": "Går det att dölja inofficiellt innehåll?",
+                    "antwort": "**Inte helt för närvarande:** Vägar och stigar går [inte alltid entydigt att koppla](#offizielle-und-inoffizielle-inhalte), och delvis skulle de leda ingenstans."
+                },
+                {
+                    "art": "frage",
+                    "id": "gibt-es-eine-zeitleiste-oder-fruehere-politische-karten",
+                    "frage": "Finns det en tidslinje eller tidigare politiska kartor?",
+                    "antwort": "**Nej.** Vi saknar kapacitet för det: personal, tid och teknik. Redan läget i vyn ”Politisk” (**1047 BF**) har bara kommit till genom mycket intensiv research; för andra år finns inget fullständigt eller tillförlitligt dataunderlag. Däremot planerar vi en sektion med krönikeämnen som återger utvecklingar begränsade i plats och tid. Att utveckla den är dock arbetskrävande och svårt."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-genau-sind-reisezeiten-und-entfernungen",
+                    "frage": "Hur exakta är restider och avstånd?",
+                    "antwort": "De är en [orienteringshjälp](#grenzen-der-karte). De bygger på tillgängliga kartdata och på modellerna för de aventuriska reseregler, som inte alltid är motsägelsefria. Väder, terräng och vägens skick går inte alltid att ta helt med i beräkningen."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-laesst-sich-ein-fehler-oder-ein-fehlender-ort-melden",
+                    "frage": "Hur går det att rapportera ett fel eller en saknad ort?",
+                    "antwort": "Via ”Rapportera något här” eller ”Föreslå ändringar” på kartan, [även utan konto](#meldungen-zur-karte), eller med /bug och /idee på Discord-servern. Fler sätt att vara med står under [Var med](#mitmachen)."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-kommt-ein-eigenes-bild-oder-eine-karte-auf-avesmaps",
+                    "frage": "Hur kommer en egen bild eller karta in på Avesmaps?",
+                    "antwort": "Egna bilder kommer in som [reseminne](#reisebilder), kartor via [”Föreslå karta”](#kartenvorschlaege). Redaktionen granskar varje inlämning innan den visas."
+                },
+                {
+                    "art": "frage",
+                    "id": "duerfen-karten-oder-daten-weiterverwendet-werden",
+                    "frage": "Får kartor eller data användas vidare?",
+                    "antwort": "**Inte automatiskt:** [Innehåll av olika ursprung](#was-fuer-welche-inhalte-gilt) omfattas av egna villkor. Programkoden har MIT-licens, DSA-material har ingen fri licens. Vid tvekan hjälper en förfrågan till den adress som anges i utgivningsuppgifterna."
+                },
+                {
+                    "art": "frage",
+                    "id": "wird-ki-eingesetzt",
+                    "frage": "Används AI?",
+                    "antwort": "**Ja.** [AI-agenter](#einsatz-von-kuenstlicher-intelligenz) stödjer den tekniska utvecklingen, och en del av bilderna samt kartan ”Modern” har skapats med generativ AI. Vad som publiceras eller ändras i kartdata avgörs av operatören."
+                },
+                {
+                    "art": "frage",
+                    "id": "speichert-avesmaps-daten-ueber-besuche",
+                    "frage": "Sparar Avesmaps uppgifter om besök?",
+                    "antwort": "Avesmaps räknar besök bara [anonymt och i summor](#anonyme-besucherstatistik), utan kakor och utan igenkänning. Webbservern för **ungefär 14 dagar** tekniska [loggdata](#server-logdaten) med IP-adress."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-lassen-sich-eigene-angaben-loeschen",
+                    "frage": "Hur går det att radera egna uppgifter?",
+                    "antwort": "Det räcker med en [förfrågan](#rechte-der-betroffenen) till den adress som anges i utgivningsuppgifterna. Omdömen kan anmärkas på via ”Rapportera omdömet” med skälet ”Personuppgifter”. Reseminnen tas offline via den personliga länken."
+                },
+                {
+                    "art": "frage",
+                    "id": "wie-bleibt-man-auf-dem-laufenden",
+                    "frage": "Hur håller man sig uppdaterad?",
+                    "antwort": "Via Nyheterna högst upp i det här fönstret och via kanalerna på Discord, Instagram, Facebook och Mastodon."
+                }
+            ]
+        },
+        {
+            "id": "projekt-und-mitmachen",
+            "titel": "Projekt och medverkan",
+            "hinweis": "Vad Avesmaps är, hur kartan blir till och hur man deltar",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Ett öppet, oberoende och icke-kommersiellt fanprojekt om [Det Svarta Ögat](https://de.wikipedia.org/wiki/Das_Schwarze_Auge) av [Valentin Schwind](https://www.valentin-schwind.de) och Thomas Braun. Projektet har ingen officiell koppling till [Ulisses Spiele](https://de.wikipedia.org/wiki/Ulisses_Spiele)."
+                },
+                {
+                    "art": "h3",
+                    "id": "die-karte",
+                    "text": "Kartan"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps visar [Aventurien](https://de.wiki-aventurica.de/wiki/Aventurien) i webbläsaren: orter och platser, herrskapsområden, landskap och vatten, dessutom vägnätet som förbinder dem. Kartan går att vrida och luta, och det som syns i 3D är en beräknad [höjdmodell](https://de.wikipedia.org/wiki/Digitales_H%C3%B6henmodell) och inte en målad relief. Ruttplaneraren söker vägen mellan två orter och anger sträcka och restid till fots, till häst, med skepp och i luften."
+                },
+                {
+                    "art": "h3",
+                    "id": "wie-die-karte-entsteht",
+                    "text": "Hur kartan blir till"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Bakom varje ort, varje väg och varje yta står ett redaktionellt beslut. Redaktörer samlar in källäget, sätter ut orter, ritar vägar och områden och skriver en del av de korta beskrivningarna. Mycket av det kontrolleras mot [Wiki Aventurica](https://de.wiki-aventurica.de/) och publicerat material. Kartan blir därför aldrig färdig, och den växer inte genom filer utan genom människor. Varifrån uppgifterna kommer i detalj står under [”Innehåll och datakällor”](#inhalte-und-datenquellen)."
+                },
+                {
+                    "art": "h3",
+                    "id": "mitmachen",
+                    "text": "Var med"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps lever av stödet från sin gemenskap. Bidrag är möjliga på flera sätt:"
+                },
+                {
+                    "art": "liste",
+                    "punkte": [
+                        "Fel, saknade orter, uppgifter och källor: via rapportfunktionerna på kartan, via Discord och de övriga kanalerna högst upp i det här fönstret.",
+                        "Egna bilder och illustrationer: som reseminne, om verket är gjort av en själv (se [”Reseminnen”](#reisebilder)).",
+                        "Kartor: som förslag till kartsamlingen, om de är ett eget verk eller upphovsmannen har gett tillåtelse.",
+                        "Arbete med kartan: med ett konto med stegvisa rättigheter. Vad som då sparas framgår av avsnittet [Dataskydd](#datenschutz)."
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Särskilt vill vi uppmuntra konstnärer att visa sina verk på Avesmaps och att vara med och forma Aventuriens värld. Vårt mål är en öppen plattform som blir allt bättre genom kunskapen, kreativiteten och engagemanget i gemenskapen."
+                },
+                {
+                    "art": "h3",
+                    "id": "was-avesmaps-nicht-ist",
+                    "text": "Vad Avesmaps inte är"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps är **inte en officiell publikation och ingen kanonisk källa**. Där källorna tiger eller motsäger varandra fattar redaktionen ett beslut; vilken källa som ligger bakom ett enskilt objekt visas i dess infopanel. Bindande är fortfarande det material som Ulisses Spiele har publicerat, inte den här kartan. Avesmaps är en orienteringshjälp och ingen bindande atlas över det officiella Aventurien. Vilka uppgifter en spelomgång tar över avgör den själv."
+                },
+                {
+                    "art": "h3",
+                    "id": "was-es-kostet",
+                    "text": "Vad det kostar"
+                },
+                {
+                    "art": "absatz",
+                    "text": "**Avesmaps kostar ingenting**, **visar ingen reklam** och **säljer inga uppgifter**. Servern, driften och utvecklingen bekostas privat av operatören. Arbetet med kartan och programvaran sker på fritiden."
+                }
+            ]
+        },
+        {
+            "id": "inhalte-und-datenquellen",
+            "titel": "Innehåll och datakällor",
+            "hinweis": "Varifrån orter, vägar och områden kommer, vad som är officiellt och hur det avstäms",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Kartan förenar tidigare fanarbete, [Wiki Aventurica](https://de.wiki-aventurica.de/), kartor från [brevspelet](https://de.wikipedia.org/wiki/Briefspiel) och egen redaktionell arbetsinsats. Här framgår vad som kommer varifrån och hur det avstäms."
+                },
+                {
+                    "art": "h3",
+                    "id": "offizielle-und-inoffizielle-inhalte",
+                    "text": "Officiellt och inofficiellt innehåll"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps innehåller, utöver orter från officiella publikationer, även kompletteringar från det aventuriska brevspelet. De ingår inte i den officiella DSA-kanon, men berikar spelvärlden genom sin långa utveckling och omfattande dokumentation. Vi vill medvetet göra dessa innehåll tillgängliga utan att likställa dem med officiella fastställanden. Kartan visar skillnaden med ortsmarkeringens färg."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Att helt dölja inofficiellt innehåll är för närvarande inte möjligt, eftersom särskilt vägar och stigar inte alltid kan kopplas entydigt och delvis skulle leda ingenstans. Inte heller är de befintliga vägarna nödvändigtvis styrkta av officiella källor."
+                },
+                {
+                    "art": "h3",
+                    "id": "avespfade",
+                    "text": "Avespfade"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Från 2014 till 2026 var [Avespfade](https://avespfade.de/) ruttplaneraren för Aventurien. Oliver Hackstein och Florian Mazur presenterade den den 13 februari 2014, efter ett halvt års arbete: resor till fots, till häst, över flod och sjö, med vägpunkter, alternativa rutter och områden som rutten går runt. Så något fanns inte förut."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps bygger på detta arbete. En del av de orter, korsningar och vägar med vilka kartan i dag räknar ut resor kommer från Avespfade. Utan vägnätet, som där har vuxit fram under tolv år, hade Avesmaps börjat helt annorlunda."
+                },
+                {
+                    "art": "absatz",
+                    "text": "I oktober 2026 satte Oliver Hackstein och Florian Mazur Avespfade i pension och hänvisade därifrån till Avesmaps. Tack för det och för tolv år med Avespfade."
+                },
+                {
+                    "art": "h3",
+                    "id": "orts-wege-und-routendaten",
+                    "text": "Orts-, vägs- och ruttdata"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Ort-, korsnings-, vägs- och ruttdata har delvis härletts från offentligt tillgängliga fan- och referenskällor, redaktionellt bearbetats, kompletterats och tekniskt förberetts. Delar av utgångsdata går enligt källäget hittills tillbaka till avespfade.de. Där har enskilda ortspositioner enligt egen uppgift anpassats efter [DereGlobus-projektet](https://www.dereglobus.org/)."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Landskapsytor och klimatzoner uppstår däremot till övervägande del här och är en redaktionell tolkning av källäget, ingen övertagen förlaga. Posterna om natur och varor följer till stor del Wiki Aventurica (se [”Dataavstämning”](#datenabgleich))."
+                },
+                {
+                    "art": "h3",
+                    "id": "datenabgleich",
+                    "text": "Dataavstämning"
+                },
+                {
+                    "art": "absatz",
+                    "text": "En del av innehållet, särskilt herrskapsområden, orter och regioner, avstäms regelbundet mot [Wiki Aventurica](https://de.wiki-aventurica.de/). En redaktör startar avstämningen. Körningen tar över entydiga ändringar av sig själv, egna och tvetydiga uppgifter lämnas orörda, och varje körning kan återtas."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "datenabgleich-kurzbeschreibungen",
+                            "begriff": "Korta beskrivningar",
+                            "werte": [
+                                "Även många korta beskrivningar i infopanelen kommer därifrån, och respektive artikel är länkad."
+                            ]
+                        },
+                        {
+                            "id": "datenabgleich-rechte-an-den-texten",
+                            "begriff": "Rättigheter till texterna",
+                            "werte": [
+                                "Rättigheterna till dessa texter stannar hos deras upphovsmän. De omfattas av [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/deed.sv) och gör det även i bearbetad form. Som omnämnande tjänar hänvisningen till artikeln och den författarlista som förs där. Citat och innehåll från Ulisses omfattas inte av licensen och tas inte över."
+                            ]
+                        },
+                        {
+                            "id": "datenabgleich-dateien",
+                            "begriff": "Filer",
+                            "werte": [
+                                "Filer från Wiki Aventurica, till exempel vapensköldar, har i stället var sin egen licens."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "kartendaten-aus-garetien-und-dem-kosch",
+                    "text": "Kartdata från Garetien och Kosch"
+                },
+                {
+                    "art": "absatz",
+                    "text": "En del av vattendragen, vägarna, skogarna, bergen, orterna och herrskapsområdena i trakten kring Garetien, Greifenfurt, Perricum och Kosch kommer från kartorna av Volker Strunk (VolkoV), publicerade på [garetien.de](https://www.garetien.de/) och [koschwiki.de](https://www.koschwiki.de/)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "kartendaten-aus-garetien-und-dem-kosch-genehmigung",
+                            "begriff": "Tillstånd",
+                            "werte": [
+                                "Övertagandet sker med uttryckligt tillstånd från Freundeskreis des phantastischen Briefspiels e. V. den 12.08.2026. Det sker efter redaktionell granskning, inte automatiskt."
+                            ]
+                        },
+                        {
+                            "id": "kartendaten-aus-garetien-und-dem-kosch-lizenz-und-nennung",
+                            "begriff": "Licens och omnämnande",
+                            "werte": [
+                                "Dessa innehåll omfattas av [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/deed.sv) och gör det även i bearbetad form. Som omnämnande tjänar ”VolkoV / garetien.de” respektive ”VolkoV / koschwiki.de” vid respektive källa i infopanelen, tillsammans med hänvisningen till den tillhörande artikeln."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "quelle-je-objekt",
+                    "text": "Källa per objekt"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Vilken källa som ligger bakom en enskild ort, ett enskilt område eller en enskild väg visar infopanelen vid det objektet, i den mån den är registrerad, tillsammans med licens och omnämnande."
+                }
+            ]
+        },
+        {
+            "id": "karten-auf-avesmaps",
+            "titel": "Kartor på Avesmaps",
+            "hinweis": "Ina Kramers originalkarta, vad som blev av den och under vilken licens",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Alla tre kartserierna går tillbaka på samma officiella karta och omfattas därför av samma licens. De skiljer sig bara i bearbetningen."
+                },
+                {
+                    "art": "h3",
+                    "id": "die-originalkarte",
+                    "text": "Originalkartan"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Officiell Aventurienkarta från Ulisses Spiele, för fans tillgänglig via Aventurischer Atlas. Originalkartorna finns i 8192 pixlar."
+                },
+                {
+                    "art": "h3",
+                    "id": "die-kartenserien",
+                    "text": "Kartserierna"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Kartan kan visas i tre serier:"
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "die-kartenserien-old",
+                            "begriff": "Old",
+                            "werte": [
+                                "Kartan så som grafikern [Ina Kramer](https://de.wikipedia.org/wiki/Ina_Kramer) en gång hade den framför sig. De publicerade skannade kartorna innehöll beteckningar som med hjälp av [artificiell intelligens](https://sv.wikipedia.org/wiki/Artificiell_intelligens) togs bort. Uppgift från operatören den 12.10.2026."
+                            ]
+                        },
+                        {
+                            "id": "die-kartenserien-original",
+                            "begriff": "Original",
+                            "werte": [
+                                "Samma karta som ”Old”, bara utan den inbrända beteckningen. Den togs bort, och bilden skalades därefter upp till 32 768 pixlar med AI-konvertering. Geometriskt identisk med de övriga serierna."
+                            ]
+                        },
+                        {
+                            "id": "die-kartenserien-modern",
+                            "begriff": "Modern",
+                            "werte": [
+                                "Skapad i åtta steg med [generativ AI](https://de.wikipedia.org/wiki/Generative_k%C3%BCnstliche_Intelligenz) ur Ina Kramer-kartan. Originalkartan delades upp i rutor om 1024 pixlar, [Qwen](https://de.wikipedia.org/wiki/Qwen) tog bort beteckningen i varje ruta, [ChatGPT](https://de.wikipedia.org/wiki/ChatGPT) Image ritade den på nytt som en målad terrängkarta och större, och en Dense Warp lade varje ruta exakt tillbaka på originalets geometri. Kuster, floder, vägar och gränser ligger därför kvar där de låg tidigare, och ingenting tillkom som inte redan fanns.",
+                                "Land- och vattenytor bereddes var för sig och förenades igen. Resultatet efterbearbetades för hand i [Photoshop](https://de.wikipedia.org/wiki/Adobe_Photoshop) och skars sist i rutor (32 768 × 32 768 pixlar). Kartan zoomar i stegen 0 till 8."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "lizenz-und-genehmigung",
+                    "text": "Licens och tillstånd"
+                },
+                {
+                    "art": "absatz",
+                    "text": "För kartmaterialet gäller [licensavtalet för Ulisses-kartpaketet](https://de.wiki-aventurica.de/wiki/Kartenpaket/Lizenz). Mångfaldigande, spridning och uttryckligen även bearbetning är tillåtna, så länge användningen förblir icke-kommersiell och bearbetningen märks ut som fanprojekt. Underlicenser är uteslutna, och rättigheterna upphör vid ett brott. Vid varje spridning ska en kopia av licensen eller dess fullständiga internetadress följa med."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "lizenz-und-genehmigung-genehmigung",
+                            "begriff": "Tillstånd",
+                            "werte": [
+                                "Användningen för Avesmaps har godkänts för just detta projekt. Uppgift från operatören den 20.09.2026. Vem som lämnat tillståndet, när och i vilken form är inte dokumenterat. Det innebär inte att något tillstånd saknas, bara att det inte går att belägga här."
+                            ]
+                        },
+                        {
+                            "id": "lizenz-und-genehmigung-nennung",
+                            "begriff": "Omnämnande",
+                            "werte": [
+                                "Kartmaterial © Ulisses Spiele · Originalkarta: Ina Kramer · Bearbetning: Avesmaps (DSA-fanprojekt)"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "kasten",
+                    "titel": "Till återkallelse",
+                    "absaetze": ["Tillståndet att använda bildmaterial lämnas enligt Ulisses bara till återkallelse."]
+                }
+            ]
+        },
+        {
+            "id": "urheberrecht-marken-und-bildrechte",
+            "titel": "Upphovsrätt, varumärken och bildrättigheter",
+            "hinweis": "Vad som gäller för vilket innehåll: fanriktlinjer, vapensköldar, bilder, omslag och varumärken",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Avesmaps använder innehåll av olika ursprung, för vilka egna användningsvillkor kan gälla. En fri vidareanvändning av allt innehåll är därför inte automatiskt tillåten. Den som vill använda data, kartor eller andra delar av Avesmaps i egna projekt bör iaktta respektive licens och kontakta oss vid tvivel."
+                },
+                {
+                    "art": "h3",
+                    "id": "was-fuer-welche-inhalte-gilt",
+                    "text": "Vad som gäller för vilket innehåll"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Fyra grupper ska skiljas åt:"
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "was-fuer-welche-inhalte-gilt-dsa-inhalte",
+                            "begriff": "DSA-innehåll",
+                            "werte": [
+                                "Rättigheterna till Det Svarta Ögat, Aventurien samt de använda varumärkena, kartorna, texterna och illustrationerna ligger kvar hos respektive rättighetsinnehavare. Närmare uppgifter finns under [”Ingen fri licens för DSA-material”](#keine-freie-lizenz-fuer-dsa-material)."
+                            ]
+                        },
+                        {
+                            "id": "was-fuer-welche-inhalte-gilt-kartenpaket",
+                            "begriff": "Kartpaketet",
+                            "werte": ["Licensen under [”Kartor på Avesmaps”](#karten-auf-avesmaps) gäller."]
+                        },
+                        {
+                            "id": "was-fuer-welche-inhalte-gilt-drittmaterial",
+                            "begriff": "Tredjepartsmaterial",
+                            "werte": [
+                                "Texter från [Wiki Aventurica](https://de.wiki-aventurica.de/) omfattas av CC BY-SA 3.0, innehåll från Garetien och Kosch av CC BY-NC-SA 3.0 (se [”Innehåll och datakällor”](#inhalte-und-datenquellen)). För vapensköldar, bilder och omslag gäller det som står nedan."
+                            ]
+                        },
+                        {
+                            "id": "was-fuer-welche-inhalte-gilt-programmcode",
+                            "begriff": "Programkod",
+                            "werte": [
+                                "Den omfattas av [MIT-licensen](https://de.wikipedia.org/wiki/MIT-Lizenz) (se [”Teknik och AI”](#technik-und-kuenstliche-intelligenz))."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Vi respekterar arbetet hos de ursprungliga skaparna och strävar efter en öppen märkning av de använda källorna och upphovsmännen."
+                },
+                {
+                    "art": "h3",
+                    "id": "fanrichtlinien-und-fanprojekt-kennzeichnung",
+                    "text": "Fanriktlinjer och märkning som fanprojekt"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps märker sig själv som fanprojekt. Användningen av DSA-FANPROJEKT-logotypen och de rättsliga upplysningarna sker i enlighet med de [fanriktlinjer](https://ulisses-spiele.de/fan-richtlinie/) som Ulisses har publicerat. Tillståndet att använda vissa material kan återkallas av rättighetsinnehavarna eller i enskilda fall förbjudas. Vid ett påpekande från rättighetsinnehavare granskas berörda innehåll och tas bort eller anpassas vid behov."
+                },
+                {
+                    "art": "h3",
+                    "id": "keine-freie-lizenz-fuer-dsa-material",
+                    "text": "Ingen fri licens för DSA-material"
+                },
+                {
+                    "art": "absatz",
+                    "text": "DSA-relaterat karte-, bild-, varumärkes-, namn- och bakgrundsmaterial publiceras inte på Avesmaps under [Creative Commons](https://de.wikipedia.org/wiki/Creative_Commons), öppna data, öppen källkod eller någon jämförbar fri licens. Det gäller särskilt för innehåll som bygger på officiella publikationer, kartor, namn, begrepp, varumärken eller annat skyddat material från Ulisses eller andra rättighetsinnehavare. En vidareanvändning är bara tillåten inom ramen för de rättigheter som gäller i varje fall."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Det berörs inte av detta: dels den programkod som skrivits för Avesmaps själv och som är [öppen källkod](https://sv.wikipedia.org/wiki/%C3%96ppen_k%C3%A4llkod) under MIT-licensen, dels övertagna texter från Wiki Aventurica, som omfattas av deras upphovsmäns licens."
+                },
+                {
+                    "art": "h3",
+                    "id": "wappen-bilder-und-cover",
+                    "text": "Vapensköldar, bilder och omslag"
+                },
+                {
+                    "art": "h4",
+                    "id": "wappen",
+                    "text": "Vapensköldar"
+                },
+                {
+                    "art": "absatz",
+                    "text": "De vapensköldar för herrskapsområdena som visas på kartan kommer från Wiki Aventurica eller är särskilt framtagna AI-bilder. Varje media har i Avesmaps en egen rättslig grund och en egen frigivningsstatus. Visas offentligt är det som registrerats som allmän egendom, [CC0](https://creativecommons.org/publicdomain/zero/1.0/deed.sv), eget arbete eller särskilt framtaget AI-bild, dessutom det som redaktionen frigivit enligt regel eller enskilt. Vapensköldar med okänd eller begränsande rättsstatus förblir dolda utan en sådan frigivning. Rättigheterna ligger kvar hos respektive upphovsmän och rättighetsinnehavare. Visningen på Avesmaps grundar inga egna rättigheter till dem. Vid ett påpekande från rättighetsinnehavare granskas berörda vapensköldar och tas bort eller anpassas vid behov."
+                },
+                {
+                    "art": "h4",
+                    "id": "bilder",
+                    "text": "Bilder"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Regioner, bosättningar och andra orter kan dessutom bära en bild. Den ska ge ett igenkännbart intryck av orten och inte ersätta konstnärers eller Ulisses arbete. Infogas uteslutande sådant som efter granskning har tillräcklig behörighet, i regel allmän egendom och för Avesmaps särskilt framtagna AI-bilder. Inte används skanningar eller foton av Ulisses-artwork eller fanart av andra konstnärer utan deras uttryckliga tillstånd. Vid ett påpekande från rättighetsinnehavare granskas berörda bilder och tas bort eller anpassas vid behov."
+                },
+                {
+                    "art": "h4",
+                    "id": "cover",
+                    "text": "Omslag"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Omslagen av DSA-publikationer som visas vid litteraturposterna används med tillstånd från Ulisses. Omslaget hänvisar, i den mån det finns i butiken, till respektive publikation hos Ulisses eller i F-Shop. Annars leder hänvisningen till den tillhörande artikeln i Wiki Aventurica eller till Deutsche Nationalbibliothek."
+                },
+                {
+                    "art": "h3",
+                    "id": "marken-und-disclaimer",
+                    "text": "Varumärken och förbehåll"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Artwork © Ulisses Spiele. DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA, RIESLAND and THE DARK EYE are registered trademarks of Ulisses Spiele GmbH, Waldems. The graphics are used within the guidelines permitted by Ulisses Spiele. Use beyond these guidelines may only take place with the prior written permission of Ulisses Medien und Spiel Distribution GmbH."
+                },
+                {
+                    "art": "absatz",
+                    "text": "DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA and RIESLAND are trademarks of Significant Fantasy Medienrechte GbR."
+                }
+            ]
+        },
+        {
+            "id": "technik-und-kuenstliche-intelligenz",
+            "titel": "Teknik och AI",
+            "hinweis": "Byggdelarna, källkoden, hur rutten räknas och var AI används",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Avesmaps består av fri programvara, egen programkod och en utveckling som till stor del utförs av AI-agenter."
+                },
+                {
+                    "art": "h3",
+                    "id": "software-und-lizenzen",
+                    "text": "Programvara och licenser"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps bygger på dessa byggdelar:"
+                },
+                {
+                    "art": "tafel",
+                    "kopf": ["Område", "Byggdel", "Licens"],
+                    "schluesselSpalten": 2,
+                    "zeilen": [
+                        {
+                            "id": "software-und-lizenzen-karte-im-browser-maplibre-gl-js",
+                            "zellen": ["Karta i webbläsaren", "[MapLibre GL JS](https://maplibre.org/)", "BSD-3-Clause"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-oberflaeche-vue",
+                            "zellen": ["Gränssnitt", "[Vue](https://vuejs.org/)", "MIT"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-server-fastify",
+                            "zellen": ["Server", "[Fastify](https://fastify.dev/)", "MIT"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-server-typebox",
+                            "zellen": ["Server", "[TypeBox](https://github.com/sinclairzx81/typebox)", "MIT"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-server-postgres-js",
+                            "zellen": ["Server", "[postgres.js](https://github.com/porsager/postgres)", "Unlicense"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-bildverarbeitung-sharp-mit-libvips",
+                            "zellen": [
+                                "Bildbehandling",
+                                "[sharp](https://sharp.pixelplumbing.com/), med [libvips](https://www.libvips.org/)",
+                                "Apache-2.0, libvips LGPL-3.0"
+                            ]
+                        },
+                        {
+                            "id": "software-und-lizenzen-daten-postgresql",
+                            "zellen": ["Data", "[PostgreSQL](https://www.postgresql.org/)", "PostgreSQL License"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-daten-postgis",
+                            "zellen": ["Data", "[PostGIS](https://postgis.net/)", "GPL-2.0 eller nyare"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-vektorkacheln-martin",
+                            "zellen": ["Vektorrutor", "[Martin](https://martin.maplibre.org/)", "MIT eller Apache-2.0"]
+                        },
+                        {
+                            "id": "software-und-lizenzen-hausschrift-faculty-glyphic",
+                            "zellen": [
+                                "Huvudtypsnitt",
+                                "[Faculty Glyphic](https://github.com/google/fonts/tree/main/ofl/facultyglyphic)",
+                                "SIL Open Font License 1.1"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Faculty Glyphic: Copyright 2024 The Faculty Glyphic Project Authors. Huvudtypsnittet levereras från den egna servern och laddas inte från ett främmande nätverk."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Dessa byggdelar gäller den tekniska visningen och hanteringen av kartan och ger ingen rätt till DSA-relaterat karte-, namn-, varumärkes- eller bakgrundsmaterial."
+                },
+                {
+                    "art": "h3",
+                    "id": "quellcode",
+                    "text": "Källkod"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Den programkod som skrivits för Avesmaps är öppen källkod och finns på [GitHub](https://github.com/valentin-schwind/avesmaps) under MIT-licensen. Licensen gäller uteslutande programkoden. Den omfattar varken kartrutorna eller ort-, väg-, områdes- och geometridata, inte heller DSA-relaterade texter, vapensköldar, bilder eller varumärken. För dessa innehåll gäller oförändrat rättigheterna för respektive källa och Ulisses fanriktlinjer."
+                },
+                {
+                    "art": "h3",
+                    "id": "wegfindung",
+                    "text": "Ruttsökning"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Ruttsökningen räknar på servern. Över vägnätet, vars noder är orter och korsningar och vars kanter är vägarna med längd och restid för varje transportmedel, körs [Dijkstra-algoritmen](https://sv.wikipedia.org/wiki/Dijkstras_algoritm)."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Där ingen väg finns, till exempel vid ett mål utanför nätet, söker dessutom en [A*-algoritm](https://de.wikipedia.org/wiki/A*-Algorithmus) över ett terrängraster. Varje steg prissätts efter landskap och höjdskillnad, skog, kärr och berg bromsar, stigningar kostar tid, och hav, sjöar och floder kan bara passeras där en ritad väg korsar. Den hittade terrängsträckan hänger sedan som en enskild kant på vägnätet. Skepp seglar från hamn till hamn över en härledd sjögraf, inte över ritade vägar."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Flygande transportmedel räknar över ett eget fält med flyghöjd och terräng."
+                },
+                {
+                    "art": "h3",
+                    "id": "einsatz-von-kuenstlicher-intelligenz",
+                    "text": "Användning av AI"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Vi uppskattar och respekterar konstnärernas arbete och vill på lång sikt även etablera Avesmaps som en plattform där deras verk kan visas och uppmärksammas. Samtidigt är Avesmaps ett projekt med begränsade personella och ekonomiska resurser. Utan användning av AI skulle utvecklingen i denna omfattning för närvarande knappast vara möjlig."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Här skiljer vi uttryckligen mellan generativ AI för att skapa konstnärligt innehåll och AI-stödda programmeringsagenter som stödjer oss i den tekniska utvecklingen. Enligt vår uppfattning ska de två användningsområdena bedömas olika. Särskilt när det gäller illustrationer ser vi inte AI som en grundläggande ersättning för mänsklig kreativitet, utan som en pragmatisk lösning under de nuvarande förutsättningarna. Vårt mål är fortsatt att binda in mänsklig konst starkare och att ge intresserade konstnärer en möjlighet att vara med och forma Aventurien."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Var AI konkret används framgår på respektive ställe: vid kartan ”Modern”, vid vapensköldar och bilder, vid reseminnena och i dataskyddet under [”AI-verktyg”](#ki-werkzeug)."
+                },
+                {
+                    "art": "h3",
+                    "id": "claudia-und-claudio",
+                    "text": "Claudia och Claudio"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps byggs till största delen av två AI-agenter som körs på Claude från [Anthropic](https://de.wikipedia.org/wiki/Anthropic). Tidvis arbetar även Codex med."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "claudia-und-claudio-claudia",
+                            "begriff": "Claudia",
+                            "werte": [
+                                "Claudia arbetar på utvecklingsdatorn: arkitektur, programkod, datamodell, tester och de verktyg med vilka karte- och resedata bereds."
+                            ]
+                        },
+                        {
+                            "id": "claudia-und-claudio-claudio",
+                            "begriff": "Claudio",
+                            "werte": [
+                                "Claudio arbetar på servern: att läsa in nya versioner, databasen, rutortjänsten, säkerhetskopiorna, övervakningen och felsökningen när något krånglar."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Båda arbetar inte fritt: vad som publiceras eller ändras i kartdata avgörs av operatören. En ändring av kartan kräver operatörens uttryckliga godkännande, och varje skrivåtkomst protokollförs. Texterna på den här sidan utformar delvis Claudia, men de godkänns av operatören. Tolkningen av källorna och allt redaktionellt arbete ligger kvar hos människor."
+                },
+                {
+                    "art": "bild",
+                    "src": "/img/claudia-claudio.webp",
+                    "alt": "Claudia och Claudio, Avesmaps två AI-agenter, över en karta",
+                    "breite": 520,
+                    "hoehe": 520
+                }
+            ]
+        },
+        {
+            "id": "reisebilder",
+            "titel": "Reseminnen",
+            "hinweis": "Villkor för egna bilder: upphovsrätt, användning, granskning, personlig länk",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "För egna bilder gäller dessa villkor. Vad som sparas framgår av [Dataskydd](#datenschutz-bei-reisebildern)."
+                },
+                {
+                    "art": "h3",
+                    "id": "bedingungen",
+                    "text": "Villkor"
+                },
+                {
+                    "art": "absatz",
+                    "text": "För varje inlämnad bild gäller:"
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "bedingungen-eigenes-werk",
+                            "begriff": "Eget verk",
+                            "werte": [
+                                "Det som lämnas in är bara en bild man själv gjort: målad eller tecknad, fotograferad, skapad med AI eller tagen i Avesmaps. Andras verk, även officiella DSA-illustrationer och skanningar från böcker, är uteslutna."
+                            ]
+                        },
+                        {
+                            "id": "bedingungen-personen-und-alter",
+                            "begriff": "Personer och ålder",
+                            "werte": [
+                                "Igenkännbara personer visas bara med deras samtycke. Den som lämnar in måste vara minst 16 år."
+                            ]
+                        },
+                        {
+                            "id": "bedingungen-pruefung",
+                            "begriff": "Granskning",
+                            "werte": [
+                                "Redaktionen granskar varje bild före publiceringen. Den får rätta platsen, orten, sammanhanget och beskrivningen, men inte bilden. **Det finns ingen rätt till publicering**. AI-bilder märker vi som AI-bild."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "nutzung",
+                    "text": "Användning"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Den som lämnar in väljer hur Avesmaps får använda bilden:"
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "nutzung-nur-fuer-avesmaps-vorgabe",
+                            "begriff": "Bara för Avesmaps (standard)",
+                            "werte": [
+                                "Avesmaps får visa bilden på kartan, i bildlisten, i infoboxen och längs rutter, och får då förminska och beskära den, med det angivna namnet eller som ”anonym”. Alla andra rättigheter stannar hos den som lämnat in. Tillståndet upphör när bilden tas offline."
+                            ]
+                        },
+                        {
+                            "id": "nutzung-cc-by-4-0",
+                            "begriff": "[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.sv)",
+                            "werte": [
+                                "Var och en får vidareanvända bilden med omnämnande, även kommersiellt. **Det går inte att ta tillbaka**: när den tas offline försvinner den från Avesmaps, men licensen för andra kvarstår. Den omfattar bara det egna bidraget. Tredje parters rättigheter, till exempel Ulisses rättigheter till DSA-innehåll, berörs inte."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "En Avesmaps-inspelning går bara att lämna in som ”Bara för Avesmaps”, eftersom kartan på den inte tillhör den som lämnar in."
+                },
+                {
+                    "art": "kasten",
+                    "titel": "Personlig länk",
+                    "absaetze": [
+                        "Den som känner till den personliga länken kan ändra bilden eller ta den offline. Den bör förvaras väl, eftersom vi inte kan återställa den."
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "grenzen-der-karte-und-haftung",
+            "titel": "Kartans gränser och ansvar",
+            "hinweis": "Hur exakt kartan är och vad projektet står för",
+            "bloecke": [
+                {
+                    "art": "h3",
+                    "id": "grenzen-der-karte",
+                    "text": "Kartans gränser"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps är ett fanprojekt som växer hela tiden och gör inte anspråk på fullständighet, felfrihet, kanonicitet eller officiell bindande kraft. Trots omfattande källarbete kan orter, vägar och andra uppgifter saknas, vara oexakta eller härröra från olika tidpunkter i Aventurien."
+                },
+                {
+                    "art": "absatz",
+                    "text": "Särskilt de beräknade restiderna och avstånden ska förstås **som orienteringshjälp**. De bygger på tillgängliga kartdata och på modellerna för de aventuriska reseregler (”Wege des Entdeckers”, s. 160–162; ”Geographia Aventurica”, s. 123, 129 och 131), som inte alltid är motsägelsefria. Väder, terräng, vägens skick och andra påverkningar går inte alltid att ta helt med. Avesmaps ska underlätta reseplaneringen, inte ersätta spelledningens beslut eller de officiella regelverken."
+                },
+                {
+                    "art": "absatz",
+                    "text": "För spelare som vill ha kanonicitet och en koppling till Foundry rekommenderar vi [DSA Unbound](https://dasschwarzeauge.de/unbound) och [Aventurischer Atlas für Foundry VTT](https://foundryvtt.com/packages/dsa5-atlas)."
+                },
+                {
+                    "art": "h3",
+                    "id": "haftungsausschluss",
+                    "text": "Ansvarsfriskrivning"
+                },
+                {
+                    "art": "h4",
+                    "id": "haftung-fuer-inhalte",
+                    "text": "Ansvar för innehåll"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Innehållet på den här webbplatsen har tagits fram med största möjliga omsorg. Någon garanti för korrekthet, fullständighet och aktualitet lämnas dock inte. I den mån det är lagligt tillåtet påtas **inget ansvar** för skador som uppstår av användningen eller underlåtenheten att använda de tillhandahållna uppgifterna. För eget innehåll ansvarar operatören enligt de allmänna lagarna, men är inte skyldig att övervaka överförda eller lagrade uppgifter från tredje part eller att söka efter omständigheter som tyder på en rättsstridig verksamhet."
+                },
+                {
+                    "art": "h4",
+                    "id": "haftung-fuer-verweise",
+                    "text": "Ansvar för hänvisningar"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Den här webbplatsen innehåller länkar till externa webbplatser från tredje part, över vars innehåll operatören inte har någon kontroll. För detta främmande innehåll ansvarar alltid respektive leverantör eller operatör av de länkade sidorna. Vid länkningen fanns inga uppenbara rättskränkningar. En löpande kontroll av innehållet på de länkade sidorna är utan konkreta skäl inte rimlig. När rättskränkningar blir kända tas sådana länkar genast bort."
+                },
+                {
+                    "art": "h4",
+                    "id": "verfuegbarkeit-und-nutzung",
+                    "text": "Tillgänglighet och användning"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Det finns ingen rätt till att webbplatsen alltid, utan avbrott eller felfritt är tillgänglig. Kartan, sökningen och ruttplaneraren används för spel och privat bruk i det fiktiva Aventurien och ger ingen garanti för verklig användbarhet, vägdragning eller avstånd. Användningen sker på egen risk."
+                }
+            ]
+        },
+        {
+            "id": "datenschutz",
+            "titel": "Dataskydd",
+            "hinweis": "Kakor bara efter inloggning, anonym statistik utan IP, konton för medverkan",
+            "bloecke": [
+                {
+                    "art": "lead",
+                    "text": "Ansvarig är operatören som anges i utgivningsuppgifterna. Det finns ingen reklam, inga externa reklam- eller spårningsnätverk och inga användarprofiler."
+                },
+                {
+                    "art": "sprungliste",
+                    "wort": "I det här avsnittet:",
+                    "ziele": [
+                        {
+                            "text": "Driften av webbplatsen",
+                            "ziel": "#betrieb-der-seite"
+                        },
+                        {
+                            "text": "Funktioner utan konto",
+                            "ziel": "#funktionen-ohne-konto"
+                        },
+                        {
+                            "text": "Medverkan med konto",
+                            "ziel": "#mitarbeit-mit-konto"
+                        },
+                        {
+                            "text": "Externa tjänster",
+                            "ziel": "#externe-dienste"
+                        },
+                        {
+                            "text": "Tidsfrister och säkerhetskopior",
+                            "ziel": "#fristen-und-sicherungen"
+                        },
+                        {
+                            "text": "De registrerades rättigheter",
+                            "ziel": "#rechte-der-betroffenen"
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "betrieb-der-seite",
+                    "text": "Driften av webbplatsen"
+                },
+                {
+                    "art": "h4",
+                    "id": "server-logdaten",
+                    "text": "Serverns loggdata"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps körs på en egen server hos [STRATO](https://de.wikipedia.org/wiki/Strato_AG)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "server-logdaten-was-wird-verarbeitet",
+                            "begriff": "Vad behandlas?",
+                            "werte": [
+                                "Vid anrop av webbplatsen behandlar servern tekniska loggdata, bland annat [IP-adress](https://sv.wikipedia.org/wiki/IP-adress), tidpunkt, den resurs som anropats samt webbläsar- och enhetstyp, för teknisk drift, stabilitet och säkerhet."
+                            ]
+                        },
+                        {
+                            "id": "server-logdaten-wie-lange",
+                            "begriff": "Hur länge?",
+                            "werte": [
+                                "Webbserverns loggfiler och systemprotokollet raderas efter **ungefär 14 dagar**."
+                            ]
+                        },
+                        {
+                            "id": "server-logdaten-anwendung",
+                            "begriff": "Applikationen",
+                            "werte": [
+                                "Applikationen själv skriver bara en förkortad IP-adress i systemprotokollet: [IPv4](https://de.wikipedia.org/wiki/IPv4) utan den sista byten, [IPv6](https://de.wikipedia.org/wiki/IPv6) till de första 48 bitarna."
+                            ]
+                        },
+                        {
+                            "id": "server-logdaten-schutzdienst",
+                            "begriff": "Skyddstjänsten",
+                            "werte": [
+                                "Spärrar skyddstjänsten en IP-adress efter upprepade misslyckade inloggningar på servern ([SSH](https://sv.wikipedia.org/wiki/Secure_Shell)), finns den också kvar i dess egna protokoll i **ungefär 14 dagar**."
+                            ]
+                        },
+                        {
+                            "id": "server-logdaten-zusammenfuehrung",
+                            "begriff": "Sammanförning",
+                            "werte": ["Dessa loggdata förs inte samman med andra datakällor."]
+                        },
+                        {
+                            "id": "server-logdaten-rechtsgrundlage",
+                            "begriff": "Rättslig grund",
+                            "werte": [
+                                "Det berättigade intresset av en säker drift (artikel 6.1 f i [GDPR](https://de.wikipedia.org/wiki/Datenschutz-Grundverordnung))."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "cookies-und-browser-speicher",
+                    "text": "Kakor och webbläsarlagring"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Den som använder Avesmaps utan att logga in får inga [kakor](https://de.wikipedia.org/wiki/HTTP-Cookie), utom när en rapport kopplas till Discord (se nedan)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "cookies-und-browser-speicher-sitzungs-cookie",
+                            "begriff": "Sessionskakan",
+                            "werte": [
+                                "Den som loggar in får en tekniskt nödvändig sessionskaka (__Host-avesmaps-session). Den innehåller bara en slumpmässig identifierare, är oläslig för sidans skript och gäller bara för den här adressen. Den finns kvar även efter att webbläsaren stängts, tills sessionen tar slut: genom utloggning, när den avslutas i kontot eller av administrationen, eller när kontot spärras eller avvecklas. Den har ingen fast giltighetstid, bara nödåtkomsten upphör efter **60 minuter**. Webbläsaren behåller kakan högst **400 dagar** och får den på nytt vid varje besök."
+                            ]
+                        },
+                        {
+                            "id": "cookies-und-browser-speicher-anmelde-umweg",
+                            "begriff": "Inloggningsomvägen",
+                            "werte": [
+                                "Vid inloggning via Discord och när en rapport kopplas till Discord sätter Avesmaps under högst **tio minuter** en andra, lika nödvändig kaka som binder återvägen från Discord till samma webbläsare."
+                            ]
+                        },
+                        {
+                            "id": "cookies-und-browser-speicher-browser-speicher",
+                            "begriff": "Webbläsarlagring",
+                            "werte": [
+                                "I webbläsaren på respektive enhet finns dessutom kvar:",
+                                [
+                                    "Inställningar, till exempel språk, färgschema, tangentbordshantering och reglage för kartan",
+                                    "läsläget för nyheterna",
+                                    "vilka omdömen den här webbläsaren gillade",
+                                    "på begäran länkarna till egna reseminnen",
+                                    "vid medverkan osparade utkast till redigeringen och uppdelningen Nytt/Arkiv i klockan",
+                                    "under inloggningsomvägens gång kartutsnittet (högst **15 minuter**, bara i den här fliken), likaså nyckeln till den egna rapporten, när en rapport kopplas till Discord"
+                                ],
+                                "**Allt det här går inte av sig självt till servern.**"
+                            ]
+                        },
+                        {
+                            "id": "cookies-und-browser-speicher-rechtsgrundlage",
+                            "begriff": "Rättslig grund",
+                            "werte": [
+                                "För sessionskakan och inloggningsomvägen gäller § 25 Abs. 2 Nr. 2 [TDDDG](https://de.wikipedia.org/wiki/Telekommunikation-Digitale-Dienste-Datenschutz-Gesetz). Något samtycke krävs inte för det."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "anonyme-besucherstatistik",
+                    "text": "Anonym besöksstatistik"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps räknar besök anonymt och i summor."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "anonyme-besucherstatistik-was-gezaehlt-wird",
+                            "begriff": "Vad som räknas",
+                            "werte": [
+                                [
+                                    "Sidvisningar och vistelsetid",
+                                    "Ursprung som land och, inom Tyskland, som delstat",
+                                    "Enhetstyp, operativsystem, webbläsare, webbläsarens språk och fönsterklass",
+                                    "Det inställda språket på sidan och dess färgschema (ljust eller mörkt)",
+                                    "Enhetens förmågor (3D, pekskärm, mindre rörelse, mörkt färgschema)",
+                                    "varifrån anropet kom (direkt, internt eller domänen för hänvisningssidan)",
+                                    "vad som används på kartan"
+                                ]
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-wetter",
+                            "begriff": "Experimentellt väder",
+                            "werte": [
+                                "Webbläsaren hos den som använder det experimentella vädret rapporterar anonymt och i summor vilka vaderbrytare som slås på eller av, samt grova prestandavärden i klasser (bildfrekvens och bildtid, molnupplösning, tiden för den första starten, typ av fel samt grafikkortets familj, till exempel ”NVIDIA” eller ”Adreno”, och om det är en dator eller en telefon), utan koppling till personen."
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-ip-adressen",
+                            "begriff": "IP-adresser",
+                            "werte": [
+                                "IP-adresser läses då, men sparas aldrig av statistiken. De används bara för att slå upp landet och en dagsidentifierare, som förfaller vid midnatt (UTC) och därefter inte längre går att koppla till någon enhet."
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-was-es-nicht-gibt",
+                            "begriff": "Vad som inte finns",
+                            "werte": [
+                                "Det uppstår ingen tabell över enskilda besök. Det finns ingen igenkänning över flera dagar, inga kakor, ingen lagring i webbläsaren och ingen extern analystjänst."
+                            ]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-angemeldete-personen",
+                            "begriff": "Inloggade personer",
+                            "werte": ["Inloggade personer räknas som en egen grupp och syns i ingen besökssiffra."]
+                        },
+                        {
+                            "id": "anonyme-besucherstatistik-rechtsgrundlage",
+                            "begriff": "Rättslig grund",
+                            "werte": ["Det berättigade intresset av en felfri och säker drift (artikel 6.1 f i GDPR)."]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "fehlerdiagnose",
+                    "text": "Felanalys"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Hamnar sidan i ett fel, till exempel vid start, i kartan eller i 3D-grafiken, skickar webbläsaren en kort teknisk diagnos, så att vi kan hitta och åtgärda felet."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "fehlerdiagnose-was-gesendet-wird",
+                            "begriff": "Vad som skickas",
+                            "werte": [
+                                [
+                                    "Feltyp och felnamn",
+                                    "ett rensat meddelande utan adresser, identifierare, siffror och inmatningar",
+                                    "upp till fem platser i Avesmaps programkod",
+                                    "programversionen och webbläsarfamiljen",
+                                    "vilken grafik webbläsaren erbjuder ([WebGL](https://de.wikipedia.org/wiki/WebGL) 2, WebGL 1 eller ingen)"
+                                ]
+                            ]
+                        },
+                        {
+                            "id": "fehlerdiagnose-was-nicht-dabei-ist",
+                            "begriff": "Vad som inte ingår",
+                            "werte": [
+                                "Diagnosen innehåller ingen IP-adress, ingen dagsidentifierare, ingen klockslagsangivelse och inget kartutsnitt och går inte att koppla till något enskilt besök. Lika diagnoser under en dag räknas ihop."
+                            ]
+                        },
+                        {
+                            "id": "fehlerdiagnose-wann-wird-es-geloescht",
+                            "begriff": "När raderas den?",
+                            "werte": [
+                                "Den raderas efter **14 dagar**. I säkerhetskopior ligger den kvar i upp till **sex månader**. Antalet fel per typ och dag finns kvar som summa."
+                            ]
+                        },
+                        {
+                            "id": "fehlerdiagnose-rechtsgrundlage",
+                            "begriff": "Rättslig grund",
+                            "werte": ["Det berättigade intresset av en felfri och säker drift (artikel 6.1 f i GDPR)."]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "missbrauchsschutz",
+                    "text": "Skydd mot missbruk"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Mot missbruk och översvämning räknar applikationen i arbetsminnet, för rapporter, omdömen, kartförslag och reseminnen, hur många inmatningar som kommer från en [hashad](https://de.wikipedia.org/wiki/Hashfunktion) adress. **Det sparas inte.** Vid delade länkar räknar den i arbetsminnet per IP-adress hur många länkar som skickas ut. **IP-adressen sparas inte** i samband med det."
+                },
+                {
+                    "art": "kasten",
+                    "titel": "Serverns loggdata berörs inte av detta",
+                    "absaetze": ["Webbservern protokollför även dessa anrop, med full IP-adress."]
+                },
+                {
+                    "art": "h3",
+                    "id": "funktionen-ohne-konto",
+                    "text": "Funktioner utan konto"
+                },
+                {
+                    "art": "h4",
+                    "id": "meldungen-zur-karte",
+                    "text": "Rapporter om kartan"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Via ”Rapportera något här” och ”Föreslå ändringar” kan vem som helst på kartan rapportera något, även utan konto."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "meldungen-zur-karte-was-wird-gespeichert",
+                            "begriff": "Vad sparas?",
+                            "werte": [
+                                "Sparas gör beskrivningen, den frivilliga källan, vad rapporten avser (ett kartobjekt eller en plats, på begäran med föreslagen ny plats) och, om angivet, namn eller pseudonym. **En e-postadress efterfrågas inte.** IP-adress, [webbläsarens identifierare](https://de.wikipedia.org/wiki/User_Agent) och sidadress sparas inte.",
+                                "Svaret finns på en privat statussida. Länken dit får bara den som rapporterar. Avesmaps sparar bara ett kontrollvärde av dess nyckel. Där går rapporten också att dra tillbaka.",
+                                "Frivilligt går en rapport att koppla till Discord. Då sparar Avesmaps Discord-identifieraren och visningsnamnet, så att /offen på Avesmaps-Discord visar de egna rapporterna. Kopplingen går att lösa när som helst på statussidan."
+                            ]
+                        },
+                        {
+                            "id": "meldungen-zur-karte-wer-sieht-es",
+                            "begriff": "Vem ser det?",
+                            "werte": [
+                                "Rapporter läses av de personer i redaktionen som handlägger rapporter, tillsammans med angivet namn och, vid en kopplad rapport, Discord-visningsnamnet. Operatörerna handlägger rapporter också med ett AI-verktyg (Claude från Anthropic, se [”AI-verktyg”](#ki-werkzeug)), som då ser text och namn. Rapport och namn visas **aldrig offentligt**, varken i kartdata, beskrivningar eller nyheter."
+                            ]
+                        },
+                        {
+                            "id": "meldungen-zur-karte-wann-wird-es-geloescht",
+                            "begriff": "När raderas den?",
+                            "werte": [
+                                "Så länge en rapport är öppen finns uppgifterna kvar. Namn, Discord-uppgifter och statuslänk raderas **90 dagar** efter avslutet. Text och sakinnehåll stannar i arkivet. Står ett namn där, stannar det tills någon begär radering. Det som ligger i papperskorgen, till exempel spam, raderas helt efter **30 dagar**. **På begäran raderar vi** den rapporterande personens uppgifter och texter **genast**, sakinnehållet står kvar."
+                            ]
+                        },
+                        {
+                            "id": "meldungen-zur-karte-rechtsgrundlage",
+                            "begriff": "Rättslig grund",
+                            "werte": [
+                                "Det berättigade intresset av att hålla kartan korrekt och att besvara rapporter (artikel 6.1 f i GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "kontakt-und-mail",
+                    "text": "Kontakt och e-post"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Förfrågningar når redaktionen via kontaktformuläret eller per e-post."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "kontakt-und-mail-was-wird-gespeichert",
+                            "begriff": "Vad sparas?",
+                            "werte": [
+                                "Via kontaktformuläret går meddelandet, ämnet och, om angivet, namn och e-postadress till redaktionen. Utan adress finns svaret bara på den privata statussidan. Med adress kommer det även per e-post.",
+                                "Avesmaps hämtar e-post till {mail} från e-postlådan. Sparas gör avsändare, ämne, text, rensad HTML, bilagor och originalet av e-posten. Bilder kodas om och förlorar därvid sina metadata. Körbara filer, arkiv och dokument med makron tas inte över, bara deras namn och storlek."
+                            ]
+                        },
+                        {
+                            "id": "kontakt-und-mail-wer-sieht-es",
+                            "begriff": "Vem ser det?",
+                            "werte": [
+                                "Förfrågningar och e-post med avsändare läses bara av operatörerna och av personer med den särskilda rollen ”Diplomat”. Operatörerna hanterar dem även med ett AI-verktyg (Claude från Anthropic, se [”AI-verktyg”](#ki-werkzeug)), som då ser text och avsändare. De är **aldrig offentliga**. Blir en förfrågan en rapport om kartan, stannar namn och adress kvar hos förfrågan."
+                            ]
+                        },
+                        {
+                            "id": "kontakt-und-mail-wann-wird-es-geloescht",
+                            "begriff": "När raderas den?",
+                            "werte": [
+                                "Så länge en förfrågan är öppen finns uppgifterna kvar. Namn, adress, avsändare, originalet av e-posten och statuslänken raderas **90 dagar** efter avslutet. Text, ämne, rensad HTML, bilagor med deras filnamn och e-postens tekniska identifierare stannar i arkivet. Står ett namn eller en signatur där, stannar den tills någon begär radering. Det som ligger i papperskorgen, till exempel spam, raderas helt efter **30 dagar**. **På begäran raderar vi** personens uppgifter, texter och bilagor **genast**. Skriver redaktionen på eget initiativ ett nytt e-postmeddelande, behåller administrationsprotokollet ett förkortat kontrollvärde av mottagaradressen, utan tidsfrist."
+                            ]
+                        },
+                        {
+                            "id": "kontakt-und-mail-rechtsgrundlage",
+                            "begriff": "Rättslig grund",
+                            "werte": ["Det berättigade intresset av att besvara förfrågningar (artikel 6.1 f i GDPR)."]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "bewertungen",
+                    "text": "Omdömen"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Till en ort går det att skriva ett omdöme utan konto: en till fem stjärnor, frivilligt en kort text, ett fritt valt namn och ett aventuriskt datum."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "bewertungen-was-wird-gespeichert",
+                            "begriff": "Vad sparas?",
+                            "werte": [
+                                "Allt detta visas offentligt i ortens infopanel. Ett riktigt namn behövs inte. Utan namn visas ”Anonym”. Dessutom visas när det kom in. **IP-adress, webbläsaridentifierare och sidadress sparas inte.**",
+                                "Omdömen från den tidigare versionen av Avesmaps har tagits över med stjärnor, namn, text och datum, utan IP-adress eller webbläsaruppgifter.",
+                                "”Gilla” är bara en siffra: servern vet inte vem som gjorde det. Att en webbläsare redan gillat ett omdöme minns den själv, för högst 500 omdömen."
+                            ]
+                        },
+                        {
+                            "id": "bewertungen-wer-sieht-es",
+                            "begriff": "Vem ser det?",
+                            "werte": [
+                                "Offentligt, se ovan. Nya omdömen visas **genast**, redaktionen går sedan igenom dem. Innehåller ett omdöme en adress eller ett ord från en spamlista, hålls det tillbaka tills redaktionen frigör det."
+                            ]
+                        },
+                        {
+                            "id": "bewertungen-wann-wird-es-geloescht",
+                            "begriff": "När raderas den?",
+                            "werte": [
+                                "Ett omdöme finns kvar så länge det syns. Gäller det en person kan det anmärkas på via ”Rapportera omdömet” med skälet ”Personuppgifter”. Redaktionen döljer det och raderar namn, text och datum. Stjärnorna finns kvar, men visas då inte längre. Dolda och tillbakahållna omdömen finns kvar tills redaktionen raderar deras innehåll eller frigör dem."
+                            ]
+                        },
+                        {
+                            "id": "bewertungen-rechtsgrundlage",
+                            "begriff": "Rättslig grund",
+                            "werte": [
+                                "Det berättigade intresset av att visa omdömen om orter på kartan (artikel 6.1 f i GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "kartenvorschlaege",
+                    "text": "Kartförslag"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Via ”Föreslå karta” går det att föreslå en karta till kartsamlingen utan konto, som länk eller som egen fil (JPEG, PNG, WebP eller PDF)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "kartenvorschlaege-was-wird-gespeichert",
+                            "begriff": "Vad sparas?",
+                            "werte": [
+                                "Sparas gör titel, länk eller fil, de frivilliga uppgifterna om kartan, en anteckning till redaktionen, den valda användningen, versionen av villkoren och, om angivet, ett namn. **En e-postadress efterfrågas inte.** **IP-adress och webbläsaridentifierare sparas inte.**",
+                                "För bilder tar Avesmaps bort [EXIF](https://de.wikipedia.org/wiki/Exchangeable_Image_File_Format), [XMP](https://de.wikipedia.org/wiki/Extensible_Metadata_Platform), [IPTC](https://de.wikipedia.org/wiki/IPTC-IIM-Standard) och kommentarer redan när de kommer in. En PDF behåller sina metadata tills originalet har raderats.",
+                                "Läget visas på en statussida. Länken dit får bara den som lämnat in. Avesmaps sparar bara ett kontrollvärde av dess nyckel. Där står också skälet till en avvisning, och förslaget går att dra tillbaka."
+                            ]
+                        },
+                        {
+                            "id": "kartenvorschlaege-wer-sieht-es",
+                            "begriff": "Vem ser det?",
+                            "werte": [
+                                "Fram till beslutet är det bara redaktionen som ser förslaget. Om det antas visas kartan med titel och uppgifter i kartsamlingen. Anteckningen, förhandsvisningslänken och namnet på den som lämnat in tas inte över. Det som nämns är den angivna tecknaren eller förlaget. Filen blir offentlig först när rättigheterna tillåter det."
+                            ]
+                        },
+                        {
+                            "id": "kartenvorschlaege-wann-wird-es-geloescht",
+                            "begriff": "När raderas den?",
+                            "werte": [
+                                "Ett förslag vars fil aldrig kom fram eller inte kunde behandlas raderas efter **7 dagar**, ett avvisat eller tillbakadraget efter **30 dagar**, i båda fallen med fil och namn. Vid ett antaget förslag raderas namn och anteckning **90 dagar** efter beslutet. Ett förslag som det ännu inte beslutats om sparas till beslutet.",
+                                "Den uppladdade filen för en antagen karta raderas **ungefär en vecka** efter antagandet. Kvar står en därur beräknad version i full upplösning, för en PDF bara första sidan. I säkerhetskopior kan filen ligga kvar längre (se [”Säkerhetskopior”](#sicherungen))."
+                            ]
+                        },
+                        {
+                            "id": "kartenvorschlaege-rechtsgrundlage",
+                            "begriff": "Rättslig grund",
+                            "werte": [
+                                "Det berättigade intresset av att sköta kartsamlingen (artikel 6.1 f i GDPR). För användningen av filen gäller de villkor som personen godkänner vid uppladdningen."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "datenschutz-bei-reisebildern",
+                    "text": "Dataskydd för reseminnen"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Reseminnen går att lämna in utan konto. Villkoren finns under [”Reseminnen”](#reisebilder)."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "datenschutz-bei-reisebildern-was-wird-gespeichert",
+                            "begriff": "Vad sparas?",
+                            "werte": [
+                                "Vi sparar bilden och uppgifterna (plats, beskrivning, tillkomst, användning, blickriktning, frivilligt namn), tidpunkten, versionen av de här villkoren och en kontrollsumma av den personliga länken. **Inget konto, ingen e-post, ingen kaka.**",
+                                "På begäran minns webbläsaren de personliga länkarna till egna reseminnen på den här enheten. Till Avesmaps skickas de bara för att hämta läget, på samma sätt som när länken öppnas. Under ’Mina reseminnen’ går de att glömma en i taget.",
+                                "Metadata i filen (plats, tid, enhet, namn) tar vi bort redan vid inkomsten, även ur originalet. Originalet finns kvar så länge bilden ligger hos oss. Filnamnet sparar vi inte. Om IP-adressen, se [”Skydd mot missbruk”](#missbrauchsschutz)."
+                            ]
+                        },
+                        {
+                            "id": "datenschutz-bei-reisebildern-wer-sieht-es",
+                            "begriff": "Vem ser det?",
+                            "werte": [
+                                "Namnet för omnämnandet förblir synligt så länge bilden är offentlig. Publicerade bilder går att anmärka på via ”Rapportera”."
+                            ]
+                        },
+                        {
+                            "id": "datenschutz-bei-reisebildern-wann-wird-es-geloescht",
+                            "begriff": "När raderas den?",
+                            "werte": [
+                                "Avvisade, tillbakadragna och offline tagna inlämningar raderar vi efter **30 dagar** tillsammans med uppgifterna. Bildfilerna för offline tagna inlämningar raderas redan vid nästa dagliga körning. Obeslutade förfaller efter **60 dagar** och raderas **30 dagar** därefter. Därefter leder länken ingenstans.",
+                                "Att ta offline gäller **genast**: bilden är borttagen från Avesmaps, filerna raderas vid nästa dagliga körning. Kopior som andra redan har gjort går inte att hämta tillbaka."
+                            ]
+                        },
+                        {
+                            "id": "datenschutz-bei-reisebildern-rechtsgrundlage",
+                            "begriff": "Rättslig grund",
+                            "werte": ["Inlämningen enligt villkoren (artikel 6.1 b i GDPR)."]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "geteilte-links",
+                    "text": "Delade länkar"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Kartan och resplaneringen går att dela som kortlänk."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "geteilte-links-was-wird-gespeichert",
+                            "begriff": "Vad sparas?",
+                            "werte": [
+                                "En delad länk sparar bara kartläget som den återställer, alltså karta, vy, lager, visningsreglage och resplanering. Uppgifter om en person innehåller den inte."
+                            ]
+                        },
+                        {
+                            "id": "geteilte-links-wer-sieht-es",
+                            "begriff": "Vem ser det?",
+                            "werte": ["Den som känner till länken."]
+                        },
+                        {
+                            "id": "geteilte-links-wann-wird-es-geloescht",
+                            "begriff": "När raderas den?",
+                            "werte": ["Delade länkar finns kvar."]
+                        },
+                        {
+                            "id": "geteilte-links-rechtsgrundlage",
+                            "begriff": "Rättslig grund",
+                            "werte": [
+                                "Det berättigade intresset av att kunna dela kartor och resor (artikel 6.1 f i GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "mitarbeit-mit-konto",
+                    "text": "Medverkan med konto"
+                },
+                {
+                    "art": "h4",
+                    "id": "konten",
+                    "text": "Konton"
+                },
+                {
+                    "art": "absatz",
+                    "text": "**Ett konto får bara den som bjuds in**. Den offentliga kartan kräver inget."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "konten-kontodaten",
+                            "begriff": "Kontouppgifter",
+                            "werte": [
+                                "Till ett konto sparar Avesmaps visningsnamnet, rollen, om kontot är aktivt eller spärrat, när det skapades och när den senaste inloggningen var. Beroende på vald inloggningsväg tillkommer ytterligare uppgifter."
+                            ]
+                        },
+                        {
+                            "id": "konten-benutzername-und-passwort",
+                            "begriff": "Användarnamn och lösenord",
+                            "werte": [
+                                "För inloggning med användarnamn och lösenord sparar Avesmaps användarnamnet och ett kontrollvärde av lösenordet ([Argon2id](https://de.wikipedia.org/wiki/Argon2)). **Lösenordet självt sparas aldrig.**"
+                            ]
+                        },
+                        {
+                            "id": "konten-discord",
+                            "begriff": "Discord",
+                            "werte": [
+                                "För inloggning med Discord sparar Avesmaps Discord-identifieraren, Discord-användarnamnet och visningsnamnet. Avesmaps begär hos Discord bara kontots grunduppgifter (behörigheten identify), varken e-postadress, server, vänlista eller meddelanden, och tar bara över dessa tre. Vid inloggningen skickar sidan vidare till Discord (för personer i EU Discord Netherlands BV; data går också till [Discord Inc.](https://de.wikipedia.org/wiki/Discord) i USA). Där gäller [Discords dataskyddsförklaring](https://discord.com/privacy). Inloggning med användarnamn och lösenord fungerar även utan Discord."
+                            ]
+                        },
+                        {
+                            "id": "konten-passkey",
+                            "begriff": "Passkey",
+                            "werte": [
+                                "För en [passkey](https://de.wikipedia.org/wiki/Passkey) sparar Avesmaps dess publika nyckel, dess identifierare, en själv vald beteckning och om den synkroniseras mellan enheter. Dessutom sparas dess räknare, överföringsvägarna, enhetstypen och när den skapades och senast användes. Fingeravtryck, ansiktsbild eller enhetens PIN-kod lämnar aldrig enheten."
+                            ]
+                        },
+                        {
+                            "id": "konten-verantwortlich-fuer",
+                            "begriff": "Ansvarig för",
+                            "werte": [
+                                "Frivilligt kan ett konto ha en kort uppgift ”Ansvarig för” (en rad, högst 120 tecken), som personen själv anger eller en operatör sätter. Den syns i administrationen av konton och i editorlistan. Protokollet noterar bara att den ändrats, inte dess innehåll."
+                            ]
+                        },
+                        {
+                            "id": "konten-wortform",
+                            "begriff": "Ordform",
+                            "werte": [
+                                "Likaså frivilligt väljer personen ordformen för sina roller (maskulin, feminin eller neutral)."
+                            ]
+                        },
+                        {
+                            "id": "konten-sonderrolle",
+                            "begriff": "Särskild roll",
+                            "werte": [
+                                "Till en särskild roll (till exempel ”Diplomat”) sparar Avesmaps rollen, i förekommande fall regionen, motiveringen och vem som tilldelat eller återkallat den och när."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "sitzungen-und-protokoll",
+                    "text": "Sessioner och protokoll"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps för sessioner och protokoll, så att inloggningarna förblir säkra och ändringar går att följa."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "sitzungen-und-protokoll-sitzungen",
+                            "begriff": "Sessioner",
+                            "werte": [
+                                "Till varje session sparar Avesmaps när den började och senast användes, inloggningsvägen, en grov enhetsbeteckning (till exempel ”Firefox · Windows”, aldrig hela webbläsaridentifieraren) och en förkortad IP-adress (IPv4 utan den sista byten, IPv6 till de första 48 bitarna). Så kan varje person känna igen och avsluta sina egna sessioner i kontot."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-protokoll",
+                            "begriff": "Protokoll",
+                            "werte": [
+                                "Ett protokoll noterar vem som loggat in när, vilka inloggningar som misslyckades och vilka administrativa åtgärder som vidtogs (inbjudningar, roller, spärrar, länkar). Det innehåller aldrig lösenord, kakvärden, inbjudnings- eller återställningslänkar. För att motverka att lösenord provas igenom sparar Avesmaps för varje angivet användarnamn ett kontrollvärde och antalet felförsök, även om namnet inte finns. Efter **30 dagars** uppehåll faller posten bort."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-fristen",
+                            "begriff": "Tidsfrister",
+                            "werte": [
+                                "Inloggningar och felförsök i protokollet raderas efter **90 dagar**, den förkortade IP-adressen töms efter **14 dagar**. Utgångna sessioner, utgångna återställnings- och uppsättningslänkar samt inloggningsomvägar raderas **30 dagar** efter sitt slut. Administrativa åtgärder finns kvar, eftersom de förklarar vem som har tilldelat en roll eller spärrat ett konto. Likaså finns ändringar av den egna åtkomsten kvar (lösenord, passkey, Discord-koppling, avslutade sessioner). Kontouppgifter finns kvar så länge kontot finns."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-editorenliste",
+                            "begriff": "Editorlistan",
+                            "werte": [
+                                "Den som får öppna editorn ser Editorlistan: namn, roll, särskilda roller och ansvar för de andra personerna med åtkomst, om de är online och när de senast var där, deras enhet, på hur många av de senaste trettio dagarna de varit aktiva, vad de arbetar med just nu och vad de senast ändrat."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-redaktionsprotokoll-und-betreiber-kanal",
+                            "begriff": "Redaktionsprotokollet och operatörskanalen",
+                            "werte": [
+                                "Den som redigerar kartan eller bilderna syns i redaktionsprotokollet: till varje ärende anges personen, tidpunkten och vad som ändrats. Protokollet finns kvar, eftersom det förklarar vem som gjort en ändring. När ett konto avvecklas stryks personens motiveringar i det och filnamnen på dess uppladdningar tas bort. Kartinnehållet står kvar, och personens namn visas därefter som platshållare. Rapporter och bilder från operatörskanalen raderas **90 dagar** efter godkännandet. Kvar står korta titlar, underlag och fix-rapporten."
+                            ]
+                        },
+                        {
+                            "id": "sitzungen-und-protokoll-rechtsgrundlage",
+                            "begriff": "Rättslig grund",
+                            "werte": [
+                                "För kontot artikel 6.1 b i GDPR (medverkan, som personen bett om när den accepterat inbjudan). För protokoll, begränsning och förkortad IP-adress det berättigade intresset av en säker drift (artikel 6.1 f i GDPR)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "benachrichtigungen",
+                    "text": "Aviseringar"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Inloggade personer får aviseringar i listen, till exempel om nya rapporter eller om ärenden de är delaktiga i."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "benachrichtigungen-was-wird-gespeichert",
+                            "begriff": "Vad sparas?",
+                            "werte": [
+                                "En avisering hör till kontot och innehåller typ, avsändare, tidpunkt och ett nummer eller en kort titel, aldrig texten eller namnet från en rapport. Den som använder kartan utan att logga in har ingen klocka."
+                            ]
+                        },
+                        {
+                            "id": "benachrichtigungen-gelesen-und-neu",
+                            "begriff": "Läst och nytt",
+                            "werte": [
+                                "Om en avisering är läst eller besvarad sparar servern tillsammans med den. Hur långt listan på den här enheten räknas som ”Nytt” minns bara webbläsaren. Det skickas inte till servern."
+                            ]
+                        },
+                        {
+                            "id": "benachrichtigungen-abfrage",
+                            "begriff": "Förfrågan",
+                            "werte": ["Så länge fliken syns frågar sidan en gång per minut efter nya poster."]
+                        },
+                        {
+                            "id": "benachrichtigungen-wann-wird-es-geloescht",
+                            "begriff": "När raderas den?",
+                            "werte": [
+                                "Aviseringar raderas **90 dagar** efter att de lästs eller besvarats, under alla omständigheter efter **180 dagar**, och vid avvecklingen av kontot **genast**."
+                            ]
+                        },
+                        {
+                            "id": "benachrichtigungen-rechtsgrundlage",
+                            "begriff": "Rättslig grund",
+                            "werte": [
+                                "Som för kontot artikel 6.1 b i GDPR (medverkan, som personen bett om när den accepterat inbjudan)."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "konto-aufloesen",
+                    "text": "Avveckla konto"
+                },
+                {
+                    "art": "absatz",
+                    "text": "På begäran avvecklas ett konto. Begäran tas emot av operatören som anges i utgivningsuppgifterna."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "konto-aufloesen-was-geloescht-wird",
+                            "begriff": "Vad som raderas",
+                            "werte": [
+                                "Då raderas användarnamn och lösenordets kontrollvärde, kopplingen till Discord med uppgifterna från Discord, sessionerna, uppgiften ”Ansvarig för”, ordformen för rollerna samt passkeys nycklar och beteckningar. Öppna länkar till personen förfaller **genast**. Åtkomst, särskilda rättigheter och särskilda roller dras in, och visningsnamnet ersätts med en neutral platshållare."
+                            ]
+                        },
+                        {
+                            "id": "konto-aufloesen-was-im-protokoll-bleibt",
+                            "begriff": "Vad som finns kvar i protokollet",
+                            "werte": [
+                                "Administrativa åtgärder står kvar i protokollet och nämner personen med platshållaren, eftersom de förklarar vem som tilldelat en roll eller spärrat ett konto."
+                            ]
+                        },
+                        {
+                            "id": "konto-aufloesen-was-geschwaerzt-wird",
+                            "begriff": "Vad som stryks",
+                            "werte": [
+                                "I posterna om personen stryks det som beskriver henne: tidigare visningsnamn, Discord-namnet, passkeys beteckningar, anteckningen om hennes inbjudan, skälen till en spärr, en särskild rättighet eller en särskild roll samt ett tilldelat Legacy-namn med motivering. I hennes egna poster stryks dessutom enhetsbeteckningen och den förkortade IP-adressen."
+                            ]
+                        },
+                        {
+                            "id": "konto-aufloesen-anmeldungen",
+                            "begriff": "Inloggningar",
+                            "werte": ["Inloggningar i protokollet raderas efter de angivna tidsfristerna."]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "externe-dienste",
+                    "text": "Externa tjänster"
+                },
+                {
+                    "art": "h4",
+                    "id": "discord-befehle",
+                    "text": "Discord-kommandon"
+                },
+                {
+                    "art": "absatz",
+                    "text": "På vår Discord-server tar Avesmaps-boten emot rapporter."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "discord-befehle-was-wird-gespeichert",
+                            "begriff": "Vad sparas?",
+                            "werte": [
+                                "Den som använder /bug, /idee eller /frage skickar formulärets innehåll till Avesmaps. Sparas gör den texten, visningsnamnet som Discord anger (smeknamn på servern, annars globalt namn eller användarnamn) och Discord-identifieraren. Identifieraren stannar internt: Den kopplar personens rapporter till personen och hjälper mot missbruk."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-was-wird-oeffentlich",
+                            "begriff": "Vad blir offentligt?",
+                            "werte": [
+                                "/bug och /idee visas därefter offentligt i #bugs eller i idékanalen, med nummer, titel, en till två meningar ur texten och ett tack som nämner personen. /frage publiceras inte. Den dagliga rapporten på Discord nämner öppna rapporter med titel och kort läge och, så snart en rapport granskats, namnet på den rapporterande personen. Detsamma gäller rapporter från operatörskanalen."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-eigene-meldungen",
+                            "begriff": "Egna rapporter",
+                            "werte": [
+                                "/offen visar bara för den frågande personen de öppna rapporterna från Discord och de egna från webbplatsen. För det frågar boten med personens identifierare hos Avesmaps. /erledigt stänger en egen rapport. Operatörerna stänger på så sätt vilken rapport som helst."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-wer-sieht-es",
+                            "begriff": "Vem ser det?",
+                            "werte": [
+                                "Rapporter läses av operatörerna. Granskade rapporter hanteras de också med AI-verktyget (se [”AI-verktyg”](#ki-werkzeug)), som då ser text och visningsnamn."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-wann-wird-es-geloescht",
+                            "begriff": "När raderas den?",
+                            "werte": [
+                                "Så länge en rapport är öppen finns uppgifterna kvar. **90 dagar** efter avslutet raderas text, visningsnamn och identifierare. Kvar står korta titlar, underlag och rapporten om åtgärden. Det som redan står på Discord finns kvar där tills det raderas. På begäran tar vi bort våra inlägg."
+                            ]
+                        },
+                        {
+                            "id": "discord-befehle-usa-und-rechtsgrundlage",
+                            "begriff": "USA och rättslig grund",
+                            "werte": [
+                                "Det som sker på Discord behandlar Discord också själv. För personer i EU är Discord Netherlands BV ansvarigt; data går också till Discord Inc. i USA, enligt Discord skyddade av standardavtalsklausuler och EU-U.S. [Data Privacy Framework](https://de.wikipedia.org/wiki/EU-US_Data_Privacy_Framework). [Discords dataskyddsförklaring](https://discord.com/privacy) gäller. Rättslig grund är det berättigade intresset av att rätta fel och att öppet diskutera idéer (artikel 6.1 f i GDPR). **Invändning är när som helst möjlig.**"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "ki-werkzeug",
+                    "text": "AI-verktyg"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Operatörerna hanterar även rapporter, förfrågningar och e-post med ett AI-verktyg (Claude från Anthropic), som då ser texten och namnet eller avsändaren. Från Discord gäller det för granskade rapporter."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "ki-werkzeug-taeglicher-bericht",
+                            "begriff": "Daglig rapport",
+                            "werte": [
+                                "Den dagliga rapporten på Discord formulerar Claude Sonnet. För det skickas en gång om dagen titlar och text från ännu inte granskade rapporter med, utan namn och identifierare."
+                            ]
+                        },
+                        {
+                            "id": "ki-werkzeug-abonnement-und-bedingungen",
+                            "begriff": "Abonnemang och villkor",
+                            "werte": [
+                                "Båda går via ett abonnemang hos Anthropic. Där gäller Anthropics [användarvillkor](https://www.anthropic.com/legal/consumer-terms) och [dataskyddsförklaring](https://www.anthropic.com/legal/privacy). Leverantör är Anthropic Ireland, Limited; data kan gå till USA, enligt Anthropic skyddade av standardavtalsklausuler. Användningen av indata för att träna AI-modellerna är avstängd i Avesmaps konton."
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "mailpostfach",
+                    "text": "E-postlådan"
+                },
+                {
+                    "art": "absatz",
+                    "text": "E-postlådan ligger hos STRATO, via vilken även svar skickas. STRATO behandlar e-posten åt oss som personuppgiftsbiträde. Avesmaps läser bara inkommande e-post och raderar inget. E-post och kopior finns kvar tills operatörerna tar bort dem."
+                },
+                {
+                    "art": "h4",
+                    "id": "social-media",
+                    "text": "Sociala medier"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Redaktionen publicerar inlägg i Avesmaps nyheter och på sina kanaler hos [Mastodon](https://joinmastodon.org), Facebook, Instagram och Discord."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "social-media-personenbezug",
+                            "begriff": "Personanknytning",
+                            "werte": ["Personanknytning uppstår bara när ett inlägg nämner eller visar en person."]
+                        },
+                        {
+                            "id": "social-media-wohin-es-geht",
+                            "begriff": "Vart det går",
+                            "werte": [
+                                "När det skickas går text och bild till respektive tjänst: rollenspiel.social (Mastodon), Meta Platforms Ireland (Facebook, Instagram) och Discord Inc. (USA). Där gäller deras dataskyddsförklaringar."
+                            ]
+                        },
+                        {
+                            "id": "social-media-wer-dahintersteht",
+                            "begriff": "Vem som står bakom",
+                            "werte": [
+                                "Vem som skriver eller frigör ett inlägg står bara i den interna historiken och visas inte offentligt."
+                            ]
+                        },
+                        {
+                            "id": "social-media-was-die-seite-laedt",
+                            "begriff": "Vad sidan laddar",
+                            "werte": [
+                                "Avesmaps laddar inget från dessa tjänster. Knapparna till våra kanaler är vanliga länkar. Först den som följer dem är där, och då gäller där deras dataskydd."
+                            ]
+                        },
+                        {
+                            "id": "social-media-wann-wird-es-geloescht",
+                            "begriff": "När raderas den?",
+                            "werte": [
+                                "Öppna inlägg i papperskorgen raderas efter **30 dagar**. Publicerade inlägg finns kvar i den interna historiken. Tillbakadragna inlägg försvinner ur nyheterna och hos Mastodon, Facebook och Discord. På Instagram tar redaktionen bort dem för hand. Den som nämns eller visas i ett inlägg och inte vill det kan vända sig till den adress som anges i utgivningsuppgifterna."
+                            ]
+                        },
+                        {
+                            "id": "social-media-rechtsgrundlage",
+                            "begriff": "Rättslig grund",
+                            "werte": ["Det berättigade intresset av att informera om projektet (artikel 6.1 f i GDPR)."]
+                        }
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "fristen-und-sicherungen",
+                    "text": "Tidsfrister och säkerhetskopior"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Översikt; detaljer och undantag står vid respektive funktion."
+                },
+                {
+                    "art": "tafel",
+                    "kopf": ["Vad", "Tidsfrist", "Vad som blir kvar eller avviker"],
+                    "schluesselSpalten": 1,
+                    "zeilen": [
+                        {
+                            "id": "fristen-und-sicherungen-webserver-und-systemprotokoll-sperrprotokoll",
+                            "zellen": ["Webbserver- och systemprotokoll, spärrprotokoll", "**ungefär 14 dagar**", ""]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-fehlerdiagnose",
+                            "zellen": ["Felanalys", "**14 dagar**", "antalet fel per typ och dag finns kvar som summa"]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-anmeldungen-und-fehlversuche",
+                            "zellen": [
+                                "Inloggningar och felförsök",
+                                "**90 dagar**",
+                                "förkortad IP-adress töms redan efter **14 dagar**"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-abgelaufene-sitzungen-links-anmeldeumwege",
+                            "zellen": [
+                                "Utgångna sessioner, länkar, inloggningsomvägar",
+                                "**30 dagar** efter slutet",
+                                ""
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-drossel-der-anmeldung",
+                            "zellen": ["Begränsning av inloggningen", "**30 dagars** uppehåll", ""]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-verwaltungshandlungen-aenderungen-am-zugang-redaktionsprotokoll",
+                            "zellen": [
+                                "Administrativa åtgärder, ändringar av åtkomsten, redaktionsprotokollet",
+                                "finns kvar",
+                                "stryks vid kontoavveckling"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-betreiber-kanal",
+                            "zellen": [
+                                "Operatörskanalen",
+                                "**90 dagar** efter godkännandet",
+                                "Korta titlar, underlag och fix-rapporten finns kvar"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-benachrichtigungen",
+                            "zellen": [
+                                "Aviseringar",
+                                "**90 dagar** efter läsning eller svar, senast **180 dagar**",
+                                "**genast** vid kontoavveckling"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-meldungen",
+                            "zellen": [
+                                "Rapporter",
+                                "Namn, Discord-uppgifter, statuslänk: **90 dagar** efter avslutet",
+                                "öppen: finns kvar; text och sakinnehåll finns kvar i arkivet"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-kontakt-und-mail",
+                            "zellen": [
+                                "Kontakt och e-post",
+                                "Namn, adress, avsändare, originalet av e-posten, statuslänk: **90 dagar** efter avslutet",
+                                "öppen: finns kvar; text, ämne, HTML, bilagor och identifierare finns kvar i arkivet"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-discord-befehle",
+                            "zellen": [
+                                "Discord-kommandon",
+                                "Text, visningsnamn, identifierare: **90 dagar** efter avslutet",
+                                "öppen: finns kvar; korta titlar, underlag och rapporten finns kvar"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-papierkorb-meldungen-anfragen-social-media",
+                            "zellen": ["Papperskorgen (rapporter, förfrågningar, sociala medier)", "**30 dagar**", ""]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-bewertungen",
+                            "zellen": [
+                                "Omdömen",
+                                "finns kvar så länge de syns",
+                                "anmärkt: namn, text och datum faller bort, stjärnorna finns kvar"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-kartenvorschlaege",
+                            "zellen": [
+                                "Kartförslag",
+                                "fil aldrig mottagen eller inte behandlad: **7 dagar**; avvisad eller tillbakadragen: **30 dagar**",
+                                "öppen: till beslutet; antagen: fil **ungefär en vecka**, namn och anteckning **90 dagar**"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-reisebilder",
+                            "zellen": [
+                                "Reseminnen",
+                                "avvisad, tillbakadragen, offline: **30 dagar**",
+                                "obeslutad: förfaller efter **60 dagar**, raderas **30 dagar** därefter"
+                            ]
+                        },
+                        {
+                            "id": "fristen-und-sicherungen-sicherungen",
+                            "zellen": [
+                                "Säkerhetskopior",
+                                "upp till **sex månader**",
+                                "Medier och e-post kan ligga kvar längre"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "art": "h4",
+                    "id": "sicherungen",
+                    "text": "Säkerhetskopior"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Avesmaps säkerhetskopierar dagligen sina databaser och sin konfiguration. Dessutom kommer, när de ändras, originalen av medierna med rättighetsbevis och de arkiverade e-postmeddelandena."
+                },
+                {
+                    "art": "fakten",
+                    "zeilen": [
+                        {
+                            "id": "sicherungen-was-darin-steht",
+                            "begriff": "Vad som finns i dem",
+                            "werte": [
+                                "Säkerhetskopiorna innehåller därmed även konton, rapporter, förfrågningar, omdömen och protokoll."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-wo-es-liegt",
+                            "begriff": "Var de ligger",
+                            "werte": [
+                                "Filerna krypteras innan de lämnar servern. De ligger på servern och utanför huset hos en lagringstjänst. Tjänsten får bara de krypterade filerna och en översikt utan personuppgifter."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-schluessel",
+                            "begriff": "Nyckel",
+                            "werte": [
+                                "Nyckeln innehas av operatören. En andra nyckel för det regelbundna återställningsprovet ligger på servern."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-wie-lange",
+                            "begriff": "Hur länge",
+                            "werte": [
+                                "Utanför huset finns kvar de sju senaste säkerhetskopiorna och dessutom en av **fyra veckor** och en av sex månader. Det som raderats i Avesmaps kan därför ligga kvar i en säkerhetskopia i upp till **sex månader**."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-wozu",
+                            "begriff": "Varför",
+                            "werte": [
+                                "En säkerhetskopia läses bara för att återställa data efter ett haveri eller för att öva på det."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-kopie-fuer-die-entwicklung",
+                            "begriff": "Kopia för utvecklingen",
+                            "werte": [
+                                "För utvecklingen hämtar operatören tidvis en kopia av kartdata och mediefiler till sin dator. Konton, rapporter, förfrågningar och protokoll ingår inte, namn är dolda. Originalfilerna av medierna kommer dock med."
+                            ]
+                        },
+                        {
+                            "id": "sicherungen-rechtsgrundlage",
+                            "begriff": "Rättslig grund",
+                            "werte": ["Det berättigade intresset av en säker drift (artikel 6.1 f i GDPR)."]
+                        }
+                    ]
+                },
+                {
+                    "art": "kasten",
+                    "titel": "Raderat kan ligga kvar längre i säkerhetskopior",
+                    "absaetze": [
+                        "Medier och e-post ligger där i de två senaste versionerna och ersätts bara när något ändras. En raderad fil kan därför ligga kvar där även längre än **sex månader**."
+                    ]
+                },
+                {
+                    "art": "h3",
+                    "id": "rechte-der-betroffenen",
+                    "text": "De registrerades rättigheter"
+                },
+                {
+                    "art": "absatz",
+                    "text": "Inom ramen för GDPR finns dessa rättigheter:"
+                },
+                {
+                    "art": "liste",
+                    "punkte": [
+                        "Tillgång",
+                        "Rättelse",
+                        "Radering",
+                        "Begränsning av behandlingen",
+                        "Dataportabilitet",
+                        "Invändning",
+                        "Klagomål till en tillsynsmyndighet för dataskydd"
+                    ]
+                },
+                {
+                    "art": "absatz",
+                    "text": "Frågor om dataskydd går till den adress som anges i utgivningsuppgifterna."
+                }
+            ]
+        },
+        {
+            "id": "kontakt-und-impressum",
+            "titel": "Kontakt och utgivningsuppgifter",
+            "hinweis": "Adress enligt § 5 DDG och hur projektet går att nå",
+            "bloecke": [
+                {
+                    "art": "absatz",
+                    "text": "Utveckling, design, programmering och drift sker genom [Valentin Schwind](https://www.valentin-schwind.de) (c/o Nobelstr. 10, D-70569 Stuttgart). Vid programmeringen används [Claude Code](https://www.anthropic.com/claude-code). Ansvarig för den redaktionella skötseln av kartinnehållet är Thomas Braun."
+                },
+                {
+                    "art": "absatz",
+                    "text": "E-post: [{mail}](mailto:{mail})"
+                },
+                {
+                    "art": "kontaktknoepfe"
+                }
+            ]
+        }
+    ],
+    "schluss": "De här upplysningarna kan anpassas vid tekniska, rättsliga eller innehållsmässiga ändringar i projektet."
+}

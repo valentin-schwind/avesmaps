@@ -1,0 +1,16 @@
+{
+    "schema_version": 1,
+    "updated_at": "2026-10-10T03:31:40Z",
+    "last_run": {
+        "started_at": "2026-10-10T03:30:01Z",
+        "finished_at": "2026-10-10T03:31:40Z",
+        "result": "failed",
+        "error_code": "offsite_failed"
+    },
+    "last_success_at": "2026-10-09T03:33:02Z",
+    "parts": [],
+    "offsite_configured": true,
+    "last_restore_drill": { "at": "2026-10-08T11:05:00Z", "result": "ok" },
+    "next_run_at": "2026-10-11T01:30:00Z",
+    "retention": { "local": 3, "daily": 7, "weekly": 4, "monthly": 6 }
+}

@@ -1,0 +1,627 @@
+{
+    "$comment": "Das Reisemodell (WI-0017 R2, MCS-018, Kap. 6.8): die Zahlen, mit denen die Route Zeit und Tagesleistung rechnet. Die Werte sind die LIVE-Tafel aus Legacy (Snapshot map-features.json, Revision 140088, `travel_speeds` und `travel_hours`), die Konstanten stammen aus avesmaps@bfec670. `herkunft` sagt je Block, ob eine Zahl aus dem Regelwerk kommt (Regel) oder eine App-Setzung ist (Setzung) - Setzungen sind veraenderbar, Regeln nicht ohne Quelle.",
+    "schemaVersion": 1,
+    "quelle": {
+        "snapshot": "map-features.json, Revision 140088",
+        "code": "avesmaps@bfec6701661b3178b54fd4a5ff98c4437f747d59, api/_internal/routing/travel-values.php, client-graph.php, terrain-factor.php"
+    },
+    "meilenJeKarteneinheit": {
+        "wert": 3,
+        "herkunft": "Setzung (MCS-002: 1 Einheit = 3 Meilen = 3000 Schritt)"
+    },
+    "zeitfaktor": {
+        "wert": 1.19,
+        "herkunft": "Setzung (AVESMAPS_TRAVEL_TIME_SCALE). Jede Zahl der Tempotafel ist um ihn ueberhoeht; Stunden = Zeit x Meilen je Einheit x Zeitfaktor"
+    },
+    "reisetagStunden": {
+        "wert": { "land": 8, "water": 12, "night": 24, "jeReisemittel": { "galley": 8 } },
+        "herkunft": "Regel: Land 8 h (Wege des Entdeckers S. 160-162), Wasser 12 h (Geographia Aventurica S. 129/131); Nachtfahrt 24 h fuer die Mittel unter `nachtfahrt`. jeReisemittel (WI-0069): ein Mittel mit eigenem Reisetag, die Galeere rudert 8 h (GA S. 131: 70 Meilen in 8 Stunden; Betreiber 2026-10-03: 'galeere wird nicht eilgerudert'). Dieselben Stunden gelten fuer Zeitgewicht, Rast, Etappenplan und Ankunft (`travelDayHours`)"
+    },
+    "nachtfahrt": {
+        "wert": ["fastShip", "courierDromone"],
+        "herkunft": "Regel (GA S. 131): fahren Tag und Nacht durch, 24 h, und rasten nicht - der durchfahrende Schnellsegler (250 Meilen am Tag) und die Kurierdromone (bis 200 Meilen am Tag unter Idealbedingungen). Lastensegler und Galeere ankern nachts. Betreiber 2026-10-03: 'Schnellsegler ist immer durchfahrend', 'kurierdromone faehrt immer durch' - den Schnellsegler bei Tag (GA: 140 Meilen in 12 h) gibt es nicht"
+    },
+    "stroemungsfaktorVorgabe": {
+        "wert": 2,
+        "herkunft": "Regel (GA S. 129): stromauf kostet Zeit x Faktor, wenn am Weg keiner gespeichert ist; Untergrenze 1. Ein Flussmittel mit Tagesleistung stromauf (`tagesleistung`) nimmt stromab / stromauf (WI-0069); dieser Wert gilt fuer jedes andere"
+    },
+    "tagesleistung": {
+        "wert": {
+            "groupFoot": {
+                "meilen": 30,
+                "meilenJeWegart": {
+                    "Reichsstrasse": 33,
+                    "Strasse": 30,
+                    "Weg": 24,
+                    "Pfad": 24,
+                    "Gebirgspass": 12,
+                    "Wuestenpfad": 15,
+                    "Querfeldein": 21
+                }
+            },
+            "lightWalker": { "meilen": 40, "wegartenWie": "groupFoot" },
+            "groupHorse": {
+                "meilen": 35,
+                "meilenJeWegart": {
+                    "Reichsstrasse": 39,
+                    "Strasse": 35,
+                    "Weg": 28,
+                    "Pfad": 28,
+                    "Gebirgspass": 12,
+                    "Wuestenpfad": 18,
+                    "Querfeldein": 23
+                }
+            },
+            "lightRider": { "meilen": 50, "wegartenWie": "groupHorse" },
+            "caravan": { "meilen": 30, "wegartenWie": "groupFoot" },
+            "cart": {
+                "meilen": 25,
+                "meilenJeWegart": {
+                    "Reichsstrasse": 27.5,
+                    "Strasse": 25,
+                    "Weg": 20,
+                    "Pfad": 20,
+                    "Gebirgspass": 5,
+                    "Wuestenpfad": 12.5,
+                    "Querfeldein": 12
+                }
+            },
+            "wagon": {
+                "meilen": 30,
+                "meilenJeWegart": {
+                    "Reichsstrasse": 36,
+                    "Strasse": 30,
+                    "Weg": 24,
+                    "Pfad": 24,
+                    "Gebirgspass": 6,
+                    "Wuestenpfad": 15,
+                    "Querfeldein": 18
+                }
+            },
+            "horseCarriage": {
+                "meilen": 50,
+                "meilenJeWegart": {
+                    "Reichsstrasse": 60,
+                    "Strasse": 50,
+                    "Weg": 40,
+                    "Pfad": 40,
+                    "Gebirgspass": 10,
+                    "Wuestenpfad": 25,
+                    "Querfeldein": 18
+                }
+            },
+            "sleigh": {
+                "meilen": 42,
+                "meilenJeWegart": {
+                    "Reichsstrasse": 42,
+                    "Strasse": 42,
+                    "Weg": 35,
+                    "Pfad": 35,
+                    "Gebirgspass": 6,
+                    "Wuestenpfad": 35,
+                    "Querfeldein": 20
+                }
+            },
+            "riverSailer": { "meilen": 60, "stromauf": 30 },
+            "riverBarge": { "meilen": 40, "stromauf": 20 },
+            "riverGalley": { "meilen": 75, "stromauf": 35 },
+            "cargoShip": { "meilen": 120 },
+            "fastShip": { "meilen": 250 },
+            "galley": { "meilen": 70 },
+            "courierDromone": { "meilen": 200 },
+            "rowboat": { "meilen": 25 }
+        },
+        "herkunft": "Regel (WI-0069, seit WI-0258 an Land nach Wege des Entdeckers): Meilen je Reisetag mit den Reisestunden des Mittels (`reisetagStunden`). Land: Wege des Entdeckers (WdE, DSA 4.1) S. 160-162, 'Regeln im Ueberblick'; Betreiber 2026-10-29, WI-0258, E1: die WdE-Uebersicht ist die Landtafel, die Geographia (GA) gilt nur, wo WdE nichts sagt. `meilen` ist die Leistung auf der normalen Strasse, `meilenJeWegart` die absoluten WdE-Meilen am Tag je Wegart (trockener Boden, 8 Reisestunden): Gruppe zu Fuss (Fussmarsch) 33 / 30 / 24 / 24, Pass 12, Querfeldein 21; berittene Gruppe (Wanderritt) 39 / 35 / 28 / 28, Pass 12, Querfeldein 23; Ochsen- oder Eselskarren 27,5 / 25 / 20, Pass 5, Querfeldein 12; Pferdefuhrwerk 36 / 30 / 24, Pass 6, Querfeldein 18; Reisekutsche 60 / 50 / 40, Pass 10, Querfeldein 18 (E1: WdE kennt die Halbierung der GA auf Weg und Pass nicht, die Kutsche faehrt auf dem Weg 40 statt 20); Schlitten = Kaleschka auf Kufen 42 / 42 / 35, Pass 6, Querfeldein 20 (E3: die WdE-Werte der Kaleschka, Grundleistung 42 statt GA 50). Setzung S-1: Wanderer (40), Einzelreiter (50) und Kamelkarawane (30) hat WdE nicht; sie behalten die GA-Grundleistung (GA S. 118-123) und nehmen mit `wegartenWie` die Verhaeltnisse der Gruppe zu Fuss (Wanderer, Karawane) beziehungsweise der berittenen Gruppe (Einzelreiter): eigene `meilen` x Meilen der Wegart des Verweises / dessen `meilen`. Setzung S-2: Der Wuestenpfad ist WdE 'Sandwueste querfeldein' des Mittels (zu Fuss 15, beritten 18); fuer Mittel, die ihn nie fahren, steht ein Platzhalter (Karren 12,5, Fuhrwerk 15, Kutsche 25), damit die Tafel vollstaendig bleibt. Setzung S-4: Der Schlitten faehrt Pfad und Wuestenpfad wie den Weg (35). Auf dem Wasser gilt weiter die GA: Fluss und Binnensee GA S. 129 (stromab, dazu stromauf: Kahn 40/20, Flusssegler 60/30, Flussgaleere 75/35; Ruderboot 25, ohne Angabe stromauf, also mit der Vorgabe), See GA S. 131 (Lastensegler 120, Schnellsegler 250 durchfahrend, Galeere 70 in 8 h, Kurierdromone bis 200 in 24 h; Betreiber 2026-10-03: nur diese Werte, den Schnellsegler bei Tag mit 140 und die eilgeruderte Galeere mit 100 in 12 h gibt es nicht). Die Galeere weicht damit bewusst von Legacys Livetafel ab (100 Meilen in 12 h, Tempo 9,92). Daraus ist jede Zelle der Tafel `tempo` gerechnet: Meilen der Wegart x 1,19 (`zeitfaktor`) / Reisestunden, an Land auf vier Stellen, auf dem Wasser auf zwei wie Legacys Livetafel; ein Test rechnet sie nach. Aus stromab / stromauf folgt der Stroemungsfaktor eines Flussmittels ohne gespeicherten Wert am Weg: 2 fuer Kahn und Flusssegler wie bisher, 75/35 fuer die Flussgaleere"
+    },
+    "freigabeErbe": {
+        "wert": {
+            "cart": "horseCarriage",
+            "wagon": "horseCarriage",
+            "sleigh": "groupHorse",
+            "riverGalley": "riverSailer",
+            "rowboat": "riverBarge",
+            "courierDromone": "galley"
+        },
+        "herkunft": "Setzung (WI-0069, Betreiber 2026-10-03: 'ein neues Mittel darf nicht auf allen explizit gepflegten Wegen verschwinden ... gleichzeitig darf eine Legacy-Freigabe nicht ungeprueft erweitert werden'). Legacys Wege speichern Freigaben (`allowed_transports`) und Sperrfenster (`transport_seasons`) nur fuer Legacys elf Mittel. Ein neues Mittel faehrt auf einem Weg mit gespeicherter Liste, wenn die Liste das hier genannte Mittel enthaelt und die Wegart das neue Mittel anbietet; ein Sperrfenster des genannten Mittels gilt auch fuer das neue. Konservativ: Karren und Fuhrwerk folgen der Kutsche, die Flussgaleere dem Flusssegler, die Kurierdromone der Galeere. Der Schlitten folgt der Reisegruppe zu Pferd: Er ist ein Gespann und darf im Winter auch querfeldein (Betreiber 2026-10-03), also auch dorthin, wohin Pferde duerfen. Das Ruderboot folgt auf Fluessen dem Flusskahn; Seewege faehrt es nicht"
+    },
+    "bodenPflicht": {
+        "wert": {
+            "sleigh": {
+                "zustaende": ["schnee_leicht", "tiefschnee", "eis"],
+                "jahreszeiten": ["winter"],
+                "gebirgeUeberSchneegrenze": true,
+                "baecheGefroren": true
+            }
+        },
+        "herkunft": "Regel des Betreibers (2026-10-03, nach GA S. 118-123: der Schlitten nur auf Schnee oder Eis; Rueckfragen: 'nur mit Winterschnee', 'Tafel des Hoehenprofils', 'auch Landschaft und Baeche') mit der Bodentafel der Jahreszeit (`jahreszeitBoden`) und der Schneegrenze (`schneegrenze`): Der Schlitten faehrt auf Wegen und querfeldein nur im Winter und nur, wo dann Schnee oder Eis liegt (gemaessigt, boreal, subpolar, polar; in den Subtropen und Tropen nie, polares Eis im Fruehling oder Herbst zaehlt nicht). Ausnahme: Ein Wegstueck, das ganz in einer Gebirgsflaeche und ganz ueber der Schneegrenze des Tages liegt, faehrt er zu jeder Jahreszeit. Geprueft wird an dem Tag, an dem er das Stueck betritt. Ohne Reisebeginn faehrt er nicht; Schnee wird nie angenommen. baecheGefroren (WI-0258, Betreiber 2026-10-29, E3 und S-4): Seine Werte sind seit WI-0258 die der Kaleschka auf Kufen und stehen in der Bodentafel (`jahreszeitBoden.meilen`); sie sind schon Schneewerte, 'ungebremst' entfaellt. Querfeldein bremsen ihn Landschaft (Wald, Sumpf ...) und Tiefschnee wie jedes Mittel; nur die Baeche sind zugefroren, er quert sie ohne Furt und Aufenthalt"
+    },
+    "schneegrenze": {
+        "wert": {
+            "jahreszeitMitten": [45, 135, 225, 315],
+            "reihenfolge": ["sommer", "herbst", "winter", "fruehling"],
+            "zonen": {
+                "polar": [0, 0, 0, 0],
+                "subpolar": [1000, 0, 0, 0],
+                "boreal": [2000, 500, 0, 300],
+                "gemaessigt": [3100, 2100, 500, 1700],
+                "subtropen_winterfeucht": [4000, 3000, 1500, 2600],
+                "trockene_subtropen": [4800, 4000, 2800, 3700],
+                "subtropisch": [4500, 3800, 2800, 3600],
+                "tropisch": [4800, 4700, 4500, 4600]
+            },
+            "bodenDarueber": "tiefschnee",
+            "bodenAnteilig": true
+        },
+        "herkunft": "Naeherung, keine aventurische Regel und keine Wettervorhersage (WI-0065, Betreiber 2026-10-01; seit WI-0069 auch Routingregel fuer den Schlitten, Betreiber 2026-10-03). bodenDarueber: Regel des Betreibers (2026-10-04, 'Schnee ueber der Schneegrenze: ja, A, aber erst nach einer Messung'): Ein Wegstueck ganz in Gebirgsflaechen und ganz ueber der Schneegrenze des Tages hat zu jeder Jahreszeit mindestens Tiefschnee (Faktor der Bodentafel `jahreszeitBoden`), in Suche und Zeit wie der Boden der Jahreszeit; ist dieser strenger, gilt er. Nur mit Reisebeginn; fuer den Schlitten gilt seine Zeile der Bodentafel (im Gebirge 6 Meilen in jedem Zustand, also ohne Mehrzeit), Fluege und Wasser sind nicht betroffen. bodenAnteilig: Betreiber 2026-10-04 ('schnee B', nach der Messung 'Welche Schneeregel einschalten? B', zum Schlitten 'a'): Der Tiefschnee liegt auf dem Teil jedes Wegstuecks, der im Gebirge ueber der Schneegrenze liegt (je Abtastschritt des Hoehenprofils, nach Laenge), nicht nur auf ganz verschneiten Stuecken; die Freigabe des Schlittens bleibt bei ganzen Stuecken. Gemaessigt: Schweizer mittlere Nullgradgrenzen 1961-2018 von MeteoSchweiz (Sommer 3365, Herbst 2430, Winter 775, Fruehling 1955 m) minus 300 m, auf 100 gerundet (MeteoSchweiz: Schneefallgrenze etwa 200-300 m unter der Nullgradgrenze; https://www.meteoschweiz.admin.ch/dam/jcr%3Ae5d51a5f-48e5-4209-b77c-0a94e981af86/klimareport_2018_de.pdf, https://www.meteosuisse.admin.ch/dam/jcr%3Aa07840cc-d6bb-4a3e-904c-5563cbf96f09/arbeitsbericht52.pdf). Alle anderen Zonen sind Analog-Setzungen, weder Messmittel noch Kanon; der trocken-subtropische Richtwert behauptet keinen Niederschlag. Werte in Schritt (= Meter) zur Mitte der Jahreszeit (Tag im Jahr), dazwischen linear, auch ueber Namenlose Tage und Jahreswechsel. Schneefallgrenze, Nullgradgrenze und bleibende Schneedecke sind nicht dasselbe: Niederschlag, Wetter, Exposition und gespeicherter Schnee sind nicht modelliert"
+    },
+    "gewaesser": {
+        "wert": { "rowboat": ["see"] },
+        "herkunft": "Regel (Betreiber 2026-10-03 nach GA S. 129: das Ruderboot ist ein Fahrzeug der Binnenseen, kein Hochseeschiff) mit den Regionsarten der Wasserflaechen (WI-0069): Betreiber 2026-10-03: 'Boote duerfen auf Fluesse und Seen'. Das Ruderboot faehrt im freien Seerouting auf jedem Binnensee (`see`), auch auf einem See, der ans Meer grenzt, aber nie ueber eine Zelle des Meeres: Jede Kante des Seegraphen, die eine Meerzelle beruehrt, ist fuer es gesperrt. Auf Fluessen faehrt es als Flussmittel. Segler und Galeeren fahren ohne Eintrag auf Meer und See"
+    },
+    "umstiegsaufschlag": {
+        "wert": 100,
+        "herkunft": "Setzung (AVESMAPS_ROUTE_CLIENT_TRANSFER_PENALTY): nur bei `minimize_transfers`"
+    },
+    "querfeldeinAufschlag": {
+        "wert": 25,
+        "herkunft": "Setzung (AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR): Laenge und Zeit einer Querfeldein-Bruecke oder eines Ankers zaehlen fuer die Wegwahl mal diesen Faktor, damit eine Notverbindung nie gegen einen gezeichneten Weg gewinnt. Ein Gewicht, keine Strecke: die Reisezeit rechnet ohne ihn"
+    },
+    "querfeldeinLaengenaufschlag": {
+        "wert": { "jeMeile": 0.006, "hoechstens": 2 },
+        "herkunft": "Setzung (AVESMAPS_OFFROAD_RAMP_PER_MILE, AVESMAPS_OFFROAD_RAMP_MAX, terrain-factor.php, avesmaps@770c80e; gemessen an der Meldung ?s=DnbLPQq2): der Gang zu einem Kartenpunkt braucht Zeit x min(hoechstens, 1 + jeMeile x Luftlinie der Etappe in Meilen). Nur die Zeit, nie die Strecke; ununterbrochenes wegloses Marschieren wird teurer, je laenger es dauert"
+    },
+    "querfeldeinFahrzeuge": {
+        "wert": {
+            "reisemittel": ["cart", "wagon", "horseCarriage"],
+            "offeneLandschaften": ["tundra", "hochebene"],
+            "gebirge": true
+        },
+        "herkunft": "Regel und Setzung (Betreiber 2026-10-29, WI-0258, E2 und S-6): Wege des Entdeckers S. 160-162 nennt fuer Karren, Fuhrwerk und Kutsche Werte querfeldein auf offenem Gelaende (12, 18, 18 Meilen am Tag; S. 29 auch die Tundra). Avesmaps trennt weder lichten und dichten Wald noch Sand- und Geroellwueste (WdE: Kutsche im lichten Wald 8), darum gilt: Die drei Mittel fahren querfeldein nur ueber offenes Land, das sind Flaechen ohne Landschaft und die Landschaftsarten unter offeneLandschaften (tundra, hochebene). Jede andere Landschaft aus bodenfaktor (Wald, Sumpf, Dschungel, Urwald, Wueste, Schlucht, Flussdelta, Wadi, Auenlandschaft) und mit gebirge jede Gebirgsflaeche ist fuer sie gesperrt; einzelne Berge (Gipfel) bleiben befahrbar und kosten Steigung. Der Wuestenpfad bleibt ihnen verschlossen (nieAngeboten). Die Sperre wirkt im Raster des gesuchten Gangs, an den geraden Verbindungen (Anker, Kartenpunkte, Bruecken des Netzes) und fuer Kartenpunkte selbst: Ein Punkt in gesperrtem Land ist mit einem Wagen nicht zu erreichen. Das Gebirge sperrt nur, wo ein Hoehenmodell geladen ist. Zuvor (WI-0069, Betreiber 2026-10-03) fuhren sie querfeldein nie ('nieAngeboten.Querfeldein', bewusst konservativ)"
+    },
+    "bachQuerung": {
+        "wert": {
+            "meilen": 15,
+            "meilenJeReisemittel": {
+                "groupFoot": 15,
+                "lightWalker": 10,
+                "groupHorse": 10,
+                "lightRider": 5,
+                "caravan": 30,
+                "cart": 30,
+                "wagon": 30,
+                "horseCarriage": 30
+            },
+            "stroemungsAnker": 2,
+            "watfaktor": 3,
+            "hoechstens": 10.2
+        },
+        "herkunft": "Setzung (Owner Legacy 2026-08-30/31, AVESMAPS_ROUTE_OFFROAD_BACH_CROSSING_UNITS, _BACH_FLOW_ANKER, _BACH_WATE_FACTOR und _FURT_MAX, offroad-grid.php, avesmaps@770c80e): wer querfeldein einen Bach quert, zahlt je Querung die Zeit fuer so viele Meilen offenes Gelaende, mal Querungsfaktor = Stroemung / stroemungsAnker. Wie viele Meilen, haengt am Reisemittel (Betreiber 2026-09-24: 'pro reisemittel, wir sind im mittelalter'; Werte Claudia): die Gruppe zu Fuss 15 wie Legacy, allein zu Fuss 10 (springt von Stein zu Stein), die berittene Gruppe 10 (Pferde furten, die Gruppe wartet aufeinander), der Einzelreiter 5 (das Pferd traegt ihn hinueber), die Karawane 30 (Lasttiere abladen, eine sichere Furt suchen), Karren, Fuhrwerk und Kutsche je 30 wie die Karawane (WI-0258, S-6: Wege des Entdeckers S. 88, schon ein kleiner Bach mit steilem Ufer zwingt Wagen zu Umwegen). meilen gilt fuer ein Reisemittel ohne eigenen Eintrag. Wer im Bachbett watet, ist dort um watfaktor x Querungsfaktor langsamer (Owner: 'waten soll bremsen'). Querungs- und Watfaktor enden bei hoechstens (in Legacy 255 / 25, die Grenze seiner Byte-Ebene). Ein Fluss (kein Bach) ist keine Furt, sondern eine Wand"
+    },
+    "steigung": {
+        "wert": {
+            "anstiegSchrittJeMeile": 100,
+            "steilerAbstiegSchrittJeMeile": 150,
+            "steilAb": 0.2,
+            "gaMitSteigung": ["Gebirgspass"],
+            "eichWegart": "Strasse",
+            "querfeldeinGebirge": 3.5,
+            "querfeldeinEinzelnerBerg": 2,
+            "anzeigeFensterSchritt": 3000,
+            "familien": {
+                "FOOT": { "reisemittel": ["groupFoot", "lightWalker"] },
+                "EQUID": {
+                    "reisemittel": ["groupHorse", "lightRider", "caravan"],
+                    "exponent": 3.5,
+                    "versatz": 0.05,
+                    "kehren": true
+                },
+                "WHEEL": {
+                    "reisemittel": ["horseCarriage", "cart", "wagon", "sleigh"],
+                    "quadrat": 200,
+                    "rollgrenze": 0.03333333333333333,
+                    "kehren": true
+                }
+            },
+            "sternregel": {
+                "absteigen": {
+                    "groupHorse": "groupFoot",
+                    "lightRider": "groupFoot",
+                    "caravan": "groupFoot",
+                    "sleigh": "groupFoot"
+                },
+                "imGebirge": ["Pfad", "Querfeldein"],
+                "gefuehrt": {
+                    "Pfad": { "tier": 7, "fuss": 9 },
+                    "Querfeldein": { "tier": 3, "fuss": 6 }
+                }
+            }
+        },
+        "herkunft": "Regel (Leistungskilometer von Jugend+Sport, BASPO: 1 km horizontal, je 100 Hm Anstieg und je 150 Hm Abstieg bei mehr als 20 % Gefaelle je ein Leistungskilometer; 1 Schritt = 1 m, 1 Meile = 1 km) und Setzung (Betreiber 2026-09-27, Gutachten MCS-026, WI-0049 S5): kein Bonus bergab, kein Deckel. Drei Steigungsfamilien (S5c, MCS-026 Punkt 2): FOOT (Fuss) rechnet den Leistungskilometer; EQUID (Reiter, Karawane mit Lasttieren, vorlaeufig auch Kamele) p(s) = max(1, e^(exponent x (|s + versatz| - versatz))), also +10 % 1,42, +20 % 2,01, -20 % 1,42, bergab bis -10 % frei (Setzung nach der Form von Tobler, ohne Bonus); WHEEL (Kutsche) 1 + quadrat x s^2 bergauf, bergab 1 + quadrat x max(0, -s - rollgrenze)^2 mit dem Rollwiderstand 1/30 (Setzung, trifft die historischen Kostenverhaeltnisse 1,5 bei 5 % und 3 bei 10 %). s ist die Steigung eines Abtastschritts (hoechstens 0,25 E) in Fahrtrichtung; ein Landmittel ohne Eintrag geht wie FOOT. Kehrenregel (kehren, Betreiber 2026-09-27 E1): Steiler als der Knick G* der eigenen Formel geht es in Kehren mit G*, der Faktor waechst darueber nur linear, |s| / G* x p(G*). G* ist, wo p(G) / G am kleinsten ist, folgt also aus der Formel ohne eigene Zahl: Tier bergauf 1 / exponent = 28,6 %, bergab max(1 / exponent, 2 x versatz) = 28,6 %; Wagen bergauf 1 / Wurzel(quadrat) = 7,1 %, bergab Wurzel(1 / quadrat + rollgrenze^2) = 7,8 %. FOOT ist ohnehin linear und hat keine Kehren. Grund: Wege, die steiler als das Gelaende erlaubt verlaufen, gehen in Wirklichkeit in Kehren (Legacy-Plan 2026-07-29, landschaften-v11-messung); Roemerstrassen liegen zu 90,6 % unter 16 %, Packtiere schaffen hoechstens 1:8 (MCS-026). Ohne die Regel trugen wenige Klippen der Raster die Eichung von Tier und Wagen. Jede Familie wird fuer sich geeicht: Pass, Strasse, Gebirge und Gipfel treffen je Familie im Mittel die GA. Sternregel (GA S. 123 mit Stern: Reittiere werden gefuehrt, die Tagesleistung sinkt auf die einer Reisegruppe zu Fuss; MCS-026 Punkt 6; Betreiber 2026-09-27 E2 bis E4): In den Gebirgsflaechen sind die Wegarten unter sternregel.imGebirge Sterngelaende, also der Pfad (GA Gebirge, Pfad 0,3 mit Stern) und der Gang querfeldein (Gebirge ohne Klettern 0,2 mit Stern). Dort geht jedes Mittel unter sternregel.absteigen mit Tempo und Steigung der Gruppe zu Fuss mal tier / fuss aus sternregel.gefuehrt (WI-0258), auch der Einzelreiter und die Karawane, deren Lasttiere ohnehin gefuehrt gehen. Weg und Passstrecke bleiben geritten (Passstrecke ohne Stern). Gletscher oder Hochgebirge gibt es in unseren Daten nicht. Abgegrenzt wird je Abtastschritt: Ein Schritt mit beiden Enden in einer Gebirgsflaeche ist Sterngelaende. Wo die GA die Steigung schon enthaelt (S. 123: Passstrecke 0,4), gibt sie den Mittelwert vor und die Steigung nur die Abweichung: Faktor = GA x mu / P, mu der laengengewichtete Mittelwert der Wegart ueber beide Richtungen, geeicht bei jedem Laden aus den Wegprofilen. Ein Pass ohne bekannte Hoehe bleibt bei der GA. Die uebrigen Landwege werden an der Strasse geeicht. Ohne Wegprofile (terrain_path_profile) wirkt nichts, die Tempi gelten wie bisher; tragen die Profile noch keine Abtastwerte (vor dem ersten derive:terrain mit S5c), gehen alle Familien wie FOOT. Querfeldein (S5b): in den Gebirgsflaechen im Mittel Wege des Entdeckers S. 160-162 (zu Fuss Gebirge 6 gegen offenes Gelaende 21; Betreiber 2026-10-29, WI-0258, E1), also 21 / 6 = 3,5 wie jeder Bodenfaktor, an freien Gipfeln im Mittel der GA-Modifikator einzelne Berge x0,5, also 2; je Schritt mal P / mu der Art, mu das Mittel ueber alle Schritte der Art, geeicht beim Laden aus den Gebirgsrastern. Ohne Raster bleibt querfeldein wie vorher. Querfeldein auf offenem Land (F5, Betreiber 2026-10-04 'A - schau ob du mit F4 kollidierst oder was von F4 brauchen kannst'): auch ausserhalb der Gebirgsflaechen kostet die Steigung, Faktor P / mu_offen mit der Familie des Landmittels (die Sternregel gilt nur in den Gebirgsflaechen) und mu_offen dem laengengewichteten Mittel von P ueber alle Schritte auf Land mit Hoehe ausserhalb der Gebirge (Schritt der Suche 0,25 E, beide Richtungen), geeicht beim Laden aus dem Domain-Raster, je Familie. Im Mittel bleibt das Tempo im offenen Gelaende, eine Ebene geht ein wenig schneller, ein Hang langsamer. Der groessere Faktor aus Boden und Gelaende gewinnt; wo kein Boden bremst, gilt P / mu_offen auch unter 1. Wege und Strassen ausserhalb der Gebirge (F5c, Betreiber 2026-10-04 'F5: C', revidiert ADR-0016 vom 2026-10-02): Jeder Abtastschritt ausserhalb der Gebirgsflaechen kostet P / mu_aussen der Wegart in der Familie des Landmittels, mu_aussen je Wegart und Familie das laengengewichtete Mittel von P ueber die Schritte dieser Wegart ausserhalb der Gebirge, beide Richtungen, geeicht beim Laden aus den Wegprofilen. Jede Wegart behaelt so im Mittel ihr Tempo (ohne den Strip: die Tempi tragen ausserhalb der Gebirge weiter Legacys Strassenmittel), eine Ebene geht ein wenig schneller, ein Hang langsamer. Pass 0,4, Sternregel und die Strasseneichung im Gebirge bleiben unveraendert. Anzeige (S5d): anzeigeFensterSchritt ist die Laenge, ueber die der Planer den steilsten Abschnitt misst, die groesste mittlere Steigung eines Abschnitts dieser Laenge (ein zusammenhaengendes Stueck mit Hoehe, das kuerzer ist, zaehlt als Ganzes). Betreiber 2026-09-28 '1 B': wie Legacy ueber ein laengeres Stueck gemittelt; Wert Claudia nach Messung an 303 Etappen mit Steigung aus je 200 Zufallsreisen zu Fuss und reitend (steilster Abschnitt je Etappe, Median / p90 / Etappen ueber 40 % / hoechstens): 750 Schritt 22,4 % / 51,4 % / 49 / 162 %, 1.500 Schritt 21,8 % / 47,5 % / 40 / 133 %, 3.000 Schritt 19,5 % / 43,6 % / 35 / 107 %, je Wegstueck wie Legacy 15,3 % / 44,5 % / 32 / 134 %. 3.000 kommt Legacys Verteilung (Median 8,3 %, p90 21,5 %) unter den drei Moeglichkeiten am naechsten; je Wegstueck ist nicht klar besser (niedrigerer Median, gleiches p90, steilere Spitzen). Keine erreicht Legacy: Mit Legacys eigener Regel liegt unser Gelaende je Landweg bei Median 25 %, p90 51 % statt 8,3 % und 21,5 %; die Raster sind steiler als Legacys alte. Nur Anzeige: Die Zeit rechnet je Abtastschritt, die Pruefgrenze 40 % in derive:terrain bleibt auf 750 Schritt, weil sie Datenfehler findet. WI-0069: Karren und Fuhrwerk stehen in WHEEL (Betreiber 2026-10-03), der Schlitten auch (Setzung Claudia: ein gezogenes Fahrzeug, das in Kehren faehrt wie der Wagen; die GA nennt keine Steigungsregel). Jede Familie wird ohne Ansehen ihrer Mitglieder geeicht; die Kutsche rechnet unveraendert. Der Schlitten darf auf Schnee querfeldein (Betreiber 2026-10-03) und steht darum wie jedes Tier-Mittel unter der Sternregel: Im Sterngelaende (Pfad und querfeldein in Gebirgsflaechen) wird das Gespann gefuehrt und geht wie die Gruppe zu Fuss mal tier / fuss. Gefuehrte Tiere im Gebirge (WI-0258, Betreiber 2026-10-29, E5 und S-5): Wege des Entdeckers S. 161 nennt sie langsamer als die Gruppe zu Fuss, Pfad 7 gegen 9 Meilen am Tag und querfeldein 3 gegen 6; sternregel.gefuehrt haelt je Wegart tier und fuss, das Mittel geht dort mit dem Tempo der Gruppe zu Fuss mal 7/9 (Pfad) beziehungsweise 3/6 (querfeldein). Das gilt fuer alle Mittel unter sternregel.absteigen, also auch Einzelreiter, Karawane und Schlitten; Weg und Passstrecke bleiben geritten"
+    },
+    "bodenfaktor": {
+        "wert": {
+            "wald": 1.4,
+            "suempfe_moore": 7,
+            "dschungel": 4.2,
+            "urwald": 4.2,
+            "wueste": 1.4,
+            "tundra": 1,
+            "schlucht": 2.6,
+            "flussdelta": 2,
+            "wadi": 1.5,
+            "auenlandschaft": 1.3,
+            "hochebene": 1.1
+        },
+        "herkunft": "Regel (Wege des Entdeckers S. 160-162, Fussmarsch; Betreiber 2026-10-29, WI-0258, E1) nach Legacys Formel (travel-values.php, offroad-data.php, avesmaps@770c80e): Faktor = offenes Gelaende / Wert der Landschaft zu Fuss. Offen 21; Wald 15 (Mittel aus lichtem Wald 18 und dichtem 12) = 1,4; Suempfe und Moore 3 = 7; Dschungel 5 = 4,2; Wueste 15 (Sandwueste) = 1,4; Tundra 21 (WdE S. 29) = 1; Schluessel ist region_type. Landschaften ohne WdE-Zeile unveraendert, Legacy-Setzung (frueher GA S. 120-123: 0,75 / GA-Faktor): wie Legacy live (travel-values-migration.php: 0,75 / offroad_factor, dessen Saat in ecosystem.php): Schlucht 2,6, Flussdelta 2,0, Wadi 1,5, Auenlandschaft 1,3, Hochebene 1,1. Urwald wie Dschungel, in Legacy ohne Bremse (Betreiber 2026-09-25: 'Legacys Werte uebernehmen, Urwald und Dschungel gleich machen'). Querfeldein je Schritt mal dem groessten Faktor der beruehrten Landschaften und des Bachbetts (Maximum, kein Produkt), nur unter 'Schnellste'. Das Gebirge steht in `steigung.querfeldeinGebirge` (kommt mit dem Hoehenmodell, Betreiber 2026-09-24). Legacy haelt die Werte als Byte (x 25) und rundet; hier ungerundet"
+    },
+    "jahreszeitBoden": {
+        "wert": {
+            "wegklasse": {
+                "Reichsstrasse": "strasse",
+                "Strasse": "strasse",
+                "Weg": "weg",
+                "Pfad": "weg",
+                "Wuestenpfad": "weg",
+                "Gebirgspass": "gebirge",
+                "Querfeldein": "querfeldein"
+            },
+            "zustaende": {
+                "aufgeweicht": { "klasse": "nass", "schnee": false },
+                "tauboden": { "klasse": "nass", "schnee": false },
+                "schnee_leicht": { "klasse": "schnee", "schnee": true },
+                "tiefschnee": { "klasse": "tief", "schnee": true },
+                "eis": { "klasse": "tief", "schnee": true }
+            },
+            "meilen": {
+                "groupFoot": {
+                    "strasse": { "trocken": 30, "nass": 25, "schnee": 25, "tief": 25 },
+                    "weg": { "trocken": 24, "nass": 20, "schnee": 20, "tief": 20 },
+                    "gebirge": { "trocken": 12, "nass": 8, "schnee": 8, "tief": 8 },
+                    "querfeldein": { "trocken": 21, "nass": 18, "schnee": 12, "tief": 6 }
+                },
+                "lightWalker": { "wie": "groupFoot" },
+                "groupHorse": {
+                    "strasse": { "trocken": 35, "nass": 28, "schnee": 28, "tief": 28 },
+                    "weg": { "trocken": 28, "nass": 22, "schnee": 22, "tief": 22 },
+                    "gebirge": { "trocken": 12, "nass": 8, "schnee": 8, "tief": 8 },
+                    "querfeldein": { "trocken": 23, "nass": 18, "schnee": 12, "tief": 5 }
+                },
+                "lightRider": { "wie": "groupHorse" },
+                "caravan": { "wie": "groupFoot" },
+                "cart": {
+                    "strasse": { "trocken": 25, "nass": 20, "schnee": 20, "tief": 20 },
+                    "weg": { "trocken": 20, "nass": 15, "schnee": 15, "tief": 15 },
+                    "gebirge": { "trocken": 5, "nass": 3, "schnee": 3, "tief": 3 },
+                    "querfeldein": { "trocken": 12, "nass": 9, "schnee": 8, "tief": 4 }
+                },
+                "wagon": {
+                    "strasse": { "trocken": 30, "nass": 24, "schnee": 24, "tief": 24 },
+                    "weg": { "trocken": 24, "nass": 18, "schnee": 18, "tief": 18 },
+                    "gebirge": { "trocken": 6, "nass": 3, "schnee": 3, "tief": 3 },
+                    "querfeldein": { "trocken": 18, "nass": 12, "schnee": 10, "tief": 4 }
+                },
+                "horseCarriage": {
+                    "strasse": { "trocken": 50, "nass": 36, "schnee": 36, "tief": 36 },
+                    "weg": { "trocken": 40, "nass": 30, "schnee": 30, "tief": 30 },
+                    "gebirge": { "trocken": 10, "nass": 4, "schnee": 4, "tief": 4 },
+                    "querfeldein": { "trocken": 18, "nass": 12, "schnee": 10, "tief": 4 }
+                },
+                "sleigh": {
+                    "strasse": { "trocken": 42, "nass": 42, "schnee": 42, "tief": 42 },
+                    "weg": { "trocken": 35, "nass": 35, "schnee": 35, "tief": 35 },
+                    "gebirge": { "trocken": 6, "nass": 6, "schnee": 6, "tief": 6 },
+                    "querfeldein": { "trocken": 20, "nass": 20, "schnee": 20, "tief": 10 }
+                }
+            },
+            "tafel": {
+                "polar": { "winter": "eis", "fruehling": "eis", "sommer": "tauboden", "herbst": "eis" },
+                "subpolar": { "winter": "tiefschnee", "fruehling": "aufgeweicht", "herbst": "aufgeweicht" },
+                "boreal": { "winter": "tiefschnee", "fruehling": "aufgeweicht", "herbst": "aufgeweicht" },
+                "gemaessigt": { "winter": "schnee_leicht", "fruehling": "aufgeweicht", "herbst": "aufgeweicht" },
+                "subtropen_winterfeucht": { "winter": "aufgeweicht" }
+            }
+        },
+        "herkunft": "Regel (Wege des Entdeckers S. 160-162, Betreiber 2026-10-29, WI-0258, E4): je Mittel und Wegklasse die Meilen am Tag trocken, nass (aufgeweicht, Tauboden), verschneit (leichter Schnee) und tief verschneit (Tiefschnee, Eis). Der Zeitfaktor einer Kante ist trocken / Wert des Zustands, nur wenn er groesser als 1 ist. Wegklassen: Reichsstrasse und Strasse = 'normale Strasse'; Weg, Pfad und Wuestenpfad = 'trockener Weg'; Gebirgspass = 'Weg oder Strasse durchs Gebirge bei Regen oder Schnee'; Querfeldein = 'offenes Gelaende'. Auf Strasse und Weg nennt WdE einen Wert fuer 'schlammig oder verschneit', er gilt fuer alle drei Zustaende. Setzung S-3: Die Reichsstrasse nimmt die Werte der Strasse (WdE trennt nass und verschneit nicht nach Pflaster); Eis zaehlt wie Tiefschnee (WdE S. 39: ewiges Eis zu Fuss 6 = tief verschneit). Setzung S-1: Wanderer, Einzelreiter und Karawane nehmen die Zeile ihrer Familie (`wie`). Der Schlitten hat die Werte der Kaleschka auf Kufen; sie sind schon Schneewerte (E3): leichter Schnee kostet ihn nirgends etwas, Tiefschnee und Eis querfeldein das Doppelte, 'ungebremst' entfaellt. Setzung (Owner Legacy 2026-08-03, 'Setzung, kein Kanon'; season-ground.php, avesmaps@770c80e) bleibt, WELCHE Zone WANN welchen Boden hat (`tafel`); WdE S. 157 nennt nur Mittagstemperaturen. Mit Reisebeginn verlangsamt der Boden der Jahreszeit jeden Landweg und den Gang querfeldein in seiner Klimazone, Wasser nie. Betreiber 2026-09-26 (WI-0038): der Boden wirkt auch auf die Wegwahl (E2) und querfeldein (E3), die trockenen Subtropen haben keinen (E4); Legacy rechnete ihn nur in der Anzeige. Ohne Reisebeginn gilt er nicht. Bis WI-0258 galt der Abzug der Geographia (GA S. 120-123: -0,1 aufgeweicht und leichter Schnee, -0,2 Tiefschnee und Eis, Strassen nur bei Schnee und Eis)"
+    },
+    "kuestenfahrt": {
+        "wert": {
+            "galley": { "near": 0.75, "nearPenalty": 1, "far": 3, "farPenalty": 1 },
+            "cargoShip": { "near": 1.25, "nearPenalty": 1, "far": 12, "farPenalty": 0.3 },
+            "fastShip": { "near": 1.25, "nearPenalty": 1, "far": 40, "farPenalty": 0.1 },
+            "courierDromone": { "wie": "galley" },
+            "rowboat": { "wie": "galley" }
+        },
+        "herkunft": "Setzung, Heuristik (WI-0046 S7, Betreiber 2026-09-27: die Werte der Graph-Ansicht sind 'bereits exakt was wir wollen'; festgelegt werden sie spaeter im Wege-Editor). Bevorzugter Kuestenabstand je Seeschiff in Karteneinheiten: naeher als near kostet bis nearPenalty mehr (Klippen, Brandung), weiter draussen als far je weitere far Einheiten farPenalty mehr (die Meere sind gefaehrlich, Galeeren nur bedingt hochseetauglich). Wirkt nur auf die Wegwahl des freien Seeroutings, die Reisezeit rechnet mit dem Tempo auf dem gefahrenen Weg. Keine Quelle. { wie } (WI-0069, Setzung): faehrt mit dem Abstand dieses Schiffs, keine eigenen Werte - Kurierdromone und Ruderboot wie die Galeere. Gleicher Abstand und gleiche Gewaesser heisst gleiche Seereisen: Der Seegraph haelt sie einmal (`seaGraphTransport`); das Ruderboot hat eigene, weil es nur Binnenseen befaehrt (`gewaesser`)"
+    },
+    "vereisung": {
+        "wert": {},
+        "herkunft": "VORERST ABGESCHALTET (Betreiber 2026-09-27: 'dann schalt die klimazonen-sperrung vorerst ab', nachdem der Sperrbericht die Vereisung neben dem Golf von Riva doppelt nannte). Zuletzt eingetragen, zum Wiedereinschalten: boreal und subpolar je from peraine 1 bis hesinde 30, polar from praios 1 bis efferd 30. Setzung (Betreiber 2026-09-27, WI-0046 S5: 'die sperrzeiten der meere, boreal und subpolare vereisung. wichtig ist, dass wir das spaeter nochmal editieren koennen'; polare Meere 'ja genau' nur im Sommer befahrbar; Seen in diesen Zonen frieren mit). Fenster = befahrbar, beide Enden eingeschlossen: boreal und subpolar ausser im Winter (Firun bis Phex, seasonOfDay), polar nur im Sommer (Praios bis Efferd). Gilt fuer Meer und Seen der Klimazone (climate_band), nur im freien Seerouting und nur mit Reisebeginn. Keine Quelle"
+    },
+    "meerSperren": {
+        "wert": {
+            "Golf von Riva": {
+                "fenster": { "from_month": "peraine", "from_day": 1, "to_month": "boron", "to_day": 30 },
+                "grund": "vereisung"
+            }
+        },
+        "herkunft": "Setzung (Betreiber 2026-09-27, WI-0046 S5: 'wir muessen nachher nur die meere editieren, die gesperrt sind'; Grund 'Wegen Vereisung unpassierbar'). Das Fenster ist das der Seewege im Golf von Riva (map154313: 53 von 56 Seewegen befahrbar 1. Peraine bis 30. Boron, alle drei Seeschiffe); es steht hier, damit das Loeschen der Seewege keinen Effekt hat. Fenster = befahrbar, beide Enden eingeschlossen. Gilt fuer die Flaechen der Meerregion dieses Namens, nur im freien Seerouting und nur mit Reisebeginn. Keine Quelle"
+    },
+    "flussQuerung": {
+        "wert": { "faktor": 3 },
+        "herkunft": "Setzung (Betreiber 2026-09-24, WI-0030 m: 'bei einem bach eher durch den bach wagen, wenn die kosten nicht zu hoch sind, bei einem fluss eher die naechste strasse mit furt oder bruecke suchen'; Wert Claudia): Ein Fluss ist Wand. Nur wenn querfeldein kein Ausstieg diesseits erreichbar ist, darf der Gang ihn nahe Kartenpunkt oder Ausstieg queren (dort, wo Legacy freiraeumt) und zahlt je Querung faktor x den Bachpreis seines Reisemittels (bachQuerung): die Gruppe zu Fuss 45 Meilen, der Einzelreiter 15, die Karawane 90. Legacy quert dort gratis"
+    },
+    "tempo": {
+        "herkunft": "Landtafel nach Wege des Entdeckers S. 160-162 (Betreiber 2026-10-29, WI-0258, E1, E3), Wasser nach der Geographia: Meilen der Wegart (`tagesleistung.meilenJeWegart`) x 1,19 (Setzung) / Reisestunden; Legacys Strassenmittel x1,032 ist entfallen (Betreiber 2026-11-05). Einheit: Meilen je Stunde, um den Zeitfaktor ueberhoeht, an Land auf vier Stellen gerundet, damit die Tagesleistung genau aufgeht. Wer `wegartenWie` traegt (Wanderer, Einzelreiter, Karawane; Setzung S-1), rechnet eigene `meilen` x Meilen der Wegart des Verweises / dessen `meilen`. Fluss und See unveraendert: Legacys Livetafel, ausser der Galeere (WI-0069, Betreiber 2026-10-03: GA-Normalwerte 70 Meilen in 8 h statt Legacys 100 in 12 h). Die Zeilen der Mittel aus WI-0069 (Karren, Fuhrwerk, Schlitten, Flussgaleere, Kurierdromone, Ruderboot) sind nach demselben Schema gerechnet, nicht neu kalibriert. Was ein Mittel auf einer Wegart nie faehrt, entscheiden `nieAngeboten` und `vorgabeOhneListe`, nicht die Tafel: sie bleibt fuer jedes Landmittel vollstaendig (Wuestenpfad der Fahrzeuge: Platzhalter, S-2)",
+        "wert": {
+            "groupFoot": {
+                "Reichsstrasse": 4.9087,
+                "Strasse": 4.4625,
+                "Weg": 3.57,
+                "Pfad": 3.57,
+                "Gebirgspass": 1.785,
+                "Wuestenpfad": 2.2312,
+                "Querfeldein": 3.1237
+            },
+            "lightWalker": {
+                "Reichsstrasse": 6.545,
+                "Strasse": 5.95,
+                "Weg": 4.76,
+                "Pfad": 4.76,
+                "Gebirgspass": 2.38,
+                "Wuestenpfad": 2.975,
+                "Querfeldein": 4.165
+            },
+            "groupHorse": {
+                "Reichsstrasse": 5.8012,
+                "Strasse": 5.2063,
+                "Weg": 4.165,
+                "Pfad": 4.165,
+                "Gebirgspass": 1.785,
+                "Wuestenpfad": 2.6775,
+                "Querfeldein": 3.4213
+            },
+            "lightRider": {
+                "Reichsstrasse": 8.2875,
+                "Strasse": 7.4375,
+                "Weg": 5.95,
+                "Pfad": 5.95,
+                "Gebirgspass": 2.55,
+                "Wuestenpfad": 3.825,
+                "Querfeldein": 4.8875
+            },
+            "cart": {
+                "Reichsstrasse": 4.0906,
+                "Strasse": 3.7188,
+                "Weg": 2.975,
+                "Pfad": 2.975,
+                "Gebirgspass": 0.7437,
+                "Wuestenpfad": 1.8594,
+                "Querfeldein": 1.785
+            },
+            "wagon": {
+                "Reichsstrasse": 5.355,
+                "Strasse": 4.4625,
+                "Weg": 3.57,
+                "Pfad": 3.57,
+                "Gebirgspass": 0.8925,
+                "Wuestenpfad": 2.2312,
+                "Querfeldein": 2.6775
+            },
+            "sleigh": {
+                "Reichsstrasse": 6.2475,
+                "Strasse": 6.2475,
+                "Weg": 5.2063,
+                "Pfad": 5.2063,
+                "Gebirgspass": 0.8925,
+                "Wuestenpfad": 5.2063,
+                "Querfeldein": 2.975
+            },
+            "caravan": {
+                "Reichsstrasse": 4.9087,
+                "Strasse": 4.4625,
+                "Weg": 3.57,
+                "Pfad": 3.57,
+                "Gebirgspass": 1.785,
+                "Wuestenpfad": 2.2312,
+                "Querfeldein": 3.1237
+            },
+            "horseCarriage": {
+                "Reichsstrasse": 8.925,
+                "Strasse": 7.4375,
+                "Weg": 5.95,
+                "Pfad": 5.95,
+                "Gebirgspass": 1.4875,
+                "Wuestenpfad": 3.7188,
+                "Querfeldein": 2.6775
+            },
+            "riverSailer": { "Flussweg": 5.95 },
+            "riverBarge": { "Flussweg": 3.97 },
+            "riverGalley": { "Flussweg": 7.44 },
+            "cargoShip": { "Seeweg": 11.9 },
+            "fastShip": { "Seeweg": 12.4 },
+            "galley": { "Seeweg": 10.41 },
+            "courierDromone": { "Seeweg": 9.92 },
+            "rowboat": { "Flussweg": 2.48, "Seeweg": 2.48 }
+        }
+    },
+    "eiltempo": {
+        "herkunft": "Regel (Geographia Aventurica S. 123, Kasten EILMARSCH) mit vier benannten Betreiberentscheiden vom 2026-10-05. Faktoren: Eilmaersche und Eilritte auf das Anderthalbfache, Fuhrwerke, Karren und Kutschen hoechstens das 1,25-fache; der Schlitten faehrt wie ein Fuhrwerk. Mit tagesleistung ergeben sich die Werte der GA (45, 60, 52,5, 75, 31,25, 37,5, 62,5) und fuer den Schlitten seit WI-0258 E3 (Kaleschka 42 Meilen) 52,5 statt 62,5 (1,25 x 42). Kamelkarawane ohne Angabe, also ohne Eiltempo; Fluss-, See- und Flugmittel haben keinen allgemeinen Eilfaktor (GA S. 129/131), der Schnellsegler und die eilgeruderte Galeere sind eigene Betriebsformen und bleiben ausserhalb (WI-0069). Wegarten (Betreiber 2026-10-05 'nimm die vier raus'): nur Reichsstrasse, Strasse und Weg; Pfad und Wuestenpfad nur zu Fuss (GA: 'fuer Wanderer auch auf Trampelpfaden'). Gebirgspass und Querfeldein nie (GA: in Gebirgen unmoeglich, nur befestigte Wege). taktung (Betreiber 2026-10-05, F3 = A): nur jeden zweiten Reisetag erhoehtes Tempo, genau die Regel der GA; keine erfundene Stundenzahl und keine zusaetzliche Rastzeit. bodenSperre (GA: aufgeweichte Boeden und tiefer Schnee vereiteln den Eilmarsch; Betreiber F1 ergaenzt Eis und die Schneegrenze, die denselben Boden setzt). bodenAusnahme: der Schlitten braucht Schnee und Eis - bewusste Abweichung von der GA, die tiefen Schnee allgemein ausschliesst. landschaftSperre: Suempfe und Dschungel nennt die GA unmoeglich, Urwald und Regenwald stellt der Betreiber ihnen gleich ('Regenwald ist wie Dschungel und der Urwald'); Schluessel ist region_type wie in bodenfaktor. Sturm und heftiger Regen vereiteln den Eilmarsch ebenfalls - Avesmaps hat kein Wetter, das bleibt ein Befund. Dass die Wueste 'aeusserst anstrengend' ist, bilden wir nicht ab",
+        "wert": {
+            "taktung": { "reisetage": 2, "eiltage": 1 },
+            "mittel": {
+                "groupFoot": { "faktor": 1.5, "wegarten": ["Reichsstrasse", "Strasse", "Weg", "Pfad", "Wuestenpfad"] },
+                "lightWalker": {
+                    "faktor": 1.5,
+                    "wegarten": ["Reichsstrasse", "Strasse", "Weg", "Pfad", "Wuestenpfad"]
+                },
+                "groupHorse": { "faktor": 1.5, "wegarten": ["Reichsstrasse", "Strasse", "Weg"] },
+                "lightRider": { "faktor": 1.5, "wegarten": ["Reichsstrasse", "Strasse", "Weg"] },
+                "cart": { "faktor": 1.25, "wegarten": ["Reichsstrasse", "Strasse", "Weg"] },
+                "wagon": { "faktor": 1.25, "wegarten": ["Reichsstrasse", "Strasse", "Weg"] },
+                "horseCarriage": { "faktor": 1.25, "wegarten": ["Reichsstrasse", "Strasse", "Weg"] },
+                "sleigh": { "faktor": 1.25, "wegarten": ["Reichsstrasse", "Strasse", "Weg"] }
+            },
+            "bodenSperre": ["aufgeweicht", "tiefschnee", "eis"],
+            "bodenAusnahme": { "sleigh": ["tiefschnee", "eis"] },
+            "landschaftSperre": ["suempfe_moore", "dschungel", "urwald", "regenwald"]
+        }
+    },
+    "transportmittel": {
+        "herkunft": "Legacy request.php: je Domaene die waehlbaren Mittel; erweitert um die Mittel der Geographia (WI-0069). Die Reihenfolge ist die des Planers: an Land und auf See nach Betreiber 2026-10-03",
+        "wert": {
+            "land": [
+                "groupFoot",
+                "lightWalker",
+                "groupHorse",
+                "lightRider",
+                "caravan",
+                "cart",
+                "wagon",
+                "horseCarriage",
+                "sleigh"
+            ],
+            "river": ["riverSailer", "riverBarge", "riverGalley", "rowboat"],
+            "sea": ["cargoShip", "fastShip", "galley", "courierDromone", "rowboat"]
+        }
+    },
+    "nieAngeboten": {
+        "herkunft": "Regel (GA): diese Mittel fahren dort NIE, auch nicht mit gespeicherter Liste - die Liste wird mit dem Angebot geschnitten (client-graph.php, avesmapsClientRouteTransportOptions). WI-0069, Betreiber 2026-10-03: Karren und Fuhrwerk fahren weder Pfad noch Wuestenpfad, die Kutsche keinen Wuestenpfad. Querfeldein fahren alle drei seit WI-0258 (Betreiber 2026-10-29, E2), aber nur ueber offenes Land: Das sperrt `querfeldeinFahrzeuge`, nicht dieses Angebot. Der Schlitten faehrt jede Wegart und querfeldein, aber nur auf Schnee (`bodenPflicht`). Das Ruderboot faehrt keinen Seeweg: ob ein Seeweg auf einem Binnensee liegt, weiss der Weg nicht; frei faehrt es auf Binnenseen (`gewaesser`), dazu auf Fluessen",
+        "wert": {
+            "Pfad": ["cart", "wagon"],
+            "Wuestenpfad": ["horseCarriage", "cart", "wagon"],
+            "Seeweg": ["rowboat"]
+        }
+    },
+    "vorgabeOhneListe": {
+        "herkunft": "Setzung (client-graph.php, avesmapsClientRouteDefaultAllowedTransports): ohne gespeicherte Liste faehrt jedes angebotene Mittel ausser den hier genannten; eine gespeicherte Liste darf sie erlauben",
+        "wert": { "Pfad": ["horseCarriage"] }
+    },
+    "flug": {
+        "wert": {
+            "mindestabstandSchritt": 200,
+            "hoechstflughoeheProzent": 1000,
+            "hoechstflughoeheAbsolutSchritt": 5000,
+            "steigkostenFaktor": 50,
+            "haltekostenFaktor": 1,
+            "profile": [
+                { "id": "witchFlight", "gruppe": "devices", "tempo": 40, "reisehoehe": 100 },
+                { "id": "flyingCarpet", "gruppe": "devices", "tempo": 35, "reisehoehe": 150 },
+                { "id": "airship", "gruppe": "devices", "tempo": 12.5, "reisehoehe": 1000 },
+                { "id": "flyingLizard", "gruppe": "mounts", "tempo": 30, "reisehoehe": 200 },
+                { "id": "hippogriff", "gruppe": "mounts", "tempo": 40, "reisehoehe": 400 },
+                { "id": "giantAuk", "gruppe": "mounts", "tempo": 38, "reisehoehe": 400 },
+                { "id": "skySteed", "gruppe": "mounts", "tempo": 45, "reisehoehe": 500 },
+                { "id": "westwindDragon", "gruppe": "mounts", "tempo": 50, "reisehoehe": 600 },
+                { "id": "airDjinn", "gruppe": "summoned", "tempo": 25, "reisehoehe": 300 },
+                { "id": "karakil", "gruppe": "summoned", "tempo": 45, "reisehoehe": 400 },
+                { "id": "irrhalk", "gruppe": "summoned", "tempo": 80, "reisehoehe": 700 },
+                { "id": "griffin", "gruppe": "extraordinary", "tempo": 50, "reisehoehe": 800 }
+            ],
+            "eigenes": {
+                "tempo": { "min": 1, "max": 999, "nachkommastellen": 1, "vorgabe": 40 },
+                "reisehoehe": { "min": 1, "max": 5000, "nachkommastellen": 0, "vorgabe": 250 }
+            }
+        },
+        "herkunft": "Setzung des Betreibers, keine Regelquelle (WI-0051; Zielbild 2026-09-27 avesmaps3d-flug-gui-komplett.html, bis dahin in apps/web air-profiles.ts, WI-0050). Nachtrag Luftschiff (Betreiber 2026-09-27): die hochelfische Bahalyr ist mit etwa 100 Meilen Reiseleistung am Tag belegt, bei 8 Reisestunden 12,5 Meilen/h; ihre 1.000 Schritt Reisehoehe sind eine Avesmaps-Schaetzung. tempo in Meilen je Stunde, echt, NICHT um den Zeitfaktor ueberhoeht wie die Tafel tempo: Stunden = Meilen / Tempo. reisehoehe in Schritt ueber Grund (F-E1 = C, Betreiber 2026-09-28), fuer Anzeige und Flugbogen. hoechstflughoeheProzent: Setzung des Betreibers 2026-09-28 ('gut machen wir mal 1000%'), seit 2026-10-04 UEBER GRUND gemeint (Betreiber: 'was aber eigentlich gemeint war, ist das das flugmittel das 10x der hoehe ueber grund erreicht'): ein Flugmittel steigt hoechstens auf Boden + Reisehoehe x 1000 % ueber dem Gelaende direkt unter ihm, fuer jedes Flugmittel wie fuer das eigene, keine Regelquelle. hoechstflughoeheAbsolutSchritt: Setzung des Betreibers 2026-10-04 ('da in grossen hoehen der sauerstoff langsam knapp wird, wuerd ich ausserdem 5000 schritt als max. flughoehe erlauben'): hoechstens 5.000 Schritt ueber dem Meer, fuer alle Flugmittel gleich, auch das eigene. Reisestunden und Rast wie an Land, die des Planers (F-E2 = A); Start und Landung ueberall (F-E3 = A). mindestabstandSchritt: Abstand zum Gelaende (Betreiber 2026-09-27, WI-0046); umflogen wird Gelaende, das hoeher liegt als die absolute Hoechstflughoehe minus Mindestabstand (F2, seit 2026-10-04 4.800 Schritt fuer alle). eigenes: die Grenzen der Felder des Planers fuer das eigene Flugmittel (WI-0050), Tempo 1 bis 999 Meilen/h mit einer Nachkommastelle, Reisehoehe 1 bis 5.000 ganze Schritt (seit 2026-10-04 hoechstens die absolute Hoechstflughoehe, vorher 9.999), Vorgaben 40 Meilen/h und 250 Schritt. steigkostenFaktor und haltekostenFaktor (WI-0051 F4, Betreiber 2026-10-04: 'ich will, dass die lieber um hohe berge herumfliegen als einfach drueber', 'aber auch die flughoehe soll kosten bis wieder die durchschnittliche flughoehe erreicht ist (die ist der standard und der aufstieg zur durchschnittlichen flughoehe kostet nichts)'): Fliegen ueber der Reisehoehe kostet Zeit, damit der Flug lieber um hohe Berge herumfliegt als drueber. Bezug ist die Standardflughoehe ueber Grund (die Reisehoehe, mindestens der Mindestabstand); auf ihr zu fliegen und der Aufstieg auf sie kosten nichts. Steigen ueber sie: steigkostenFaktor Schritt Strecke je Schritt, um den die Bahn ueber Boden + Reisehoehe hinaus steigt (Sinken ist frei). Halten ueber sie, auch beim Sinken zurueck: Strecke x Ueberstand / (hoechste Hoehe ueber Grund, 10 x Reisehoehe) x haltekostenFaktor. Der Rahmen ist eine Setzung des Betreibers; die Zahlenwerte 50 und 1 sind die Vorgabe der Entwicklung nach Messung (WI-0051 F4: kleinster Steigfaktor, bei dem hohe Gebirge meist umflogen werden und Huegel weiter ueberflogen) und vom Betreiber zu bestaetigen oder zu aendern"
+    },
+    "reisekosten": {
+        "uebernachtung": {
+            "status": "SOURCE_RULE",
+            "wert": {
+                "frei": 0,
+                "strohsack": 2,
+                "bett": 6,
+                "zimmer": 30
+            },
+            "herkunft": "Regel (DSA5-Regelwerk S. 382 = Kodex der Helden S. 476, 'Das aventurische Gasthaus': Strohsack im Schlafsaal 2 H, Bett im Gemeinschaftszimmer 6 H, Einzelzimmer 3 S; am Seitenbild geprueft, Legacy docs/reisekosten-quellenlage.md). Heller je Nacht unter Dach und Person. Die Geographia nennt keinen Uebernachtungspreis (S. 113-141). Legacy js/config.js TRAVEL_COST_LODGING (avesmaps@770c80e)"
+        },
+        "dach": {
+            "status": "SOURCE_RULE",
+            "wert": {
+                "Reichsstrasse": "gasthaus",
+                "Strasse": "gasthaus",
+                "Weg": "gasthaus",
+                "Flussweg": "anBord",
+                "Seeweg": "anBord"
+            },
+            "herkunft": "Regel (Geographia S. 113: an der Reichsstrasse alle 15 Meilen ein Landgasthaus; S. 114: an der Strasse alle 20 Meilen eine Herberge). Ein Reisetag ist laenger als beide Abstaende, also entscheidet die Wegart am Tagesende. Weg zaehlt als Gasthaus: Setzung Legacy ('bisweilen ein Gasthaus', TRAVEL_COST_SHELTER_BY_SUBTYPE 'maybe'). Pfad, Gebirgspass, Wuestenpfad und querfeldein schlafen im Freien; Fluss und See an Bord, die Nacht steckt in der Passage"
+        },
+        "verpflegung": {
+            "status": "SOURCE_RULE",
+            "wert": {
+                "frei": 4,
+                "strohsack": 4,
+                "bett": 8,
+                "zimmer": 17
+            },
+            "herkunft": "Regel (DSA5-Regelwerk S. 382 Mahlzeiten im Gasthaus; Wege des Entdeckers S. 72, DSA4.1, Proviant unterwegs). Heller je Reisetag und Person; Reisetage = Gesamte Reisezeit / 24, aufgerundet (Legacy)"
+        },
+        "reittier": {
+            "status": "SOURCE_RULE",
+            "wert": {
+                "jeReisendem": {
+                    "groupHorse": 1,
+                    "lightRider": 1,
+                    "caravan": 1
+                },
+                "stallJeNacht": 6,
+                "futterJeWoche": 5,
+                "hufbeschlag": 20
+            },
+            "herkunft": "Regel (Regelwerk S. 382: Stall mit Futter 6 H je Nacht; Kodex S. 475: Futter im Freien, Hufbeschlag 0,5 S je Huf, vier Hufe je Tier, einmal je Reise). Das Tier folgt aus dem Landtransportmittel, kein Eingabefeld (Legacy-Owner 2026-08-03): Pferd, Reiter und Karawane fuehren eines je Person, zu Fuss und Kutsche keines. Karren, Fuhrwerk und Schlitten auch keines je Person (WI-0069): ihre Zugtiere beziffert die Quelle nicht, also kein Posten. Stall nur in Gasthausnaechten; wer im Freien schlaeft, zahlt Futter je Woche"
+        },
+        "flusspassage": {
+            "status": "SOURCE_RULE",
+            "wert": {
+                "je100Meilen": {
+                    "frei": 100,
+                    "strohsack": 100,
+                    "bett": 100,
+                    "zimmer": 1000
+                },
+                "stromaufFaktor": 3,
+                "reittierJe100Meilen": 100
+            },
+            "herkunft": "Regel (Geographia S. 129: Kahnfahrt 1 D je 100 Meilen stromab mit Mitarbeit, 3 D stromauf, in der Kabine bis 10 D; S. 129/131: das Pferd faehrt wie ein Passagier, immer zum Kahnpreis). Eine unbekannte Stroemung zaehlt als stromab (Legacy). Gerechnet als gekaufte Passage, auch mit dem eigenen Flusssegler (Legacy)"
+        },
+        "seepassage": {
+            "status": "AVESMAPS_DECISION",
+            "wert": {
+                "je100Meilen": {
+                    "frei": 67,
+                    "strohsack": 67,
+                    "bett": 67,
+                    "zimmer": 416
+                },
+                "reittierJe100Meilen": 67
+            },
+            "herkunft": "Setzung (Betreiber 2026-09-26, WI-0042 K2: 'Kutsche ja, See abgeleitet'): Geographia S. 131 nennt die Seereise nur fuer Havena-Kuslik, 4 D in der Haengematte, 25 D in der Kabine. Der Seeweg Havena-Kuslik misst im Netz 600,6 Meilen (Satz map147359), also 0,67 D bzw. 4,16 D je 100 Meilen, auf ganze Heller. Das Tier faehrt zum Haengemattenpreis (S. 129/131). Legacy rechnet die Seereise nicht"
+        },
+        "kutsche": {
+            "status": "SOURCE_RULE",
+            "wert": {
+                "reisemittel": ["horseCarriage"],
+                "je100Meilen": 400
+            },
+            "herkunft": "Regel (Geographia S. 119: Post- oder Reisekutsche 4 D je 100 Meilen und Person). Betreiber 2026-09-26, WI-0042 K2: wer mit der Kutsche reist, kauft die Fahrt. Legacy rechnet sie nicht. Karren und Fuhrwerk sind keine Postkutsche und haben keinen Fahrpreis (WI-0069)"
+        },
+        "zoll": {
+            "status": "SOURCE_RULE",
+            "wert": {
+                "frei": 1,
+                "strohsack": 5,
+                "bett": 100,
+                "zimmer": 500
+            },
+            "herkunft": "Regel (Geographia S. 115: der Zoellner veranlagt nach dem Auftreten, 1 H Tageloehner, 5 H Schustergeselle, 1 D Soeldner, bis 5 D gutverdienend) je Landesgrenze und Person. Die Grenzen zaehlt der Server auf den Herrschaftsgebieten der politischen Karte nach Legacys Regel (Block grenzuebertritt, packages/shared/src/travel-borders.ts, WI-0065); fehlen die Gebiete, steht der Posten als nicht ermittelbar da und zaehlt nicht als 0 (Betreiber 2026-09-26, WI-0042 K1)"
+        },
+        "grenzuebertritt": {
+            "status": "AVESMAPS_DECISION",
+            "wert": {
+                "mindestLaufMeilen": 5,
+                "abtastschritt": 0.4
+            },
+            "herkunft": "Setzung Legacy (TRAVEL_COST_BORDER_MIN_RUN_MILES und TRAVEL_COST_BORDER_SAMPLE_STEP, avesmaps@00b3d7d:js/routing/route-costs.js:16-21): ein Lauf unter 5 Meilen im Nachbarreich ist kein Uebertritt (eine Strasse, die an der Grenze pendelt, zahlt einmal; ohne den Filter zaehlte Gareth-Fasar in Legacy 39 statt 4 Grenzen), abgetastet wird alle 0,4 Karteneinheiten (1,2 Meilen). Fuer Avesmaps3D bestaetigt vom Betreiber am 2026-09-30 (WI-0065 Frage Z2: 5 Meilen, als Wert im Reisemodell). Aenderung ohne Codeaenderung, neue travel_model_version"
+        }
+    }
+}

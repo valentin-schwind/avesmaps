@@ -1,0 +1,149 @@
+/*
+ * Die Wetter-Icons auf der Karte (WI-0288, `wetter-symbole.ts`): die Werte des Prototyps (`STIL` im früheren `wetter-panel.ts`), dazu aus der
+ * abgenommenen Probierseite (`review/wetter-editor/`) Grau für ausgeblendete, der Name und die Griffe des Editors. Die Töne stehen noch
+ * nicht im Kanon (Stufe 7); die Auswahl trägt den Ton der Auswahl auf der Karte (EDIT-0003 G9, `--color-map-selection`), Griffe und Zug die
+ * Töne des Geometrie-Moduls (`--color-edit-edge`, `--color-route-halo`).
+ * Die Ebene nimmt keinen Zeiger an: Treffer und Ziehen laufen über den Koordinator der Karte (`wetter-griffe.ts`).
+ */
+.wetter-symbole {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.ws-ring {
+    fill: #79d9df10;
+    stroke: #79d9df;
+    stroke-opacity: 0.5;
+    stroke-width: 1;
+    stroke-dasharray: 4 4;
+}
+
+.ws-pfeil {
+    stroke: #79d9df;
+    stroke-width: 1.6;
+}
+
+.ws-scheibe {
+    fill: #07121ecc;
+    stroke: #79d9df;
+    stroke-width: 1.5;
+}
+
+.ws-zeichen {
+    fill: none;
+    stroke: #e8eff8;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+}
+
+.ws-meer .ws-ring {
+    fill: #4fe3d00d;
+    stroke: #4fe3d0;
+}
+
+.ws-meer .ws-pfeil {
+    stroke: #4fe3d0;
+}
+
+.ws-meer .ws-scheibe {
+    fill: #06262acc;
+    stroke: #4fe3d0;
+}
+
+.ws-meer .ws-zeichen {
+    stroke: #b9fff2;
+}
+
+/* Ausgeblendet: nur im Editor zu sehen, grau mit gestrichelter Scheibe (wie ◌ „nicht öffentlich“), als Anfasser. */
+.ws-grau .ws-ring,
+.ws-grau.ws-meer .ws-ring {
+    fill: #9aa3ad10;
+    stroke: #9aa3ad;
+}
+
+.ws-grau .ws-pfeil,
+.ws-grau.ws-meer .ws-pfeil {
+    stroke: #9aa3ad;
+}
+
+.ws-grau .ws-scheibe,
+.ws-grau.ws-meer .ws-scheibe {
+    fill: #2b3038cc;
+    stroke: #b4bcc6;
+    stroke-dasharray: 2.5 2.5;
+}
+
+.ws-grau .ws-zeichen,
+.ws-grau.ws-meer .ws-zeichen {
+    stroke: #c9ced4;
+}
+
+/* Gewählt im Editor: der Ton der Auswahl an Scheibe, Pfeil und Ring. */
+.ws-sel .ws-scheibe,
+.ws-sel.ws-meer .ws-scheibe,
+.ws-sel.ws-grau .ws-scheibe {
+    stroke: var(--color-map-selection);
+    stroke-width: 2.5;
+}
+
+.ws-sel .ws-pfeil,
+.ws-sel.ws-meer .ws-pfeil,
+.ws-sel.ws-grau .ws-pfeil {
+    stroke: var(--color-map-selection);
+}
+
+.ws-sel .ws-ring,
+.ws-sel.ws-meer .ws-ring,
+.ws-sel.ws-grau .ws-ring {
+    stroke: var(--color-map-selection);
+    stroke-opacity: 0.8;
+}
+
+/*
+ * Wird gezogen (EDIT-0003 G9: Knallrot heißt „wird bearbeitet“, auch beim Verschieben eines Orts): Scheibe, Pfeil und Ring in `editEdge`,
+ * solange der Zug läuft; danach wieder gelb.
+ */
+.ws-zieht .ws-scheibe,
+.ws-zieht.ws-meer .ws-scheibe,
+.ws-zieht.ws-grau .ws-scheibe {
+    stroke: var(--color-edit-edge);
+    stroke-width: 2.5;
+}
+
+.ws-zieht .ws-pfeil,
+.ws-zieht.ws-meer .ws-pfeil,
+.ws-zieht.ws-grau .ws-pfeil,
+.ws-zieht .ws-ring,
+.ws-zieht.ws-meer .ws-ring,
+.ws-zieht.ws-grau .ws-ring {
+    stroke: var(--color-edit-edge);
+    stroke-opacity: 0.9;
+}
+
+/* Die Griffe wie der Steuergriff des Geometrie-Moduls (`map/geometrie/schicht.ts`): Knallrot mit weißem Saum. */
+.ws-griff {
+    fill: var(--color-edit-edge);
+    stroke: var(--color-route-halo);
+    stroke-width: 2.5;
+}
+
+.ws-name {
+    fill: #ffffff;
+    stroke: rgba(10, 14, 20, 0.72);
+    stroke-width: 3px;
+    stroke-linejoin: round;
+    paint-order: stroke;
+    font-family: var(--font-ui);
+    font-size: var(--font-size-body);
+    letter-spacing: 0.02em;
+    text-anchor: middle;
+}
+
+.ws-grau .ws-name {
+    fill: #d4d9de;
+}

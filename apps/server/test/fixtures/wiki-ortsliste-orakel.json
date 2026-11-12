@@ -1,0 +1,947 @@
+{
+    "_hinweis": "Erwartungen schreibt scripts/dev/wiki-ortsliste-orakel.php aus Legacys echten Funktionen (Mirror a7f2dac86); nie von Hand.",
+    "faelle": [
+        {
+            "id": "leer-abenteuer",
+            "productType": "gruppenabenteuer",
+            "orte": [
+                "Gareth",
+                "Punin",
+                "Kuslik"
+            ],
+            "aktuell": [],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Gareth",
+                        "role": "start"
+                    },
+                    {
+                        "sort_order": 1,
+                        "raw_name": "Punin",
+                        "role": "play"
+                    },
+                    {
+                        "sort_order": 2,
+                        "raw_name": "Kuslik",
+                        "role": "play"
+                    }
+                ],
+                "plan": {
+                    "add": [
+                        {
+                            "sort_order": 0,
+                            "raw_name": "Gareth",
+                            "role": "start"
+                        },
+                        {
+                            "sort_order": 1,
+                            "raw_name": "Punin",
+                            "role": "play"
+                        },
+                        {
+                            "sort_order": 2,
+                            "raw_name": "Kuslik",
+                            "role": "play"
+                        }
+                    ],
+                    "update": [],
+                    "remove": []
+                }
+            }
+        },
+        {
+            "id": "gleich",
+            "productType": "gruppenabenteuer",
+            "orte": [
+                "Gareth",
+                "Punin"
+            ],
+            "aktuell": [
+                {
+                    "id": 1,
+                    "sort_order": 0,
+                    "raw_name": "Gareth",
+                    "role": "start",
+                    "origin": "wiki",
+                    "status": "approved"
+                },
+                {
+                    "id": 2,
+                    "sort_order": 1,
+                    "raw_name": "Punin",
+                    "role": "play",
+                    "origin": "wiki",
+                    "status": "approved"
+                }
+            ],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Gareth",
+                        "role": "start"
+                    },
+                    {
+                        "sort_order": 1,
+                        "raw_name": "Punin",
+                        "role": "play"
+                    }
+                ],
+                "plan": {
+                    "add": [],
+                    "update": [],
+                    "remove": []
+                }
+            }
+        },
+        {
+            "id": "umbenannt",
+            "productType": "roman",
+            "orte": [
+                "Gareth",
+                "Punin"
+            ],
+            "aktuell": [
+                {
+                    "id": 1,
+                    "sort_order": 0,
+                    "raw_name": "Gareth",
+                    "role": "start",
+                    "origin": "wiki",
+                    "status": "approved"
+                },
+                {
+                    "id": 2,
+                    "sort_order": 1,
+                    "raw_name": "Punim",
+                    "role": "play",
+                    "origin": "wiki",
+                    "status": "approved"
+                }
+            ],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Gareth",
+                        "role": "start"
+                    },
+                    {
+                        "sort_order": 1,
+                        "raw_name": "Punin",
+                        "role": "play"
+                    }
+                ],
+                "plan": {
+                    "add": [],
+                    "update": [
+                        {
+                            "id": 2,
+                            "sort_order": 1,
+                            "raw_name": "Punin",
+                            "role": "play"
+                        }
+                    ],
+                    "remove": []
+                }
+            }
+        },
+        {
+            "id": "schreibung",
+            "productType": "roman",
+            "orte": [
+                "Gareth",
+                "Punin"
+            ],
+            "aktuell": [
+                {
+                    "id": 1,
+                    "sort_order": 0,
+                    "raw_name": "gareth",
+                    "role": "start",
+                    "origin": "wiki",
+                    "status": "approved"
+                },
+                {
+                    "id": 2,
+                    "sort_order": 1,
+                    "raw_name": "Punin",
+                    "role": "play",
+                    "origin": "wiki",
+                    "status": "approved"
+                }
+            ],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Gareth",
+                        "role": "start"
+                    },
+                    {
+                        "sort_order": 1,
+                        "raw_name": "Punin",
+                        "role": "play"
+                    }
+                ],
+                "plan": {
+                    "add": [],
+                    "update": [
+                        {
+                            "id": 1,
+                            "sort_order": 0,
+                            "raw_name": "Gareth",
+                            "role": "start"
+                        }
+                    ],
+                    "remove": []
+                }
+            }
+        },
+        {
+            "id": "spielhilfe-rollen",
+            "productType": "spielhilfe",
+            "orte": [
+                "Bornland",
+                "Festum"
+            ],
+            "aktuell": [
+                {
+                    "id": 1,
+                    "sort_order": 0,
+                    "raw_name": "Bornland",
+                    "role": "start",
+                    "origin": "wiki",
+                    "status": "approved"
+                },
+                {
+                    "id": 2,
+                    "sort_order": 1,
+                    "raw_name": "Festum",
+                    "role": "play",
+                    "origin": "wiki",
+                    "status": "approved"
+                }
+            ],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Bornland",
+                        "role": "covers"
+                    },
+                    {
+                        "sort_order": 1,
+                        "raw_name": "Festum",
+                        "role": "covers"
+                    }
+                ],
+                "plan": {
+                    "add": [],
+                    "update": [
+                        {
+                            "id": 1,
+                            "sort_order": 0,
+                            "raw_name": "Bornland",
+                            "role": "covers"
+                        },
+                        {
+                            "id": 2,
+                            "sort_order": 1,
+                            "raw_name": "Festum",
+                            "role": "covers"
+                        }
+                    ],
+                    "remove": []
+                }
+            }
+        },
+        {
+            "id": "regionalspielhilfe-neu",
+            "productType": "regionalspielhilfe",
+            "orte": [
+                "Bornland",
+                "Festum"
+            ],
+            "aktuell": [],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Bornland",
+                        "role": "covers"
+                    },
+                    {
+                        "sort_order": 1,
+                        "raw_name": "Festum",
+                        "role": "covers"
+                    }
+                ],
+                "plan": {
+                    "add": [
+                        {
+                            "sort_order": 0,
+                            "raw_name": "Bornland",
+                            "role": "covers"
+                        },
+                        {
+                            "sort_order": 1,
+                            "raw_name": "Festum",
+                            "role": "covers"
+                        }
+                    ],
+                    "update": [],
+                    "remove": []
+                }
+            }
+        },
+        {
+            "id": "spielhilfe-leerraum",
+            "productType": " Spielhilfe ",
+            "orte": [
+                "Bornland"
+            ],
+            "aktuell": [],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Bornland",
+                        "role": "covers"
+                    }
+                ],
+                "plan": {
+                    "add": [
+                        {
+                            "sort_order": 0,
+                            "raw_name": "Bornland",
+                            "role": "covers"
+                        }
+                    ],
+                    "update": [],
+                    "remove": []
+                }
+            }
+        },
+        {
+            "id": "kuerzer",
+            "productType": "gruppenabenteuer",
+            "orte": [
+                "Gareth"
+            ],
+            "aktuell": [
+                {
+                    "id": 1,
+                    "sort_order": 0,
+                    "raw_name": "Gareth",
+                    "role": "start",
+                    "origin": "wiki",
+                    "status": "approved"
+                },
+                {
+                    "id": 2,
+                    "sort_order": 1,
+                    "raw_name": "Punin",
+                    "role": "play",
+                    "origin": "wiki",
+                    "status": "approved"
+                },
+                {
+                    "id": 3,
+                    "sort_order": 2,
+                    "raw_name": "Kuslik",
+                    "role": "play",
+                    "origin": "wiki",
+                    "status": "approved"
+                }
+            ],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Gareth",
+                        "role": "start"
+                    }
+                ],
+                "plan": {
+                    "add": [],
+                    "update": [],
+                    "remove": [
+                        {
+                            "id": 2
+                        },
+                        {
+                            "id": 3
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "laenger",
+            "productType": "kurzgeschichte",
+            "orte": [
+                "Gareth",
+                "Punin",
+                "Kuslik"
+            ],
+            "aktuell": [
+                {
+                    "id": 1,
+                    "sort_order": 0,
+                    "raw_name": "Gareth",
+                    "role": "start",
+                    "origin": "wiki",
+                    "status": "approved"
+                }
+            ],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Gareth",
+                        "role": "start"
+                    },
+                    {
+                        "sort_order": 1,
+                        "raw_name": "Punin",
+                        "role": "play"
+                    },
+                    {
+                        "sort_order": 2,
+                        "raw_name": "Kuslik",
+                        "role": "play"
+                    }
+                ],
+                "plan": {
+                    "add": [
+                        {
+                            "sort_order": 1,
+                            "raw_name": "Punin",
+                            "role": "play"
+                        },
+                        {
+                            "sort_order": 2,
+                            "raw_name": "Kuslik",
+                            "role": "play"
+                        }
+                    ],
+                    "update": [],
+                    "remove": []
+                }
+            }
+        },
+        {
+            "id": "tombstone",
+            "productType": "gruppenabenteuer",
+            "orte": [
+                "Punin",
+                "Kuslik"
+            ],
+            "aktuell": [
+                {
+                    "id": 1,
+                    "sort_order": 0,
+                    "raw_name": "Gareth",
+                    "role": "start",
+                    "origin": "wiki",
+                    "status": "approved"
+                },
+                {
+                    "id": 2,
+                    "sort_order": 5,
+                    "raw_name": "Punin",
+                    "role": "play",
+                    "origin": "wiki",
+                    "status": "suppressed"
+                }
+            ],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Punin",
+                        "role": "start"
+                    },
+                    {
+                        "sort_order": 1,
+                        "raw_name": "Kuslik",
+                        "role": "play"
+                    }
+                ],
+                "plan": {
+                    "add": [
+                        {
+                            "sort_order": 1,
+                            "raw_name": "Kuslik",
+                            "role": "play"
+                        }
+                    ],
+                    "update": [],
+                    "remove": []
+                }
+            }
+        },
+        {
+            "id": "tombstone-neue-stelle",
+            "productType": "gruppenabenteuer",
+            "orte": [
+                "Gareth",
+                "Punin"
+            ],
+            "aktuell": [
+                {
+                    "id": 1,
+                    "sort_order": 0,
+                    "raw_name": "Gareth",
+                    "role": "start",
+                    "origin": "wiki",
+                    "status": "approved"
+                },
+                {
+                    "id": 2,
+                    "sort_order": 7,
+                    "raw_name": "punin",
+                    "role": "play",
+                    "origin": "wiki",
+                    "status": "suppressed"
+                }
+            ],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Gareth",
+                        "role": "start"
+                    },
+                    {
+                        "sort_order": 1,
+                        "raw_name": "Punin",
+                        "role": "play"
+                    }
+                ],
+                "plan": {
+                    "add": [],
+                    "update": [],
+                    "remove": []
+                }
+            }
+        },
+        {
+            "id": "manuell-gleiche-stelle",
+            "productType": "gruppenabenteuer",
+            "orte": [
+                "Gareth"
+            ],
+            "aktuell": [
+                {
+                    "id": 1,
+                    "sort_order": 0,
+                    "raw_name": "Eigener Ort",
+                    "role": "start",
+                    "origin": "manual",
+                    "status": "approved"
+                }
+            ],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Gareth",
+                        "role": "start"
+                    }
+                ],
+                "plan": {
+                    "add": [
+                        {
+                            "sort_order": 0,
+                            "raw_name": "Gareth",
+                            "role": "start"
+                        }
+                    ],
+                    "update": [],
+                    "remove": []
+                }
+            }
+        },
+        {
+            "id": "manuell-unberuehrt",
+            "productType": "gruppenabenteuer",
+            "orte": [
+                "Gareth"
+            ],
+            "aktuell": [
+                {
+                    "id": 1,
+                    "sort_order": 0,
+                    "raw_name": "Gareth",
+                    "role": "start",
+                    "origin": "wiki",
+                    "status": "approved"
+                },
+                {
+                    "id": 2,
+                    "sort_order": 4,
+                    "raw_name": "Eigener Ort",
+                    "role": "play",
+                    "origin": "manual",
+                    "status": "approved"
+                }
+            ],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Gareth",
+                        "role": "start"
+                    }
+                ],
+                "plan": {
+                    "add": [],
+                    "update": [],
+                    "remove": []
+                }
+            }
+        },
+        {
+            "id": "luecke",
+            "productType": "gruppenabenteuer",
+            "orte": [
+                "Gareth",
+                "Punin",
+                "Kuslik"
+            ],
+            "aktuell": [
+                {
+                    "id": 1,
+                    "sort_order": 0,
+                    "raw_name": "Gareth",
+                    "role": "start",
+                    "origin": "wiki",
+                    "status": "approved"
+                },
+                {
+                    "id": 2,
+                    "sort_order": 2,
+                    "raw_name": "Vinsalt",
+                    "role": "play",
+                    "origin": "wiki",
+                    "status": "approved"
+                }
+            ],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Gareth",
+                        "role": "start"
+                    },
+                    {
+                        "sort_order": 1,
+                        "raw_name": "Punin",
+                        "role": "play"
+                    },
+                    {
+                        "sort_order": 2,
+                        "raw_name": "Kuslik",
+                        "role": "play"
+                    }
+                ],
+                "plan": {
+                    "add": [
+                        {
+                            "sort_order": 1,
+                            "raw_name": "Punin",
+                            "role": "play"
+                        }
+                    ],
+                    "update": [
+                        {
+                            "id": 2,
+                            "sort_order": 2,
+                            "raw_name": "Kuslik",
+                            "role": "play"
+                        }
+                    ],
+                    "remove": []
+                }
+            }
+        },
+        {
+            "id": "leere-namen",
+            "productType": "gruppenabenteuer",
+            "orte": [
+                "  Gareth ",
+                "",
+                "   ",
+                "Punin"
+            ],
+            "aktuell": [],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Gareth",
+                        "role": "start"
+                    },
+                    {
+                        "sort_order": 1,
+                        "raw_name": "Punin",
+                        "role": "play"
+                    }
+                ],
+                "plan": {
+                    "add": [
+                        {
+                            "sort_order": 0,
+                            "raw_name": "Gareth",
+                            "role": "start"
+                        },
+                        {
+                            "sort_order": 1,
+                            "raw_name": "Punin",
+                            "role": "play"
+                        }
+                    ],
+                    "update": [],
+                    "remove": []
+                }
+            }
+        },
+        {
+            "id": "doppelt-im-wiki",
+            "productType": "gruppenabenteuer",
+            "orte": [
+                "Gareth",
+                "Gareth"
+            ],
+            "aktuell": [],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Gareth",
+                        "role": "start"
+                    },
+                    {
+                        "sort_order": 1,
+                        "raw_name": "Gareth",
+                        "role": "play"
+                    }
+                ],
+                "plan": {
+                    "add": [
+                        {
+                            "sort_order": 0,
+                            "raw_name": "Gareth",
+                            "role": "start"
+                        },
+                        {
+                            "sort_order": 1,
+                            "raw_name": "Gareth",
+                            "role": "play"
+                        }
+                    ],
+                    "update": [],
+                    "remove": []
+                }
+            }
+        },
+        {
+            "id": "lang",
+            "productType": "gruppenabenteuer",
+            "orte": [
+                "Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort "
+            ],
+            "aktuell": [],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer ",
+                        "role": "start"
+                    }
+                ],
+                "plan": {
+                    "add": [
+                        {
+                            "sort_order": 0,
+                            "raw_name": "Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer Ort Sehr langer ",
+                            "role": "start"
+                        }
+                    ],
+                    "update": [],
+                    "remove": []
+                }
+            }
+        },
+        {
+            "id": "ganz-anders",
+            "productType": "gruppenabenteuer",
+            "orte": [
+                "A",
+                "B"
+            ],
+            "aktuell": [
+                {
+                    "id": 1,
+                    "sort_order": 0,
+                    "raw_name": "X",
+                    "role": "start",
+                    "origin": "wiki",
+                    "status": "approved"
+                },
+                {
+                    "id": 2,
+                    "sort_order": 1,
+                    "raw_name": "Y",
+                    "role": "play",
+                    "origin": "wiki",
+                    "status": "approved"
+                },
+                {
+                    "id": 3,
+                    "sort_order": 2,
+                    "raw_name": "Z",
+                    "role": "play",
+                    "origin": "wiki",
+                    "status": "approved"
+                }
+            ],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "A",
+                        "role": "start"
+                    },
+                    {
+                        "sort_order": 1,
+                        "raw_name": "B",
+                        "role": "play"
+                    }
+                ],
+                "plan": {
+                    "add": [],
+                    "update": [
+                        {
+                            "id": 1,
+                            "sort_order": 0,
+                            "raw_name": "A",
+                            "role": "start"
+                        },
+                        {
+                            "id": 2,
+                            "sort_order": 1,
+                            "raw_name": "B",
+                            "role": "play"
+                        }
+                    ],
+                    "remove": [
+                        {
+                            "id": 3
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": "rolle-falsch",
+            "productType": "gruppenabenteuer",
+            "orte": [
+                "Gareth",
+                "Punin"
+            ],
+            "aktuell": [
+                {
+                    "id": 1,
+                    "sort_order": 0,
+                    "raw_name": "Gareth",
+                    "role": "play",
+                    "origin": "wiki",
+                    "status": "approved"
+                },
+                {
+                    "id": 2,
+                    "sort_order": 1,
+                    "raw_name": "Punin",
+                    "role": "start",
+                    "origin": "wiki",
+                    "status": "approved"
+                }
+            ],
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Gareth",
+                        "role": "start"
+                    },
+                    {
+                        "sort_order": 1,
+                        "raw_name": "Punin",
+                        "role": "play"
+                    }
+                ],
+                "plan": {
+                    "add": [],
+                    "update": [
+                        {
+                            "id": 1,
+                            "sort_order": 0,
+                            "raw_name": "Gareth",
+                            "role": "start"
+                        },
+                        {
+                            "id": 2,
+                            "sort_order": 1,
+                            "raw_name": "Punin",
+                            "role": "play"
+                        }
+                    ],
+                    "remove": []
+                }
+            }
+        },
+        {
+            "id": "abweichung-andere-stelle",
+            "productType": "gruppenabenteuer",
+            "orte": [
+                "Gareth"
+            ],
+            "aktuell": [
+                {
+                    "id": 1,
+                    "sort_order": 3,
+                    "raw_name": "Gareth",
+                    "role": "play",
+                    "origin": "manual",
+                    "status": "approved"
+                }
+            ],
+            "abweichung": "andere_stelle",
+            "erwartet": {
+                "wunsch": [
+                    {
+                        "sort_order": 0,
+                        "raw_name": "Gareth",
+                        "role": "start"
+                    }
+                ],
+                "plan": {
+                    "add": [
+                        {
+                            "sort_order": 0,
+                            "raw_name": "Gareth",
+                            "role": "start"
+                        }
+                    ],
+                    "update": [],
+                    "remove": []
+                }
+            }
+        }
+    ]
+}

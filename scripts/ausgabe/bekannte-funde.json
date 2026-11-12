@@ -1,0 +1,383 @@
+{
+    "$comment": "Geprüfte, harmlose Funde der öffentlichen Ausgabe (WI-0303, scripts/ausgabe/ausgabe.ts pruefe). Wiedererkannt an Werkzeug, Regel, Datei und Kennung (die ersten 16 Hexzeichen des SHA-256 des Werts), nicht an der Zeile. Ein Eintrag nur nach Durchsicht und mit Grund; ein bestätigter Fund von trufflehog hält trotz Eintrag an.",
+    "funde": [
+        {
+            "werkzeug": "eigen",
+            "regel": "name-dritter",
+            "datei": "apps/server/migrations/0320_kartenvorschau_erzeugt_aus.sql",
+            "kennung": "320f9a2f036067be",
+            "grund": "Name in einer festgeschriebenen Migration (Prüfsumme, apps/server/src/db/migrate.ts); bleibt nach WI-0303, Betreiberentscheid 2026-11-10"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "name-dritter",
+            "datei": "apps/server/migrations/0322_kartenvorschlag_datei_geloescht.sql",
+            "kennung": "320f9a2f036067be",
+            "grund": "Name in einer festgeschriebenen Migration (Prüfsumme, apps/server/src/db/migrate.ts); bleibt nach WI-0303, Betreiberentscheid 2026-11-10"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "name-dritter",
+            "datei": "apps/server/migrations/0331_lizenz_cc_by_nc_sa_4.sql",
+            "kennung": "320f9a2f036067be",
+            "grund": "Name in einer festgeschriebenen Migration (Prüfsumme, apps/server/src/db/migrate.ts); bleibt nach WI-0303, Betreiberentscheid 2026-11-10"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "name-dritter",
+            "datei": "apps/server/migrations/0334_wikisync_vorkommen_liste.sql",
+            "kennung": "320f9a2f036067be",
+            "grund": "Name in einer festgeschriebenen Migration (Prüfsumme, apps/server/src/db/migrate.ts); bleibt nach WI-0303, Betreiberentscheid 2026-11-10"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "datenbank-kennwort",
+            "datei": "apps/server/test/error-handler.test.ts",
+            "kennung": "65b1db98ba3839cb",
+            "grund": "erfundene Verbindungsadresse im Test"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "datenbank-kennwort",
+            "datei": "apps/server/test/jobs-cli.test.ts",
+            "kennung": "12c04182f626b6c1",
+            "grund": "erfundene Verbindungsadresse im Test"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "datenbank-kennwort",
+            "datei": "apps/server/test/release-bericht.test.ts",
+            "kennung": "42aa01a28ea12fd0",
+            "grund": "erfundene Verbindungsadresse im Test"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "datenbank-kennwort",
+            "datei": "apps/server/test/release-bericht.test.ts",
+            "kennung": "4424ba1b2b3bce5d",
+            "grund": "erfundene Verbindungsadresse im Test"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "datenbank-kennwort",
+            "datei": "apps/server/test/release-bericht.test.ts",
+            "kennung": "66b4f02d270fb57f",
+            "grund": "erfundene Verbindungsadresse im Test"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "datenbank-kennwort",
+            "datei": "apps/server/test/release-bericht.test.ts",
+            "kennung": "7d426f1037462238",
+            "grund": "erfundene Verbindungsadresse im Test"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "datenbank-kennwort",
+            "datei": "apps/server/test/release-fixtures.test.ts",
+            "kennung": "66b4f02d270fb57f",
+            "grund": "erfundene Verbindungsadresse im Test"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "datenbank-kennwort",
+            "datei": "apps/server/test/release-fixtures.test.ts",
+            "kennung": "68cc9005244b0efc",
+            "grund": "erfundene Verbindungsadresse im Test"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "datenbank-kennwort",
+            "datei": "apps/server/test/release-fixtures.test.ts",
+            "kennung": "7057bef8525fd1ba",
+            "grund": "erfundene Verbindungsadresse im Test"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "datenbank-kennwort",
+            "datei": "apps/server/test/release-grund.test.ts",
+            "kennung": "3daa4a3016c47020",
+            "grund": "erfundene Verbindungsadresse im Test"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "datenbank-kennwort",
+            "datei": "apps/server/test/release-test-dienst.test.ts",
+            "kennung": "30551719dfd81910",
+            "grund": "erfundene Verbindungsadresse im Test"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "datenbank-kennwort",
+            "datei": "apps/server/test/release-test-dienst.test.ts",
+            "kennung": "401049e9dc476873",
+            "grund": "erfundene Verbindungsadresse im Test"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "datenbank-kennwort",
+            "datei": "apps/server/test/system-jobs-drain.test.ts",
+            "kennung": "65b1db98ba3839cb",
+            "grund": "erfundene Verbindungsadresse im Test"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "datenbank-kennwort",
+            "datei": "apps/server/test/system-write-locks.test.ts",
+            "kennung": "65b1db98ba3839cb",
+            "grund": "erfundene Verbindungsadresse im Test"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "datenbank-kennwort",
+            "datei": "scripts/dev/install-toolchain.ps1",
+            "kennung": "537b177153308174",
+            "grund": "Variable $appPassword; das Kennwort liest das Skript zur Laufzeit aus einer lokalen Datei"
+        },
+        {
+            "werkzeug": "eigen",
+            "regel": "datenbank-kennwort",
+            "datei": "scripts/dev/release-bericht.ts",
+            "kennung": "30551719dfd81910",
+            "grund": "Beispieladresse im Kommentar der Bereinigung"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/server/test/abzug-einspielen.test.ts",
+            "kennung": "62385710a9389e6e",
+            "grund": "Schlüssel einer Einstellung oder eines Objekts im Test, kein Geheimnis"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "discord-client-id",
+            "datei": "apps/server/test/admin-api.test.ts",
+            "kennung": "37f96542b663971b",
+            "grund": "erfundene Discord-Kennung im Test"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "discord-client-id",
+            "datei": "apps/server/test/admin-sonderrollen.test.ts",
+            "kennung": "37f96542b663971b",
+            "grund": "erfundene Discord-Kennung im Test"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/server/test/community-glocke-jobs-rolle.test.ts",
+            "kennung": "132e0a606fe41227",
+            "grund": "erfundener Zugang im Test"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/server/test/community-grants.test.ts",
+            "kennung": "21d6b30df417c2dc",
+            "grund": "erfundener Zugang im Test"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/server/test/community-social-meta.test.ts",
+            "kennung": "edabdaaff8e99b0a",
+            "grund": "erfundener Zugang im Test"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/server/test/editor-landscapes-routes.test.ts",
+            "kennung": "76c3f46c18b80762",
+            "grund": "Schlüssel eines Wiki-Eintrags (Seitenname) im Test, kein Geheimnis"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/server/test/editor-path-update.test.ts",
+            "kennung": "8d1aae20cb64684d",
+            "grund": "Schlüssel einer Einstellung oder eines Objekts im Test, kein Geheimnis"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/server/test/editor-places-routes.test.ts",
+            "kennung": "5cfc0bd98baf1eb9",
+            "grund": "Schlüssel eines Wiki-Eintrags (Seitenname) im Test, kein Geheimnis"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/server/test/fixtures/wiki-vorkommen-orakel.json",
+            "kennung": "fbe6754a4d5be038",
+            "grund": "Schlüssel eines Wiki-Eintrags (Seitenname) im Test, kein Geheimnis"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/server/test/inhalte-vorkommen.test.ts",
+            "kennung": "07288d9989ff1d06",
+            "grund": "Schlüssel eines Wiki-Eintrags (Seitenname) im Test, kein Geheimnis"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/server/test/inhalte-vorkommen.test.ts",
+            "kennung": "ee881bae6d88dea7",
+            "grund": "Schlüssel eines Wiki-Eintrags (Seitenname) im Test, kein Geheimnis"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/server/test/literature-export-b.test.ts",
+            "kennung": "cd662e06cdce9260",
+            "grund": "Schlüssel eines Wiki-Eintrags (Seitenname) im Test, kein Geheimnis"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/server/test/literature.test.ts",
+            "kennung": "d573b95506197098",
+            "grund": "Schlüssel eines Wiki-Eintrags (Seitenname) im Test, kein Geheimnis"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/server/test/release-bericht.test.ts",
+            "kennung": "ddacb8e82760e1fe",
+            "grund": "Attrappe im Test der Bereinigung von Zugangsdaten"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "jwt",
+            "datei": "apps/server/test/release-bericht.test.ts",
+            "kennung": "3029b75d3c28ab76",
+            "grund": "Attrappe im Test der Bereinigung von Zugangsdaten"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "discord-client-id",
+            "datei": "apps/web/e2e/verwaltung.spec.ts",
+            "kennung": "37f96542b663971b",
+            "grund": "erfundene Discord-Kennung im Test"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/web/src/auth/entry.ts",
+            "kennung": "5e7e069768f14613",
+            "grund": "Name eines Schlüssels im localStorage, kein Geheimnis"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/web/src/controls/camera-controls.vue",
+            "kennung": "6a67ea1d87d40b78",
+            "grund": "Name eines Schlüssels im localStorage, kein Geheimnis"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/web/src/keyboard/keyboard-settings.ts",
+            "kennung": "c2d9a511b4c76ed9",
+            "grund": "Name eines Schlüssels im localStorage, kein Geheimnis"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/web/src/landschaftseditor/hoehenlinien-schalter.ts",
+            "kennung": "e6dfc41f2c0e1f60",
+            "grund": "Name eines Schlüssels im localStorage, kein Geheimnis"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/web/src/landschaftseditor/kamm-hoehen-schalter.ts",
+            "kennung": "db78d35bf9ca99d2",
+            "grund": "Name eines Schlüssels im localStorage, kein Geheimnis"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/web/src/landschaftseditor/untergrund.ts",
+            "kennung": "a9e9f67ee388fb60",
+            "grund": "Name eines Schlüssels im localStorage, kein Geheimnis"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/web/src/map/sprachen-legende-schalter.ts",
+            "kennung": "9db0a6377dce5952",
+            "grund": "Name eines Schlüssels im localStorage, kein Geheimnis"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "generic-api-key",
+            "datei": "apps/web/src/map/wetter/wetter-schalter.ts",
+            "kennung": "d3cc5442bb228e1f",
+            "grund": "Name eines Schlüssels im localStorage, kein Geheimnis"
+        },
+        {
+            "werkzeug": "gitleaks",
+            "regel": "discord-client-id",
+            "datei": "apps/web/test/auth-verwaltung.test.ts",
+            "kennung": "37f96542b663971b",
+            "grund": "erfundene Discord-Kennung im Test"
+        },
+        {
+            "werkzeug": "trufflehog",
+            "regel": "URI",
+            "datei": "apps/server/test/community-social-mastodon.test.ts",
+            "kennung": "23995f0a0add2bf8",
+            "grund": "Adresse mit erfundenen Zugangsdaten im Test (die Prüfung soll sie ablehnen)"
+        },
+        {
+            "werkzeug": "trufflehog",
+            "regel": "URI",
+            "datei": "apps/server/test/community-social-meta.test.ts",
+            "kennung": "ba43946c7d82ddc8",
+            "grund": "Adresse mit erfundenen Zugangsdaten im Test (die Prüfung soll sie ablehnen)"
+        },
+        {
+            "werkzeug": "trufflehog",
+            "regel": "URI",
+            "datei": "apps/server/test/discord-community-bruecke.test.ts",
+            "kennung": "6b304abc86e98bbc",
+            "grund": "Adresse mit erfundenen Zugangsdaten im Test (die Prüfung soll sie ablehnen)"
+        },
+        {
+            "werkzeug": "trufflehog",
+            "regel": "URI",
+            "datei": "apps/server/test/oeffentlicher-abruf.test.ts",
+            "kennung": "e6a21592e4411722",
+            "grund": "Adresse mit erfundenen Zugangsdaten im Test (die Prüfung soll sie ablehnen)"
+        },
+        {
+            "werkzeug": "trufflehog",
+            "regel": "Postgres",
+            "datei": "apps/server/test/release-bericht.test.ts",
+            "kennung": "759da7513de1ff74",
+            "grund": "Attrappe im Test der Bereinigung von Zugangsdaten"
+        },
+        {
+            "werkzeug": "trufflehog",
+            "regel": "Postgres",
+            "datei": "apps/server/test/release-bericht.test.ts",
+            "kennung": "9e755afa79f16222",
+            "grund": "Attrappe im Test der Bereinigung von Zugangsdaten"
+        },
+        {
+            "werkzeug": "trufflehog",
+            "regel": "Postgres",
+            "datei": "apps/server/test/release-bericht.test.ts",
+            "kennung": "f1239045e6eeaea7",
+            "grund": "Attrappe im Test der Bereinigung von Zugangsdaten"
+        },
+        {
+            "werkzeug": "trufflehog",
+            "regel": "Postgres",
+            "datei": "apps/server/test/release-fixtures.test.ts",
+            "kennung": "9e755afa79f16222",
+            "grund": "erfundene Verbindungsadresse im Test"
+        }
+    ]
+}

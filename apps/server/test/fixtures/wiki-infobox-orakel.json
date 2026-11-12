@@ -1,0 +1,2793 @@
+{
+    "quelle": "Erwartet ist, was der Legacy-Parser (Mirror a7f2dac86) für die Seite speichert; erzeugt mit scripts/dev/wiki-parser-orakel.php, nie von Hand. Die Texte sind Auszüge aus Legacys Tests und Fixtures (Basiliuslinie, tools/wikidump/fixtures/mini-dump.xml, region-art-parsing-test, test-path-verlauf-parser, wiki-linkziele-export-test) und erfundene Randfälle; die Seiten fz: und fz3: sind zufällig zusammengesetzte Infoboxen.",
+    "faelle": [
+        {
+            "id": "mini:Kosch",
+            "titel": "Kosch",
+            "ns": 0,
+            "text": "{{Infobox Staat\r\n| Name       = Kosch\r\n| Art        = Fürstentum\r\n| Zugehörigkeit = Mittelreich\r\n| Hauptstadt = Angbar\r\n}}\r\nDas '''Fürstentum Kosch''' ist ein Land im Herzen des [[Mittelreich]]s.\r\n\r\nEs liegt zwischen den [[Koschberge]]n.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht",
+                    "capital_name": "Angbar"
+                }
+            }
+        },
+        {
+            "id": "mini:Angbar",
+            "titel": "Angbar",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\r\n| Name = Angbar\r\n| Typ  = Stadt\r\n| Einwohner = 4800\r\n}}\r\n'''Angbar''' ist die Hauptstadt des [[Kosch]].",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Angbar",
+                    "einwohner": "4800",
+                    "description": "Angbar ist die Hauptstadt des Kosch."
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "mini:Vorlage:Infobox Staat",
+            "titel": "Vorlage:Infobox Staat",
+            "ns": 10,
+            "text": "{| class=\"infobox\"\r\nVorlagen-Definition, kein Staat.\r\n|}",
+            "legacyArt": "",
+            "erwartet": {}
+        },
+        {
+            "id": "mini:Breite",
+            "titel": "Breite",
+            "ns": 0,
+            "text": "{{Infobox Fluss\r\n| Name     = Breite\r\n| Art      = Fluss\r\n| Länge    = 900 Meilen\r\n| Regionen = [[Kosch]], [[Mittelreich]]\r\n| Verlauf  = {{Fluss|[[Angbar]]}}{{Fluss|[[Ferdok]]}}{{Fluss|[[Elenvina]]}}\r\n| Bild     = Breite.jpg\r\n}}\r\nDie '''Breite''' ist ein Fluss im [[Kosch]].\r\n\r\n[[Kategorie:Fluss]]\r\n[[Kategorie:Kosch]]",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "Breite",
+                    "kind": "fluss",
+                    "art": "Fluss",
+                    "lage": "Kosch, Mittelreich",
+                    "laenge": "900 Meilen",
+                    "verlauf": "Angbar → Ferdok → Elenvina",
+                    "description": "Die Breite ist ein Fluss im Kosch."
+                }
+            }
+        },
+        {
+            "id": "mini:Reichsstraße 1",
+            "titel": "Reichsstraße 1",
+            "ns": 0,
+            "text": "{{Infobox Straße\r\n| Name     = Reichsstraße 1\r\n| Art      = Reichsstraße\r\n| Länge    = 400 Meilen\r\n| Regionen = [[Kosch]]\r\n| Verlauf  = {{Verlauf|[[Gareth]]|[[Angbar]]}}\r\n}}\r\nDie '''Reichsstraße 1''' verbindet [[Gareth]] mit [[Angbar]].\r\n\r\n[[Kategorie:Reichsstraße]]",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "Reichsstraße 1",
+                    "kind": "strasse",
+                    "art": "Reichsstraße",
+                    "lage": "Kosch",
+                    "laenge": "400 Meilen",
+                    "verlauf": "Gareth",
+                    "description": "Die Reichsstraße 1 verbindet Gareth mit Angbar."
+                }
+            }
+        },
+        {
+            "id": "mini:Rastullah-Strom",
+            "titel": "Rastullah-Strom",
+            "ns": 0,
+            "text": "{{Infobox Fluss\r\n| Name     = Rastullah-Strom\r\n| Art      = Fluss\r\n| Regionen = [[Rastabor]]\r\n}}\r\nDer '''Rastullah-Strom''' ist ein Fluss in [[Myranor]].\r\n\r\n{{Nav Staaten Myranor}}\r\n[[Kategorie:Fluss (Myranor)]]",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "Rastullah-Strom",
+                    "kind": "fluss",
+                    "art": "Fluss",
+                    "lage": "Rastabor",
+                    "description": "Der Rastullah-Strom ist ein Fluss in Myranor."
+                }
+            }
+        },
+        {
+            "id": "mini:Koschberge",
+            "titel": "Koschberge",
+            "ns": 0,
+            "text": "{{Infobox Region\r\n| Name             = Koschberge\r\n| Art              = Gebirge\r\n| Region           = Kosch\r\n| Staat            = Mittelreich\r\n| Vegetationszonen = Bergwald\r\n| Verkehrswege     = [[Reichsstraße 1]]\r\n}}\r\nDie '''Koschberge''' sind ein Gebirge im [[Kosch]].\r\n\r\n[[Kategorie:Gebirge]]\r\n[[Kategorie:Kosch]]",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Koschberge",
+                    "art": "Gebirge",
+                    "region_parent": "Kosch",
+                    "affiliation_staat": "Mittelreich",
+                    "vegetation": "Bergwald",
+                    "verkehrswege": "Reichsstraße 1",
+                    "description": "Die Koschberge sind ein Gebirge im Kosch."
+                },
+                "gipfel": {
+                    "name": "Koschberge",
+                    "art": "Gebirge",
+                    "region_parent": "Kosch",
+                    "affiliation_staat": "Mittelreich",
+                    "vegetation": "Bergwald",
+                    "verkehrswege": "Reichsstraße 1",
+                    "description": "Die Koschberge sind ein Gebirge im Kosch."
+                }
+            }
+        },
+        {
+            "id": "mini:Rote Sichel",
+            "titel": "Rote Sichel",
+            "ns": 0,
+            "text": "{{Infobox Region\r\n| Name   = Rote Sichel\r\n| Art    = Gebirge\r\n| Region = Imperium\r\n}}\r\nDie '''Rote Sichel''' ist ein Gebirge in [[Myranor]].\r\n\r\n{{Nav Staaten Myranor}}\r\n[[Kategorie:Gebirge (Myranor)]]",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Rote Sichel",
+                    "art": "Gebirge",
+                    "region_parent": "Imperium",
+                    "description": "Die Rote Sichel ist ein Gebirge in Myranor."
+                },
+                "gipfel": {
+                    "name": "Rote Sichel",
+                    "art": "Gebirge",
+                    "region_parent": "Imperium",
+                    "description": "Die Rote Sichel ist ein Gebirge in Myranor."
+                }
+            }
+        },
+        {
+            "id": "mini:Ferdok",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\r\n| Name        = Ferdok\r\n| Siedlungsart = Stadt\r\n| Einwohner   = 4300\r\n| Region      = [[Kosch]]\r\n| Staat       = [[Mittelreich]]\r\n| Wappen      = {{Boximage|Wappen Ferdok.webp}}\r\n| DereGlobus  = {{DereGlobus-Link|Länge(x)=520.5|Breite(y)=305.25}}\r\n}}\r\n== Kurzbeschreibung ==\r\nDie '''Stadt Ferdok''' liegt am Fluss [[Breite]] im [[Kosch]].\r\n\r\n[[Kategorie:Mittelgroße Stadt]]\r\n[[Kategorie:Kosch]]",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Ferdok",
+                    "einwohner": "4300",
+                    "region_text": "Kosch",
+                    "staat_text": "Mittelreich",
+                    "lage": "Kosch · Mittelreich",
+                    "description": "Die Stadt Ferdok liegt am Fluss Breite im Kosch."
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "mini:Auhof",
+            "titel": "Auhof",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\r\n| Name = Auhof\r\n| Art  = Dorf\r\n| Einwohner = 120\r\n| Region = [[Kosch]]\r\n}}\r\n'''Auhof''' ist ein kleines Dorf im [[Kosch]].\r\n\r\n[[Kategorie:Dorf]]\r\n[[Kategorie:Kosch]]",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Auhof",
+                    "einwohner": "120",
+                    "region_text": "Kosch",
+                    "lage": "Kosch",
+                    "description": "Auhof ist ein kleines Dorf im Kosch."
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "mini:Xarxaron",
+            "titel": "Xarxaron",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\r\n| Name = Xarxaron\r\n| Siedlungsart = Ruine\r\n}}\r\n'''Xarxaron''' ist eine verfallene Ruine in den [[Koschberge]]n.\r\n\r\n[[Kategorie:Ruine]]",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Xarxaron",
+                    "description": "Xarxaron ist eine verfallene Ruine in den Koschbergen."
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "mini:Selem",
+            "titel": "Selem",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\r\n| Name = Selem\r\n| Siedlungsart = Stadt\r\n| Region = [[Vesayama]]\r\n}}\r\n'''Selem''' ist eine Stadt in [[Myranor]].\r\n\r\n{{Nav Staaten Myranor}}\r\n[[Kategorie:Stadt (Myranor)]]",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Selem",
+                    "region_text": "Vesayama",
+                    "lage": "Vesayama",
+                    "description": "Selem ist eine Stadt in Myranor."
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "mini:Burg Wallenstein",
+            "titel": "Burg Wallenstein",
+            "ns": 0,
+            "text": "{{Infobox Bauwerk\r\n| Name = Burg Wallenstein\r\n| Art  = Burg\r\n}}\r\nDie '''Burg Wallenstein''' ist eine Festung im [[Kosch]].\r\n\r\n[[Kategorie:Burg]]",
+            "legacyArt": "building",
+            "erwartet": {
+                "ort": {
+                    "name": "Burg Wallenstein",
+                    "description": "Die Burg Wallenstein ist eine Festung im Kosch."
+                }
+            }
+        },
+        {
+            "id": "mini:Zwingfeste Ochsenblut",
+            "titel": "Zwingfeste Ochsenblut",
+            "ns": 0,
+            "text": "{{Infobox Festung\r\n| Name = Zwingfeste Ochsenblut\r\n| Art  = Festung\r\n}}\r\nDie '''Zwingfeste Ochsenblut''' ist eine Festung im [[Kosch]].\r\n\r\n[[Kategorie:Festung]]\r\n[[Kategorie:Kosch]]",
+            "legacyArt": "building",
+            "erwartet": {
+                "ort": {
+                    "name": "Zwingfeste Ochsenblut",
+                    "description": "Die Zwingfeste Ochsenblut ist eine Festung im Kosch."
+                }
+            }
+        },
+        {
+            "id": "mini:Ruine Tsatempel",
+            "titel": "Ruine Tsatempel",
+            "ns": 0,
+            "text": "{{Infobox Bauwerk\r\n| Name = Ruine Tsatempel\r\n| Art  = Ruine\r\n}}\r\nDie '''Ruine Tsatempel''' ist eine verfallene Ruine in den [[Koschberge]]n.\r\n\r\n[[Kategorie:Ruine]]\r\n[[Kategorie:Kosch]]",
+            "legacyArt": "building",
+            "erwartet": {
+                "ort": {
+                    "name": "Ruine Tsatempel",
+                    "description": "Die Ruine Tsatempel ist eine verfallene Ruine in den Koschbergen."
+                }
+            }
+        },
+        {
+            "id": "mini:Xarsnamoth",
+            "titel": "Xarsnamoth",
+            "ns": 0,
+            "text": "{{Infobox Bauwerk\r\n| Name = Xarsnamoth\r\n| Art  = Tempel\r\n}}\r\nDer '''Xarsnamoth''' ist ein Tempel in [[Myranor]].\r\n\r\n{{Nav Staaten Myranor}}\r\n[[Kategorie:Tempel (Myranor)]]",
+            "legacyArt": "building",
+            "erwartet": {
+                "ort": {
+                    "name": "Xarsnamoth",
+                    "description": "Der Xarsnamoth ist ein Tempel in Myranor."
+                }
+            }
+        },
+        {
+            "id": "mini:Akademie der Erscheinungen",
+            "titel": "Akademie der Erscheinungen",
+            "ns": 0,
+            "text": "{{Infobox Lehreinrichtung\r\n| Name     = Akademie der Erscheinungen\r\n| Art      = [[Magierakademie]]\r\n| Standort = [[Grangor]]: [[Alt-Grangor]]\r\n}}\r\nDie '''Akademie der Erscheinungen''' ist eine Magierakademie in [[Grangor]].\r\n\r\n[[Kategorie:Magierakademie]]",
+            "legacyArt": "building",
+            "erwartet": {
+                "ort": {
+                    "name": "Akademie der Erscheinungen",
+                    "description": "Die Akademie der Erscheinungen ist eine Magierakademie in Grangor."
+                }
+            }
+        },
+        {
+            "id": "mini:Elemitischer Kontor",
+            "titel": "Elemitischer Kontor",
+            "ns": 0,
+            "text": "{{Infobox Geschäft\r\n| Name     = Elemitischer Kontor\r\n| Art      = [[Kontor]]\r\n| Standort = [[Amhas (Siedlung)|Amhas]]\r\n}}\r\nDer '''Elemitische Kontor''' ist ein Kontor in [[Amhas]].\r\n\r\n[[Kategorie:Kontor]]",
+            "legacyArt": "building",
+            "erwartet": {
+                "ort": {
+                    "name": "Elemitischer Kontor",
+                    "description": "Der Elemitische Kontor ist ein Kontor in Amhas."
+                }
+            }
+        },
+        {
+            "id": "mini:Grafschaft Ferdok",
+            "titel": "Grafschaft Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Staat\r\n| Name          = Grafschaft Ferdok\r\n| Art           = Grafschaft\r\n| Staat         = [[Mittelreich]]\r\n| Gründungsdatum = {{BF|1050}}\r\n| Hauptstadt    = Ferdok\r\n}}\r\nDie '''Grafschaft Ferdok''' ist eine Grafschaft im [[Mittelreich]].\r\n\r\n[[Kategorie:Grafschaft]]",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "1050 BF",
+                    "dissolved_text": "besteht",
+                    "capital_name": "Ferdok",
+                    "affiliation_raw": "Mittelreich"
+                }
+            }
+        },
+        {
+            "id": "mini:Baronie Hügelland",
+            "titel": "Baronie Hügelland",
+            "ns": 0,
+            "text": "{{Infobox Staat\r\n| Name  = Baronie Hügelland\r\n| Art   = Baronie\r\n| Staat = [[Grafschaft Ferdok]]: [[Mittelreich]]\r\n}}\r\nDie '''Baronie Hügelland''' liegt in der [[Grafschaft Ferdok]].\r\n\r\n[[Kategorie:Baronie]]",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht",
+                    "affiliation_raw": "Grafschaft Ferdok: Mittelreich"
+                }
+            }
+        },
+        {
+            "id": "mini:Sokramor",
+            "titel": "Sokramor",
+            "ns": 0,
+            "text": "{{Infobox Staat\r\n| Name  = Sokramor\r\n| Art   = Baronie\r\n| Staat = (beansprucht von: [[Horasreich]], [[Mittelreich]])\r\n}}\r\n'''Sokramor''' ist ein umstrittenes Grenzgebiet.\r\n\r\n[[Kategorie:Baronie]]",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht"
+                }
+            }
+        },
+        {
+            "id": "mini:Rastanreich",
+            "titel": "Rastanreich",
+            "ns": 0,
+            "text": "{{Infobox Staat\r\n| Name  = Rastanreich\r\n| Art   = Provinz\r\n| Staat = [[Imperium]]\r\n}}\r\nDas '''Rastanreich''' ist eine Provinz in [[Myranor]].\r\n\r\n{{Nav Staaten Myranor}}\r\n[[Kategorie:Staat (Myranor)]]",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht",
+                    "affiliation_raw": "Imperium"
+                }
+            }
+        },
+        {
+            "id": "basilius",
+            "titel": "Basiliuslinie",
+            "ns": 0,
+            "text": "{{Aventurien}}\n{{Spoiler|[[Borbarad-Kampagne]]}}\n__TOC__\n{{Infobox Kraftlinie\n|Name=Basiliuslinie\n|Bild={{Boximage|Basiliuslinie.png}}\n|Stärke=kontinental\n|Affinität=Leben und Tod\n|Länge=ca. 3000 Meilen\n|Regionen=Ewiges Eis, [[Firunsfinger]], [[Salamandersteine]], [[Neunaugensee]], [[Weiden|Weiden]], [[Almada]]\n|Verlauf=\n{{Nexus|[[Himmelsturm (Siedlung)|Himmelsturm]]|u.a. mit [[Schlüssellinie des Eises]]}}\n{{Kraftlinie|[[Asainyf]]|}}\n{{Nodix|[[Sala Mandra]]| |Zwei=j}}\n{{Nodix|[[Nachtschattensturm]]|mit [[Hexenband]]}}\n}}\nDie '''Basiliuslinie''' ist eine der bekanntesten [[Kraftlinie]]n Aventuriens.\n\n==Publikationen==\n* {{Quelle|Aventurischer Almanach|S. 12}}",
+            "legacyArt": "powerline",
+            "erwartet": {
+                "kraftlinie": {
+                    "name": "Basiliuslinie",
+                    "staerke": "kontinental",
+                    "affinitaet": "Leben und Tod",
+                    "laenge": "ca. 3000 Meilen",
+                    "regionen": "Ewiges Eis, Firunsfinger, Salamandersteine, Neunaugensee, Weiden, Almada",
+                    "verlauf": "Himmelsturm → Asainyf → Sala Mandra → Nachtschattensturm",
+                    "description": "Die Basiliuslinie ist eine der bekanntesten Kraftlinien Aventuriens."
+                }
+            }
+        },
+        {
+            "id": "unbenannt",
+            "titel": "Kraftlinie zwischen Himmelsturm und Heiligtum der alten Götter",
+            "ns": 0,
+            "text": "{{Infobox Kraftlinie\n|Name=(unbenannte Kraftlinie)\n|Stärke=regional\n}}\nText.",
+            "legacyArt": "powerline",
+            "erwartet": {
+                "kraftlinie": {
+                    "name": "Kraftlinie zwischen Himmelsturm und Heiligtum der alten Götter",
+                    "staerke": "regional",
+                    "description": "Text."
+                }
+            }
+        },
+        {
+            "id": "fremde-strasse",
+            "titel": "Reichsstraße 2",
+            "ns": 0,
+            "text": "{{Infobox Straße\n|Name=Reichsstraße 2\n}}\nEine Straße.",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "Reichsstraße 2",
+                    "kind": "strasse",
+                    "description": "Eine Straße."
+                }
+            }
+        },
+        {
+            "id": "ort-markup",
+            "titel": "Gareth",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n| Name = Gareth\n| Siedlungsart = [[Metropole]]\n| Einwohner = ca. 7.400<ref name=\"x\">Aventurischer Bote 123</ref> (<!-- alt: 7200 -->Stadt)\n| Bevölkerungsmehrheit = [[Mittelreicher|Garether]]<br/>[[Nordaventurier|Nordmärker]]\n| Herrscher = {{Pol|[[Mittelreich]]}}, Kaiserin [[Rohaja von Gareth|Rohaja]]\n| Region = [[Garetien]]\n| Staat = [[Mittelreich]]\n| Handelszone = [[Mittelreich]]&nbsp;&amp; [[Zwergenreich|Zwerge]]\n| Verkehrswege = [[Reichsstraße 1]], [[Kronstraße|Kronstraße nach Perricum]]\n| Tempel = {{Tempel|[[Praios]]|Haupttempel}}\n| Wappen = {{Boximage|Wappen Gareth.webp}}\n}}\n{{Spoiler|x}}\nDie '''Stadt Gareth''' ist die [[Hauptstadt]] des [[Mittelreich]]s; ''sie'' liegt am [[Gareth (Fluss)|Fluss]].<ref>Beleg</ref>\n\n== Geschichte ==\nSpätere Absätze.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Gareth",
+                    "einwohner": "ca. 7.400 ( Stadt)",
+                    "bevoelkerung": "Garether Nordmärker",
+                    "oberhaupt": "Mittelreich, Kaiserin Rohaja",
+                    "region_text": "Garetien",
+                    "staat_text": "Mittelreich",
+                    "lage": "Garetien · Mittelreich",
+                    "handelszone": "Mittelreich & Zwerge",
+                    "verkehrswege": "Reichsstraße 1, Kronstraße nach Perricum",
+                    "tempel": "Praios|Haupttempel",
+                    "description": "Die Stadt Gareth ist die Hauptstadt des Mittelreichs; sie liegt am Fluss."
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "ort-region-gleich-staat",
+            "titel": "Kuslik",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Kuslik\n|Region=Almada\n|Staat=Almada\n|Einwohnerzahl=ca. 20.000\n}}\n\n\nErster Satz. Zweiter Satz.\n\nZweiter Absatz.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Kuslik",
+                    "einwohner": "ca. 20.000",
+                    "region_text": "Almada",
+                    "staat_text": "Almada",
+                    "lage": "Almada",
+                    "description": "Erster Satz. Zweiter Satz."
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "ort-ohne-name",
+            "titel": "Wehrheim",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Region=Garetien\n}}\nWehrheim ist ein Dorf.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Wehrheim",
+                    "region_text": "Garetien",
+                    "lage": "Garetien",
+                    "description": "Wehrheim ist ein Dorf."
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "ort-ruine",
+            "titel": "Xarxaron",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n| Name = Xarxaron\n| Siedlungsart = Ruine\n}}\nRuinen.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Xarxaron",
+                    "description": "Ruinen."
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "ort-nbsp",
+            "titel": "Nbsp",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Nbsp Ort\n|Einwohner=1 000  Seelen\n|Tempel=&#8211; keiner &#x2013;\n}}",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Nbsp Ort",
+                    "einwohner": "1 000 Seelen",
+                    "tempel": "– keiner –"
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "ort-datum",
+            "titel": "Datum",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Datum\n|Einwohner={{Datum|1|Praios|1012}} gegründet\n}}",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Datum",
+                    "einwohner": "1 Praios 1012 gegründet"
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "ort-bauwerk",
+            "titel": "Burg Wallenstein",
+            "ns": 0,
+            "text": "{{Infobox Bauwerk\n| Name = Burg Wallenstein\n| Art = Burg\n| Standort = [[Ferdok]]\n| Bewohner = Ritter\n}}\nEine Burg.\n[[Kategorie:Burg]]",
+            "legacyArt": "building",
+            "erwartet": {
+                "ort": {
+                    "name": "Burg Wallenstein",
+                    "description": "Eine Burg. Kategorie:Burg"
+                }
+            }
+        },
+        {
+            "id": "weg-verlauf",
+            "titel": "Reichsstraße 3",
+            "ns": 0,
+            "text": "{{Infobox Straße\n|Name=Reichsstraße 3\n|Art=[[Reichsstraße]]\n|Länge=ca. 800 Meilen\n|Regionen=[[Garetien]], [[Weiden]]\n|Verlauf=\n{{Straße|[[Gareth]]|[[Havena]]}}\n{{Abzweigung|[[Wehrheim]]|[[Weiden]]}}\n{{Straßenquerung|[[Reichsstraße 1]]|[[Elenvina]]}}\n{{Flussquerung|[[Breite]]}}\n{{Anschluss|[[Perricum]]}}\n{{Pass|[[Koschpass|Pass]]|Zwei=j}}\n{{Hafen||Sonst=[[Nirgends]]}}\n}}\nDie '''Reichsstraße 3''' führt von [[Gareth]] nach Norden.",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "Reichsstraße 3",
+                    "kind": "strasse",
+                    "art": "Reichsstraße",
+                    "lage": "Garetien, Weiden",
+                    "laenge": "ca. 800 Meilen",
+                    "verlauf": "Gareth → Wehrheim → Elenvina → Pass",
+                    "description": "Die Reichsstraße 3 führt von Gareth nach Norden."
+                }
+            }
+        },
+        {
+            "id": "weg-fluss-prosa",
+            "titel": "Großer Fluss",
+            "ns": 0,
+            "text": "{{Infobox Fluss\n|Name=Großer Fluss\n|Art=Fluss\n|Verlauf=Von [[Kosch]] über [[Angbar]] nach [[Gareth]] und [[Datei:Bild.png]] [[Kategorie:Fluss]] weiter [[Ferdok]]\n}}\nBeschreibung.",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "Großer Fluss",
+                    "kind": "fluss",
+                    "art": "Fluss",
+                    "verlauf": "Kosch → Angbar → Gareth → Ferdok",
+                    "description": "Beschreibung."
+                }
+            }
+        },
+        {
+            "id": "wadi",
+            "titel": "Wadi Rashid",
+            "ns": 0,
+            "text": "{{Infobox Fluss\n|Name=Wadi Rashid\n|Art=[[Wadi]]\n|Regionen=[[Khôm]]\n}}\nEin Wadi in der [[Khôm]].",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Wadi Rashid",
+                    "art": "Wadi",
+                    "region_parent": "Khôm",
+                    "description": "Ein Wadi in der Khôm."
+                },
+                "gipfel": {
+                    "name": "Wadi Rashid",
+                    "art": "Wadi",
+                    "region_parent": "Khôm",
+                    "description": "Ein Wadi in der Khôm."
+                }
+            }
+        },
+        {
+            "id": "region-tal",
+            "titel": "Tal Test",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Tal Test\n|Art=Tal|Grube\n|Region=[[Kosch]]\n|Nord=[[Ferdok]], [[Angbar]]\n|Südost=[[Elenvina]]\n|Staat=[[Mittelreich]]\n|Vegetationszonen=Bergwald, Steppe\n|Einwohnerzahl=ca. 100\n|Sprache=[[Garethi]]\n}}\nEin '''Tal'''.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Tal Test",
+                    "art": "Tal",
+                    "region_parent": "Kosch",
+                    "affiliation_staat": "Mittelreich",
+                    "einwohner": "ca. 100",
+                    "sprache": "Garethi",
+                    "vegetation": "Bergwald, Steppe",
+                    "description": "Ein Tal .",
+                    "nachbar_n": "Ferdok, Angbar",
+                    "nachbar_so": "Elenvina"
+                },
+                "gipfel": {
+                    "name": "Tal Test",
+                    "art": "Tal",
+                    "region_parent": "Kosch",
+                    "affiliation_staat": "Mittelreich",
+                    "einwohner": "ca. 100",
+                    "sprache": "Garethi",
+                    "vegetation": "Bergwald, Steppe",
+                    "description": "Ein Tal .",
+                    "nachbar_n": "Ferdok, Angbar",
+                    "nachbar_so": "Elenvina"
+                }
+            }
+        },
+        {
+            "id": "region-berg",
+            "titel": "Ingerimmsberg",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Ingerimmsberg\n|Art=Berg\n|Region=Ysilia\n}}\nEin Berg.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Ingerimmsberg",
+                    "art": "Berggipfel",
+                    "region_parent": "Ysilia",
+                    "description": "Ein Berg."
+                },
+                "gipfel": {
+                    "name": "Ingerimmsberg",
+                    "art": "Berggipfel",
+                    "region_parent": "Ysilia",
+                    "description": "Ein Berg."
+                }
+            }
+        },
+        {
+            "id": "wadi-ohne-name",
+            "titel": "Wadi Test",
+            "ns": 0,
+            "text": "{{Infobox Fluss\n|Art=Wadi\n|Regionen=[[Khôm]]\n}}\n",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Wadi Test",
+                    "art": "Wadi",
+                    "region_parent": "Khôm"
+                },
+                "gipfel": {
+                    "name": "Wadi Test",
+                    "art": "Wadi",
+                    "region_parent": "Khôm"
+                }
+            }
+        },
+        {
+            "id": "staat-bf",
+            "titel": "Grafschaft Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Staat\n|Name=Grafschaft Ferdok\n|Art=Grafschaft\n|Staat=[[Mittelreich]]\n|Status=Lehen\n|Herrschaftsform=Feudalherrschaft\n|Hauptstadt=[[Ferdok]]\n|Herrschaftssitz=[[Burg Ferdok]]\n|Oberhaupt=Graf [[Test]]\n|Sprache=[[Garethi]]\n|Währung=[[Dukat]], [[Silbertaler]]\n|Handelswaren=Wein, Getreide\n|Einwohnerzahl=ca. 30.000\n|Gründer=[[Kaiser Raul]]\n|Gründungsdatum={{BF|1050}}\n|Aufgelöst=bis heute\n|Region=Kosch\n|Blasonierung=In Rot ein goldener Löwe\n|Wappen={{Boximage|Wappen Ferdok.png}}\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "1050 BF",
+                    "dissolved_text": "bis heute",
+                    "form_of_government": "Feudalherrschaft",
+                    "capital_name": "Ferdok",
+                    "seat_name": "Burg Ferdok",
+                    "ruler": "Graf Test",
+                    "language": "Garethi",
+                    "currency": "Dukat, Silbertaler",
+                    "population": "ca. 30.000",
+                    "founder": "Kaiser Raul",
+                    "trade_goods": "Wein, Getreide",
+                    "geographic": "Kosch",
+                    "blazon": "In Rot ein goldener Löwe",
+                    "affiliation_raw": "Mittelreich"
+                }
+            }
+        },
+        {
+            "id": "staat-datum",
+            "titel": "Reich Alt",
+            "ns": 0,
+            "text": "{{Infobox Staat\n|Name=Reich Alt\n|Gründung={{BF|-870}}\n|Auflösung={{Datum|1|Praios|1012}}\n|Staat=[[Alt]]\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "870 v. BF",
+                    "dissolved_text": "1 BF",
+                    "affiliation_raw": "Alt"
+                }
+            }
+        },
+        {
+            "id": "staat-kette",
+            "titel": "Baronie Hügelland",
+            "ns": 0,
+            "text": "{{Infobox Staat\n|Name=Baronie Hügelland\n|Staat=[[Grafschaft Ferdok]]: [[Mittelreich]]\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht",
+                    "affiliation_raw": "Grafschaft Ferdok: Mittelreich"
+                }
+            }
+        },
+        {
+            "id": "staat-anspruch",
+            "titel": "Sokramor",
+            "ns": 0,
+            "text": "{{Infobox Staat\n|Name=Sokramor\n|Staat=(beansprucht von: [[Horasreich]], [[Mittelreich]])\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht"
+                }
+            }
+        },
+        {
+            "id": "staat-anspruch2",
+            "titel": "Taifas",
+            "ns": 0,
+            "text": "{{Infobox Staat\n|Name=Taifas\n|Staat=Almada (beansprucht von Horasreich); sowie [[Kalifat]] und [[Mittelreich]]\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht",
+                    "affiliation_raw": "Almada ; sowie Kalifat und Mittelreich"
+                }
+            }
+        },
+        {
+            "id": "staat-qualifizierer",
+            "titel": "Umstritten",
+            "ns": 0,
+            "text": "{{Infobox Staat\n|Name=Umstritten\n|Staat=umstritten; [[Mittelreich]]\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht",
+                    "affiliation_raw": "umstritten; Mittelreich"
+                }
+            }
+        },
+        {
+            "id": "staat-myranor",
+            "titel": "Rastanreich",
+            "ns": 0,
+            "text": "{{Infobox Staat\n|Name=Rastanreich\n|Region=Rastabor\n|Staat=[[Rastabor]]\n}}\n{{Nav Staaten Myranor}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht",
+                    "geographic": "Rastabor",
+                    "affiliation_raw": "Rastabor"
+                }
+            }
+        },
+        {
+            "id": "staat-kolonie",
+            "titel": "Al'Anfa",
+            "ns": 0,
+            "text": "{{Infobox Staat\n|Name=Al'Anfa\n|Geographisch=Meridiana; Kolonien: Uthuria\n|Gründungsdatum=2 BF\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "2 BF",
+                    "dissolved_text": "besteht",
+                    "geographic": "Meridiana; Kolonien: Uthuria"
+                }
+            }
+        },
+        {
+            "id": "stadt-reichsstadt",
+            "titel": "Havena",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Havena\n|Staat={{Reichsstadt|ex|Mittelreich}}\n|Region=Albernia\n}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Havena",
+                    "region_text": "Albernia",
+                    "staat_text": "ex|Mittelreich",
+                    "lage": "Albernia · ex|Mittelreich",
+                    "description": "Text."
+                },
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht",
+                    "geographic": "Albernia",
+                    "affiliation_raw": "ex|Mittelreich"
+                }
+            }
+        },
+        {
+            "id": "stadt-freie",
+            "titel": "Freie Stadt Fall",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Fall\n|Staat=[[Freie Stadt]]\n}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Fall",
+                    "staat_text": "Freie Stadt",
+                    "lage": "Freie Stadt",
+                    "description": "Text."
+                },
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht",
+                    "affiliation_raw": "Freie Stadt"
+                }
+            }
+        },
+        {
+            "id": "stadt-stadtstaat",
+            "titel": "Fasar",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Fasar\n|Status=Stadtstaat\n|Staat=Tulamidenlande\n}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Fasar",
+                    "staat_text": "Tulamidenlande",
+                    "lage": "Tulamidenlande",
+                    "description": "Text."
+                },
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht",
+                    "affiliation_raw": "Tulamidenlande"
+                }
+            }
+        },
+        {
+            "id": "stadt-normal",
+            "titel": "Nivesel",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Nivesel\n|Staat=[[Mittelreich]]\n}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Nivesel",
+                    "staat_text": "Mittelreich",
+                    "lage": "Mittelreich",
+                    "description": "Text."
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "staat-leer",
+            "titel": "Leerstaat",
+            "ns": 0,
+            "text": "{{Infobox Staat\n|Name=Leerstaat\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht"
+                }
+            }
+        },
+        {
+            "id": "staat-entitaeten",
+            "titel": "Entitäten",
+            "ns": 0,
+            "text": "{{Infobox Staat\n|Name=Entitäten\n|Währung=Dukat &amp; Taler &auml;h &unbekannt; &#65; &#x42; &lt;b&gt;fett&lt;/b&gt; <b>echt</b>\n|Blasonierung=<small>klein</small> und ''kursiv'' und '''fett'''\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht",
+                    "currency": "Dukat & Taler äh &unbekannt; A B <b>fett</b> echt",
+                    "blazon": "klein und kursiv und fett"
+                }
+            }
+        },
+        {
+            "id": "ort-erste-zeile",
+            "titel": "Erste Zeile",
+            "ns": 0,
+            "text": "{{Infobox Siedlung|Name=Erste Zeile\n|Einwohner=5\n}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Erste Zeile",
+                    "einwohner": "5",
+                    "description": "Text."
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "ort-doppelt",
+            "titel": "Doppelt",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Doppelt\n|Einwohner=5\n|Einwohnerzahl=\n|einwohner=7\n}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Doppelt",
+                    "einwohner": "5",
+                    "description": "Text."
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "ort-mehrzeilig",
+            "titel": "Mehrzeilig",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Mehrzeilig\n|Tempel=\n{{Liste\n|[[A]]\n|[[B]]\n}}\n|Handelszone=Test\n}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Mehrzeilig",
+                    "handelszone": "Test",
+                    "tempel": "A |B",
+                    "description": "Text."
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "verlauf-strasse-legacy",
+            "titel": "Reichsstraße 3 Legacy",
+            "ns": 0,
+            "text": "{{Infobox Straße\n|Name=Reichsstraße 3\n|Regionen=[[Garetien]]\n|Verlauf=\n{{Anschluss|[[Phecadistieg]]}}\n{{Straße|[[Elenvina]]}}\n{{Abzweigung rechts|[[Zinnen am Ratsforst]]|[[Schattengrundpass]]|Zwei=j}}\n{{Abzweigung links|[[Klippag]]|Weg nach [[Altenfurt]]}}\n{{Abzweigung links| |Weg nach Osten}}\n{{Flussquerung|[[Rodasch]]}}\n{{Kreuzung|[[Honingen]]|Straßen nach [[Herzogenfurt]] und [[Winhall]]|Zwei=j}}\n{{Straße|[[Lyngwyn (Honingen)|Lyngwyn]]}}\n{{Pass|[[Greifenpass]]}}\n{{Hafen|[[Perricum]]|[[Perlenmeer]]}}\n}}\nText.",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "Reichsstraße 3",
+                    "kind": "strasse",
+                    "lage": "Garetien",
+                    "verlauf": "Elenvina → Zinnen am Ratsforst → Klippag → Honingen → Lyngwyn → Greifenpass → Perricum",
+                    "description": "Text."
+                }
+            }
+        },
+        {
+            "id": "verlauf-fluss-legacy",
+            "titel": "Der Große Fluss",
+            "ns": 0,
+            "text": "{{Infobox Fluss\n|Name=Der Große Fluss\n|Art=Fluss\n|Verlauf=\n{{Zusammenfluss|[[Ange]] und [[Breite]]}}\n{{Fluss|[[Oberangbar]]}}\n{{Straßenquerung|[[Reichsstraße 3]]|[[Steinbrücken]]}}\n{{Zufluss rechts|[[Raller]]}}\n{{Zufluss links|[[Hils]]}}\n{{Fluss|''[[Burg Draustein]]''}}\n{{Fluss|Feste [[Calbrozim]]}}\n{{Flussmündung|[[Meer der Sieben Winde]]|[[Havena (Siedlung)|Havena]]}}\n}}\nText.",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "Der Große Fluss",
+                    "kind": "fluss",
+                    "art": "Fluss",
+                    "verlauf": "Oberangbar → Steinbrücken → Burg Draustein → Calbrozim → Havena",
+                    "description": "Text."
+                }
+            }
+        },
+        {
+            "id": "art:Vildromtal",
+            "titel": "Vildromtal",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Vildromtal\n|Art=Tal|Tal\n|Region=Irgendwo\n}}\nFliesstext.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Vildromtal",
+                    "art": "Tal",
+                    "region_parent": "Irgendwo",
+                    "description": "Fliesstext."
+                },
+                "gipfel": {
+                    "name": "Vildromtal",
+                    "art": "Tal",
+                    "region_parent": "Irgendwo",
+                    "description": "Fliesstext."
+                }
+            }
+        },
+        {
+            "id": "art:Svatkerbe",
+            "titel": "Svatkerbe",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Svatkerbe\n|Art=Tal|Grube\n|Region=Irgendwo\n}}\nFliesstext.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Svatkerbe",
+                    "art": "Tal",
+                    "region_parent": "Irgendwo",
+                    "description": "Fliesstext."
+                },
+                "gipfel": {
+                    "name": "Svatkerbe",
+                    "art": "Tal",
+                    "region_parent": "Irgendwo",
+                    "description": "Fliesstext."
+                }
+            }
+        },
+        {
+            "id": "art:Zhandukistan",
+            "titel": "Zhandukistan",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Zhandukistan\n|Art=Wüste|Halbwüste, Hügelland\n|Region=Irgendwo\n}}\nFliesstext.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Zhandukistan",
+                    "art": "Wüste",
+                    "region_parent": "Irgendwo",
+                    "description": "Fliesstext."
+                },
+                "gipfel": {
+                    "name": "Zhandukistan",
+                    "art": "Wüste",
+                    "region_parent": "Irgendwo",
+                    "description": "Fliesstext."
+                }
+            }
+        },
+        {
+            "id": "art:Probe",
+            "titel": "Probe",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Probe\n|Art=Mischregion, Wald\n|Region=Irgendwo\n}}\nFliesstext.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Probe",
+                    "art": "Mischregion, Wald",
+                    "region_parent": "Irgendwo",
+                    "description": "Fliesstext."
+                },
+                "gipfel": {
+                    "name": "Probe",
+                    "art": "Mischregion, Wald",
+                    "region_parent": "Irgendwo",
+                    "description": "Fliesstext."
+                }
+            }
+        },
+        {
+            "id": "art:Leer",
+            "titel": "Leer",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Leer\n|Art=\n|Region=Irgendwo\n}}\nFliesstext.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Leer",
+                    "region_parent": "Irgendwo",
+                    "description": "Fliesstext."
+                },
+                "gipfel": {
+                    "name": "Leer",
+                    "region_parent": "Irgendwo",
+                    "description": "Fliesstext."
+                }
+            }
+        },
+        {
+            "id": "art:Tenjos",
+            "titel": "Tenjos",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Tenjos\n|Art=Berg|Felsformation\n|Region=Irgendwo\n}}\nFliesstext.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Tenjos",
+                    "art": "Berggipfel",
+                    "region_parent": "Irgendwo",
+                    "description": "Fliesstext."
+                },
+                "gipfel": {
+                    "name": "Tenjos",
+                    "art": "Berggipfel",
+                    "region_parent": "Irgendwo",
+                    "description": "Fliesstext."
+                }
+            }
+        },
+        {
+            "id": "art:Rihutu",
+            "titel": "Rihutu",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Rihutu\n|Art=Vulkan|Magmafluss\n|Region=Irgendwo\n}}\nFliesstext.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Rihutu",
+                    "art": "Vulkan",
+                    "region_parent": "Irgendwo",
+                    "description": "Fliesstext."
+                },
+                "gipfel": {
+                    "name": "Rihutu",
+                    "art": "Vulkan",
+                    "region_parent": "Irgendwo",
+                    "description": "Fliesstext."
+                }
+            }
+        },
+        {
+            "id": "art:Bilku-Archipel",
+            "titel": "Bilku-Archipel",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Bilku-Archipel\n|Art=Inselgruppe|Insel\n|Region=Irgendwo\n}}\nFliesstext.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Bilku-Archipel",
+                    "art": "Inselgruppe",
+                    "region_parent": "Irgendwo",
+                    "description": "Fliesstext."
+                },
+                "gipfel": {
+                    "name": "Bilku-Archipel",
+                    "art": "Inselgruppe",
+                    "region_parent": "Irgendwo",
+                    "description": "Fliesstext."
+                }
+            }
+        },
+        {
+            "id": "linkziele-gareth",
+            "titel": "Gareth",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Gareth\n|Region={{Reg|Herz des Kontinents}}\n|Staat={{Pol|Baronie Raulsmark}}; [[Reichsstadt]]\n|Handelszone={{IZ|Foo}}\n|Verkehrswege=[[Reichsstraße 2|Reichsstraßen 2]] und [[Reichsstraße 3|3]], [[Gardel]], [[Zedernstraße]]\n|Bearbeiter=[[Nicht Exportieren]]\n|NORD=[[Natzungen]]\n}}",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Gareth",
+                    "region_text": "Herz des Kontinents",
+                    "staat_text": "Baronie Raulsmark; Reichsstadt",
+                    "lage": "Herz des Kontinents · Baronie Raulsmark; Reichsstadt",
+                    "handelszone": "Foo",
+                    "verkehrswege": "Reichsstraßen 2 und 3, Gardel, Zedernstraße"
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "linkziele-weiden",
+            "titel": "Weiden",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Weiden\n|Staat=[[Mittelreich]]\n|Verkehrswege=[[Reichsstraße 2]]\n|NORD=[[Garetien]]\n|OST=[[Albernia]], [[Weiden]]\n}}",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Weiden",
+                    "affiliation_staat": "Mittelreich",
+                    "verkehrswege": "Reichsstraße 2",
+                    "nachbar_n": "Garetien",
+                    "nachbar_o": "Albernia, Weiden"
+                },
+                "gipfel": {
+                    "name": "Weiden",
+                    "affiliation_staat": "Mittelreich",
+                    "verkehrswege": "Reichsstraße 2",
+                    "nachbar_n": "Garetien",
+                    "nachbar_o": "Albernia, Weiden"
+                }
+            }
+        },
+        {
+            "id": "linkziele-herzogtum",
+            "titel": "Herzogtum Weiden",
+            "ns": 0,
+            "text": "{{Infobox Herrschaftsgebiet\n|Name=Herzogtum Weiden\n|Staat=[[Mittelreich]]\n}}",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht",
+                    "affiliation_raw": "Mittelreich"
+                }
+            }
+        },
+        {
+            "id": "linkziele-dju",
+            "titel": "Inoffiziell:Dju'imen",
+            "ns": 222,
+            "text": "{{Infobox Siedlung\n|Name=Dju'imen\n|Region=[[Weiden]]\n|NORD=[[Dju'imen (alt)]]\n}}",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Dju'imen",
+                    "region_text": "Weiden",
+                    "lage": "Weiden"
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "fz:0",
+            "titel": "Titel Test",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Ferdok\n|Staat=teil von [[R]], Königreich A, nach Auflösung in den [[T]]\n|Region=    ca. 3.000 a; b\n|Kontinent=Myranor\n|Einwohnerzahl=Text '''fett''' [[Ferdok]]   {{Pol|[[A]]}}\n|Blasonierung={{Pol|[[A]]}}\n|Gründer=Text '''fett''' ca. 3.000 &amp; z <br>Zeile\n}}\n{{Aventurien}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Ferdok",
+                    "einwohner": "Text fett Ferdok A",
+                    "region_text": "ca. 3.000 a; b",
+                    "staat_text": "teil von R, Königreich A, nach Auflösung in den T",
+                    "lage": "ca. 3.000 a; b · teil von R, Königreich A, nach Auflösung in den T",
+                    "description": "Text."
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "fz:20",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Staat\n|Name=\n|Aufgelöst={{BF|1050}}\n|Auflösung=unbekannt\n|Region=&amp; z <br>Zeile\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "1050 BF",
+                    "geographic": "& z Zeile"
+                }
+            }
+        },
+        {
+            "id": "fz:40",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Reich\n|Name=Ferdok\n|Staat=seit 1012 BF\n|Gründungsdatum=12. Praios 1000 BF\n|Aufgelöst={{BF|0}}\n|Auflösung=12. Praios 1000 BF\n|Region={{Pol|[[A]]}} ca. 3.000 &amp; z\n|Einwohnerzahl=  [[Ferdok]] Text '''fett'''\n|Oberhaupt=  <br>Zeile\n|Währung=&amp; z\n|Blasonierung={{Pol|[[A]]}} {{x}} {{Pol|[[A]]}} ca. 3.000\n|Gründer=a; b  \n|Handelswaren=<br>Zeile Text '''fett''' x, y,\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "12. Praios 1000 BF",
+                    "dissolved_text": "0 BF",
+                    "ruler": "Zeile",
+                    "currency": "& z",
+                    "population": "Ferdok Text fett",
+                    "founder": "a; b",
+                    "trade_goods": "Zeile Text fett x, y",
+                    "geographic": "A ca. 3.000 & z",
+                    "blazon": "A A ca. 3.000",
+                    "affiliation_raw": "seit 1012 BF"
+                }
+            }
+        },
+        {
+            "id": "fz:60",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Staat\n|Name=\n|Staat=[[Freie Stadt]]\n|Gründungsdatum=1050 BF\n|Gründung={{BF|12345678}}\n|Aufgelöst=10 BF<ref>x</ref>\n|Oberhaupt=[[A|B]], [[C]] ca. 3.000 Text '''fett'''\n|Währung=[[Ferdok]] Text '''fett''' &amp; z [[A|B]], [[C]]\n|Blasonierung={{Pol|[[A]]}} {{x}}\n|Gründer={{Pol|[[A]]}} &amp; z {{x}} Text '''fett'''\n}}\n{{Nav Staaten Aventurien}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "1050 BF",
+                    "dissolved_text": "10 BF",
+                    "ruler": "B, C ca. 3.000 Text fett",
+                    "currency": "Ferdok Text fett & z B, C",
+                    "founder": "A & z Text fett",
+                    "blazon": "A",
+                    "affiliation_raw": "Freie Stadt"
+                }
+            }
+        },
+        {
+            "id": "fz:80",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Herrschaftsgebiet\n|Name=Neu (Nebel)\n|Staat=seit 1012 BF » teilweise » Reichsstadt\n|Gründungsdatum=[[1000 BF]]\n|Aufgelöst=ca. 800 v. BF\n|Geographisch= \n|Einwohnerzahl= \n|Blasonierung=[[Ferdok]]\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "1000 BF",
+                    "dissolved_text": "ca. 800 v. BF",
+                    "blazon": "Ferdok",
+                    "affiliation_raw": "seit 1012 BF » teilweise » Reichsstadt"
+                }
+            }
+        },
+        {
+            "id": "fz:100",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Reich\n|Name=\n|Staat=(beansprucht von: [[Horasreich]], [[Mittelreich]]) [[Mittelreich]]\n|Status=\n|Gründungsdatum=2 BF - 12 BF\n|Einwohnerzahl=    ca. 3.000 {{Pol|[[A]]}}\n|Währung=ca. 3.000 {{x}}\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "2 BF - 12 BF",
+                    "dissolved_text": "besteht",
+                    "currency": "ca. 3.000",
+                    "population": "ca. 3.000 A",
+                    "affiliation_raw": "Mittelreich"
+                }
+            }
+        },
+        {
+            "id": "fz:120",
+            "titel": "Titel Test",
+            "ns": 0,
+            "text": "{{Infobox Reich\n|Name=Ferdok\n|Staat=vermutlich zuvor [[Y]]\n|Status=Freie Stadt\n|Gründungsdatum=Gegenwart\n|Aufgelöst=\n|Auflösung={{Datum|-3|X|Y}}\n|Region=  [[Ferdok]]\n|Kontinent=Uthuria\n|Herrschaftsform=x, y, [[A|B]], [[C]]\n|Blasonierung=[[A|B]], [[C]] &amp; z\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "Gegenwart",
+                    "dissolved_text": "3 v. BF",
+                    "form_of_government": "x, y, B, C",
+                    "geographic": "Ferdok",
+                    "blazon": "B, C & z",
+                    "affiliation_raw": "vermutlich zuvor Y"
+                }
+            }
+        },
+        {
+            "id": "fz:140",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=\n|Staat=[[Mittelreich]] » ehemalige Reichsstadt\n|Gründungsdatum=2 BF - 12 BF\n|Aufgelöst=PRA 1012 BF\n|Auflösung=\n|Geographisch=Text '''fett''' {{Pol|[[A]]}}\n|Einwohnerzahl=x, y,     a; b\n|Währung={{Pol|[[A]]}} Text '''fett''' [[Ferdok]] <br>Zeile\n}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Ferdok",
+                    "einwohner": "x, y, a; b",
+                    "staat_text": "Mittelreich » ehemalige Reichsstadt",
+                    "lage": "Mittelreich » ehemalige Reichsstadt",
+                    "description": "Text."
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "fz:160",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Staat\n|Name=Alt\n|Gründungsdatum=1012 BF (historisch)\n|Gründung=10 BF<ref>x</ref>\n|Region=[[Ferdok]]\n|Kontinent=Myranor\n|Währung=&amp; z\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "1012 BF (historisch)",
+                    "dissolved_text": "besteht",
+                    "currency": "& z",
+                    "geographic": "Ferdok"
+                }
+            }
+        },
+        {
+            "id": "fz:180",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Herrschaftsgebiet\n|Name=Ferdok\n|Staat=[[Grafschaft Ferdok]]:unabhängig:gehört zu [[S]]:ehemals [[W]]\n|Status=\n|Gründungsdatum=12. Praios 1000 BF\n|Gründung=&nbsp;5 BF\n|Aufgelöst={{Datum|-3|X|Y}}\n|Region= \n|Währung=<br>Zeile [[Ferdok]] [[A|B]], [[C]]\n|Handelswaren=<br>Zeile  \n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "12. Praios 1000 BF",
+                    "dissolved_text": "3 v. BF",
+                    "currency": "Zeile Ferdok B, C",
+                    "trade_goods": "Zeile",
+                    "affiliation_raw": "Grafschaft Ferdok:unabhängig:gehört zu S:ehemals W"
+                }
+            }
+        },
+        {
+            "id": "fz:200",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Neu (Nebel)\n|Staat=Herzogtum B (Teilgebiet): (beansprucht von: [[Horasreich]], [[Mittelreich]]): <ref>x</ref>: A, B\n|Status=Freie Stadt\n|Gründungsdatum=12. Praios 1000 BF\n|Aufgelöst=vor 1000 BF\n|Region=[[Ferdok]] &amp; z  \n|Einwohnerzahl=Text '''fett''' [[Ferdok]]\n|Oberhaupt=<br>Zeile\n}}\n{{Uthuria}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Neu (Nebel)",
+                    "einwohner": "Text fett Ferdok",
+                    "oberhaupt": "Zeile",
+                    "region_text": "Ferdok & z",
+                    "staat_text": "Herzogtum B (Teilgebiet): (beansprucht von: Horasreich, Mittelreich): : A, B",
+                    "lage": "Ferdok & z · Herzogtum B (Teilgebiet): (beansprucht von: Horasreich, Mittelreich): : A, B",
+                    "description": "Text."
+                },
+                "gebiet": {
+                    "founded_text": "12. Praios 1000 BF",
+                    "dissolved_text": "vor 1000 BF",
+                    "ruler": "Zeile",
+                    "population": "Text fett Ferdok",
+                    "geographic": "Ferdok & z",
+                    "affiliation_raw": "Herzogtum B : : : A, B"
+                }
+            }
+        },
+        {
+            "id": "fz:220",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Ferdok\n|Status=Reichsstadt\n|Gründungsdatum={{BF|0}}\n|Oberhaupt={{Pol|[[A]]}}\n|Blasonierung=a; b <br>Zeile\n}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Ferdok",
+                    "oberhaupt": "A",
+                    "description": "Text."
+                },
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht",
+                    "ruler": "A",
+                    "blazon": "a; b Zeile"
+                }
+            }
+        },
+        {
+            "id": "fz:240",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Ferdok\n|Staat=(beansprucht von: [[Horasreich]], [[Mittelreich]])/{{Reichsstadt|ex|Mittelreich}}/zuletzt vom Moghulat Oron beansprucht/A, B\n|Gründungsdatum=unbekannt\n|Aufgelöst=12. Praios 1000 BF\n|Geographisch=<br>Zeile\n|Einwohnerzahl=[[Ferdok]]\n|Währung=Text '''fett''' <br>Zeile\n|Herrschaftsform=<br>Zeile a; b  \n|Handelswaren=&amp; z {{Pol|[[A]]}} [[Ferdok]] Text '''fett'''\n}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Ferdok",
+                    "einwohner": "Ferdok",
+                    "staat_text": "(beansprucht von: Horasreich, Mittelreich)/ex|Mittelreich/zuletzt vom Moghulat Oron beansprucht/A, B",
+                    "lage": "(beansprucht von: Horasreich, Mittelreich)/ex|Mittelreich/zuletzt vom Moghulat Oron beansprucht/A, B",
+                    "description": "Text."
+                },
+                "gebiet": {
+                    "founded_text": "unbekannt",
+                    "dissolved_text": "12. Praios 1000 BF",
+                    "form_of_government": "Zeile a; b",
+                    "currency": "Text fett Zeile",
+                    "population": "Ferdok",
+                    "trade_goods": "& z A Ferdok Text fett",
+                    "geographic": "Zeile",
+                    "affiliation_raw": "/ex|Mittelreich/zuletzt vom Moghulat Oron beansprucht/A, B"
+                }
+            }
+        },
+        {
+            "id": "fz:260",
+            "titel": "Titel Test",
+            "ns": 0,
+            "text": "{{Infobox Reich\n|Name=\n|Staat=vermutlich zuvor [[Y]]\n|Status=eigenständig\n|Gründungsdatum=vor 1000 BF\n|Gründung=PRA 1012 BF\n|Aufgelöst=\n|Region=&amp; z\n|Einwohnerzahl=Text '''fett'''   {{Pol|[[A]]}}\n|Oberhaupt={{x}} &amp; z ca. 3.000  \n|Handelswaren=[[Ferdok]]\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "vor 1000 BF",
+                    "dissolved_text": "besteht",
+                    "ruler": "& z ca. 3.000",
+                    "population": "Text fett A",
+                    "trade_goods": "Ferdok",
+                    "geographic": "& z",
+                    "affiliation_raw": "vermutlich zuvor Y"
+                }
+            }
+        },
+        {
+            "id": "fz:280",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Staat\n|Name=\n|Staat=Gebiet beansprucht von [[Z]]; nach Auflösung in den [[T]]; zuletzt vom Moghulat Oron beansprucht; A, B\n|Status=Reichsstadt\n|Gründungsdatum=Gegenwart\n|Gründung=unbekannt\n|Aufgelöst=&nbsp;5 BF\n|Region=Text '''fett''' {{Pol|[[A]]}} x, y,\n|Oberhaupt=  a; b <br>Zeile {{x}}\n|Herrschaftsform=[[Ferdok]] [[Ferdok]] Text '''fett'''\n|Gründer=<br>Zeile\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "Gegenwart",
+                    "dissolved_text": "5 BF",
+                    "form_of_government": "Ferdok Ferdok Text fett",
+                    "ruler": "a; b Zeile",
+                    "founder": "Zeile",
+                    "geographic": "Text fett A x, y",
+                    "affiliation_raw": "Gebiet beansprucht von Z; nach Auflösung in den T; zuletzt vom Moghulat Oron beansprucht; A, B"
+                }
+            }
+        },
+        {
+            "id": "fz:300",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Ferdok\n|Staat=Stadtstaat\n|Gründungsdatum=unbekannt\n|Aufgelöst={{BF|-870}}\n|Auflösung={{Datum|-3|X|Y}}\n|Einwohnerzahl=  [[Ferdok]] [[Ferdok]] {{x}}\n|Oberhaupt=a; b Text '''fett''' &amp; z\n}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Ferdok",
+                    "einwohner": "Ferdok Ferdok",
+                    "oberhaupt": "a; b Text fett & z",
+                    "staat_text": "Stadtstaat",
+                    "lage": "Stadtstaat",
+                    "description": "Text."
+                },
+                "gebiet": {
+                    "founded_text": "unbekannt",
+                    "dissolved_text": "870 v. BF",
+                    "ruler": "a; b Text fett & z",
+                    "population": "Ferdok Ferdok",
+                    "affiliation_raw": "Stadtstaat"
+                }
+            }
+        },
+        {
+            "id": "fz:320",
+            "titel": "Titel Test",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Alt\n|Staat=unabhängig; Almada; (beansprucht von: [[Horasreich]], [[Mittelreich]])\n|Status=Freie Stadt\n|Gründung=1050 BF\n|Aufgelöst={{Datum|-3|X|Y}}\n|Kontinent=Aventurien\n|Oberhaupt={{x}} x, y,\n|Herrschaftsform={{Pol|[[A]]}} &amp; z\n|Handelswaren=[[Ferdok]]\n}}\n{{Uthuria}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Alt",
+                    "oberhaupt": "x, y",
+                    "staat_text": "unabhängig; Almada; (beansprucht von: Horasreich, Mittelreich)",
+                    "lage": "unabhängig; Almada; (beansprucht von: Horasreich, Mittelreich)",
+                    "description": "Text."
+                },
+                "gebiet": {
+                    "founded_text": "1050 BF",
+                    "dissolved_text": "3 v. BF",
+                    "form_of_government": "A & z",
+                    "ruler": "x, y",
+                    "trade_goods": "Ferdok",
+                    "affiliation_raw": "unabhängig; Almada;"
+                }
+            }
+        },
+        {
+            "id": "fz:340",
+            "titel": "Titel Test",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Neu (Nebel)\n|Staat=<ref>x</ref> ; umstritten ; [[Freie Stadt]]\n|Gründungsdatum=2 BF - 12 BF\n|Aufgelöst=\n|Geographisch=a; b x, y, {{Pol|[[A]]}}\n|Kontinent=\n|Oberhaupt=Text '''fett''' &amp; z\n}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Neu (Nebel)",
+                    "oberhaupt": "Text fett & z",
+                    "staat_text": "umstritten ; Freie Stadt",
+                    "lage": "umstritten ; Freie Stadt",
+                    "description": "Text."
+                },
+                "gebiet": {
+                    "founded_text": "2 BF - 12 BF",
+                    "dissolved_text": "besteht",
+                    "ruler": "Text fett & z",
+                    "geographic": "a; b x, y, A",
+                    "affiliation_raw": "umstritten ; Freie Stadt"
+                }
+            }
+        },
+        {
+            "id": "fz:360",
+            "titel": "Titel Test",
+            "ns": 0,
+            "text": "{{Infobox Herrschaftsgebiet\n|Name=Alt\n|Staat=[[Freie Stadt]] ; Almada ;    ; bis 1000 BF\n|Status=Reichsstadt\n|Gründungsdatum=Gegenwart\n|Gründung=12. Praios 1000 BF\n|Aufgelöst=&nbsp;5 BF\n|Region=Text '''fett''' x, y,  \n|Einwohnerzahl=a; b <br>Zeile ca. 3.000\n|Oberhaupt={{x}} ca. 3.000 {{Pol|[[A]]}}\n|Währung= \n|Herrschaftsform=[[Ferdok]] {{x}} ca. 3.000 &amp; z\n|Handelswaren=a; b x, y, <br>Zeile\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "Gegenwart",
+                    "dissolved_text": "5 BF",
+                    "form_of_government": "Ferdok ca. 3.000 & z",
+                    "ruler": "ca. 3.000 A",
+                    "population": "a; b Zeile ca. 3.000",
+                    "trade_goods": "a; b x, y, Zeile",
+                    "geographic": "Text fett x, y",
+                    "affiliation_raw": "Freie Stadt ; Almada ; ; bis 1000 BF"
+                }
+            }
+        },
+        {
+            "id": "fz:380",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Staat\n|Name=\n|Gründungsdatum=1012 BF (historisch)\n|Gründung=1012 BF (historisch)\n|Aufgelöst={{BF|0}}\n|Geographisch=[[A|B]], [[C]] ca. 3.000 {{x}}\n|Oberhaupt=Text '''fett''' ca. 3.000 {{Pol|[[A]]}} [[Ferdok]]\n|Währung=<br>Zeile\n|Herrschaftsform=[[Ferdok]] x, y, &amp; z\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "1012 BF (historisch)",
+                    "dissolved_text": "0 BF",
+                    "form_of_government": "Ferdok x, y, & z",
+                    "ruler": "Text fett ca. 3.000 A Ferdok",
+                    "currency": "Zeile",
+                    "geographic": "B, C ca. 3.000"
+                }
+            }
+        },
+        {
+            "id": "fz:400",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Herrschaftsgebiet\n|Name=\n|Staat=sowie [[Kalifat]] und [[X]]; [[Mittelreich]]; teilweise\n|Status=Reichsstadt\n|Gründungsdatum=10 BF<ref>x</ref>\n|Aufgelöst=12. Praios 1000 BF\n|Oberhaupt=Text '''fett''' a; b\n|Währung=&amp; z x, y,\n|Blasonierung=[[Ferdok]] x, y, a; b Text '''fett'''\n|Gründer=Text '''fett''' <br>Zeile Text '''fett''' {{Pol|[[A]]}}\n}}\n{{Uthuria}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "10 BF",
+                    "dissolved_text": "12. Praios 1000 BF",
+                    "ruler": "Text fett a; b",
+                    "currency": "& z x, y",
+                    "founder": "Text fett Zeile Text fett A",
+                    "blazon": "Ferdok x, y, a; b Text fett",
+                    "affiliation_raw": "sowie Kalifat und X; Mittelreich; teilweise"
+                }
+            }
+        },
+        {
+            "id": "fz:420",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=\n|Staat=gehört zu [[S]] > sowie [[Kalifat]] und [[X]] >    > beansprucht von [[Q]]\n|Gründungsdatum=Gegenwart\n|Aufgelöst=&nbsp;5 BF\n|Region={{Pol|[[A]]}} x, y, a; b\n|Geographisch=&amp; z x, y, &amp; z [[A|B]], [[C]]\n|Kontinent=Uthuria\n|Einwohnerzahl=[[A|B]], [[C]] ca. 3.000 x, y, [[Ferdok]]\n|Währung=Text '''fett'''  \n|Herrschaftsform=x, y, {{x}}\n|Blasonierung={{x}} &amp; z &amp; z\n}}\n{{Nav Staaten Aventurien}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Fürstentum X",
+                    "einwohner": "B, C ca. 3.000 x, y, Ferdok",
+                    "region_text": "A x, y, a; b",
+                    "staat_text": "gehört zu S > sowie Kalifat und X > > beansprucht von Q",
+                    "lage": "A x, y, a; b · gehört zu S > sowie Kalifat und X > > beansprucht von Q",
+                    "description": "Text."
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "fz:440",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Herrschaftsgebiet\n|Name=\n|Staat=unabhängig:Herzogtum B (Teilgebiet):bis 1000 BF:seit 1012 BF\n|Aufgelöst=  \n|Region=&amp; z\n|Einwohnerzahl={{x}} a; b\n|Währung= \n|Herrschaftsform=Text '''fett''' x, y, [[A|B]], [[C]] a; b\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht",
+                    "form_of_government": "Text fett x, y, B, C a; b",
+                    "population": "a; b",
+                    "geographic": "& z",
+                    "affiliation_raw": "unabhängig:Herzogtum B :bis 1000 BF:seit 1012 BF"
+                }
+            }
+        },
+        {
+            "id": "fz:460",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Ferdok\n|Staat=beansprucht von [[Q]]: beansprucht von [[Q]]: (beansprucht von: [[Horasreich]], [[Mittelreich]])\n|Gründungsdatum=ca. 800 v. BF\n|Aufgelöst={{BF|1050}}\n|Region=[[A|B]], [[C]] ca. 3.000 [[Ferdok]]\n|Einwohnerzahl=ca. 3.000\n|Herrschaftsform={{x}}   Text '''fett'''\n}}\n{{Aventurien}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Ferdok",
+                    "einwohner": "ca. 3.000",
+                    "region_text": "B, C ca. 3.000 Ferdok",
+                    "staat_text": "beansprucht von Q: beansprucht von Q: (beansprucht von: Horasreich, Mittelreich)",
+                    "lage": "B, C ca. 3.000 Ferdok · beansprucht von Q: beansprucht von Q: (beansprucht von: Horasreich, Mittelreich)",
+                    "description": "Text."
+                },
+                "gebiet": {
+                    "founded_text": "ca. 800 v. BF",
+                    "dissolved_text": "1050 BF",
+                    "form_of_government": "Text fett",
+                    "population": "ca. 3.000",
+                    "geographic": "B, C ca. 3.000 Ferdok",
+                    "affiliation_raw": "beansprucht von Q: beansprucht von Q:"
+                }
+            }
+        },
+        {
+            "id": "fz:480",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Reich\n|Name=\n|Staat=Stadtstaat: teilweise: (beansprucht von: [[Horasreich]], [[Mittelreich]])\n|Region={{Pol|[[A]]}} &amp; z &amp; z\n|Kontinent=Myranor\n|Einwohnerzahl=[[A|B]], [[C]] [[A|B]], [[C]] {{Pol|[[A]]}} ca. 3.000\n|Oberhaupt={{Pol|[[A]]}}\n|Gründer=[[Ferdok]] a; b [[Ferdok]]\n}}\n{{Uthuria}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "besteht",
+                    "ruler": "A",
+                    "population": "B, C B, C A ca. 3.000",
+                    "founder": "Ferdok a; b Ferdok",
+                    "geographic": "A & z & z",
+                    "affiliation_raw": "Stadtstaat: teilweise:"
+                }
+            }
+        },
+        {
+            "id": "fz:500",
+            "titel": "Titel Test",
+            "ns": 0,
+            "text": "{{Infobox Herrschaftsgebiet\n|Name=Neu (Nebel)\n|Staat=ehemals [[W]] > [[Grafschaft Ferdok]]\n|Status=Freie Stadt\n|Gründungsdatum=10 BF<ref>x</ref>\n|Aufgelöst=bis heute\n|Kontinent=Aventurien\n|Oberhaupt=Text '''fett''' {{Pol|[[A]]}} {{Pol|[[A]]}}\n|Währung=<br>Zeile [[Ferdok]]\n|Blasonierung=<br>Zeile &amp; z a; b\n}}\n{{Nav Staaten Aventurien}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "10 BF",
+                    "dissolved_text": "bis heute",
+                    "ruler": "Text fett A A",
+                    "currency": "Zeile Ferdok",
+                    "blazon": "Zeile & z a; b",
+                    "affiliation_raw": "ehemals W > Grafschaft Ferdok"
+                }
+            }
+        },
+        {
+            "id": "fz:520",
+            "titel": "Titel Test",
+            "ns": 0,
+            "text": "{{Infobox Staat\n|Name=\n|Staat=[[Mittelreich]] > <ref>x</ref> > (beansprucht von: [[Horasreich]], [[Mittelreich]]) > teilweise\n|Status=Reichsstadt\n|Gründungsdatum={{BF|12345678}}\n|Aufgelöst=unbekannt\n|Geographisch=[[A|B]], [[C]] {{Pol|[[A]]}} {{Pol|[[A]]}}\n|Kontinent=Uthuria\n|Währung=a; b x, y,\n|Blasonierung=x, y, <br>Zeile {{x}}  \n}}\n{{Uthuria}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "12345 BF",
+                    "dissolved_text": "unbekannt",
+                    "currency": "a; b x, y",
+                    "geographic": "B, C A A",
+                    "blazon": "x, y, Zeile",
+                    "affiliation_raw": "Mittelreich > > > teilweise"
+                }
+            }
+        },
+        {
+            "id": "fz:540",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=\n|Staat=[[Mittelreich]] ; Königreich A\n|Gründungsdatum=vor 1000 BF\n|Gründung=bis heute\n}}\n{{Nav Staaten Aventurien}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Fürstentum X",
+                    "staat_text": "Mittelreich ; Königreich A",
+                    "lage": "Mittelreich ; Königreich A",
+                    "description": "Text."
+                },
+                "gebiet": null
+            }
+        },
+        {
+            "id": "fz:560",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Siedlung\n|Name=Alt\n|Staat=Reichsstadt: zuletzt vom Moghulat Oron beansprucht: Königreich A: gehört zu [[S]]\n|Gründungsdatum=\n|Aufgelöst=Gegenwart\n|Geographisch=[[A|B]], [[C]] &amp; z ca. 3.000\n|Einwohnerzahl=<br>Zeile   [[A|B]], [[C]]\n|Oberhaupt=ca. 3.000 Text '''fett''' <br>Zeile [[A|B]], [[C]]\n|Handelswaren=<br>Zeile\n}}\nText.",
+            "legacyArt": "settlement",
+            "erwartet": {
+                "ort": {
+                    "name": "Alt",
+                    "einwohner": "Zeile B, C",
+                    "oberhaupt": "ca. 3.000 Text fett Zeile B, C",
+                    "staat_text": "Reichsstadt: zuletzt vom Moghulat Oron beansprucht: Königreich A: gehört zu S",
+                    "lage": "Reichsstadt: zuletzt vom Moghulat Oron beansprucht: Königreich A: gehört zu S",
+                    "description": "Text."
+                },
+                "gebiet": {
+                    "founded_text": "0 BF",
+                    "dissolved_text": "Gegenwart",
+                    "ruler": "ca. 3.000 Text fett Zeile B, C",
+                    "population": "Zeile B, C",
+                    "trade_goods": "Zeile",
+                    "geographic": "B, C & z ca. 3.000",
+                    "affiliation_raw": "Reichsstadt: zuletzt vom Moghulat Oron beansprucht: Königreich A: gehört zu S"
+                }
+            }
+        },
+        {
+            "id": "fz:580",
+            "titel": "Titel Test",
+            "ns": 0,
+            "text": "{{Infobox Staat\n|Name=Alt\n|Staat={{Reichsstadt|ex|Mittelreich}}: Herzogtum B (Teilgebiet): Stadtstaat\n|Status=Stadtstaat\n|Gründung=Gegenwart\n|Region={{Pol|[[A]]}}\n|Geographisch=  [[A|B]], [[C]]\n|Herrschaftsform={{Pol|[[A]]}} ca. 3.000 <br>Zeile Text '''fett'''\n|Blasonierung={{x}}\n|Handelswaren=[[Ferdok]] {{Pol|[[A]]}} <br>Zeile [[A|B]], [[C]]\n}}\nText.",
+            "legacyArt": "territory",
+            "erwartet": {
+                "gebiet": {
+                    "founded_text": "Gegenwart",
+                    "dissolved_text": "besteht",
+                    "form_of_government": "A ca. 3.000 Zeile Text fett",
+                    "trade_goods": "Ferdok A Zeile B, C",
+                    "geographic": "A",
+                    "affiliation_raw": "ex|Mittelreich: Herzogtum B : Stadtstaat"
+                }
+            }
+        },
+        {
+            "id": "fz3:0",
+            "titel": "Gareth_(Stadt)",
+            "ns": 0,
+            "text": "{{Infobox Fluss\n|Art=Vulkan|Magma\n|Region=<br>Zeile, Text '''fett'''\n|Affinität=[[Kosch]], [[Mittelreich]]\n|Verlauf=\n{{Flussquerung|Feste [[Calbrozim]]|[[A]] und [[B]]|x| }}\n|Vegetationszonen=<br>Zeile\n|Südwest={{Pol|[[A]]}}\n}}\n{{Nav Staaten Myranor}}\nErster Absatz mit '''Fett''' und [[Link]].",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "Gareth (Stadt)",
+                    "kind": "fluss",
+                    "art": "Vulkan|Magma",
+                    "lage": "Zeile, Text fett",
+                    "description": "Erster Absatz mit Fett und Link."
+                }
+            }
+        },
+        {
+            "id": "fz3:20",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Fluss\n|Art=Fluss\n|Lage=[[A|B]], [[C]]\n|Länge=[[A|B]], [[C]]\n|Verlauf=\n{{Flussquelle|x|Zwei=j|[[Datei:X.png]]}}\n{{Straße|Sonst=[[Nirgends]]}}\n{{Kreuzung|x| }}\n{{Hafen|[[Kategorie:Y]]}}\n{{Nodix|[[Gareth]]||Feste [[Calbrozim]]|[[Datei:X.png]]}}\n|Verkehrswege=x, y,\n|Ost=Text '''fett'''\n}}\n{{Nav Staaten Myranor}}\n* Liste\nText danach",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "Ferdok",
+                    "kind": "fluss",
+                    "art": "Fluss",
+                    "lage": "B, C",
+                    "laenge": "B, C",
+                    "verlauf": "Gareth",
+                    "description": "Text danach"
+                }
+            }
+        },
+        {
+            "id": "fz3:40",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Neu (Nebel)\n|Art=\n|Regionen= , [[Kosch]], [[Mittelreich]]\n|Region= , Text '''fett''', Text '''fett'''\n|Länge=<br>Zeile\n|Verlauf=[[Datei:Bild.png]] [[Gareth]]\n|Staat=&amp; z\n|Verkehrswege= \n|NORD=ca. 3.000 Meilen\n|Nordost=&amp; z,  \n}}\n{{Synonym|A|B}}\n",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Neu (Nebel)",
+                    "region_parent": "Text fett , Text fett",
+                    "affiliation_staat": "& z",
+                    "nachbar_n": "ca. 3.000 Meilen",
+                    "nachbar_no": "& z"
+                },
+                "gipfel": {
+                    "name": "Neu (Nebel)",
+                    "region_parent": "Text fett , Text fett",
+                    "affiliation_staat": "& z",
+                    "nachbar_n": "ca. 3.000 Meilen",
+                    "nachbar_no": "& z"
+                }
+            }
+        },
+        {
+            "id": "fz3:60",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Fluss\n|Name=(unbenannte Kraftlinie)\n|Regionen={{x}}, x, y,, [[Ferdok]]\n|Lage=x, y,, ca. 3.000 Meilen, [[Ferdok]], Text '''fett'''\n|Länge=ca. 3.000 Meilen\n|Stärke={{x}}\n|Verlauf=\n{{Straße|[[Gareth]]||x}}{{Straßenquerung|[[A]] und [[B]]|[[Datei:X.png]]|[[Gareth]]|[[Havena (Siedlung)|Havena]]}}{{Pass|[[Elenvina]]}}{{Anschluss|}}{{Fluss|Feste [[Calbrozim]]|[[Elenvina]]| }}\n|West=ca. 3.000 Meilen, &amp; z\n|Nordwest=&amp; z, &amp; z,  \n}}\n{{Synonym|A|B}}\n[[Datei:X.png]]\nText",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "(unbenannte Kraftlinie)",
+                    "kind": "fluss",
+                    "lage": "x, y,, Ferdok",
+                    "laenge": "ca. 3.000 Meilen",
+                    "verlauf": "Gareth → Elenvina → Calbrozim",
+                    "description": "Text"
+                }
+            }
+        },
+        {
+            "id": "fz3:80",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=\n|Regionen=&amp; z\n|Stärke=[[Kosch]], [[Mittelreich]]\n|Affinität=[[Ferdok]]\n|Verlauf=\n{{Abzweigung links|[[Kategorie:Y]]}}\n{{Flussquelle|1=[[Eins]]|[[Kategorie:Y]]}}\n{{FLUSSMÜNDUNG|[[A]] und [[B]]|[[A]] und [[B]]|[[Havena (Siedlung)|Havena]]|}}\n{{FLUSSMÜNDUNG|[[Kategorie:Y]]|Sonst=[[Nirgends]]|[[Gareth]]|Sonst=[[Nirgends]]}}\n{{Zufluss links|[[Datei:X.png]]}}\n|Staat=a; b\n|Vegetationszonen= \n|Südost= , [[A|B]], [[C]]\n}}\n{{Synonym|A|B}}\n* Liste\nText danach",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Ferdok",
+                    "region_parent": "& z",
+                    "affiliation_staat": "a; b",
+                    "description": "Text danach",
+                    "nachbar_so": "B, C"
+                },
+                "gipfel": {
+                    "name": "Ferdok",
+                    "region_parent": "& z",
+                    "affiliation_staat": "a; b",
+                    "description": "Text danach",
+                    "nachbar_so": "B, C"
+                }
+            }
+        },
+        {
+            "id": "fz3:100",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Kraftlinie\n|Name=\n|Art=wadi\n|Länge=x, y,\n|Affinität=[[Kosch]], [[Mittelreich]]\n|Staat=x, y,\n|Vegetationszonen=a; b\n|NORD=[[Ferdok]]\n|Südost=Text '''fett''', a; b\n|West=ca. 3.000 Meilen, [[Kosch]], [[Mittelreich]], ca. 3.000 Meilen\n}}\n\n[[Datei:X.png]]\nText",
+            "legacyArt": "powerline",
+            "erwartet": {
+                "kraftlinie": {
+                    "name": "Ferdok",
+                    "affinitaet": "Kosch, Mittelreich",
+                    "laenge": "x, y",
+                    "description": "Text"
+                }
+            }
+        },
+        {
+            "id": "fz3:120",
+            "titel": "Titel Test",
+            "ns": 0,
+            "text": "{{Infobox Fluss\n|Name=Alt\n|Art=Fluss\n|Regionen= , Text '''fett'''\n|Stärke=<br>Zeile\n|Affinität=Text '''fett'''\n|Verlauf=\n{{Pass|Ä=ä}}{{Straße|x|1=[[Eins]]}}{{Straßenquerung|[[Havena (Siedlung)|Havena]]|[[Havena (Siedlung)|Havena]]|[[Havena (Siedlung)|Havena]]}}{{Abzweigung links|Zwei=j|[[Gareth]]|Ä=ä}}\n|Staat={{x}}\n|Vegetationszonen=ca. 3.000 Meilen\n|Süd={{x}}, x, y,\n|West=x, y,, x, y,, {{Pol|[[A]]}}\n}}\n\n<ref>x</ref> Text.",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "Alt",
+                    "kind": "fluss",
+                    "art": "Fluss",
+                    "lage": "Text fett",
+                    "verlauf": "Havena → Gareth"
+                }
+            }
+        },
+        {
+            "id": "fz3:140",
+            "titel": "Gareth_(Stadt)",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=\n|Art=\n|Region=x, y,, {{x}}\n|Lage={{x}}, {{Pol|[[A]]}}\n|Verlauf=\n{{Kreuzung|Zwei=j|}}\n{{Nodix|[[Havena (Siedlung)|Havena]]|[[Gareth]]| }}\n|Staat=[[Ferdok]]\n|Vegetationszonen={{x}}\n|Verkehrswege={{x}}\n|Nordost=x, y,, {{x}}\n}}\n\nErster Absatz mit '''Fett''' und [[Link]].",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gareth (Stadt)",
+                    "region_parent": "x, y",
+                    "affiliation_staat": "Ferdok",
+                    "description": "Erster Absatz mit Fett und Link.",
+                    "nachbar_no": "x, y"
+                },
+                "gipfel": {
+                    "name": "Gareth (Stadt)",
+                    "region_parent": "x, y",
+                    "affiliation_staat": "Ferdok",
+                    "description": "Erster Absatz mit Fett und Link.",
+                    "nachbar_no": "x, y"
+                }
+            }
+        },
+        {
+            "id": "fz3:160",
+            "titel": "Gareth_(Stadt)",
+            "ns": 0,
+            "text": "{{Infobox Straße\n|Name=Alt\n|Art=Mischregion, Wald\n|Regionen=<br>Zeile, ca. 3.000 Meilen, x, y,, a; b\n|Region=a; b, [[A|B]], [[C]]\n|Affinität=[[A|B]], [[C]]\n|Verlauf=\n{{Hafen|Feste [[Calbrozim]]|[[Havena (Siedlung)|Havena]]|[[Kategorie:Y]]}}\n|Vegetationszonen=[[Ferdok]]\n|Südwest={{x}}, &amp; z\n|Nordwest={{x}}, {{Pol|[[A]]}}, x, y,\n}}\n\n\n\n== Überschrift ==\nText",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "Alt",
+                    "kind": "strasse",
+                    "art": "Mischregion, Wald",
+                    "lage": "Zeile, ca. 3.000 Meilen, x, y,, a; b",
+                    "verlauf": "Calbrozim",
+                    "description": "Text"
+                }
+            }
+        },
+        {
+            "id": "fz3:180",
+            "titel": "Gareth_(Stadt)",
+            "ns": 0,
+            "text": "{{Infobox Fluss\n|Name=Zeile (unbenannt)\n|Art=Wadi\n|Länge=a; b\n|Verlauf=\n{{straßenquerung|[[Havena (Siedlung)|Havena]]|[[Datei:X.png]]|[[A]] und [[B]]|Ä=ä}}\n{{FLUSSMÜNDUNG|Sonst=[[Nirgends]]|Ä=ä|x}}\n{{Kraftlinie|[[A]] und [[B]]}}\n{{FLUSSMÜNDUNG|Feste [[Calbrozim]]|Feste [[Calbrozim]]|[[Gareth]]}}\n{{straßenquerung|1=[[Eins]]|Feste [[Calbrozim]]|Ä=ä}}\n{{Anschluss|[[Kategorie:Y]]|[[Datei:X.png]]}}\n|Staat=[[A|B]], [[C]]\n|Vegetationszonen=Text '''fett'''\n|NORD=[[Kosch]], [[Mittelreich]],  , &amp; z\n|Südost=[[A|B]], [[C]], Text '''fett''', [[Ferdok]]\n|West=[[A|B]], [[C]], &amp; z, [[Ferdok]]\n}}\n\n<ref>x</ref> Text.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Zeile (unbenannt)",
+                    "art": "Wadi",
+                    "affiliation_staat": "B, C",
+                    "vegetation": "Text fett",
+                    "nachbar_n": "Kosch, Mittelreich, & z",
+                    "nachbar_so": "B, C, Text fett, Ferdok",
+                    "nachbar_w": "B, C, & z, Ferdok"
+                },
+                "gipfel": {
+                    "name": "Zeile (unbenannt)",
+                    "art": "Wadi",
+                    "affiliation_staat": "B, C",
+                    "vegetation": "Text fett",
+                    "nachbar_n": "Kosch, Mittelreich, & z",
+                    "nachbar_so": "B, C, Text fett, Ferdok",
+                    "nachbar_w": "B, C, & z, Ferdok"
+                }
+            }
+        },
+        {
+            "id": "fz3:200",
+            "titel": "Titel Test",
+            "ns": 0,
+            "text": "{{Infobox Fluss\n|Art=Berg|Felsformation\n|Regionen= , ca. 3.000 Meilen, <br>Zeile\n|Region=Text '''fett''', ca. 3.000 Meilen\n|Lage= , {{x}}, [[A|B]], [[C]]\n|Länge=x, y,\n|Vegetationszonen=ca. 3.000 Meilen\n|Verkehrswege=<br>Zeile\n|Südost=x, y,, x, y,, [[Ferdok]]\n|Südwest={{Pol|[[A]]}}, [[Kosch]], [[Mittelreich]]\n}}\n{{Nav Staaten Myranor}}\n* Liste\nText danach",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "Titel Test",
+                    "kind": "fluss",
+                    "art": "Berg|Felsformation",
+                    "lage": "ca. 3.000 Meilen, Zeile",
+                    "laenge": "x, y",
+                    "description": "Text danach"
+                }
+            }
+        },
+        {
+            "id": "fz3:220",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Fluss\n|Name=(unbenannte Kraftlinie)\n|Art=Fluss\n|Region=x, y,, x, y,\n|Lage=[[A|B]], [[C]], <br>Zeile\n|Affinität=ca. 3.000 Meilen\n|Verlauf=\n{{Zufluss rechts|Feste [[Calbrozim]]}}\n{{Zufluss rechts|Ä=ä|[[A]] und [[B]]|[[A]] und [[B]]}}\n{{Kreuzung|1=[[Eins]]|Ä=ä|x|Feste [[Calbrozim]]}}\n|Verkehrswege=x, y,\n|Nordost={{Pol|[[A]]}}, [[Ferdok]], Text '''fett'''\n|Südwest= , &amp; z\n|West=Text '''fett''', ca. 3.000 Meilen\n}}\n{{Synonym|A|B}}\nErster Absatz mit '''Fett''' und [[Link]].",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "(unbenannte Kraftlinie)",
+                    "kind": "fluss",
+                    "art": "Fluss",
+                    "lage": "x, y,, x, y",
+                    "description": "Erster Absatz mit Fett und Link."
+                }
+            }
+        },
+        {
+            "id": "fz3:240",
+            "titel": "Gareth_(Stadt)",
+            "ns": 0,
+            "text": "{{Infobox Straße\n|Name=Ferdok\n|Art=wadi\n|Lage=[[Ferdok]], x, y,, <br>Zeile\n|Länge=[[Ferdok]]\n|Affinität=Text '''fett'''\n|Verlauf=\n{{FLUSSMÜNDUNG|[[Kategorie:Y]]|[[Datei:X.png]]|Sonst=[[Nirgends]]}}\n{{Zufluss links|[[Kategorie:Y]]|[[Elenvina]]}}\n{{Zusammenfluss|Zwei=j|Zwei=j|Sonst=[[Nirgends]]}}\n{{Straße|x|x| |[[Elenvina]]}}\n|Vegetationszonen=ca. 3.000 Meilen\n|Nordost=a; b\n|Ost=ca. 3.000 Meilen\n|Süd=<br>Zeile\n}}\n{{Nav Staaten Myranor}}\n<ref>x</ref> Text.",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "Ferdok",
+                    "kind": "strasse",
+                    "art": "wadi",
+                    "lage": "Ferdok, x, y,, Zeile",
+                    "laenge": "Ferdok"
+                }
+            }
+        },
+        {
+            "id": "fz3:260",
+            "titel": "Titel Test",
+            "ns": 0,
+            "text": "{{Infobox Kraftlinie\n|Name=(unbenannte Kraftlinie)\n|Art=wadi\n|Affinität={{x}}\n|NORD=[[Ferdok]],  \n|Nordost={{Pol|[[A]]}}\n|Süd=x, y,, x, y,\n}}\n\n",
+            "legacyArt": "powerline",
+            "erwartet": {
+                "kraftlinie": {
+                    "name": "Titel Test"
+                }
+            }
+        },
+        {
+            "id": "fz3:280",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Kraftlinie\n|Name=Alt\n|Art=Fluss\n|Regionen=[[A|B]], [[C]], ca. 3.000 Meilen, [[A|B]], [[C]], [[Ferdok]]\n|Lage={{x}},  , [[Kosch]], [[Mittelreich]], Text '''fett'''\n|Stärke={{x}}\n|Verkehrswege={{Pol|[[A]]}}\n|Süd={{Pol|[[A]]}}\n}}\n{{Nav Staaten Myranor}}\n\n\n== Überschrift ==\nText",
+            "legacyArt": "powerline",
+            "erwartet": {
+                "kraftlinie": {
+                    "name": "Alt",
+                    "regionen": "B, C, ca. 3.000 Meilen, B, C, Ferdok",
+                    "description": "Text"
+                }
+            }
+        },
+        {
+            "id": "fz3:300",
+            "titel": "Gareth_(Stadt)",
+            "ns": 0,
+            "text": "{{Infobox Kraftlinie\n|Name=Neu (Nebel)\n|Art=Mischregion, Wald\n|Regionen=Text '''fett''', [[Kosch]], [[Mittelreich]]\n|Länge={{Pol|[[A]]}}\n|Affinität=[[A|B]], [[C]]\n|Verlauf=\n{{Kraftlinie|Feste [[Calbrozim]]}}\n{{Straße| |Zwei=j}}\n{{Abzweigung links| |[[Datei:X.png]]}}\n{{Straße|x}}\n{{Flussquerung| ||[[A]] und [[B]]|Feste [[Calbrozim]]}}\n{{Abzweigung rechts|1=[[Eins]]|[[Elenvina]]}}\n|Vegetationszonen={{Pol|[[A]]}}\n|Ost=[[Ferdok]]\n|Süd=ca. 3.000 Meilen, <br>Zeile\n|Südwest={{x}}, a; b\n}}\n{{Nav Staaten Myranor}}\n\n\n== Überschrift ==\nText",
+            "legacyArt": "powerline",
+            "erwartet": {
+                "kraftlinie": {
+                    "name": "Neu (Nebel)",
+                    "affinitaet": "B, C",
+                    "laenge": "A",
+                    "regionen": "Text fett , Kosch, Mittelreich",
+                    "verlauf": "Calbrozim → Elenvina",
+                    "description": "Text"
+                }
+            }
+        },
+        {
+            "id": "fz3:320",
+            "titel": "Gareth_(Stadt)",
+            "ns": 0,
+            "text": "{{Infobox Straße\n|Name=Zeile (unbenannt)\n|Art=Vulkan|Magma\n|Regionen={{x}}\n|Lage=[[Kosch]], [[Mittelreich]], [[Kosch]], [[Mittelreich]], <br>Zeile\n|Stärke=ca. 3.000 Meilen\n|Verlauf=\n{{Abzweigung links|Zwei=j|[[A]] und [[B]]|Ä=ä|}}\n{{Hafen|[[Elenvina]]|x|Zwei=j|''[[Burg Draustein]]''}}\n{{Unbekannt Ding|Sonst=[[Nirgends]]|Zwei=j|Zwei=j}}\n|Vegetationszonen=Text '''fett'''\n|Verkehrswege=[[A|B]], [[C]]\n|NORD=a; b, &amp; z, [[Ferdok]]\n|Nordost=<br>Zeile, [[Kosch]], [[Mittelreich]]\n|Südost=x, y,, a; b\n}}\n{{Nav Staaten Myranor}}\n* Liste\nText danach",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "Zeile (unbenannt)",
+                    "kind": "strasse",
+                    "art": "Vulkan|Magma",
+                    "verlauf": "A → Elenvina",
+                    "description": "Text danach"
+                }
+            }
+        },
+        {
+            "id": "fz3:340",
+            "titel": "Titel Test",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Neu (Nebel)\n|Art=Fluss\n|Stärke= \n|Affinität={{Pol|[[A]]}}\n|Verlauf=\n{{Nodix|1=[[Eins]]}}\n{{Zufluss links|x|[[Gareth]]| |[[Kategorie:Y]]}}\n{{Nexus|Feste [[Calbrozim]]|''[[Burg Draustein]]''|1=[[Eins]]}}\n|Verkehrswege=[[A|B]], [[C]]\n|Südost=ca. 3.000 Meilen, {{x}}\n|Südwest=&amp; z\n}}\n{{Nav Staaten Myranor}}\n<ref>x</ref> Text.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Neu (Nebel)",
+                    "art": "Fluss",
+                    "verkehrswege": "B, C",
+                    "nachbar_so": "ca. 3.000 Meilen",
+                    "nachbar_sw": "& z"
+                },
+                "gipfel": {
+                    "name": "Neu (Nebel)",
+                    "art": "Fluss",
+                    "verkehrswege": "B, C",
+                    "nachbar_so": "ca. 3.000 Meilen",
+                    "nachbar_sw": "& z"
+                }
+            }
+        },
+        {
+            "id": "fz3:360",
+            "titel": "Titel Test",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Ferdok\n|Art=Berg|Felsformation\n|Region=<br>Zeile, {{x}}\n|Länge={{x}}\n|Affinität=a; b\n|Verlauf=\n{{Pass|[[Datei:X.png]]|[[Havena (Siedlung)|Havena]]|[[Gareth]]}}\n{{Straße|[[Gareth]]|[[A]] und [[B]]|1=[[Eins]]|''[[Burg Draustein]]''}}\n{{Straße|[[Elenvina]]|[[Gareth]]}}\n{{Zufluss rechts|[[Havena (Siedlung)|Havena]]}}\n{{Straße|x|1=[[Eins]]| | }}\n|Verkehrswege=&amp; z\n|NORD= \n|Ost=[[Ferdok]], Text '''fett'''\n|West=ca. 3.000 Meilen, a; b,  \n}}\n\n\n\n== Überschrift ==\nText",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Ferdok",
+                    "art": "Berggipfel",
+                    "region_parent": "Zeile",
+                    "verkehrswege": "& z",
+                    "description": "Text",
+                    "nachbar_o": "Ferdok, Text fett",
+                    "nachbar_w": "ca. 3.000 Meilen, a; b"
+                },
+                "gipfel": {
+                    "name": "Ferdok",
+                    "art": "Berggipfel",
+                    "region_parent": "Zeile",
+                    "verkehrswege": "& z",
+                    "description": "Text",
+                    "nachbar_o": "Ferdok, Text fett",
+                    "nachbar_w": "ca. 3.000 Meilen, a; b"
+                }
+            }
+        },
+        {
+            "id": "fz3:380",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Art=Fluss\n|Regionen=Text '''fett''', {{x}}\n|Region=x, y,\n|Länge=ca. 3.000 Meilen\n|Stärke=[[Kosch]], [[Mittelreich]]\n|Affinität=<br>Zeile\n|Verlauf=\n{{Nexus|Feste [[Calbrozim]]|Ä=ä|[[A]] und [[B]]|[[Elenvina]]}}{{Flussquerung|[[Datei:X.png]]|Ä=ä}}{{Kraftlinie|x|Zwei=j|[[Elenvina]]|Feste [[Calbrozim]]}}\n|Vegetationszonen=[[A|B]], [[C]]\n|Südost=<br>Zeile, Text '''fett'''\n|West=ca. 3.000 Meilen, [[A|B]], [[C]], [[Ferdok]]\n}}\n\n<ref>x</ref> Text.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Ferdok",
+                    "art": "Fluss",
+                    "region_parent": "x, y",
+                    "vegetation": "B, C",
+                    "nachbar_so": "Zeile, Text fett",
+                    "nachbar_w": "ca. 3.000 Meilen, B, C, Ferdok"
+                },
+                "gipfel": {
+                    "name": "Ferdok",
+                    "art": "Fluss",
+                    "region_parent": "x, y",
+                    "vegetation": "B, C",
+                    "nachbar_so": "Zeile, Text fett",
+                    "nachbar_w": "ca. 3.000 Meilen, B, C, Ferdok"
+                }
+            }
+        },
+        {
+            "id": "fz3:400",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Zeile (unbenannt)\n|Affinität={{Pol|[[A]]}}\n|Verlauf=\n{{Kreuzung|[[A]] und [[B]]| | |}}{{Straße|''[[Burg Draustein]]''}}{{Abzweigung links|x|Ä=ä}}{{Pass|[[Havena (Siedlung)|Havena]]|Feste [[Calbrozim]]|[[Kategorie:Y]]|[[Havena (Siedlung)|Havena]]}}{{Unbekannt Ding|''[[Burg Draustein]]''|[[Gareth]]}}{{Flussquelle|Ä=ä|[[Gareth]]}}\n|Vegetationszonen=Text '''fett'''\n|Südost=a; b, x, y,, Text '''fett'''\n|Süd=ca. 3.000 Meilen,  \n}}\n{{Nav Staaten Myranor}}\n<ref>x</ref> Text.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Zeile (unbenannt)",
+                    "vegetation": "Text fett",
+                    "nachbar_so": "a; b, x, y, Text fett",
+                    "nachbar_s": "ca. 3.000 Meilen"
+                },
+                "gipfel": {
+                    "name": "Zeile (unbenannt)",
+                    "vegetation": "Text fett",
+                    "nachbar_so": "a; b, x, y, Text fett",
+                    "nachbar_s": "ca. 3.000 Meilen"
+                }
+            }
+        },
+        {
+            "id": "fz3:420",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=\n|Art=Wadi\n|Regionen=a; b, [[Ferdok]], {{Pol|[[A]]}}, <br>Zeile\n|Lage=a; b, x, y,\n|Länge=<br>Zeile\n|Affinität=x, y,\n|Staat=[[Ferdok]]\n|Ost={{Pol|[[A]]}}, &amp; z\n|Süd= \n|Südwest= \n}}\n{{Nav Staaten Myranor}}\n[[Datei:X.png]]\nText",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Fürstentum X",
+                    "art": "Wadi",
+                    "region_parent": "a; b, Ferdok, A, Zeile",
+                    "affiliation_staat": "Ferdok",
+                    "description": "Text",
+                    "nachbar_o": "A, & z"
+                },
+                "gipfel": {
+                    "name": "Fürstentum X",
+                    "art": "Wadi",
+                    "region_parent": "a; b, Ferdok, A, Zeile",
+                    "affiliation_staat": "Ferdok",
+                    "description": "Text",
+                    "nachbar_o": "A, & z"
+                }
+            }
+        },
+        {
+            "id": "fz3:440",
+            "titel": "Gareth_(Stadt)",
+            "ns": 0,
+            "text": "{{Infobox Straße\n|Name=(unbenannte Kraftlinie)\n|Art=\n|Regionen= \n|Lage={{Pol|[[A]]}}, <br>Zeile\n|Stärke=[[Kosch]], [[Mittelreich]]\n|Affinität=[[A|B]], [[C]]\n|Verlauf=\n{{Anschluss|[[A]] und [[B]]|1=[[Eins]]}}\n{{Abzweigung links|Feste [[Calbrozim]]|[[Kategorie:Y]]|1=[[Eins]]}}\n{{straßenquerung||[[A]] und [[B]]|1=[[Eins]]}}\n{{Nodix||Feste [[Calbrozim]]|[[Havena (Siedlung)|Havena]]}}\n{{Pass|''[[Burg Draustein]]''|[[Datei:X.png]]| |}}\n{{Flussmündung|[[Kategorie:Y]]|[[Kategorie:Y]]|[[A]] und [[B]]}}\n|Staat=<br>Zeile\n|NORD=[[Ferdok]], [[Ferdok]]\n|Südost=a; b\n}}\n\n<ref>x</ref> Text.",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "(unbenannte Kraftlinie)",
+                    "kind": "strasse",
+                    "lage": "A, Zeile",
+                    "verlauf": "Calbrozim → A → Burg Draustein"
+                }
+            }
+        },
+        {
+            "id": "fz3:460",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Fluss\n|Name=Ferdok\n|Art=Vulkan|Magma\n|Regionen=[[A|B]], [[C]]\n|Affinität=x, y,\n|Vegetationszonen= \n|Nordost=&amp; z, {{x}}\n|Ost=Text '''fett''',  , ca. 3.000 Meilen\n}}\n{{Synonym|A|B}}\n",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "Ferdok",
+                    "kind": "fluss",
+                    "art": "Vulkan|Magma",
+                    "lage": "B, C"
+                }
+            }
+        },
+        {
+            "id": "fz3:480",
+            "titel": "Titel Test",
+            "ns": 0,
+            "text": "{{Infobox Straße\n|Name=(unbenannte Kraftlinie)\n|Art=Mischregion, Wald\n|Regionen=x, y,\n|Lage=ca. 3.000 Meilen, a; b\n|Stärke={{x}}\n|Verlauf=\n{{Zufluss links| |Feste [[Calbrozim]]|Feste [[Calbrozim]]|Feste [[Calbrozim]]}}\n{{FLUSSMÜNDUNG|Feste [[Calbrozim]]|}}\n|Vegetationszonen=ca. 3.000 Meilen\n|Süd= , {{Pol|[[A]]}}\n|Südwest=ca. 3.000 Meilen, [[Kosch]], [[Mittelreich]], [[Kosch]], [[Mittelreich]]\n}}\n\nErster Absatz mit '''Fett''' und [[Link]].",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "(unbenannte Kraftlinie)",
+                    "kind": "strasse",
+                    "art": "Mischregion, Wald",
+                    "lage": "x, y",
+                    "description": "Erster Absatz mit Fett und Link."
+                }
+            }
+        },
+        {
+            "id": "fz3:500",
+            "titel": "Titel Test",
+            "ns": 0,
+            "text": "{{Infobox Fluss\n|Name=\n|Art=Wadi\n|Regionen=[[Kosch]], [[Mittelreich]]\n|Länge=[[Kosch]], [[Mittelreich]]\n|Stärke=<br>Zeile\n|Affinität=&amp; z\n|Verlauf=\n{{Anschluss|Sonst=[[Nirgends]]|[[Gareth]]|[[Kategorie:Y]]|[[Datei:X.png]]}}\n{{Nexus|[[Havena (Siedlung)|Havena]]|[[Havena (Siedlung)|Havena]]| |}}\n{{Kreuzung|[[Datei:X.png]]}}\n{{Fluss|Zwei=j|[[Elenvina]]}}\n{{Abzweigung links|[[Kategorie:Y]]|[[Elenvina]]|Zwei=j|x}}\n|Staat=&amp; z\n|Verkehrswege=x, y,\n|Nordost=[[Kosch]], [[Mittelreich]], &amp; z\n|Ost={{x}}\n|Südost= , [[Ferdok]]\n|Süd=[[Ferdok]]\n}}\n\n\n\n== Überschrift ==\nText",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Titel Test",
+                    "art": "Wadi",
+                    "region_parent": "Kosch, Mittelreich",
+                    "affiliation_staat": "& z",
+                    "verkehrswege": "x, y",
+                    "description": "Text",
+                    "nachbar_no": "Kosch, Mittelreich, & z",
+                    "nachbar_so": "Ferdok",
+                    "nachbar_s": "Ferdok"
+                },
+                "gipfel": {
+                    "name": "Titel Test",
+                    "art": "Wadi",
+                    "region_parent": "Kosch, Mittelreich",
+                    "affiliation_staat": "& z",
+                    "verkehrswege": "x, y",
+                    "description": "Text",
+                    "nachbar_no": "Kosch, Mittelreich, & z",
+                    "nachbar_so": "Ferdok",
+                    "nachbar_s": "Ferdok"
+                }
+            }
+        },
+        {
+            "id": "fz3:520",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Straße\n|Name=Neu (Nebel)\n|Art=Wadi\n|Regionen=a; b, Text '''fett'''\n|Region=ca. 3.000 Meilen, a; b, a; b, x, y,\n|Länge= \n|Stärke=ca. 3.000 Meilen\n|Affinität=a; b\n}}\n{{Nav Staaten Myranor}}\n<ref>x</ref> Text.",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "Neu (Nebel)",
+                    "kind": "strasse",
+                    "art": "Wadi",
+                    "lage": "a; b, Text fett"
+                }
+            }
+        },
+        {
+            "id": "fz3:540",
+            "titel": "Fürstentum X",
+            "ns": 0,
+            "text": "{{Infobox Fluss\n|Art=wadi\n|Regionen=&amp; z, ca. 3.000 Meilen, {{x}}\n|Affinität=a; b\n|Verlauf=\n{{Straßenquerung|''[[Burg Draustein]]''|}}\n{{Unbekannt Ding|Sonst=[[Nirgends]]|1=[[Eins]]|Feste [[Calbrozim]]|}}\n{{Anschluss|x}}\n{{Flussquelle|[[Datei:X.png]]}}\n|Verkehrswege=a; b\n}}\n{{Nav Staaten Myranor}}\n\n\n== Überschrift ==\nText",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Fürstentum X",
+                    "art": "wadi",
+                    "region_parent": "& z, ca. 3.000 Meilen",
+                    "verkehrswege": "a; b",
+                    "description": "Text"
+                },
+                "gipfel": {
+                    "name": "Fürstentum X",
+                    "art": "wadi",
+                    "region_parent": "& z, ca. 3.000 Meilen",
+                    "verkehrswege": "a; b",
+                    "description": "Text"
+                }
+            }
+        },
+        {
+            "id": "fz3:560",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=\n|Art=wadi\n|Regionen=[[A|B]], [[C]]\n|Länge={{x}}\n|Affinität=[[Kosch]], [[Mittelreich]]\n|Staat={{x}}\n|Verkehrswege={{x}}\n|Nordost=[[A|B]], [[C]], {{Pol|[[A]]}}\n}}\n{{Nav Staaten Myranor}}\n[[Datei:X.png]]\nText",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Ferdok",
+                    "art": "wadi",
+                    "region_parent": "B, C",
+                    "description": "Text",
+                    "nachbar_no": "B, C, A"
+                },
+                "gipfel": {
+                    "name": "Ferdok",
+                    "art": "wadi",
+                    "region_parent": "B, C",
+                    "description": "Text",
+                    "nachbar_no": "B, C, A"
+                }
+            }
+        },
+        {
+            "id": "fz3:580",
+            "titel": "Ferdok",
+            "ns": 0,
+            "text": "{{Infobox Fluss\n|Name=(unbenannte Kraftlinie)\n|Regionen=<br>Zeile, {{x}}\n|Region=x, y,, {{x}}\n|Lage=[[Kosch]], [[Mittelreich]], <br>Zeile\n|Affinität=[[Kosch]], [[Mittelreich]]\n|Verlauf=\n{{Flussquelle|[[Kategorie:Y]]}}\n|Staat={{Pol|[[A]]}}\n|Nordost=[[Ferdok]], [[A|B]], [[C]], ca. 3.000 Meilen\n}}\n\n* Liste\nText danach",
+            "legacyArt": "path",
+            "erwartet": {
+                "weg": {
+                    "name": "(unbenannte Kraftlinie)",
+                    "kind": "fluss",
+                    "lage": "Zeile",
+                    "description": "Text danach"
+                }
+            }
+        },
+        {
+            "id": "hoehe:tausenderpunkt-und-einheit",
+            "titel": "Gipfel tausenderpunkt-und-einheit",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel tausenderpunkt-und-einheit\n|Art=Berg\n|Region=Kosch\n|Höhe=1.100 Schritt\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel tausenderpunkt-und-einheit",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel tausenderpunkt-und-einheit",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel.",
+                    "height": "1100"
+                }
+            }
+        },
+        {
+            "id": "hoehe:ganze-zahl",
+            "titel": "Gipfel ganze-zahl",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel ganze-zahl\n|Art=Berg\n|Region=Kosch\n|Höhe=700\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel ganze-zahl",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel ganze-zahl",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel.",
+                    "height": "700"
+                }
+            }
+        },
+        {
+            "id": "hoehe:dezimalkomma-wird-gerundet",
+            "titel": "Gipfel dezimalkomma-wird-gerundet",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel dezimalkomma-wird-gerundet\n|Art=Berg\n|Region=Kosch\n|Höhe=700,5\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel dezimalkomma-wird-gerundet",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel dezimalkomma-wird-gerundet",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel.",
+                    "height": "701"
+                }
+            }
+        },
+        {
+            "id": "hoehe:kleiner-dezimalwert",
+            "titel": "Gipfel kleiner-dezimalwert",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel kleiner-dezimalwert\n|Art=Berg\n|Region=Kosch\n|Höhe=1,5\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel kleiner-dezimalwert",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel kleiner-dezimalwert",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel.",
+                    "height": "2"
+                }
+            }
+        },
+        {
+            "id": "hoehe:zwei-zahlen",
+            "titel": "Gipfel zwei-zahlen",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel zwei-zahlen\n|Art=Berg\n|Region=Kosch\n|Höhe=1.100 – 2.000\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel zwei-zahlen",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel zwei-zahlen",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                }
+            }
+        },
+        {
+            "id": "hoehe:zwei-zahlen-mit-text",
+            "titel": "Gipfel zwei-zahlen-mit-text",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel zwei-zahlen-mit-text\n|Art=Berg\n|Region=Kosch\n|Höhe=1.100 Schritt (Gipfel), 900 Schritt (Pass)\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel zwei-zahlen-mit-text",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel zwei-zahlen-mit-text",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                }
+            }
+        },
+        {
+            "id": "hoehe:zahl-mit-leerzeichen-ist-zwei",
+            "titel": "Gipfel zahl-mit-leerzeichen-ist-zwei",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel zahl-mit-leerzeichen-ist-zwei\n|Art=Berg\n|Region=Kosch\n|Höhe=3 000\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel zahl-mit-leerzeichen-ist-zwei",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel zahl-mit-leerzeichen-ist-zwei",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                }
+            }
+        },
+        {
+            "id": "hoehe:minus",
+            "titel": "Gipfel minus",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel minus\n|Art=Berg\n|Region=Kosch\n|Höhe=−5\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel minus",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel minus",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                }
+            }
+        },
+        {
+            "id": "hoehe:minus-mit-leerzeichen",
+            "titel": "Gipfel minus-mit-leerzeichen",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel minus-mit-leerzeichen\n|Art=Berg\n|Region=Kosch\n|Höhe=- 5\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel minus-mit-leerzeichen",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel minus-mit-leerzeichen",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                }
+            }
+        },
+        {
+            "id": "hoehe:grenze-oben",
+            "titel": "Gipfel grenze-oben",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel grenze-oben\n|Art=Berg\n|Region=Kosch\n|Höhe=20.000\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel grenze-oben",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel grenze-oben",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel.",
+                    "height": "20000"
+                }
+            }
+        },
+        {
+            "id": "hoehe:ueber-der-grenze",
+            "titel": "Gipfel ueber-der-grenze",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel ueber-der-grenze\n|Art=Berg\n|Region=Kosch\n|Höhe=20.001\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel ueber-der-grenze",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel ueber-der-grenze",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                }
+            }
+        },
+        {
+            "id": "hoehe:zu-gross-durch-tausenderpunkt",
+            "titel": "Gipfel zu-gross-durch-tausenderpunkt",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel zu-gross-durch-tausenderpunkt\n|Art=Berg\n|Region=Kosch\n|Höhe=1.100.000\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel zu-gross-durch-tausenderpunkt",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel zu-gross-durch-tausenderpunkt",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                }
+            }
+        },
+        {
+            "id": "hoehe:zweimal-gelesen-komma-wird-tausenderpunkt",
+            "titel": "Gipfel zweimal-gelesen-komma-wird-tausenderpunkt",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel zweimal-gelesen-komma-wird-tausenderpunkt\n|Art=Berg\n|Region=Kosch\n|Höhe=100,123\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel zweimal-gelesen-komma-wird-tausenderpunkt",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel zweimal-gelesen-komma-wird-tausenderpunkt",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                }
+            }
+        },
+        {
+            "id": "hoehe:null",
+            "titel": "Gipfel null",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel null\n|Art=Berg\n|Region=Kosch\n|Höhe=0\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel null",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel null",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel.",
+                    "height": "0"
+                }
+            }
+        },
+        {
+            "id": "hoehe:ungefaehr-und-link",
+            "titel": "Gipfel ungefaehr-und-link",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel ungefaehr-und-link\n|Art=Berg\n|Region=Kosch\n|Höhe=ca. [[1.200]] Schritt\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel ungefaehr-und-link",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel ungefaehr-und-link",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel.",
+                    "height": "1200"
+                }
+            }
+        },
+        {
+            "id": "hoehe:kommentar-und-nachweis",
+            "titel": "Gipfel kommentar-und-nachweis",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel kommentar-und-nachweis\n|Art=Berg\n|Region=Kosch\n|Höhe=<!-- c -->1.234 Schritt<ref>x</ref>\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel kommentar-und-nachweis",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel kommentar-und-nachweis",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel.",
+                    "height": "1234"
+                }
+            }
+        },
+        {
+            "id": "hoehe:kein-wert",
+            "titel": "Gipfel kein-wert",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel kein-wert\n|Art=Berg\n|Region=Kosch\n|Höhe=unbekannt\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel kein-wert",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel kein-wert",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                }
+            }
+        },
+        {
+            "id": "hoehe:leer",
+            "titel": "Gipfel leer",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel leer\n|Art=Berg\n|Region=Kosch\n|Höhe=\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel leer",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel leer",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                }
+            }
+        },
+        {
+            "id": "hoehe:ohne-umlaut",
+            "titel": "Gipfel ohne-umlaut",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel ohne-umlaut\n|Art=Berg\n|Region=Kosch\n|Hoehe=900\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel ohne-umlaut",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel ohne-umlaut",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel.",
+                    "height": "900"
+                }
+            }
+        },
+        {
+            "id": "hoehe:klein-geschrieben",
+            "titel": "Gipfel klein-geschrieben",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel klein-geschrieben\n|Art=Berg\n|Region=Kosch\n|höhe=800\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel klein-geschrieben",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel klein-geschrieben",
+                    "art": "Berggipfel",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel.",
+                    "height": "800"
+                }
+            }
+        },
+        {
+            "id": "hoehe:vulkan",
+            "titel": "Gipfel vulkan",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel vulkan\n|Art=Vulkan|Magma\n|Region=Kosch\n|Höhe=2.000 Schritt\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel vulkan",
+                    "art": "Vulkan",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel vulkan",
+                    "art": "Vulkan",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel.",
+                    "height": "2000"
+                }
+            }
+        },
+        {
+            "id": "hoehe:gebirge-mit-hoehe-landschaft-liest-sie-nicht",
+            "titel": "Gipfel gebirge-mit-hoehe-landschaft-liest-sie-nicht",
+            "ns": 0,
+            "text": "{{Infobox Region\n|Name=Gipfel gebirge-mit-hoehe-landschaft-liest-sie-nicht\n|Art=Gebirge\n|Region=Kosch\n|Höhe=3.500 Schritt\n}}\nEin Gipfel.",
+            "legacyArt": "region",
+            "erwartet": {
+                "region": {
+                    "name": "Gipfel gebirge-mit-hoehe-landschaft-liest-sie-nicht",
+                    "art": "Gebirge",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel."
+                },
+                "gipfel": {
+                    "name": "Gipfel gebirge-mit-hoehe-landschaft-liest-sie-nicht",
+                    "art": "Gebirge",
+                    "region_parent": "Kosch",
+                    "description": "Ein Gipfel.",
+                    "height": "3500"
+                }
+            }
+        }
+    ]
+}

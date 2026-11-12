@@ -1,0 +1,5 @@
+#!/bin/sh
+# Commit-Wächter (WI-0185): verweigert einen Commit, der eine Datei mit einem Stand ändert, den andere auf origin/master
+# schon geändert haben. Regel und Ausnahmen: scripts/git-hooks/commit-waechter.ts. Ohne Node läuft der Commit ungeprüft durch.
+command -v node >/dev/null 2>&1 || exit 0
+exec node "$(dirname "$0")/commit-waechter-cli.ts"
